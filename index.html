@@ -310,12 +310,23 @@
         function closeModal() { document.getElementById('playlist-modal').classList.add('hidden'); }
         function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function renderHistory() {
-            document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
-                <div class="flex items-center gap-3 opacity-80 hover:opacity-100 transition">
-                    <img src="${h.cover}" class="w-10 h-10 rounded">
-                    <div class="truncate"><div class="text-sm font-bold truncate">${h.albumName}</div><div class="text-xs text-zinc-500 truncate">${h.artist}</div></div>
-                </div>`).join('');
-        }
+    document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
+        <div class="flex items-center gap-3 opacity-80 hover:opacity-100 transition cursor-pointer" 
+             onclick="openAlbumFromSidebar('${h.albumName}')"> 
+            <img src="${h.cover}" class="w-10 h-10 rounded">
+            <div class="truncate">
+                <div class="text-sm font-bold truncate">${h.albumName}</div>
+                <div class="text-xs text-zinc-500">${h.artist}</div>
+            </div>
+        </div>`).join('');
+}
+        function openAlbumFromSidebar(albumName) {
+    // Look through your main albums array to find the full data object
+    const album = albums.find(a => a.albumName === albumName);
+    if (album) {
+        showAlbum(album); // This triggers your existing logic to open the album view
+    }
+}
 
         window.oncontextmenu = function(e) {
             const trackRow = e.target.closest('.track-row');
