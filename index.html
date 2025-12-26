@@ -13,25 +13,18 @@
         .sidebar { background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; min-width: 200px; max-width: 600px; position: relative; }
         #left-panel { width: 300px; }
         #right-sidebar { width: 300px; transition: opacity 0.5s ease; }
+        .sidebar-hidden { width: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; }
 
-        /* Custom Dropdown Styling (Sleek & Seamless) */
-        .sort-menu {
-            position: absolute; background: #282828; border-radius: 4px; padding: 4px;
-            box-shadow: 0 16px 24px rgba(0,0,0,0.5); z-index: 1000; display: none; min-width: 160px;
-        }
-        .sort-item {
-            padding: 10px 12px; font-size: 14px; color: #b3b3b3; cursor: pointer; border-radius: 2px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        /* Sort & UI Elements */
+        .sort-menu { position: absolute; background: #282828; border-radius: 4px; padding: 4px; box-shadow: 0 16px 24px rgba(0,0,0,0.5); z-index: 1000; display: none; min-width: 160px; }
+        .sort-item { padding: 10px 12px; font-size: 14px; color: #b3b3b3; cursor: pointer; border-radius: 2px; display: flex; justify-content: space-between; align-items: center; }
         .sort-item:hover { background: rgba(255,255,255,0.1); color: white; }
-        .sort-item.active { color: #1db954; }
 
         /* Metadata Table */
-        .track-grid { display: grid; grid-template-columns: 50px 4fr 3fr 2fr 80px; gap: 16px; padding: 8px 16px; align-items: center; border-radius: 4px; transition: 0.2s; }
+        .track-grid { display: grid; grid-template-columns: 50px 4fr 3fr 2fr 80px; gap: 16px; padding: 8px 16px; align-items: center; border-radius: 4px; }
         .track-grid:hover:not(.track-header) { background: rgba(255,255,255,0.1); }
-        .track-header { border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; color: #b3b3b3; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .track-header { border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; color: #b3b3b3; font-size: 11px; text-transform: uppercase; }
 
-        /* Resizers */
         .resizer { width: 6px; position: absolute; top: 0; bottom: 0; z-index: 50; cursor: grab; }
         #resizer-l { right: 0; }
         #resizer-r { left: 0; }
@@ -39,7 +32,12 @@
         .main-view { flex: 1; background: linear-gradient(to bottom, #1a1a1a, #000); overflow-y: auto; padding: 24px; }
         .player-bar { height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; border-top: 1px solid #282828; }
         .shuffle-active { color: #1db954 !important; }
-        #volume-bar { width: 80px; height: 3px; accent-color: #1db954; }
+        
+        /* Album Card Shuffle Badge */
+        .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; position: relative; }
+        .album-card:hover { background: #282828; }
+        .shuffle-badge { position: absolute; bottom: 85px; right: 25px; width: 40px; height: 40px; background: #1db954; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; box-shadow: 0 8px 16px rgba(0,0,0,0.3); }
+        .album-card:hover .shuffle-badge { opacity: 1; transform: translateY(-5px); }
     </style>
 </head>
 <body>
@@ -47,33 +45,33 @@
     <div class="app-container">
         <aside class="sidebar border-r border-zinc-800" id="left-panel">
             <div class="flex items-center justify-between mb-4">
-                <span class="text-zinc-400 font-bold text-xs uppercase tracking-widest">Library</span>
-                <button onclick="toggleSortMenu(event, 'library-sort')" class="text-zinc-400 hover:text-white transition"><i class="fas fa-list"></i></button>
+                <span class="text-zinc-400 font-bold text-[11px] uppercase tracking-widest">Your Library</span>
+                <button onclick="toggleSortMenu(event, 'library-sort')" class="text-zinc-400 hover:text-white"><i class="fas fa-list"></i></button>
             </div>
             
             <div id="library-sort" class="sort-menu">
-                <div class="px-3 py-2 text-[11px] font-bold text-zinc-500 uppercase">Sort by</div>
-                <div class="sort-item active" onclick="sortLibrary('recent')">Recents <i class="fas fa-check text-[10px]"></i></div>
+                <div class="sort-item active" onclick="sortLibrary('recent')">Recents</div>
                 <div class="sort-item" onclick="sortLibrary('az')">Alphabetical</div>
-                <div class="sort-item" onclick="sortLibrary('creator')">Creator</div>
             </div>
 
+            <div id="playlist-list" class="mb-6 space-y-2"></div>
+            <div class="text-zinc-400 font-bold text-[11px] uppercase tracking-widest mb-4">Recently Listened</div>
             <div id="recent-list" class="space-y-4"></div>
+            
             <div class="resizer" id="resizer-l"></div>
         </aside>
 
-        <main class="main-view">
+        <main class="main-view" id="main-content">
             <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold text-sm"><i class="fas fa-chevron-left mr-2"></i> Back</button>
             <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
             
             <div id="track-list" class="hidden">
                 <div id="album-header-container" class="flex items-end gap-8 mb-10"></div>
-                
                 <div class="track-grid track-header">
                     <span>#</span>
-                    <span class="cursor-pointer hover:text-white" onclick="sortTracks('title')">Title</span>
-                    <span class="cursor-pointer hover:text-white" onclick="sortTracks('album')">Album</span>
-                    <span class="cursor-pointer hover:text-white" onclick="sortTracks('date')">Date Added</span>
+                    <span class="cursor-pointer hover:text-white">Title</span>
+                    <span class="cursor-pointer hover:text-white">Album</span>
+                    <span class="cursor-pointer hover:text-white">Date Added</span>
                     <span><i class="far fa-clock"></i></span>
                 </div>
                 <div id="songs-container"></div>
@@ -98,7 +96,7 @@
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6">
                 <i id="shuffle-btn" class="fas fa-shuffle control-btn text-sm cursor-pointer" onclick="toggleShuffle()"></i>
-                <i class="fas fa-step-backward control-btn" onclick="playPrevious()"></i>
+                <i class="fas fa-step-backward control-btn"></i>
                 <i id="master-play" class="fas fa-play-circle text-3xl control-btn" onclick="togglePlay()"></i>
                 <i class="fas fa-step-forward control-btn" onclick="playNext()"></i>
             </div>
@@ -118,55 +116,89 @@
 
     <script>
         let albums = [];
-        let currentAlbumSongs = [];
+        let currentQueue = [];
         let currentIndex = -1;
         let isShuffle = false;
+        
+        // Critical Data Persistence
+        let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || { "My Playlist #1": [] };
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
 
+        const player = document.getElementById('audioPlayer');
+
         async function init() {
-            const res = await fetch('/api/get-songs');
-            albums = await res.json();
-            showGrid();
-            renderHistory();
-            initResizers();
-            window.addEventListener('click', () => { // Close menus on outside click
-                document.querySelectorAll('.sort-menu').forEach(m => m.style.display = 'none');
-            });
+            try {
+                const res = await fetch('/api/get-songs');
+                albums = await res.json();
+                renderLibrary(); // Ensures Playlists and Recents appear immediately
+                showGrid();
+                initResizers();
+            } catch (err) { console.error("Initialization failed:", err); }
         }
 
-        // 1. Sort Menus Logic
-        function toggleSortMenu(e, id) {
-            e.stopPropagation();
-            const menu = document.getElementById(id);
-            const isVisible = menu.style.display === 'block';
-            document.querySelectorAll('.sort-menu').forEach(m => m.style.display = 'none');
-            menu.style.display = isVisible ? 'none' : 'block';
-            menu.style.top = (e.clientY + 10) + 'px';
-            menu.style.left = (e.clientX - 140) + 'px';
+        // 1. Library Rendering (Non-negotiable)
+        function renderLibrary() {
+            // Render Playlists
+            const pList = document.getElementById('playlist-list');
+            pList.innerHTML = Object.keys(playlists).map(name => `
+                <div class="flex items-center gap-3 p-2 hover:bg-zinc-900 rounded-md cursor-pointer group">
+                    <div class="w-10 h-10 bg-zinc-800 flex items-center justify-center rounded">
+                        <i class="fas fa-music text-zinc-500"></i>
+                    </div>
+                    <div class="truncate">
+                        <div class="font-bold text-sm text-white">${name}</div>
+                        <div class="text-xs text-zinc-400">Playlist • ${playlists[name].length} songs</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render History with scaling
+            const panelWidth = document.getElementById('left-panel').offsetWidth;
+            const imgSize = Math.max(40, Math.min(panelWidth / 5, 80));
+            document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="openAlbumByName('${h.albumName}')">
+                    <img src="${h.cover}" class="rounded" style="width:${imgSize}px; height:${imgSize}px">
+                    <div class="truncate">
+                        <div class="font-bold truncate text-white text-sm group-hover:underline">${h.albumName}</div>
+                        <div class="text-xs text-zinc-500">${h.artist}</div>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function sortLibrary(criteria) {
-            if (criteria === 'az') {
-                recentHistory.sort((a, b) => a.albumName.localeCompare(b.albumName));
-            } else if (criteria === 'recent') {
-                recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
-            }
-            renderHistory();
+        // 2. Playback Logic Fix
+        async function playSong(index) {
+            if (!currentQueue[index]) return;
+            currentIndex = index;
+            const song = currentQueue[currentIndex];
+            const album = albums.find(a => a.songs.some(s => s.link === song.link));
+
+            player.src = song.link;
+            try {
+                await player.play();
+                updateDockUI(song, album);
+                addToHistory(song, album);
+            } catch (e) { console.error("Playback blocked/failed:", e); }
         }
 
-        function sortTracks(criteria) {
-            if (criteria === 'title') {
-                currentAlbumSongs.sort((a, b) => a.name.localeCompare(b.name));
-            } else if (criteria === 'album') {
-                // Since this is an album view, it stays same, but useful for playlists
-            }
-            renderTracks();
+        function updateDockUI(song, album) {
+            document.getElementById('now-playing').innerText = song.name.replace('.mp3','');
+            document.getElementById('now-artist').innerText = album.artistName;
+            document.getElementById('mini-cover').style.backgroundImage = `url(${album.coverArt})`;
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+            
+            // Artist Spotlight (Right Sidebar)
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+            document.getElementById('artist-spotlight').innerHTML = `
+                <img src="${album.coverArt}" class="w-full aspect-square rounded-xl mb-6 shadow-2xl">
+                <h4 class="text-2xl font-black text-white">${album.artistName}</h4>
+                <p class="text-zinc-400 mt-2">Playing: ${song.name.replace('.mp3','')}</p>
+            `;
         }
 
-        // 2. Metadata Rendering
         function showTracks(index) {
             const album = albums[index];
-            currentAlbumSongs = [...album.songs]; // Clone for sorting
+            currentQueue = [...album.songs];
             document.getElementById('album-grid').classList.add('hidden');
             document.getElementById('track-list').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
@@ -177,78 +209,79 @@
                     <h1 class="text-6xl font-black">${album.albumName}</h1>
                     <p class="mt-4 text-zinc-400 font-bold">${album.artistName} • ${album.songs.length} songs</p>
                 </div>`;
-            renderTracks(album);
-        }
 
-        function renderTracks(album = null) {
-            const currentAlbum = album || albums.find(a => a.songs.includes(currentAlbumSongs[0]));
-            document.getElementById('songs-container').innerHTML = currentAlbumSongs.map((s, idx) => `
+            document.getElementById('songs-container').innerHTML = album.songs.map((s, idx) => `
                 <div class="track-grid group" onclick="playSong(${idx})">
                     <span class="text-zinc-500 group-hover:text-white">${idx + 1}</span>
-                    <div class="flex flex-col">
+                    <div class="flex flex-col truncate">
                         <span class="text-white font-medium truncate">${s.name.replace('.mp3','')}</span>
-                        <span class="text-xs text-zinc-400">${currentAlbum.artistName}</span>
+                        <span class="text-xs text-zinc-400">${album.artistName}</span>
                     </div>
-                    <span class="text-zinc-400 text-sm truncate">${currentAlbum.albumName}</span>
+                    <span class="text-zinc-400 text-sm truncate">${album.albumName}</span>
                     <span class="text-zinc-400 text-sm">4 weeks ago</span>
-                    <span class="text-zinc-400 text-sm">3:23</span>
+                    <span class="text-zinc-400 text-sm">3:45</span>
                 </div>`).join('');
         }
 
-        // Shuffle & Audio Logic (Keeping current functionality)
-        function toggleShuffle() {
-            isShuffle = !isShuffle;
-            document.getElementById('shuffle-btn').classList.toggle('shuffle-active', isShuffle);
-        }
-
-        function playNext() {
-            currentIndex = isShuffle ? Math.floor(Math.random() * currentAlbumSongs.length) : (currentIndex + 1) % currentAlbumSongs.length;
-            playSong(currentIndex);
-        }
-
-        async function playSong(index) {
-            currentIndex = index;
-            const s = currentAlbumSongs[currentIndex];
-            const album = albums.find(a => a.songs.includes(s));
-            document.getElementById('audioPlayer').src = s.link;
-            document.getElementById('audioPlayer').play();
-            updateDock(s, album);
-        }
-
-        function updateDock(s, album) {
-            document.getElementById('now-playing').innerText = s.name.replace('.mp3','');
-            document.getElementById('now-artist').innerText = album.artistName;
-            document.getElementById('mini-cover').style.backgroundImage = `url(${album.coverArt})`;
-        }
-
         function showGrid() {
+            const grid = document.getElementById('album-grid');
+            grid.innerHTML = albums.map((a, i) => `
+                <div class="album-card" onclick="showTracks(${i})">
+                    <img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4">
+                    <div class="shuffle-badge" onclick="event.stopPropagation(); shuffleAndPlay(${i})">
+                        <i class="fas fa-play text-black text-xs"></i>
+                    </div>
+                    <div class="font-bold truncate text-sm">${a.albumName}</div>
+                </div>`).join('');
             document.getElementById('album-grid').classList.remove('hidden');
             document.getElementById('track-list').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
         }
 
-        function renderHistory() {
-            const panelWidth = document.getElementById('left-panel').offsetWidth;
-            const imgSize = Math.max(48, Math.min(panelWidth / 4, 120));
-            document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
-                <div class="flex items-center gap-3 cursor-pointer group">
-                    <img src="${h.cover}" class="rounded shadow-lg object-cover" style="width:${imgSize}px; height:${imgSize}px">
-                    <div class="truncate">
-                        <div class="font-bold truncate text-white group-hover:underline text-sm">${h.albumName}</div>
-                        <div class="text-xs text-zinc-500">${h.artist}</div>
-                    </div>
-                </div>`).join('');
+        function addToHistory(song, album) {
+            recentHistory = [{ 
+                albumName: album.albumName, 
+                artist: album.artistName, 
+                cover: album.coverArt 
+            }, ...recentHistory.filter(h => h.albumName !== album.albumName)].slice(0, 10);
+            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
+            renderLibrary();
+        }
+
+        // Global Event Listeners
+        function togglePlay() { player.paused ? player.play() : player.pause(); }
+        function toggleShuffle() { 
+            isShuffle = !isShuffle; 
+            document.getElementById('shuffle-btn').classList.toggle('shuffle-active', isShuffle); 
+        }
+        function playNext() {
+            let next = isShuffle ? Math.floor(Math.random() * currentQueue.length) : (currentIndex + 1) % currentQueue.length;
+            playSong(next);
+        }
+
+        function toggleSortMenu(e, id) {
+            e.stopPropagation();
+            const menu = document.getElementById(id);
+            const isVisible = menu.style.display === 'block';
+            document.querySelectorAll('.sort-menu').forEach(m => m.style.display = 'none');
+            menu.style.display = isVisible ? 'none' : 'block';
+            menu.style.top = (e.clientY + 10) + 'px';
+            menu.style.left = (e.clientX - 100) + 'px';
         }
 
         function initResizers() {
             const left = document.getElementById('left-panel');
             const resizerL = document.getElementById('resizer-l');
-            resizerL.onmousedown = (e) => {
-                document.onmousemove = (e) => { left.style.width = e.clientX + 'px'; renderHistory(); };
+            resizerL.onmousedown = () => {
+                document.onmousemove = (e) => { 
+                    left.style.width = e.clientX + 'px'; 
+                    renderLibrary(); 
+                };
                 document.onmouseup = () => document.onmousemove = null;
             };
         }
 
+        window.onclick = () => document.querySelectorAll('.sort-menu').forEach(m => m.style.display = 'none');
         window.onload = init;
     </script>
 </body>
