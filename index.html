@@ -12,13 +12,15 @@
         .album-card:hover { background: #282828; transform: translateY(-5px); }
         .album-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
         .player-bar { height: 90px; background: #000; display: flex; align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100; }
+        .track-row { transition: background 0.2s; border-radius: 4px; }
         .track-row:hover { background: rgba(255,255,255,0.1); }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="flex-1 overflow-hidden flex flex-col">
         <div id="content-area" class="main-view">
-            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 flex items-center gap-2 opacity-70 hover:opacity-100 font-bold">
+            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 flex items-center gap-2 opacity-70 hover:opacity-100 font-bold text-white">
                 <i class="fas fa-chevron-left"></i> Back to Albums
             </button>
 
@@ -32,13 +34,13 @@
                 <div class="flex flex-col md:flex-row gap-8 mb-8">
                     <img id="detail-cover" class="w-64 h-64 shadow-2xl rounded" src="">
                     <div class="flex flex-col justify-end">
-                        <span class="text-sm font-bold uppercase">Album</span>
+                        <span class="text-sm font-bold uppercase text-gray-400">Album</span>
                         <h2 id="detail-album-name" class="text-6xl font-bold mb-2"></h2>
-                        <p id="detail-artist-name" class="text-xl opacity-80"></p>
+                        <p id="detail-artist-name" class="text-xl opacity-80 text-gray-300"></p>
                     </div>
                 </div>
                 <div class="w-full border-b border-gray-800 mb-4"></div>
-                <div id="songs-container"></div>
+                <div id="songs-container" class="space-y-1"></div>
             </div>
         </div>
     </div>
@@ -47,11 +49,11 @@
         <div class="w-1/3 flex items-center gap-4">
             <img id="now-playing-cover" class="w-14 h-14 rounded shadow-lg" src="https://via.placeholder.com/150?text=None">
             <div class="overflow-hidden">
-                <div id="now-playing-title" class="font-bold text-sm truncate">Select an album</div>
+                <div id="now-playing-title" class="font-bold text-sm truncate">Select a song</div>
                 <div id="now-playing-artist" class="text-xs opacity-70 truncate text-gray-400">Artist</div>
             </div>
         </div>
-        <div class="w-1/3 flex justify-center">
+        <div class="w-1/3 flex flex-col items-center">
             <audio id="audioPlayer" controls class="w-full max-w-md h-8"></audio>
         </div>
         <div class="w-1/3"></div>
@@ -71,6 +73,7 @@
         }
 
         function showGrid() {
+            // UI Toggle
             document.getElementById('album-grid').classList.remove('hidden');
             document.getElementById('track-list-container').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
@@ -87,6 +90,7 @@
                     <div class="font-bold truncate text-sm text-white">${album.albumName}</div>
                     <div class="text-xs opacity-60 truncate text-gray-400">${album.artistName}</div>
                 `;
+                // FIX: This now ONLY opens the tracklist view
                 card.onclick = () => showAlbumTracks(index);
                 grid.appendChild(card);
             });
@@ -94,27 +98,32 @@
 
         function showAlbumTracks(index) {
             const album = allAlbumsData[index];
+            
+            // UI Toggle
             document.getElementById('album-grid').classList.add('hidden');
             document.getElementById('view-title').classList.add('hidden');
             document.getElementById('track-list-container').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
 
+            // Header Info
             document.getElementById('detail-cover').src = album.coverArt || '';
             document.getElementById('detail-album-name').textContent = album.albumName;
             document.getElementById('detail-artist-name').textContent = album.artistName;
 
+            // List Songs
             const container = document.getElementById('songs-container');
             container.innerHTML = '';
 
             album.songs.forEach((song, i) => {
                 const row = document.createElement('div');
-                row.className = 'track-row flex items-center p-3 rounded cursor-pointer gap-4';
+                row.className = 'track-row flex items-center p-3 cursor-pointer gap-4 group';
                 row.innerHTML = `
-                    <span class="w-8 text-center text-gray-500">${i + 1}</span>
+                    <span class="w-8 text-center text-gray-500 group-hover:text-white">${i + 1}</span>
                     <div class="flex-1">
                         <div class="text-white font-medium">${song.name}</div>
                     </div>
                 `;
+                // FIX: This is the only place where music is triggered to play
                 row.onclick = () => playSong(song, album);
                 container.appendChild(row);
             });
@@ -123,7 +132,14 @@
         function playSong(song, album) {
             const player = document.getElementById('audioPlayer');
             player.src = song.link;
-            player.play();
+            
+            // Force reset the player state so it doesn't get stuck
+            player.pause();
+            player.load();
+            
+            // Play and Update Dock
+            player.play().catch(e => console.log("User interaction required"));
+            
             document.getElementById('now-playing-title').textContent = song.name;
             document.getElementById('now-playing-artist').textContent = album.artistName;
             document.getElementById('now-playing-cover').src = album.coverArt || '';
