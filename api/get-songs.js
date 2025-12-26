@@ -25,20 +25,27 @@ export default async function handler(req, res) {
       for (const album of albums.data.files) {
         const content = await drive.files.list({
           q: `'${album.id}' in parents and trashed = false`,
-          fields: 'files(id, name, mimeType)',
+          fields: 'files(id, name, mimeType, thumbnailLink)', // Added thumbnailLink
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
-        // Find the image file (usually named cover.jpg or similar)
-        const coverFile = content.data.files.find(f => 
-          f.mimeType.includes('image') || f.name.toLowerCase().includes('cover')
-        );
+        
+        // IMPROVED IMAGE SEARCH: Look for ANY image file in the folder
+        let coverFile = content.data.files.find(f => f.mimeType.startsWith('image/'));
+        
+        // ULTIMATE FALLBACK: If no image file exists, try to use the first song's auto-generated thumbnail
+        let coverUrl = null;
+        if (coverFile) {
+          coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${coverFile.id}`;
+        } else if (songs.length > 0 && songs[0].thumbnailLink) {
+          // Use the internal Google thumbnail for the MP3 (often contains the art!)
+          coverUrl = songs[0].thumbnailLink.replace('=s220', '=s1000'); 
+        }
 
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
-          // FIX: Use Cloudflare to proxy the image too
-          coverArt: coverFile ? `https://music-streamer.jacetbaum.workers.dev/?id=${coverFile.id}` : null,
+          coverArt: coverUrl, 
           songs: songs.map(s => ({ 
             name: s.name, 
             link: `https://music-streamer.jacetbaum.workers.dev/?id=${s.id}` 
