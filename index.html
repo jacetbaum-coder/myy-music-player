@@ -111,17 +111,17 @@
     </div>
 
     <script>
-        let albums = [];
-        let playlists = {};
-        // This tells the browser: "Try to find my old history. If you can't, start with an empty list."
-let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
+let albums = [];
+        // READ Playlists from the browser notebook
+        let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
+        
+        // READ History from the browser notebook
+        let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
 
-// This makes sure the sidebar shows your songs as soon as you open the page
-window.addEventListener('DOMContentLoaded', () => {
-    if (recentHistory.length > 0) {
-        renderHistory(); 
-    }
-});
+        window.addEventListener('DOMContentLoaded', () => {
+            if (recentHistory.length > 0) renderHistory();
+            renderPlaylists(); // Make sure playlists show up immediately
+        });
         let selectedSongForMenu = null;
         let inactivityTimer;
         const ONE_HOUR = 60 * 60 * 1000;
@@ -230,13 +230,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
         function closeModal() { document.getElementById('playlist-modal').classList.add('hidden'); }
 
-        async function confirmPlaylist() {
+      async function confirmPlaylist() {
             const name = document.getElementById('modal-input').value.trim();
             if (name && !playlists[name]) {
                 playlists[name] = selectedSongForMenu ? [selectedSongForMenu] : [];
                 renderPlaylists();
                 closeModal();
-                await saveGlobalState();
+                
+                // SAVE to the browser notebook
+                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
+                
+                await saveGlobalState(); // Keeps your database in sync too
             }
         }
 
@@ -328,6 +332,10 @@ window.addEventListener('DOMContentLoaded', () => {
         async function addToPlaylist(pName) {
             if (!playlists[pName].some(s => s.link === selectedSongForMenu.link)) {
                 playlists[pName].push(selectedSongForMenu);
+                
+                // SAVE to the browser notebook
+                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
+                
                 await saveGlobalState();
             }
             hideMenu();
