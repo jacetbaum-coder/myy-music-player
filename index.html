@@ -35,7 +35,7 @@
                     <img id="detail-cover" class="w-64 h-64 shadow-2xl rounded" src="">
                     <div class="flex flex-col justify-end">
                         <span class="text-sm font-bold uppercase text-gray-400">Album</span>
-                        <h2 id="detail-album-name" class="text-6xl font-bold mb-2"></h2>
+                        <h2 id="detail-album-name" class="text-6xl font-bold mb-2 text-white"></h2>
                         <p id="detail-artist-name" class="text-xl opacity-80 text-gray-300"></p>
                     </div>
                 </div>
@@ -49,12 +49,12 @@
         <div class="w-1/3 flex items-center gap-4">
             <img id="now-playing-cover" class="w-14 h-14 rounded shadow-lg" src="https://via.placeholder.com/150?text=None">
             <div class="overflow-hidden">
-                <div id="now-playing-title" class="font-bold text-sm truncate">Select a song</div>
+                <div id="now-playing-title" class="font-bold text-sm truncate text-white">Select a song</div>
                 <div id="now-playing-artist" class="text-xs opacity-70 truncate text-gray-400">Artist</div>
             </div>
         </div>
         <div class="w-1/3 flex flex-col items-center">
-            <audio id="audioPlayer" controls class="w-full max-w-md h-8"></audio>
+            <audio id="audioPlayer" controls crossorigin="anonymous" class="w-full max-w-md h-8"></audio>
         </div>
         <div class="w-1/3"></div>
     </div>
@@ -119,39 +119,33 @@
                         <div class="text-white font-medium">${cleanName}</div>
                     </div>
                 `;
-                // Using a more robust click handler
                 row.addEventListener('click', () => playSong(song, album));
                 container.appendChild(row);
             });
         }
 
-        async function playSong(song, album) {
-            // 1. Reset Player
-            player.pause();
-            player.removeAttribute('src'); // Explicitly clear the source
-            player.load();
-
-            // 2. Set UI
+        function playSong(song, album) {
+            // Update UI
             const cleanTitle = song.name.replace(/\.[^/.]+$/, "");
             document.getElementById('now-playing-title').textContent = cleanTitle;
             document.getElementById('now-playing-artist').textContent = album.artistName;
             document.getElementById('now-playing-cover').src = album.coverArt || '';
 
-            // 3. Set Source and Force Play
-            // We use the direct webContentLink provided by the API
+            // Reset and Play
+            player.pause();
             player.src = song.link;
+            player.load(); // Force the browser to recognize the new source
             
-            try {
-                // Ensure the metadata is loaded before trying to play
-                await player.load();
-                await player.play();
-                console.log("Playing:", cleanTitle);
-            } catch (err) {
-                console.error("Playback Error:", err);
-                // Fallback: trigger play on next user interaction if blocked
-                alert("If it didn't start, please click the play button in the dock once.");
+            // Modern browsers return a promise on .play()
+            const playPromise = player.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error("Playback prevented:", error);
+                });
             }
         }
 
         window.onload = loadCollection;
     </script>
+</body>
+</html>
