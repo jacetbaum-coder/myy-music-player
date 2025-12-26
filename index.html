@@ -77,46 +77,52 @@
         }
 
         function showTracks(i) {
-            const album = albums[i];
-            const grid = document.getElementById('album-grid');
-            const list = document.getElementById('track-list');
+    const album = albums[i];
+    const list = document.getElementById('track-list');
+    
+    document.getElementById('album-grid').classList.add('hidden');
+    list.classList.remove('hidden');
+    document.getElementById('back-btn').classList.remove('hidden');
+
+    // Updated Header with Transparent Edit Button in Top Right
+    list.innerHTML = `
+        <div class="relative group mb-8 flex flex-col md:flex-row items-end gap-6 p-4">
             
-            grid.classList.add('hidden');
-            list.classList.remove('hidden');
-            document.getElementById('back-btn').classList.remove('hidden');
+            <button onclick="changeCover(${i})" 
+                class="absolute top-2 right-2 p-2 rounded-full bg-white/0 hover:bg-white/10 text-white/0 group-hover:text-white/40 transition-all duration-300 text-xs">
+                <i class="fas fa-camera"></i>
+            </button>
 
-            // NEW: Aesthetic Header with Album Art
-            list.innerHTML = `
-                <div class="flex flex-col md:flex-row items-end gap-6 mb-8">
-                    <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-48 h-48 shadow-2xl rounded">
-                    <div>
-                        <p class="text-sm font-bold uppercase tracking-wider">Album</p>
-                        <h2 class="text-6xl font-black mb-2">${album.albumName}</h2>
-                        <p class="text-lg opacity-70">${album.artistName} • ${album.songs.length} songs</p>
-                    </div>
-                </div>
-                <div id="songs-container" class="space-y-1"></div>
-            `;
+            <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-48 h-48 shadow-2xl rounded">
+            
+            <div class="flex-1">
+                <p class="text-sm font-bold uppercase tracking-wider opacity-60">Album</p>
+                <h2 class="text-6xl font-black mb-2">${album.albumName}</h2>
+                <p class="text-lg opacity-70">${album.artistName} • ${album.songs.length} songs</p>
+            </div>
+        </div>
+        <div id="songs-container" class="space-y-1"></div>
+    `;
 
-            const container = document.getElementById('songs-container');
-            album.songs.forEach(s => {
-                const row = document.createElement('div');
-                row.className = 'track-row p-3 cursor-pointer rounded flex justify-between text-zinc-300 group';
-                row.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <i class="fas fa-play text-xs opacity-0 group-hover:opacity-100 text-green-500"></i>
-                        <span>${s.name.replace('.mp3', '')}</span>
-                    </div>
-                `;
-                row.onclick = () => {
-                    player.src = s.link;
-                    player.play();
-                    document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
-                    document.getElementById('now-artist').innerText = album.artistName;
-                };
-                container.appendChild(row);
-            });
-        }
+    const container = document.getElementById('songs-container');
+    album.songs.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'track-row p-3 cursor-pointer rounded flex justify-between text-zinc-300 group hover:bg-white/5';
+        row.innerHTML = `
+            <div class="flex items-center gap-4">
+                <i class="fas fa-play text-xs opacity-0 group-hover:opacity-100 text-green-500"></i>
+                <span>${s.name.replace('.mp3', '')}</span>
+            </div>
+        `;
+        row.onclick = () => {
+            player.src = s.link;
+            player.play();
+            document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
+            document.getElementById('now-artist').innerText = album.artistName;
+        };
+        container.appendChild(row);
+    });
+}
 
         init();
     </script>
