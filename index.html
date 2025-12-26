@@ -248,18 +248,94 @@ let albums = [];
             }
         }
 
-        function renderPlaylists() {
+function renderPlaylists() {
             const container = document.getElementById('playlist-list');
-            container.innerHTML = Object.keys(playlists).map(name => `
-                <div class="flex items-center gap-3 p-2 hover:bg-zinc-900 rounded cursor-pointer">
-                    <div class="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center">
-                        <i class="fas fa-music text-zinc-500 text-[10px]"></i>
+            container.innerHTML = '';
+
+            Object.keys(playlists).forEach(pName => {
+                const songs = playlists[pName];
+                let coverHTML = '';
+
+                // Logic for Dynamic Covers
+                if (songs.length >= 4) {
+                    // 4-way grid for 4+ songs
+                    coverHTML = `
+                        <div class="grid grid-cols-2 w-10 h-10 rounded overflow-hidden mr-3">
+                            <img src="${songs[0].cover}" class="w-full h-full object-cover">
+                            <img src="${songs[1].cover}" class="w-full h-full object-cover">
+                            <img src="${songs[2].cover}" class="w-full h-full object-cover">
+                            <img src="${songs[3].cover}" class="w-full h-full object-cover">
+                        </div>`;
+                } else if (songs.length > 0) {
+                    // Single cover if 1-3 songs
+                    coverHTML = `<img src="${songs[0].cover}" class="w-10 h-10 rounded mr-3 object-cover">`;
+                } else {
+                    // Default icon if empty
+                    coverHTML = `
+                        <div class="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center mr-3">
+                            <i class="fas fa-music text-zinc-500"></i>
+                        </div>`;
+                }
+
+                const div = document.createElement('div');
+                div.className = "flex items-center p-2 rounded hover:bg-zinc-800 cursor-pointer group";
+                
+                // This makes the playlist clickable!
+                div.onclick = () => showPlaylist(pName);
+
+                div.innerHTML = `
+                    ${coverHTML}
+                    <div class="truncate">
+                        <div class="text-sm font-bold text-white">${pName}</div>
+                        <div class="text-xs text-zinc-400">Playlist • ${songs.length} songs</div>
                     </div>
-                    <span class="text-sm font-medium truncate">${name}</span>
-                </div>
-            `).join('');
+                `;
+                container.appendChild(div);
+            });
         }
 
+        function showPlaylist(pName) {
+            const songs = playlists[pName];
+            const contentArea = document.getElementById('album-grid');
+            const trackList = document.getElementById('track-list');
+            const headerContainer = document.getElementById('album-header-container');
+            const songsContainer = document.getElementById('songs-container');
+
+            contentArea.classList.add('hidden');
+            trackList.classList.remove('hidden');
+            document.getElementById('back-btn').classList.remove('hidden');
+
+            // Set the Header (Playlist Name and Count)
+            headerContainer.innerHTML = `
+                <div class="flex items-end gap-6 mb-8">
+                    <div class="w-48 h-48 shadow-2xl bg-zinc-800 flex items-center justify-center">
+                        <i class="fas fa-music text-4xl text-zinc-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase">Playlist</p>
+                        <h1 class="text-5xl font-black mt-2 mb-4">${pName}</h1>
+                        <p class="text-sm text-zinc-400">${songs.length} songs</p>
+                    </div>
+                </div>
+            `;
+
+            // List the songs
+            songsContainer.innerHTML = '';
+            songs.forEach((s, idx) => {
+                const row = document.createElement('div');
+                row.className = "track-row p-3 cursor-pointer rounded-md flex items-center gap-4 text-zinc-400 group hover:bg-white/10";
+                row.onclick = () => playSong(s.link, s.name, s.artistName, s.coverArt, pName);
+                row.innerHTML = `
+                    <span class="w-6 text-right text-zinc-500 text-sm font-medium">${idx + 1}</span>
+                    <img src="${s.cover}" class="w-10 h-10 rounded">
+                    <div class="flex-1">
+                        <div class="text-white font-medium">${s.name}</div>
+                        <div class="text-sm">${s.artistName}</div>
+                    </div>
+                `;
+                songsContainer.appendChild(row);
+            });
+        }
         // --- CORE FUNCTIONALITY ---
         function showGrid() {
             const grid = document.getElementById('album-grid');
@@ -334,16 +410,14 @@ let albums = [];
         };
 
         async function addToPlaylist(pName) {
-            if (!playlists[pName].some(s => s.link === selectedSongForMenu.link)) {
-                playlists[pName].push(selectedSongForMenu);
-                
-                // SAVE to the browser notebook
-                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
-                
-                await saveGlobalState();
-            }
-            hideMenu();
-        }
+    if (!playlists[pName].some(s => s.link === selectedSongForMenu.link)) {
+        playlists[pName].push(selectedSongForMenu);
+        renderPlaylists(); // <--- ADD THIS so the song count and covers update immediately
+        localStorage.setItem('userPlaylists', JSON.stringify(playlists));
+        await saveGlobalState();
+    }
+    hideMenu();
+}
 
         function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
 
