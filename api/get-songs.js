@@ -32,26 +32,24 @@ export default async function handler(req, res) {
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
         const coverFile = content.data.files.find(f => f.name.toLowerCase().includes('cover'));
 
-        // THE FIX: We use the ID to create a "Direct Link" that bypasses the preview block
         let highResCover = null;
         if (coverFile) {
           highResCover = `https://lh3.googleusercontent.com/u/0/d/${coverFile.id}=s1000`;
-        } else if (songs[0] && songs[0].thumbnailLink) {
-          // Fallback to song metadata if no cover file found
-          const id = songs[0].id;
-          highResCover = `https://lh3.googleusercontent.com/u/0/d/${id}=s1000`;
         }
 
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
           coverArt: highResCover,
-          songs: songs.map(s => ({ name: s.name, link: s.webContentLink }))
+          songs: songs.map(s => ({ 
+            name: s.name, 
+            // THE FIX: Using the uc?id= format is more reliable for streaming audio
+            link: `https://docs.google.com/uc?export=open&id=${s.id}` 
+          }))
         });
       }
     }
 
-    allAlbums.sort((a, b) => a.artistName.localeCompare(b.artistName));
     res.status(200).json(allAlbums);
   } catch (error) {
     res.status(500).json({ error: error.message });
