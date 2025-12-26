@@ -8,25 +8,44 @@
     <style>
         body { background: #000; color: white; font-family: 'Circular', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .app-container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Sidebar Styles */
         .sidebar { width: 300px; background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
+        
+        /* Artist Spotlight Transition */
         #right-sidebar { transition: width 0.5s ease, opacity 0.5s ease; width: 300px; }
         .sidebar-hidden { width: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; }
-        .main-view { flex: 1; background: linear-gradient(to bottom, #121212, #000); overflow-y: auto; padding: 24px; }
+        
+        /* Main Content */
+        .main-view { flex: 1; background: linear-gradient(to bottom, #1a1a1a, #000); overflow-y: auto; padding: 24px; }
         .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; }
         .album-card:hover { background: #282828; }
-        .player-bar { height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100; transition: transform 0.6s ease; }
+        
+        /* Spotify-style Player Bar */
+        .player-bar { 
+            height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; 
+            align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease;
+        }
         .dock-hidden { transform: translateY(100%); opacity: 0; }
-        input[type="range"] { flex: 1; appearance: none; height: 4px; background: #4d4d4d; border-radius: 2px; cursor: pointer; background-image: linear-gradient(#1db954, #1db954); background-size: 0% 100%; background-repeat: no-repeat; }
+
+        /* Progress Bar Styling */
+        input[type="range"] { 
+            flex: 1; appearance: none; height: 4px; background: #4d4d4d; border-radius: 2px; cursor: pointer;
+            background-image: linear-gradient(#1db954, #1db954); background-size: 0% 100%; background-repeat: no-repeat;
+        }
         .control-btn { color: #b3b3b3; transition: 0.2s; cursor: pointer; }
         .control-btn:hover { color: white; }
     </style>
 </head>
-<body>
+<body onclick="hideMenu()">
 
     <div class="app-container">
         <aside class="sidebar border-r border-zinc-800">
             <div class="mb-8">
-                <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest flex justify-between items-center">Your Library</h3>
+                <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest flex justify-between items-center">
+                    Your Library
+                </h3>
                 <div id="playlist-list" class="space-y-2"></div>
             </div>
             <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">Recently Listened</h3>
@@ -34,7 +53,9 @@
         </aside>
 
         <main class="main-view">
-            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold text-sm"><i class="fas fa-chevron-left mr-2"></i> Back</button>
+            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold text-sm">
+                <i class="fas fa-chevron-left mr-2"></i> Back
+            </button>
             <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
             <div id="track-list" class="hidden">
                 <div id="album-header-container"></div>
@@ -56,11 +77,12 @@
                 <div id="now-artist" class="text-[11px] text-zinc-400 truncate"></div>
             </div>
         </div>
+
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6">
-                <i class="fas fa-step-backward control-btn" onclick="prevSong()"></i>
+                <i class="fas fa-step-backward control-btn"></i>
                 <i id="master-play" class="fas fa-play-circle text-3xl control-btn" onclick="togglePlay()"></i>
-                <i class="fas fa-step-forward control-btn" onclick="nextSong()"></i>
+                <i class="fas fa-step-forward control-btn"></i>
             </div>
             <div class="w-full flex items-center gap-2 text-[11px] text-zinc-400">
                 <span id="current-time">0:00</span>
@@ -68,19 +90,21 @@
                 <span id="total-time">0:00</span>
             </div>
         </div>
+
         <div class="flex justify-end items-center gap-3">
             <i class="fas fa-volume-up text-zinc-400 text-xs"></i>
             <input type="range" id="volume-bar" class="w-24" value="80" oninput="changeVolume()">
         </div>
     </div>
 
-    <audio id="audioPlayer"></audio>
+    <audio id="audioPlayer" crossorigin="anonymous"></audio>
 
     <script>
         let albums = [];
         let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
         let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
+        let inactivityTimer;
         const ONE_HOUR = 60 * 60 * 1000;
 
         const player = document.getElementById('audioPlayer');
@@ -91,24 +115,19 @@
 
         async function init() {
             try {
-                // Fetching your actual JSON data from your Vercel/API
                 const res = await fetch('/api/get-songs');
                 albums = await res.json();
-                
                 renderPlaylists();
                 renderHistory();
                 showGrid();
-                checkSession();
-            } catch (err) { console.error("Load failed", err); }
-        }
-
-        // Check if a song was played in the last hour to show dock
-        function checkSession() {
-            const now = Date.now();
-            if (recentHistory.length > 0 && (now - lastPlayedTime < ONE_HOUR)) {
-                const last = recentHistory[0];
-                updateNowPlayingUI(last.songName || "Resume", last.artist, last.cover);
-            }
+                
+                // RESTORE SESSION: Show dock if played within last hour
+                const now = Date.now();
+                if (recentHistory.length > 0 && (now - lastPlayedTime < ONE_HOUR)) {
+                    const last = recentHistory[0];
+                    updateNowPlayingUI(last.songName, last.artist, last.cover);
+                }
+            } catch (err) { console.error(err); }
         }
 
         function showGrid() {
@@ -117,22 +136,15 @@
             document.getElementById('track-list').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
             grid.classList.remove('hidden');
-
             albums.forEach((a, i) => {
                 const div = document.createElement('div');
                 div.className = 'album-card';
                 div.innerHTML = `<img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4">
-                                 <div class="font-bold truncate text-sm">${a.albumName}</div>
+                                 <div class="font-bold truncate text-sm text-white">${a.albumName}</div>
                                  <div class="text-xs text-zinc-500 truncate">${a.artistName}</div>`;
                 div.onclick = () => showTracks(i);
                 grid.appendChild(div);
             });
-        }
-
-        // FIXED: Clickable logic for Sidebar
-        function openAlbumByName(name) {
-            const index = albums.findIndex(a => a.albumName === name);
-            if (index !== -1) showTracks(index);
         }
 
         function showTracks(index) {
@@ -144,66 +156,98 @@
 
             document.getElementById('album-header-container').innerHTML = `
                 <div class="flex items-end gap-6 mb-8">
-                    <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl">
-                    <div><h1 class="text-5xl font-black">${album.albumName}</h1><p class="mt-4 font-bold">${album.artistName}</p></div>
+                    <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
+                    <div><h1 class="text-5xl font-black text-white">${album.albumName}</h1><p class="mt-4 font-bold text-zinc-400">${album.artistName}</p></div>
                 </div>`;
 
             const container = document.getElementById('songs-container');
             container.innerHTML = album.songs.map((s, idx) => `
                 <div class="p-3 hover:bg-white/10 rounded-md cursor-pointer flex items-center gap-4 text-zinc-400 group" 
                      onclick="playSong('${s.link}', '${s.name.replace('.mp3','')}', '${album.artistName}', '${album.coverArt}', '${album.albumName}')">
-                    <span class="w-4">${idx + 1}</span>
-                    <span class="text-white flex-1">${s.name.replace('.mp3','')}</span>
+                    <span class="w-4 text-sm">${idx + 1}</span>
+                    <span class="text-white flex-1 font-medium">${s.name.replace('.mp3','')}</span>
                 </div>`).join('');
+        }
+
+        // Sidebar Navigation Fix
+        function openAlbumByName(name) {
+            const idx = albums.findIndex(a => a.albumName === name);
+            if (idx !== -1) showTracks(idx);
         }
 
         function renderHistory() {
             const container = document.getElementById('recent-list');
-            container.innerHTML = recentHistory.map(h => `
-                <div class="flex items-center gap-3 cursor-pointer group" onclick="openAlbumByName('${h.albumName.replace(/'/g, "\\'")}')">
+            container.innerHTML = recentHistory.map(h => {
+                const safeName = h.albumName.replace(/'/g, "\\'");
+                return `
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="openAlbumByName('${safeName}')">
                     <img src="${h.cover}" class="w-12 h-12 rounded object-cover">
-                    <div class="truncate"><div class="text-sm font-bold truncate">${h.albumName}</div><div class="text-[11px] text-zinc-500">${h.artist}</div></div>
-                </div>`).join('');
+                    <div class="truncate">
+                        <div class="text-sm font-bold truncate text-white group-hover:underline">${h.albumName}</div>
+                        <div class="text-[11px] text-zinc-500">${h.artist}</div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
-        function renderPlaylists() {
-            const container = document.getElementById('playlist-list');
-            container.innerHTML = Object.keys(playlists).map(p => `
-                <div class="p-2 hover:bg-zinc-800 rounded cursor-pointer text-sm font-medium text-zinc-400 hover:text-white" onclick="alert('Loading playlist...')">${p}</div>
-            `).join('');
-        }
+        async function playSong(link, title, artist, cover, albumName) {
+            try {
+                player.pause();
+                player.src = link;
+                player.load(); // Proper buffering
+                
+                updateNowPlayingUI(title, artist, cover);
+                
+                lastPlayedTime = Date.now();
+                localStorage.setItem('lastPlayedTime', lastPlayedTime);
 
-        function playSong(link, title, artist, cover, albumName) {
-            player.src = link;
-            player.play();
-            updateNowPlayingUI(title, artist, cover);
-            
-            lastPlayedTime = Date.now();
-            localStorage.setItem('lastPlayedTime', lastPlayedTime);
+                recentHistory = [{ songName: title, artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
+                localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
+                renderHistory();
 
-            recentHistory = [{ songName: title, artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
-            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
-            renderHistory();
+                await player.play(); // Prevent 1-second stop glitch
+            } catch (err) { console.error("Playback Error:", err); }
         }
 
         function updateNowPlayingUI(title, artist, cover) {
             document.getElementById('now-playing').innerText = title;
             document.getElementById('now-artist').innerText = artist;
             document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
+            
+            // Explicitly show both dock and spotlight
             document.getElementById('player-dock').classList.remove('dock-hidden');
             document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+            
             document.getElementById('artist-spotlight').innerHTML = `
-                <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover">
-                <h4 class="font-bold text-xl">${artist}</h4>`;
+                <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover shadow-xl">
+                <h4 class="font-bold text-xl text-white">${artist}</h4>
+                <p class="text-xs text-zinc-400 mt-2">${title}</p>`;
         }
 
-        function togglePlay() {
-            if (player.paused) player.play(); else player.pause();
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            if (player.paused) {
+                inactivityTimer = setTimeout(() => {
+                    document.getElementById('player-dock').classList.add('dock-hidden');
+                    document.getElementById('right-sidebar').classList.add('sidebar-hidden');
+                }, ONE_HOUR); // Hide dock only after 1 hour of silence
+            }
         }
 
-        player.onplay = () => masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
-        player.onpause = () => masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
-        
+        function togglePlay() { if (player.paused) player.play(); else player.pause(); }
+
+        player.onplay = () => {
+            masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
+            clearTimeout(inactivityTimer);
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+        };
+
+        player.onpause = () => {
+            masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
+            resetInactivityTimer();
+        };
+
         player.ontimeupdate = () => {
             const percent = (player.currentTime / player.duration) * 100;
             progressBar.value = percent || 0;
@@ -212,9 +256,15 @@
             document.getElementById('total-time').innerText = formatTime(player.duration || 0);
         };
 
+        function renderPlaylists() {
+            const container = document.getElementById('playlist-list');
+            container.innerHTML = Object.keys(playlists).map(p => `<div class="p-2 hover:bg-zinc-800 rounded cursor-pointer text-sm text-zinc-400 hover:text-white">${p}</div>`).join('');
+        }
+
         function formatTime(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
         function seekAudio() { player.currentTime = player.duration * (progressBar.value / 100); }
         function changeVolume() { player.volume = document.getElementById('volume-bar').value / 100; }
+        function hideMenu() {}
     </script>
 </body>
 </html>
