@@ -13,8 +13,7 @@
         .player-bar { height: 90px; background: #000; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid #282828; }
         .track-row:hover { background: rgba(255,255,255,0.1); }
         .hidden { display: none; }
-        /* Style for the album art in the grid */
-        .cover-img { width: 100%; aspect-ratio: 1/1; object-cover: cover; border-radius: 4px; margin-bottom: 12px; background: #282828; }
+        .cover-img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 4px; margin-bottom: 12px; background: #282828; }
     </style>
 </head>
 <body>
@@ -24,8 +23,8 @@
         </button>
         <div id="album-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
         <div id="track-list" class="hidden">
-            <h2 id="list-title" class="text-4xl font-bold mb-4"></h2>
-            <div id="songs-container" class="space-y-1"></div>
+            <div id="album-header-container"></div>
+            <div id="songs-container" class="space-y-1 px-4"></div>
         </div>
     </div>
 
@@ -76,58 +75,91 @@
             });
         }
 
+        async function changeCover(index) {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+
+            const choice = confirm("Press OK to Upload a file, or Cancel to paste a Link.");
+
+            if (choice) {
+                fileInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 800000) {
+                        alert("File too big! Please keep it under 800KB.");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        await saveToDatabase(index, event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                };
+                fileInput.click();
+            } else {
+                const newUrl = prompt("Paste image URL:");
+                if (newUrl && newUrl.startsWith('http')) {
+                    await saveToDatabase(index, newUrl);
+                }
+            }
+        }
+
+        async function saveToDatabase(index, finalUrl) {
+            const a = albums[index];
+            const storageKey = `cover-${a.artistName}-${a.albumName}`.replace(/\s+/g, '-').toLowerCase();
+            try {
+                const response = await fetch('/api/get-songs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: storageKey, url: finalUrl })
+                });
+                if (response.ok) {
+                    a.coverArt = finalUrl;
+                    showTracks(index);
+                }
+            } catch (err) { console.error(err); }
+        }
+
         function showTracks(i) {
-    const album = albums[i];
-    const list = document.getElementById('track-list');
-    
-    document.getElementById('album-grid').classList.add('hidden');
-    list.classList.remove('hidden');
-    document.getElementById('back-btn').classList.remove('hidden');
-
-    // Header with a more "discoverable" but still discreet Edit Button
-    list.innerHTML = `
-        <div class="relative group mb-8 flex flex-col md:flex-row items-end gap-6 p-4 rounded-xl hover:bg-white/5 transition-colors">
+            const album = albums[i];
+            const list = document.getElementById('track-list');
+            const header = document.getElementById('album-header-container');
+            const container = document.getElementById('songs-container');
             
-            <button onclick="changeCover(${i})" 
-                title="Change Album Art"
-                class="absolute top-4 right-4 z-50 p-3 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
-                  <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/>
-                </svg>
-            </button>
+            document.getElementById('album-grid').classList.add('hidden');
+            list.classList.remove('hidden');
+            document.getElementById('back-btn').classList.remove('hidden');
 
-            <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-48 h-48 shadow-2xl rounded-lg object-cover">
-            
-            <div class="flex-1">
-                <p class="text-sm font-bold uppercase tracking-wider opacity-60">Album</p>
-                <h2 class="text-4xl md:text-6xl font-black mb-2 leading-tight">${album.albumName}</h2>
-                <p class="text-lg opacity-70">${album.artistName} • ${album.songs.length} songs</p>
-            </div>
-        </div>
-        <div id="songs-container" class="space-y-1 px-4"></div>
-    `;
+            header.innerHTML = `
+                <div class="relative group mb-8 flex flex-col md:flex-row items-end gap-6 p-4 rounded-xl hover:bg-white/5 transition-colors">
+                    <button onclick="changeCover(${i})" class="absolute top-4 right-4 z-50 p-3 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-48 h-48 shadow-2xl rounded-lg object-cover">
+                    <div class="flex-1">
+                        <p class="text-sm font-bold uppercase tracking-wider opacity-60">Album</p>
+                        <h2 class="text-4xl md:text-6xl font-black mb-2">${album.albumName}</h2>
+                        <p class="text-lg opacity-70">${album.artistName} • ${album.songs.length} songs</p>
+                    </div>
+                </div>
+            `;
 
-    const container = document.getElementById('songs-container');
-    album.songs.forEach(s => {
-        const row = document.createElement('div');
-        row.className = 'track-row p-3 cursor-pointer rounded-md flex justify-between text-zinc-300 group/song hover:bg-white/10 transition-all';
-        row.innerHTML = `
-            <div class="flex items-center gap-4">
-                <span class="w-4 text-center text-zinc-500 group-hover/song:hidden text-xs">#</span>
-                <i class="fas fa-play text-[10px] hidden group-hover/song:inline text-green-500"></i>
-                <span class="font-medium">${s.name.replace('.mp3', '')}</span>
-            </div>
-        `;
-        row.onclick = () => {
-            player.src = s.link;
-            player.play();
-            document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
-            document.getElementById('now-artist').innerText = album.artistName;
-        };
-        container.appendChild(row);
-    });
-}
+            container.innerHTML = '';
+            album.songs.forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'track-row p-3 cursor-pointer rounded-md flex justify-between text-zinc-300 group hover:bg-white/10';
+                row.innerHTML = `<span>${s.name.replace('.mp3', '')}</span><i class="fas fa-play text-xs opacity-0 group-hover:opacity-100 text-green-500"></i>`;
+                row.onclick = () => {
+                    player.src = s.link;
+                    player.play();
+                    document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
+                    document.getElementById('now-artist').innerText = album.artistName;
+                };
+                container.appendChild(row);
+            });
+        }
+
         init();
     </script>
 </body>
