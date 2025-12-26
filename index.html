@@ -61,6 +61,7 @@
 
     <script>
         let allAlbumsData = [];
+        const player = document.getElementById('audioPlayer');
 
         async function loadCollection() {
             try {
@@ -109,9 +110,7 @@
             container.innerHTML = '';
 
             album.songs.forEach((song, i) => {
-                // This removes the .mp3 from the display name
                 const cleanName = song.name.replace(/\.[^/.]+$/, ""); 
-                
                 const row = document.createElement('div');
                 row.className = 'track-row flex items-center p-3 rounded cursor-pointer gap-4 group';
                 row.innerHTML = `
@@ -120,36 +119,37 @@
                         <div class="text-white font-medium">${cleanName}</div>
                     </div>
                 `;
-                // Crucial: The play command is attached directly to the click
-                row.onclick = (e) => {
-                    e.preventDefault();
-                    playSong(song, album);
-                };
+                // Using a more robust click handler
+                row.addEventListener('click', () => playSong(song, album));
                 container.appendChild(row);
             });
         }
 
-        function playSong(song, album) {
-            const player = document.getElementById('audioPlayer');
-            
-            // Set the source
-            player.src = song.link;
-            
-            // UI Updates
-            document.getElementById('now-playing-title').textContent = song.name.replace(/\.[^/.]+$/, "");
+        async function playSong(song, album) {
+            // 1. Reset Player
+            player.pause();
+            player.removeAttribute('src'); // Explicitly clear the source
+            player.load();
+
+            // 2. Set UI
+            const cleanTitle = song.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('now-playing-title').textContent = cleanTitle;
             document.getElementById('now-playing-artist').textContent = album.artistName;
             document.getElementById('now-playing-cover').src = album.coverArt || '';
 
-            // The "Hard Play" - this ensures the browser triggers the audio
-            player.load();
-            const playPromise = player.play();
-
-            if (playPromise !== undefined) {
-                playPromise.then(_ => {
-                    console.log("Playback started!");
-                }).catch(error => {
-                    console.log("Playback failed:", error);
-                });
+            // 3. Set Source and Force Play
+            // We use the direct webContentLink provided by the API
+            player.src = song.link;
+            
+            try {
+                // Ensure the metadata is loaded before trying to play
+                await player.load();
+                await player.play();
+                console.log("Playing:", cleanTitle);
+            } catch (err) {
+                console.error("Playback Error:", err);
+                // Fallback: trigger play on next user interaction if blocked
+                alert("If it didn't start, please click the play button in the dock once.");
             }
         }
 
