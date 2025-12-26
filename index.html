@@ -103,8 +103,7 @@
         const player = document.getElementById('audioPlayer');
 
         window.addEventListener('DOMContentLoaded', () => {
-            if (recentHistory.length > 0) renderHistory();
-            renderPlaylists();
+            init(); // Start the app
         });
 
         async function init() {
@@ -112,11 +111,12 @@
                 const res = await fetch('/api/get-songs');
                 const data = await res.json();
                 albums = data.albums || (Array.isArray(data) ? data : []);
+                
                 if (data.appState) {
                     if (data.appState.playlists && Object.keys(data.appState.playlists).length > 0) playlists = data.appState.playlists;
                     if (data.appState.recentHistory && data.appState.recentHistory.length > 0) recentHistory = data.appState.recentHistory;
-                    if (data.appState.lastPlayed) restoreLastPlayed(data.appState.lastPlayed);
                 }
+                
                 renderPlaylists();
                 renderHistory();
                 showGrid();
@@ -124,61 +124,51 @@
             } catch (err) { console.error(err); }
         }
 
-        async function saveGlobalState() {
-            const lastPlayed = {
-                link: player.src,
-                title: document.getElementById('now-playing').innerText,
-                artist: document.getElementById('now-artist').innerText,
-                cover: document.getElementById('mini-cover').style.backgroundImage.slice(5, -2)
-            };
-            await fetch('/api/get-songs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'app-state', data: { playlists, recentHistory, lastPlayed } })
+        // --- SIDEBAR NAVIGATION LOGIC ---
+
+        function renderHistory() {
+            const container = document.getElementById('recent-list');
+            container.innerHTML = recentHistory.map(h => `
+                <div class="flex items-center gap-3 opacity-80 hover:opacity-100 transition cursor-pointer group" 
+                     onclick="openAlbumFromSidebar('${h.albumName.replace(/'/g, "\\'")}')"> 
+                    <img src="${h.cover}" class="w-10 h-10 rounded object-cover shadow-sm">
+                    <div class="truncate">
+                        <div class="text-sm font-bold truncate">${h.albumName}</div>
+                        <div class="text-xs text-zinc-500">${h.artist}</div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function openAlbumFromSidebar(albumName) {
+            const index = albums.findIndex(a => a.albumName === albumName);
+            if (index !== -1) {
+                showTracks(index);
+            }
+        }
+
+        function renderPlaylists() {
+            const container = document.getElementById('playlist-list');
+            container.innerHTML = '';
+            Object.keys(playlists).forEach(pName => {
+                const songs = playlists[pName];
+                let coverHTML = `<div class="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center mr-3"><i class="fas fa-music text-zinc-500"></i></div>`;
+                if (songs.length >= 4) {
+                    coverHTML = `<div class="grid grid-cols-2 w-10 h-10 rounded overflow-hidden mr-3">
+                        <img src="${songs[0].cover}" class="w-full h-full object-cover"><img src="${songs[1].cover}" class="w-full h-full object-cover">
+                        <img src="${songs[2].cover}" class="w-full h-full object-cover"><img src="${songs[3].cover}" class="w-full h-full object-cover">
+                    </div>`;
+                } else if (songs.length > 0) {
+                    coverHTML = `<img src="${songs[0].cover}" class="w-10 h-10 rounded mr-3 object-cover">`;
+                }
+                const div = document.createElement('div');
+                div.className = "flex items-center p-2 rounded hover:bg-zinc-800 cursor-pointer group";
+                div.onclick = () => showPlaylist(pName);
+                div.innerHTML = `${coverHTML}<div class="truncate"><div class="text-sm font-bold text-white">${pName}</div><div class="text-xs text-zinc-400">Playlist • ${songs.length} songs</div></div>`;
+                container.appendChild(div);
             });
         }
 
-        function updateNowPlayingUI(title, artist, cover, bio = "Loading artist bio...", lyrics = "Searching for lyrics...") {
-            document.getElementById('now-playing').innerText = title;
-            document.getElementById('now-artist').innerText = artist;
-            const mini = document.getElementById('mini-cover');
-            mini.style.backgroundImage = `url(${cover})`;
-            mini.classList.remove('hidden');
-
-            document.getElementById('artist-spotlight').innerHTML = `
-                <div class="text-left">
-                    <img src="${cover}" class="w-full aspect-square rounded-lg shadow-2xl mb-6 object-cover">
-                    <h4 class="font-bold text-2xl mb-2">${artist}</h4>
-                    <div class="text-sm text-zinc-400 mb-6 max-h-40 overflow-y-auto custom-scrollbar leading-relaxed">${bio}</div>
-                    <h5 class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3 pt-4 border-t border-zinc-800">Lyrics</h5>
-                    <div class="text-sm text-zinc-300 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">${lyrics}</div>
-                </div>
-            `;
-            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-            document.getElementById('player-dock').classList.remove('dock-hidden');
-        }
-
-        async function playSong(link, title, artist, cover) {
-            player.src = link;
-            player.play();
-            
-            // 1. Set Initial UI
-            updateNowPlayingUI(title, artist, cover);
-
-            // 2. Try to fetch real bio from Wikipedia
-            try {
-                const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(artist)}`);
-                const wikiData = await wikiRes.json();
-                const bio = wikiData.extract || "No biography found for this artist.";
-                updateNowPlayingUI(title, artist, cover, bio);
-            } catch (e) { console.log("Bio fetch failed"); }
-
-            // 3. Update History
-            recentHistory = [{ artist, cover, albumName: title }, ...recentHistory.filter(h => h.artist !== artist)].slice(0, 8);
-            renderHistory();
-            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
-            saveGlobalState();
-        }
+        // --- MAIN VIEW LOGIC ---
 
         function showGrid() {
             const grid = document.getElementById('album-grid');
@@ -215,23 +205,19 @@
                 row.className = 'track-row p-3 cursor-pointer rounded-md flex items-center gap-4 text-zinc-300 group hover:bg-white/10';
                 row.dataset.songInfo = JSON.stringify({link: s.link, name: s.name.replace('.mp3', ''), artist: album.artistName, cover: album.coverArt});
                 row.innerHTML = `<span class="w-6 text-right text-zinc-500 text-sm">${idx + 1}</span><span class="font-medium flex-1">${s.name.replace('.mp3', '')}</span>`;
-                row.onclick = () => playSong(s.link, s.name.replace('.mp3', ''), album.artistName, album.coverArt);
+                row.onclick = () => playSong(s.link, s.name.replace('.mp3', ''), album.artistName, album.coverArt, album.albumName);
                 container.appendChild(row);
             });
         }
 
         function showPlaylist(pName) {
             const songs = playlists[pName];
-            const contentArea = document.getElementById('album-grid');
-            const trackList = document.getElementById('track-list');
-            const headerContainer = document.getElementById('album-header-container');
-            const songsContainer = document.getElementById('songs-container');
-
-            contentArea.classList.add('hidden');
-            trackList.classList.remove('hidden');
+            document.getElementById('album-grid').classList.add('hidden');
+            const list = document.getElementById('track-list');
+            list.classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
 
-            headerContainer.innerHTML = `
+            document.getElementById('album-header-container').innerHTML = `
                 <div class="flex items-end gap-6 mb-8 p-4">
                     <div class="w-48 h-48 shadow-2xl bg-zinc-800 flex items-center justify-center rounded-lg">
                         <i class="fas fa-music text-4xl text-zinc-600"></i>
@@ -243,52 +229,68 @@
                     </div>
                 </div>`;
 
-            songsContainer.innerHTML = '';
+            const container = document.getElementById('songs-container');
+            container.innerHTML = '';
             songs.forEach((s, idx) => {
                 const row = document.createElement('div');
                 row.className = "track-row p-3 cursor-pointer rounded-md flex items-center gap-4 text-zinc-400 group hover:bg-white/10";
-                row.onclick = () => playSong(s.link, s.name, s.artist, s.cover);
+                row.onclick = () => playSong(s.link, s.name, s.artist, s.cover, pName);
                 row.innerHTML = `<span class="w-6 text-right text-zinc-500 text-sm font-medium">${idx + 1}</span>
                     <img src="${s.cover}" class="w-10 h-10 rounded object-cover">
                     <div class="flex-1 truncate"><div class="text-white font-medium truncate">${s.name}</div><div class="text-sm truncate">${s.artist}</div></div>`;
-                songsContainer.appendChild(row);
+                container.appendChild(row);
             });
         }
 
-        function renderPlaylists() {
-            const container = document.getElementById('playlist-list');
-            container.innerHTML = '';
-            Object.keys(playlists).forEach(pName => {
-                const songs = playlists[pName];
-                let coverHTML = `<div class="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center mr-3"><i class="fas fa-music text-zinc-500"></i></div>`;
-                if (songs.length >= 4) {
-                    coverHTML = `<div class="grid grid-cols-2 w-10 h-10 rounded overflow-hidden mr-3">
-                        <img src="${songs[0].cover}" class="w-full h-full object-cover"><img src="${songs[1].cover}" class="w-full h-full object-cover">
-                        <img src="${songs[2].cover}" class="w-full h-full object-cover"><img src="${songs[3].cover}" class="w-full h-full object-cover">
-                    </div>`;
-                } else if (songs.length > 0) {
-                    coverHTML = `<img src="${songs[0].cover}" class="w-10 h-10 rounded mr-3 object-cover">`;
-                }
-                const div = document.createElement('div');
-                div.className = "flex items-center p-2 rounded hover:bg-zinc-800 cursor-pointer group";
-                div.onclick = () => showPlaylist(pName);
-                div.innerHTML = `${coverHTML}<div class="truncate"><div class="text-sm font-bold text-white">${pName}</div><div class="text-xs text-zinc-400">Playlist • ${songs.length} songs</div></div>`;
-                container.appendChild(div);
+        // --- PLAYER & STATE LOGIC ---
+
+        async function playSong(link, title, artist, cover, albumName) {
+            player.src = link;
+            player.play();
+            updateNowPlayingUI(title, artist, cover);
+
+            try {
+                const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(artist)}`);
+                const wikiData = await wikiRes.json();
+                updateNowPlayingUI(title, artist, cover, wikiData.extract || "Biography unavailable.");
+            } catch (e) { console.log("Bio fetch failed"); }
+
+            recentHistory = [{ artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
+            renderHistory();
+            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
+            saveGlobalState();
+        }
+
+        function updateNowPlayingUI(title, artist, cover, bio = "Loading...", lyrics = "No lyrics available.") {
+            document.getElementById('now-playing').innerText = title;
+            document.getElementById('now-artist').innerText = artist;
+            const mini = document.getElementById('mini-cover');
+            mini.style.backgroundImage = `url(${cover})`;
+            mini.classList.remove('hidden');
+
+            document.getElementById('artist-spotlight').innerHTML = `
+                <div class="text-left">
+                    <img src="${cover}" class="w-full aspect-square rounded-lg shadow-2xl mb-6 object-cover">
+                    <h4 class="font-bold text-2xl mb-2">${artist}</h4>
+                    <div class="text-sm text-zinc-400 mb-6 max-h-40 overflow-y-auto custom-scrollbar leading-relaxed">${bio}</div>
+                    <h5 class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3 pt-4 border-t border-zinc-800">Lyrics</h5>
+                    <div class="text-sm text-zinc-300 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">${lyrics}</div>
+                </div>`;
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+        }
+
+        async function saveGlobalState() {
+            await fetch('/api/get-songs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'app-state', data: { playlists, recentHistory } })
             });
         }
 
-        async function addToPlaylist(pName) {
-            if (!playlists[pName].some(s => s.link === selectedSongForMenu.link)) {
-                playlists[pName].push(selectedSongForMenu);
-                renderPlaylists();
-                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
-                await saveGlobalState();
-            }
-            hideMenu();
-        }
+        // --- UI UTILITIES ---
 
         function createNewPlaylist() {
-            hideMenu();
             const modal = document.getElementById('playlist-modal');
             const input = document.getElementById('modal-input');
             modal.classList.remove('hidden');
@@ -303,30 +305,11 @@
                 renderPlaylists();
                 closeModal();
                 localStorage.setItem('userPlaylists', JSON.stringify(playlists));
-                saveGlobalState();
             }
         }
 
         function closeModal() { document.getElementById('playlist-modal').classList.add('hidden'); }
         function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function renderHistory() {
-    document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
-        <div class="flex items-center gap-3 opacity-80 hover:opacity-100 transition cursor-pointer" 
-             onclick="openAlbumFromSidebar('${h.albumName}')"> 
-            <img src="${h.cover}" class="w-10 h-10 rounded">
-            <div class="truncate">
-                <div class="text-sm font-bold truncate">${h.albumName}</div>
-                <div class="text-xs text-zinc-500">${h.artist}</div>
-            </div>
-        </div>`).join('');
-}
-        function openAlbumFromSidebar(albumName) {
-    // Look through your main albums array to find the full data object
-    const album = albums.find(a => a.albumName === albumName);
-    if (album) {
-        showAlbum(album); // This triggers your existing logic to open the album view
-    }
-}
 
         window.oncontextmenu = function(e) {
             const trackRow = e.target.closest('.track-row');
@@ -337,9 +320,20 @@
                 menu.style.display = 'block';
                 menu.style.left = e.pageX + 'px';
                 menu.style.top = e.pageY + 'px';
-                document.getElementById('add-to-options').innerHTML = Object.keys(playlists).map(p => `<div class="menu-item" onclick="addToPlaylist('${p}')">${p}</div>`).join('');
+                document.getElementById('add-to-options').innerHTML = Object.keys(playlists).map(p => 
+                    `<div class="menu-item" onclick="addToPlaylist('${p}')">${p}</div>`).join('');
             }
         };
+
+        async function addToPlaylist(pName) {
+            if (!playlists[pName].some(s => s.link === selectedSongForMenu.link)) {
+                playlists[pName].push(selectedSongForMenu);
+                renderPlaylists();
+                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
+                saveGlobalState();
+            }
+            hideMenu();
+        }
 
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
@@ -354,7 +348,6 @@
         player.onplay = () => { clearTimeout(inactivityTimer); document.getElementById('right-sidebar').classList.remove('sidebar-hidden'); document.getElementById('player-dock').classList.remove('dock-hidden'); };
         player.onpause = () => resetInactivityTimer();
 
-        init();
     </script>
 </body>
 </html>
