@@ -43,8 +43,8 @@ export default async function handler(req, res) {
           coverArt: highResCover,
           songs: songs.map(s => ({ 
             name: s.name, 
-            // THE FIX: Using the uc?id= format is more reliable for streaming audio
-            link: `https://docs.google.com/uc?export=open&id=${s.id}` 
+            // This new link format is a "direct stream" bypass
+            link: `https://drive.google.com/uc?export=download&id=${s.id}` 
           }))
         });
       }
