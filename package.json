@@ -1,8 +1,8 @@
 {
-  "name": "my-music-player",
+  "name": "myy-music-player",
   "version": "1.0.0",
   "dependencies": {
-    "googleapis": "^126.0.0"
+    "googleapis": "^126.0.0",
     "@vercel/kv": "^1.0.1"
   }
 }
