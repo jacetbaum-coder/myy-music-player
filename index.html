@@ -1,58 +1,83 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+
+<html lang="en">
+
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
-  </style>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>My Cloud Music Player</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+
+        body { background-color: #000; color: white; font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+        .sync-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1DB954; color: black; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 9999; display: none; }
+
+        /* Including your original styles below */
+
+        .search-wrapper { background: #242424; border-radius: 500px; padding: 8px 15px; display: flex; align-items: center; width: 450px; }
+
+        .sidebar { background-color: #121212; border-radius: 8px; margin: 8px; padding: 15px; }
+
+        .main-content { background: linear-gradient(to bottom, #222, #121212); border-radius: 8px; margin: 8px 8px 8px 0; flex-grow: 1; overflow-y: auto; }
+
+        .player-bar { background-color: #000; height: 90px; display: flex; align-items: center; padding: 0 16px; }
+
+    </style>
+
 </head>
+
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="en"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;My Cloud Music Player&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"&gt;&lt;/script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>body { background-color: #000; color: white; font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.sync-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1DB954; color: black; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 9999; display: none; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>/* Including your original styles below */</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.search-wrapper { background: #242424; border-radius: 500px; padding: 8px 15px; display: flex; align-items: center; width: 450px; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.sidebar { background-color: #121212; border-radius: 8px; margin: 8px; padding: 15px; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.main-content { background: linear-gradient(to bottom, #222, #121212); border-radius: 8px; margin: 8px 8px 8px 0; flex-grow: 1; overflow-y: auto; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.player-bar { background-color: #000; height: 90px; display: flex; align-items: center; padding: 0 16px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="sync-status" class="sync-toast"&gt;Syncing your Google Drive...&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="flex flex-grow overflow-hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="sidebar w-64 flex flex-col gap-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="bg-[#121212] rounded-lg p-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="flex items-center gap-4 mb-4 opacity-70 hover:opacity-100 cursor-pointer"&gt;&lt;i class="fas fa-home text-xl"&gt;&lt;/i&gt;&lt;span&gt;Home&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="flex items-center gap-4 opacity-70 hover:opacity-100 cursor-pointer"&gt;&lt;i class="fas fa-search text-xl"&gt;&lt;/i&gt;&lt;span&gt;Search&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="bg-[#121212] rounded-lg p-4 flex-grow overflow-y-auto"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="flex items-center justify-between mb-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="flex items-center gap-2 opacity-70"&gt;&lt;i class="fas fa-list"&gt;&lt;/i&gt;&lt;span&gt;Your Library&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>&lt;button onclick="syncFromGoogleDrive()" class="hover:bg-[#282828] p-2 rounded-full"&gt;&lt;i class="fas fa-sync"&gt;&lt;/i&gt;&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div id="playlist-container" class="space-y-2"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="main-content"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="p-6"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;h1 class="text-3xl font-bold mb-6"&gt;Cloud Songs&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;div id="song-grid" class="grid grid-cols-</p>
-</body>
-</html>
+
+
+
+    <div id="sync-status" class="sync-toast">Syncing your Google Drive...</div>
+
+
+
+    <div class="flex flex-grow overflow-hidden">
+
+        <div class="sidebar w-64 flex flex-col gap-4">
+
+            <div class="bg-[#121212] rounded-lg p-4">
+
+                <div class="flex items-center gap-4 mb-4 opacity-70 hover:opacity-100 cursor-pointer"><i class="fas fa-home text-xl"></i><span>Home</span></div>
+
+                <div class="flex items-center gap-4 opacity-70 hover:opacity-100 cursor-pointer"><i class="fas fa-search text-xl"></i><span>Search</span></div>
+
+            </div>
+
+            <div class="bg-[#121212] rounded-lg p-4 flex-grow overflow-y-auto">
+
+                <div class="flex items-center justify-between mb-4">
+
+                    <div class="flex items-center gap-2 opacity-70"><i class="fas fa-list"></i><span>Your Library</span></div>
+
+                    <button onclick="syncFromGoogleDrive()" class="hover:bg-[#282828] p-2 rounded-full"><i class="fas fa-sync"></i></button>
+
+                </div>
+
+                <div id="playlist-container" class="space-y-2"></div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="main-content">
+
+            <div class="p-6">
+
+                <h1 class="text-3xl font-bold mb-6">Cloud Songs</h1>
+
+                <div id="song-grid" class="grid grid-cols-
