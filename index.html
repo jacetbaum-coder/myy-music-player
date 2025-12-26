@@ -131,19 +131,16 @@
     list.classList.remove('hidden');
     document.getElementById('back-btn').classList.remove('hidden');
 
+    // Header with the camera icon placed on the top-right of the ART itself
     header.innerHTML = `
         <div class="mb-8 flex flex-col md:flex-row items-end gap-6 p-4">
-            
             <div class="relative group/art w-48 h-48 shrink-0">
                 <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-full h-full shadow-2xl rounded-lg object-cover">
-                
                 <button onclick="changeCover(${i})" 
-                    title="Change Album Art"
-                    class="absolute top-2 right-2 z-50 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover/art:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
+                    class="absolute top-2 right-2 z-50 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover/art:opacity-100 transition-opacity backdrop-blur-sm">
                     <i class="fas fa-camera text-xs"></i>
                 </button>
             </div>
-            
             <div class="flex-1">
                 <p class="text-sm font-bold uppercase tracking-wider opacity-60">Album</p>
                 <h2 class="text-4xl md:text-6xl font-black mb-2 leading-tight">${album.albumName}</h2>
@@ -153,19 +150,33 @@
     `;
 
     container.innerHTML = '';
-    album.songs.forEach(s => {
+    
+    // Track List with cleaner titles and numbers
+    album.songs.forEach((s, index) => {
         const row = document.createElement('div');
-        row.className = 'track-row p-3 cursor-pointer rounded-md flex justify-between text-zinc-300 group/song hover:bg-white/10 transition-all';
+        row.className = 'track-row p-3 cursor-pointer rounded-md flex items-center justify-between text-zinc-300 group/song hover:bg-white/10 transition-all';
+        
+        // Logic to remove "Artist Name - " from the song title
+        // It looks for the artist name followed by a dash or space
+        let cleanTitle = s.name.replace('.mp3', '');
+        const artistPrefix = new RegExp(`^${album.artistName}\\s*-\\s*`, 'i');
+        cleanTitle = cleanTitle.replace(artistPrefix, '');
+
         row.innerHTML = `
             <div class="flex items-center gap-4">
-                <i class="fas fa-play text-[10px] opacity-0 group-hover/song:opacity-100 text-green-500"></i>
-                <span class="font-medium">${s.name.replace('.mp3', '')}</span>
+                <span class="w-6 text-right text-zinc-500 group-hover/song:hidden text-sm font-medium">
+                    ${index + 1}
+                </span>
+                <i class="fas fa-play text-[10px] hidden group-hover/song:inline-block text-green-500 w-6 text-center"></i>
+                
+                <span class="font-medium">${cleanTitle}</span>
             </div>
         `;
+
         row.onclick = () => {
             player.src = s.link;
             player.play();
-            document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
+            document.getElementById('now-playing').innerText = cleanTitle;
             document.getElementById('now-artist').innerText = album.artistName;
         };
         container.appendChild(row);
