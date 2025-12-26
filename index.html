@@ -324,7 +324,7 @@ function renderPlaylists() {
             songs.forEach((s, idx) => {
                 const row = document.createElement('div');
                 row.className = "track-row p-3 cursor-pointer rounded-md flex items-center gap-4 text-zinc-400 group hover:bg-white/10";
-                row.onclick = () => playSong(s.link, s.name, s.artistName, s.coverArt, pName);
+                row.onclick = () => playSong(s.link, s.name, s.artist, s.cover, pName);
                 row.innerHTML = `
                     <span class="w-6 text-right text-zinc-500 text-sm font-medium">${idx + 1}</span>
                     <img src="${s.cover}" class="w-10 h-10 rounded">
