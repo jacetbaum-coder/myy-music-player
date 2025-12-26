@@ -25,22 +25,18 @@ export default async function handler(req, res) {
       for (const album of albums.data.files) {
         const content = await drive.files.list({
           q: `'${album.id}' in parents and trashed = false`,
-          fields: 'files(id, name, mimeType, thumbnailLink)', // Added thumbnailLink
+          fields: 'files(id, name, mimeType)',
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
         
-        // IMPROVED IMAGE SEARCH: Look for ANY image file in the folder
-        let coverFile = content.data.files.find(f => f.mimeType.startsWith('image/'));
+        // NEW ART LOGIC: Search Apple Music for the cover based on Artist/Album name
+        const searchTerm = encodeURIComponent(`${artist.name} ${album.name}`);
+        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${searchTerm}&entity=album&limit=1`);
+        const itunesData = await itunesRes.json();
         
-        // ULTIMATE FALLBACK: If no image file exists, try to use the first song's auto-generated thumbnail
-        let coverUrl = null;
-        if (coverFile) {
-          coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${coverFile.id}`;
-        } else if (songs.length > 0 && songs[0].thumbnailLink) {
-          // Use the internal Google thumbnail for the MP3 (often contains the art!)
-          coverUrl = songs[0].thumbnailLink.replace('=s220', '=s1000'); 
-        }
+        // Use Apple's art if found, otherwise use a placeholder
+        let coverUrl = itunesData.results?.[0]?.artworkUrl100.replace('100x100bb', '600x600bb') || 'https://via.placeholder.com/600x600?text=No+Cover+Found';
 
         allAlbums.push({
           artistName: artist.name,
