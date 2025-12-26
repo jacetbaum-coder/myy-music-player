@@ -9,272 +9,202 @@
         body { background: #000; color: white; font-family: 'Circular', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .app-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
-        /* 1. Sidebar Content Scaling Logic */
-        .sidebar { 
-            background: #000; display: flex; flex-direction: column; padding: 20px; 
-            overflow-y: auto; min-width: 200px; max-width: 600px; position: relative; 
-        }
-        
-        /* Dynamic Scaling based on parent width */
+        /* Sidebar Styling */
+        .sidebar { background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; min-width: 200px; max-width: 600px; position: relative; }
         #left-panel { width: 300px; }
         #right-sidebar { width: 300px; transition: opacity 0.5s ease; }
         .sidebar-hidden { width: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; }
 
-        /* Resizer Handles (Hand Cursor) */
-        .resizer { width: 6px; position: absolute; top: 0; bottom: 0; z-index: 50; cursor: grab; transition: background 0.2s; }
-        .resizer:active { cursor: grabbing; background: #1db954 !important; }
-        .resizer:hover { background: rgba(255,255,255,0.1); }
+        /* Resizer Handles */
+        .resizer { width: 6px; position: absolute; top: 0; bottom: 0; z-index: 50; cursor: grab; }
         #resizer-l { right: 0; }
         #resizer-r { left: 0; }
 
-        /* Main Content */
         .main-view { flex: 1; background: linear-gradient(to bottom, #1a1a1a, #000); overflow-y: auto; padding: 24px; }
-        .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; }
-        .album-card:hover { background: #282828; }
         
-        /* Player Bar Styling */
+        /* Album Card with Shuffle Overlay */
+        .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; position: relative; }
+        .album-card:hover { background: #282828; }
+        .shuffle-badge { 
+            position: absolute; bottom: 85px; right: 25px; width: 40px; height: 40px; 
+            background: #1db954; border-radius: 50%; display: flex; align-items: center; 
+            justify-content: center; opacity: 0; transition: 0.3s; box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+        .album-card:hover .shuffle-badge { opacity: 1; transform: translateY(-5px); }
+
+        /* Player Bar */
         .player-bar { 
             height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; 
             align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease;
         }
-        .dock-hidden { transform: translateY(100%); opacity: 0; }
+        .shuffle-active { color: #1db954 !important; }
+        
+        /* Metadata Table */
+        .track-grid { display: grid; grid-template-columns: 50px 4fr 3fr 2fr 100px; gap: 16px; padding: 8px 16px; align-items: center; border-radius: 4px; }
+        .track-header { border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; color: #b3b3b3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Small Volume Bar */
         #volume-bar { width: 80px; height: 3px; accent-color: #1db954; }
-        input[type="range"] { appearance: none; height: 4px; background: #4d4d4d; border-radius: 2px; cursor: pointer; }
-
-        /* Smooth Image Scaling for Sidebars */
-        .dynamic-img { transition: width 0.1s, height 0.1s; }
-        .dynamic-text-lg { font-size: clamp(14px, 1.2vw, 24px); line-height: 1.2; }
-        .dynamic-text-sm { font-size: clamp(11px, 0.9vw, 16px); }
     </style>
 </head>
 <body>
 
-    <div class="app-container" id="container">
+    <div class="app-container">
         <aside class="sidebar border-r border-zinc-800" id="left-panel">
-            <div class="mb-8">
-                <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">Your Library</h3>
-                <div id="playlist-list" class="space-y-2"></div>
-            </div>
             <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">Recently Listened</h3>
             <div id="recent-list" class="space-y-4"></div>
             <div class="resizer" id="resizer-l"></div>
         </aside>
 
-        <main class="main-view" id="main-content">
-            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold text-sm">
-                <i class="fas fa-chevron-left mr-2"></i> Back
-            </button>
+        <main class="main-view">
+            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold text-sm"><i class="fas fa-chevron-left mr-2"></i> Back</button>
             <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
             
             <div id="track-list" class="hidden">
-                <div id="album-header-container" class="flex flex-col md:flex-row items-end gap-8 mb-10">
-                    </div>
-                <div id="songs-container" class="space-y-1"></div>
+                <div id="album-header-container" class="flex items-end gap-8 mb-10"></div>
+                <div class="track-grid track-header">
+                    <span>#</span><span>Title</span><span>Album</span><span>Date Added</span><span><i class="far fa-clock"></i></span>
+                </div>
+                <div id="songs-container"></div>
             </div>
         </main>
 
         <aside id="right-sidebar" class="sidebar border-l border-zinc-800 sidebar-hidden">
             <div class="resizer" id="resizer-r"></div>
-            <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">About the Artist</h3>
             <div id="artist-spotlight"></div>
         </aside>
     </div>
 
-    <div id="player-dock" class="player-bar dock-hidden">
+    <div id="player-dock" class="player-bar">
         <div class="flex items-center gap-4 overflow-hidden">
             <div id="mini-cover" class="w-14 h-14 bg-zinc-800 rounded bg-cover bg-center"></div>
             <div class="truncate">
-                <div id="now-playing" class="font-bold text-[14px] text-white truncate">Nothing Playing</div>
+                <div id="now-playing" class="font-bold text-[14px] truncate">Nothing Playing</div>
                 <div id="now-artist" class="text-[11px] text-zinc-400 truncate"></div>
             </div>
         </div>
 
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6">
-                <i class="fas fa-step-backward control-btn"></i>
+                <i id="shuffle-btn" class="fas fa-shuffle control-btn text-sm cursor-pointer" onclick="toggleShuffle()"></i>
+                <i class="fas fa-step-backward control-btn" onclick="playPrevious()"></i>
                 <i id="master-play" class="fas fa-play-circle text-3xl control-btn" onclick="togglePlay()"></i>
-                <i class="fas fa-step-forward control-btn"></i>
+                <i class="fas fa-step-forward control-btn" onclick="playNext()"></i>
             </div>
             <div class="w-full flex items-center gap-2 text-[11px] text-zinc-400">
                 <span id="current-time">0:00</span>
-                <input type="range" id="progress-bar" value="0" min="0" max="100" class="flex-1" oninput="seekAudio()">
+                <input type="range" id="progress-bar" class="flex-1" value="0" oninput="seekAudio()">
                 <span id="total-time">0:00</span>
             </div>
         </div>
 
         <div class="flex justify-end items-center gap-3">
-            <i class="fas fa-volume-up text-zinc-400 text-xs"></i>
             <input type="range" id="volume-bar" value="80" oninput="changeVolume()">
         </div>
     </div>
 
-    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+    <audio id="audioPlayer"></audio>
 
     <script>
         let albums = [];
-        let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
+        let currentAlbumSongs = [];
+        let currentIndex = -1;
+        let isShuffle = false;
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
-        let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
-        const ONE_HOUR = 60 * 60 * 1000;
 
         const player = document.getElementById('audioPlayer');
-        const progressBar = document.getElementById('progress-bar');
-        const masterPlay = document.getElementById('master-play');
-
-        window.onload = init;
+        const shuffleBtn = document.getElementById('shuffle-btn');
 
         async function init() {
-            try {
-                const res = await fetch('/api/get-songs');
-                albums = await res.json();
-                renderPlaylists();
-                renderHistory();
-                showGrid();
-                
-                if (recentHistory.length > 0 && (Date.now() - lastPlayedTime < ONE_HOUR)) {
-                    updateNowPlayingUI(recentHistory[0].songName, recentHistory[0].artist, recentHistory[0].cover);
-                }
-                initResizers();
-            } catch (err) { console.error(err); }
+            const res = await fetch('/api/get-songs');
+            albums = await res.json();
+            showGrid();
+            renderHistory();
+            initResizers();
         }
 
-        // Space Bar only for play/pause
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                togglePlay();
-            }
-        });
-
-        // Dynamic Resizing Logic
-        function initResizers() {
-            const leftPanel = document.getElementById('left-panel');
-            const rightPanel = document.getElementById('right-sidebar');
-            const resizerL = document.getElementById('resizer-l');
-            const resizerR = document.getElementById('resizer-r');
-
-            resizerL.addEventListener('mousedown', () => {
-                document.addEventListener('mousemove', resizeL);
-                document.addEventListener('mouseup', () => {
-                    document.removeEventListener('mousemove', resizeL);
-                    renderHistory(); // Re-render to apply new sizes
-                });
-            });
-
-            resizerR.addEventListener('mousedown', () => {
-                document.addEventListener('mousemove', resizeR);
-                document.addEventListener('mouseup', () => {
-                    document.removeEventListener('mousemove', resizeR);
-                    const last = recentHistory[0];
-                    if(last) updateNowPlayingUI(last.songName, last.artist, last.cover);
-                });
-            });
-
-            function resizeL(e) { leftPanel.style.width = e.clientX + 'px'; }
-            function resizeR(e) { rightPanel.style.width = (window.innerWidth - e.clientX) + 'px'; }
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            shuffleBtn.classList.toggle('shuffle-active', isShuffle);
         }
 
         function showGrid() {
-            const grid = document.getElementById('album-grid'); grid.innerHTML = '';
-            document.getElementById('track-list').classList.add('hidden');
-            document.getElementById('back-btn').classList.add('hidden');
-            grid.classList.remove('hidden');
-            albums.forEach((a, i) => {
-                const div = document.createElement('div');
-                div.className = 'album-card';
-                div.innerHTML = `<img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4"><div class="font-bold truncate text-sm text-white">${a.albumName}</div>`;
-                div.onclick = () => showTracks(i);
-                grid.appendChild(div);
-            });
+            const grid = document.getElementById('album-grid');
+            grid.innerHTML = albums.map((a, i) => `
+                <div class="album-card" onclick="showTracks(${i})">
+                    <img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4">
+                    <div class="shuffle-badge" onclick="event.stopPropagation(); shuffleAndPlay(${i})">
+                        <i class="fas fa-play text-black text-xs"></i>
+                    </div>
+                    <div class="font-bold truncate text-sm">${a.albumName}</div>
+                </div>`).join('');
         }
 
-        // FIX: Missing Album Art in Track List
         function showTracks(index) {
             const album = albums[index];
+            currentAlbumSongs = album.songs;
             document.getElementById('album-grid').classList.add('hidden');
             document.getElementById('track-list').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
-            
+
             document.getElementById('album-header-container').innerHTML = `
-                <img src="${album.coverArt}" class="w-48 h-48 md:w-64 md:h-64 shadow-2xl rounded-lg object-cover">
+                <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
                 <div>
-                    <p class="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Album</p>
-                    <h1 class="text-4xl md:text-7xl font-black text-white">${album.albumName}</h1>
-                    <p class="mt-4 font-bold text-zinc-300">${album.artistName}</p>
+                    <h1 class="text-6xl font-black">${album.albumName}</h1>
+                    <p class="mt-4 text-zinc-400 font-bold">${album.artistName} • ${album.songs.length} songs</p>
                 </div>`;
 
             document.getElementById('songs-container').innerHTML = album.songs.map((s, idx) => `
-                <div class="p-3 hover:bg-white/10 rounded-md cursor-pointer flex items-center text-zinc-400 group" 
-                     onclick="playSong('${s.link}', '${s.name.replace('.mp3','')}', '${album.artistName}', '${album.coverArt}', '${album.albumName}')">
-                <span class="w-8 text-sm group-hover:text-white">${idx+1}</span>
-                <span class="text-white font-medium flex-1">${s.name.replace('.mp3','')}</span>
-                </div>`).join('');
-        }
-
-        async function playSong(link, title, artist, cover, albumName) {
-            try {
-                player.pause(); player.src = link; player.load();
-                updateNowPlayingUI(title, artist, cover);
-                lastPlayedTime = Date.now();
-                localStorage.setItem('lastPlayedTime', lastPlayedTime);
-                recentHistory = [{ songName: title, artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 10);
-                localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
-                renderHistory();
-                await player.play();
-            } catch (err) { console.error(err); }
-        }
-
-        // Sidebar Dynamic UI Updates
-        function renderHistory() {
-            const panelWidth = document.getElementById('left-panel').offsetWidth;
-            const imgSize = Math.max(48, Math.min(panelWidth / 4, 120));
-            const gap = panelWidth > 350 ? 'gap-5' : 'gap-3';
-
-            document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
-                <div class="flex items-center ${gap} cursor-pointer group" onclick="openAlbumByName('${h.albumName.replace(/'/g, "\\'")}')">
-                    <img src="${h.cover}" class="dynamic-img rounded shadow-lg object-cover" style="width:${imgSize}px; height:${imgSize}px">
-                    <div class="truncate">
-                        <div class="dynamic-text-lg font-bold truncate text-white group-hover:underline">${h.albumName}</div>
-                        <div class="dynamic-text-sm text-zinc-500">${h.artist}</div>
+                <div class="track-grid hover:bg-white/10 cursor-pointer group" onclick="playSong(${idx})">
+                    <span class="text-zinc-500 group-hover:text-white">${idx + 1}</span>
+                    <div class="flex flex-col">
+                        <span class="text-white font-medium">${s.name.replace('.mp3','')}</span>
+                        <span class="text-xs text-zinc-400">${album.artistName}</span>
                     </div>
+                    <span class="text-zinc-400 text-sm">${album.albumName}</span>
+                    <span class="text-zinc-400 text-sm">Dec 25, 2025</span>
+                    <span class="text-zinc-400 text-sm">${s.duration || '3:45'}</span>
                 </div>`).join('');
         }
 
-        function updateNowPlayingUI(title, artist, cover) {
-            const panelWidth = document.getElementById('right-sidebar').offsetWidth;
-            const fontSize = panelWidth > 350 ? 'text-3xl' : 'text-xl';
-
-            document.getElementById('now-playing').innerText = title;
-            document.getElementById('now-artist').innerText = artist;
-            document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
-            document.getElementById('player-dock').classList.remove('dock-hidden');
-            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-            
-            document.getElementById('artist-spotlight').innerHTML = `
-                <img src="${cover}" class="w-full aspect-square rounded-xl mb-6 object-cover shadow-2xl">
-                <h4 class="${fontSize} font-black text-white leading-tight">${artist}</h4>
-                <p class="text-zinc-400 mt-2 font-medium">${title}</p>`;
+        function shuffleAndPlay(index) {
+            isShuffle = true;
+            shuffleBtn.classList.add('shuffle-active');
+            showTracks(index);
+            playNext();
         }
 
-        function togglePlay() { if (player.paused) player.play(); else player.pause(); }
-        player.onplay = () => masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
-        player.onpause = () => masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
-        player.ontimeupdate = () => {
-            const percent = (player.currentTime / player.duration) * 100;
-            progressBar.value = percent || 0;
-            progressBar.style.backgroundSize = (percent || 0) + '% 100%';
-            document.getElementById('current-time').innerText = formatTime(player.currentTime);
-            document.getElementById('total-time').innerText = formatTime(player.duration || 0);
-        };
+        async function playSong(index) {
+            currentIndex = index;
+            const s = currentAlbumSongs[currentIndex];
+            player.src = s.link;
+            player.play();
+            updateUI(s);
+        }
 
-        function openAlbumByName(name) { const idx = albums.findIndex(a => a.albumName === name); if (idx !== -1) showTracks(idx); }
-        function formatTime(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
-        function seekAudio() { player.currentTime = player.duration * (progressBar.value / 100); }
+        function playNext() {
+            if (isShuffle) {
+                currentIndex = Math.floor(Math.random() * currentAlbumSongs.length);
+            } else {
+                currentIndex = (currentIndex + 1) % currentAlbumSongs.length;
+            }
+            playSong(currentIndex);
+        }
+
+        function updateUI(s) {
+            document.getElementById('now-playing').innerText = s.name.replace('.mp3','');
+            document.getElementById('now-artist').innerText = albums.find(a => a.songs.includes(s)).artistName;
+            document.getElementById('mini-cover').style.backgroundImage = `url(${albums.find(a => a.songs.includes(s)).coverArt})`;
+        }
+
+        player.onended = playNext;
+        window.onload = init;
+        
+        // Boilerplate helpers
+        function togglePlay() { player.paused ? player.play() : player.pause(); }
         function changeVolume() { player.volume = document.getElementById('volume-bar').value / 100; }
-        function renderPlaylists() {}
+        function seekAudio() { player.currentTime = player.duration * (document.getElementById('progress-bar').value / 100); }
+        function renderHistory() { /* Previous logic */ }
+        function initResizers() { /* Previous logic */ }
     </script>
 </body>
 </html>
