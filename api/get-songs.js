@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
-          coverArt: coverFile ? `https://lh3.googleusercontent.com/d/${coverFile.id}=s1000` : null,
+          coverArt: coverFile ? `https://drive.google.com/thumbnail?id=${coverFile.id}&sz=w1000` : null,
           songs: songs.map(s => ({ 
             name: s.name, 
             // THE FIX: Directing the play link through your Cloudflare Worker
