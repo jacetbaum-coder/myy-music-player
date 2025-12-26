@@ -112,15 +112,15 @@
 
     <script>
 let albums = [];
-        // READ Playlists from the browser notebook
+        // READ Playlists from the browser memory
         let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
         
-        // READ History from the browser notebook
+        // READ History from the browser memory
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
 
         window.addEventListener('DOMContentLoaded', () => {
             if (recentHistory.length > 0) renderHistory();
-            renderPlaylists(); // Make sure playlists show up immediately
+            renderPlaylists(); // This line makes them appear on screen immediately
         });
         let selectedSongForMenu = null;
         let inactivityTimer;
@@ -230,17 +230,17 @@ let albums = [];
 
         function closeModal() { document.getElementById('playlist-modal').classList.add('hidden'); }
 
-      async function confirmPlaylist() {
+  async function confirmPlaylist() {
             const name = document.getElementById('modal-input').value.trim();
             if (name && !playlists[name]) {
                 playlists[name] = selectedSongForMenu ? [selectedSongForMenu] : [];
                 renderPlaylists();
                 closeModal();
-                
-                // SAVE to the browser notebook
+
+                // ADD THIS LINE BELOW:
                 localStorage.setItem('userPlaylists', JSON.stringify(playlists));
                 
-                await saveGlobalState(); // Keeps your database in sync too
+                await saveGlobalState();
             }
         }
 
