@@ -9,22 +9,6 @@ export default async function handler(req, res) {
   );
   const drive = google.drive({ version: 'v3', auth });
 
-  // 1. HANDLE STREAMING REQUESTS
-  if (req.query.fileId) {
-    try {
-      const response = await drive.files.get(
-        { fileId: req.query.fileId, alt: 'media' },
-        { responseType: 'stream' }
-      );
-      
-      res.setHeader('Content-Type', 'audio/mpeg');
-      return response.data.pipe(res);
-    } catch (err) {
-      return res.status(500).send("Stream Error");
-    }
-  }
-
-  // 2. HANDLE LISTING REQUESTS
   try {
     const artists = await drive.files.list({
       q: `'${process.env.GCP_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
@@ -32,6 +16,7 @@ export default async function handler(req, res) {
     });
 
     const allAlbums = [];
+
     for (const artist of artists.data.files) {
       const albums = await drive.files.list({
         q: `'${artist.id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
@@ -45,19 +30,21 @@ export default async function handler(req, res) {
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
-        
-        // We use a simplified cover art fetch or keep your existing logic
+        const coverFile = content.data.files.find(f => f.name.toLowerCase().includes('cover'));
+
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
-          // You can keep your cover art logic here
+          coverArt: coverFile ? `https://lh3.googleusercontent.com/d/${coverFile.id}=s1000` : null,
           songs: songs.map(s => ({ 
             name: s.name, 
-            link: `/api/get-songs?fileId=${s.id}` // Link points back to this API!
+            // THE FIX: Directing the play link through your Cloudflare Worker
+            link: `https://music-streamer.jacetbaum.workers.dev/?id=${s.id}` 
           }))
         });
       }
     }
+
     res.status(200).json(allAlbums);
   } catch (error) {
     res.status(500).json({ error: error.message });
