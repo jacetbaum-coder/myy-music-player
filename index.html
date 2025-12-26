@@ -7,145 +7,84 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background: #000; color: white; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .main-view { background: linear-gradient(to bottom, #222, #121212); flex: 1; overflow-y: auto; padding: 40px; }
-        .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: all 0.3s ease; cursor: pointer; }
-        .album-card:hover { background: #282828; transform: translateY(-5px); }
-        .album-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-        .player-bar { height: 90px; background: #000; display: flex; align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100; }
-        .track-row { transition: background 0.2s; border-radius: 4px; }
+        .main-view { background: linear-gradient(to bottom, #1a1a1a, #000); flex: 1; overflow-y: auto; padding: 40px; }
+        .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; }
+        .album-card:hover { background: #282828; }
+        .player-bar { height: 90px; background: #000; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid #282828; }
         .track-row:hover { background: rgba(255,255,255,0.1); }
         .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="flex-1 overflow-hidden flex flex-col">
-        <div id="content-area" class="main-view">
-            <button id="back-btn" onclick="showGrid()" class="hidden mb-6 flex items-center gap-2 opacity-70 hover:opacity-100 font-bold text-white">
-                <i class="fas fa-chevron-left"></i> Back to Albums
-            </button>
-
-            <h1 id="view-title" class="text-3xl font-bold mb-8">Your Collection</h1>
-            
-            <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                <div class="text-gray-400">Loading your collection...</div>
-            </div>
-
-            <div id="track-list-container" class="hidden">
-                <div class="flex flex-col md:flex-row gap-8 mb-8">
-                    <img id="detail-cover" class="w-64 h-64 shadow-2xl rounded" src="">
-                    <div class="flex flex-col justify-end">
-                        <span class="text-sm font-bold uppercase text-gray-400">Album</span>
-                        <h2 id="detail-album-name" class="text-6xl font-bold mb-2 text-white"></h2>
-                        <p id="detail-artist-name" class="text-xl opacity-80 text-gray-300"></p>
-                    </div>
-                </div>
-                <div class="w-full border-b border-gray-800 mb-4"></div>
-                <div id="songs-container" class="space-y-1"></div>
-            </div>
+    <div id="content-area" class="main-view">
+        <button id="back-btn" onclick="showGrid()" class="hidden mb-6 opacity-70 hover:opacity-100 font-bold">
+            <i class="fas fa-chevron-left"></i> Back
+        </button>
+        <div id="album-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
+        <div id="track-list" class="hidden">
+            <h2 id="list-title" class="text-4xl font-bold mb-4"></h2>
+            <div id="songs-container" class="space-y-1"></div>
         </div>
     </div>
 
     <div class="player-bar">
-        <div class="w-1/3 flex items-center gap-4">
-            <img id="now-playing-cover" class="w-14 h-14 rounded shadow-lg" src="https://via.placeholder.com/150?text=None">
-            <div class="overflow-hidden">
-                <div id="now-playing-title" class="font-bold text-sm truncate text-white">Select a song</div>
-                <div id="now-playing-artist" class="text-xs opacity-70 truncate text-gray-400">Artist</div>
-            </div>
+        <div class="w-1/3 flex flex-col justify-center">
+            <div id="now-playing" class="font-bold text-sm">Nothing Playing</div>
+            <div id="now-artist" class="text-xs opacity-60"></div>
         </div>
-        <div class="w-1/3 flex flex-col items-center">
-            <audio id="audioPlayer" controls crossorigin="anonymous" class="w-full max-w-md h-8"></audio>
-        </div>
-        <div class="w-1/3"></div>
+        <audio id="audioPlayer" controls class="w-1/3"></audio>
     </div>
 
     <script>
-        let allAlbumsData = [];
+        let albums = [];
         const player = document.getElementById('audioPlayer');
 
-        async function loadCollection() {
-            try {
-                const res = await fetch('/api/get-songs');
-                allAlbumsData = await res.json();
-                showGrid();
-            } catch (err) {
-                console.error("Load failed:", err);
-            }
+        async function init() {
+            const res = await fetch('/api/get-songs');
+            albums = await res.json();
+            showGrid();
         }
 
         function showGrid() {
-            document.getElementById('album-grid').classList.remove('hidden');
-            document.getElementById('track-list-container').classList.add('hidden');
-            document.getElementById('back-btn').classList.add('hidden');
-            document.getElementById('view-title').classList.remove('hidden');
-            
             const grid = document.getElementById('album-grid');
             grid.innerHTML = '';
+            document.getElementById('track-list').classList.add('hidden');
+            document.getElementById('back-btn').classList.add('hidden');
+            grid.classList.remove('hidden');
 
-            allAlbumsData.forEach((album, index) => {
-                const card = document.createElement('div');
-                card.className = 'album-card';
-                card.innerHTML = `
-                    <img src="${album.coverArt || 'https://via.placeholder.com/300?text=No+Cover'}">
-                    <div class="font-bold truncate text-sm text-white">${album.albumName}</div>
-                    <div class="text-xs opacity-60 truncate text-gray-400">${album.artistName}</div>
-                `;
-                card.onclick = () => showAlbumTracks(index);
-                grid.appendChild(card);
+            albums.forEach((a, i) => {
+                const div = document.createElement('div');
+                div.className = 'album-card';
+                div.innerHTML = `<div class="font-bold">${a.albumName}</div><div class="text-xs opacity-50">${a.artistName}</div>`;
+                div.onclick = () => showTracks(i);
+                grid.appendChild(div);
             });
         }
 
-        function showAlbumTracks(index) {
-            const album = allAlbumsData[index];
+        function showTracks(i) {
+            const album = albums[i];
             document.getElementById('album-grid').classList.add('hidden');
-            document.getElementById('view-title').classList.add('hidden');
-            document.getElementById('track-list-container').classList.remove('hidden');
+            document.getElementById('track-list').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
-
-            document.getElementById('detail-cover').src = album.coverArt || '';
-            document.getElementById('detail-album-name').textContent = album.albumName;
-            document.getElementById('detail-artist-name').textContent = album.artistName;
+            document.getElementById('list-title').innerText = album.albumName;
 
             const container = document.getElementById('songs-container');
             container.innerHTML = '';
-
-            album.songs.forEach((song, i) => {
-                const cleanName = song.name.replace(/\.[^/.]+$/, ""); 
+            album.songs.forEach(s => {
                 const row = document.createElement('div');
-                row.className = 'track-row flex items-center p-3 rounded cursor-pointer gap-4 group';
-                row.innerHTML = `
-                    <span class="w-8 text-center text-gray-500 group-hover:text-white">${i + 1}</span>
-                    <div class="flex-1">
-                        <div class="text-white font-medium">${cleanName}</div>
-                    </div>
-                `;
-                row.addEventListener('click', () => playSong(song, album));
+                row.className = 'track-row p-3 cursor-pointer rounded';
+                row.innerText = s.name.replace('.mp3', '');
+                row.onclick = () => {
+                    player.src = s.link;
+                    player.play();
+                    document.getElementById('now-playing').innerText = s.name.replace('.mp3', '');
+                    document.getElementById('now-artist').innerText = album.artistName;
+                };
                 container.appendChild(row);
             });
         }
 
-        function playSong(song, album) {
-            // Update UI
-            const cleanTitle = song.name.replace(/\.[^/.]+$/, "");
-            document.getElementById('now-playing-title').textContent = cleanTitle;
-            document.getElementById('now-playing-artist').textContent = album.artistName;
-            document.getElementById('now-playing-cover').src = album.coverArt || '';
-
-            // Reset and Play
-            player.pause();
-            player.src = song.link;
-            player.load(); // Force the browser to recognize the new source
-            
-            // Modern browsers return a promise on .play()
-            const playPromise = player.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.error("Playback prevented:", error);
-                });
-            }
-        }
-
-        window.onload = loadCollection;
+        init();
     </script>
 </body>
 </html>
