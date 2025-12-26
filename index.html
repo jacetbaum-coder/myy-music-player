@@ -73,7 +73,6 @@
         }
 
         function showGrid() {
-            // UI Toggle
             document.getElementById('album-grid').classList.remove('hidden');
             document.getElementById('track-list-container').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
@@ -90,7 +89,6 @@
                     <div class="font-bold truncate text-sm text-white">${album.albumName}</div>
                     <div class="text-xs opacity-60 truncate text-gray-400">${album.artistName}</div>
                 `;
-                // FIX: This now ONLY opens the tracklist view
                 card.onclick = () => showAlbumTracks(index);
                 grid.appendChild(card);
             });
@@ -98,54 +96,62 @@
 
         function showAlbumTracks(index) {
             const album = allAlbumsData[index];
-            
-            // UI Toggle
             document.getElementById('album-grid').classList.add('hidden');
             document.getElementById('view-title').classList.add('hidden');
             document.getElementById('track-list-container').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
 
-            // Header Info
             document.getElementById('detail-cover').src = album.coverArt || '';
             document.getElementById('detail-album-name').textContent = album.albumName;
             document.getElementById('detail-artist-name').textContent = album.artistName;
 
-            // List Songs
             const container = document.getElementById('songs-container');
             container.innerHTML = '';
 
             album.songs.forEach((song, i) => {
+                // This removes the .mp3 from the display name
+                const cleanName = song.name.replace(/\.[^/.]+$/, ""); 
+                
                 const row = document.createElement('div');
-                row.className = 'track-row flex items-center p-3 cursor-pointer gap-4 group';
+                row.className = 'track-row flex items-center p-3 rounded cursor-pointer gap-4 group';
                 row.innerHTML = `
                     <span class="w-8 text-center text-gray-500 group-hover:text-white">${i + 1}</span>
                     <div class="flex-1">
-                        <div class="text-white font-medium">${song.name}</div>
+                        <div class="text-white font-medium">${cleanName}</div>
                     </div>
                 `;
-                // FIX: This is the only place where music is triggered to play
-                row.onclick = () => playSong(song, album);
+                // Crucial: The play command is attached directly to the click
+                row.onclick = (e) => {
+                    e.preventDefault();
+                    playSong(song, album);
+                };
                 container.appendChild(row);
             });
         }
 
         function playSong(song, album) {
             const player = document.getElementById('audioPlayer');
+            
+            // Set the source
             player.src = song.link;
             
-            // Force reset the player state so it doesn't get stuck
-            player.pause();
-            player.load();
-            
-            // Play and Update Dock
-            player.play().catch(e => console.log("User interaction required"));
-            
-            document.getElementById('now-playing-title').textContent = song.name;
+            // UI Updates
+            document.getElementById('now-playing-title').textContent = song.name.replace(/\.[^/.]+$/, "");
             document.getElementById('now-playing-artist').textContent = album.artistName;
             document.getElementById('now-playing-cover').src = album.coverArt || '';
+
+            // The "Hard Play" - this ensures the browser triggers the audio
+            player.load();
+            const playPromise = player.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    console.log("Playback started!");
+                }).catch(error => {
+                    console.log("Playback failed:", error);
+                });
+            }
         }
 
         window.onload = loadCollection;
     </script>
-</body>
-</html>
