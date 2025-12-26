@@ -3,5 +3,6 @@
   "version": "1.0.0",
   "dependencies": {
     "googleapis": "^126.0.0"
+    "@vercel/kv": "^1.0.1"
   }
 }
