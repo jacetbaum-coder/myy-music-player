@@ -64,12 +64,10 @@
             albums.forEach((a, i) => {
                 const div = document.createElement('div');
                 div.className = 'album-card';
-                // Added the <img> tag here with the policy fix
                 div.innerHTML = `
                     <img src="${a.coverArt || 'https://via.placeholder.com/300?text=No+Cover'}" 
                          referrerpolicy="no-referrer" 
-                         class="cover-img shadow-lg"
-                         onerror="this.src='https://via.placeholder.com/300?text=Error+Loading'">
+                         class="cover-img shadow-lg">
                     <div class="font-bold truncate text-zinc-100">${a.albumName}</div>
                     <div class="text-xs text-zinc-400 truncate">${a.artistName}</div>
                 `;
@@ -80,17 +78,36 @@
 
         function showTracks(i) {
             const album = albums[i];
-            document.getElementById('album-grid').classList.add('hidden');
-            document.getElementById('track-list').classList.remove('hidden');
+            const grid = document.getElementById('album-grid');
+            const list = document.getElementById('track-list');
+            
+            grid.classList.add('hidden');
+            list.classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
-            document.getElementById('list-title').innerText = album.albumName;
+
+            // NEW: Aesthetic Header with Album Art
+            list.innerHTML = `
+                <div class="flex flex-col md:flex-row items-end gap-6 mb-8">
+                    <img src="${album.coverArt}" referrerpolicy="no-referrer" class="w-48 h-48 shadow-2xl rounded">
+                    <div>
+                        <p class="text-sm font-bold uppercase tracking-wider">Album</p>
+                        <h2 class="text-6xl font-black mb-2">${album.albumName}</h2>
+                        <p class="text-lg opacity-70">${album.artistName} • ${album.songs.length} songs</p>
+                    </div>
+                </div>
+                <div id="songs-container" class="space-y-1"></div>
+            `;
 
             const container = document.getElementById('songs-container');
-            container.innerHTML = '';
             album.songs.forEach(s => {
                 const row = document.createElement('div');
-                row.className = 'track-row p-3 cursor-pointer rounded flex justify-between text-zinc-300';
-                row.innerHTML = `<span>${s.name.replace('.mp3', '')}</span><i class="fas fa-play opacity-0 group-hover:opacity-100"></i>`;
+                row.className = 'track-row p-3 cursor-pointer rounded flex justify-between text-zinc-300 group';
+                row.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-play text-xs opacity-0 group-hover:opacity-100 text-green-500"></i>
+                        <span>${s.name.replace('.mp3', '')}</span>
+                    </div>
+                `;
                 row.onclick = () => {
                     player.src = s.link;
                     player.play();
