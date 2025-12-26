@@ -13,6 +13,8 @@
         .player-bar { height: 90px; background: #000; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid #282828; }
         .track-row:hover { background: rgba(255,255,255,0.1); }
         .hidden { display: none; }
+        /* Style for the album art in the grid */
+        .cover-img { width: 100%; aspect-ratio: 1/1; object-cover: cover; border-radius: 4px; margin-bottom: 12px; background: #282828; }
     </style>
 </head>
 <body>
@@ -29,10 +31,13 @@
 
     <div class="player-bar">
         <div class="w-1/3 flex flex-col justify-center">
-            <div id="now-playing" class="font-bold text-sm">Nothing Playing</div>
-            <div id="now-artist" class="text-xs opacity-60"></div>
+            <div id="now-playing" class="font-bold text-sm text-zinc-100">Nothing Playing</div>
+            <div id="now-artist" class="text-xs text-zinc-400"></div>
         </div>
-        <audio id="audioPlayer" controls crossorigin="anonymous" class="w-full max-w-md h-8"></audio>
+        <div class="w-1/3 flex justify-center">
+            <audio id="audioPlayer" controls crossorigin="anonymous" class="w-full max-w-md h-8"></audio>
+        </div>
+        <div class="w-1/3"></div>
     </div>
 
     <script>
@@ -40,9 +45,13 @@
         const player = document.getElementById('audioPlayer');
 
         async function init() {
-            const res = await fetch('/api/get-songs');
-            albums = await res.json();
-            showGrid();
+            try {
+                const res = await fetch('/api/get-songs');
+                albums = await res.json();
+                showGrid();
+            } catch (err) {
+                console.error("Failed to load music", err);
+            }
         }
 
         function showGrid() {
@@ -55,7 +64,15 @@
             albums.forEach((a, i) => {
                 const div = document.createElement('div');
                 div.className = 'album-card';
-                div.innerHTML = `<div class="font-bold">${a.albumName}</div><div class="text-xs opacity-50">${a.artistName}</div>`;
+                // Added the <img> tag here with the policy fix
+                div.innerHTML = `
+                    <img src="${a.coverArt || 'https://via.placeholder.com/300?text=No+Cover'}" 
+                         referrerpolicy="no-referrer" 
+                         class="cover-img shadow-lg"
+                         onerror="this.src='https://via.placeholder.com/300?text=Error+Loading'">
+                    <div class="font-bold truncate text-zinc-100">${a.albumName}</div>
+                    <div class="text-xs text-zinc-400 truncate">${a.artistName}</div>
+                `;
                 div.onclick = () => showTracks(i);
                 grid.appendChild(div);
             });
@@ -72,8 +89,8 @@
             container.innerHTML = '';
             album.songs.forEach(s => {
                 const row = document.createElement('div');
-                row.className = 'track-row p-3 cursor-pointer rounded';
-                row.innerText = s.name.replace('.mp3', '');
+                row.className = 'track-row p-3 cursor-pointer rounded flex justify-between text-zinc-300';
+                row.innerHTML = `<span>${s.name.replace('.mp3', '')}</span><i class="fas fa-play opacity-0 group-hover:opacity-100"></i>`;
                 row.onclick = () => {
                     player.src = s.link;
                     player.play();
