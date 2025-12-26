@@ -113,7 +113,15 @@
     <script>
         let albums = [];
         let playlists = {};
-        let recentHistory = [];
+        // This tells the browser: "Try to find my old history. If you can't, start with an empty list."
+let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
+
+// This makes sure the sidebar shows your songs as soon as you open the page
+window.addEventListener('DOMContentLoaded', () => {
+    if (recentHistory.length > 0) {
+        renderHistory(); 
+    }
+});
         let selectedSongForMenu = null;
         let inactivityTimer;
         const ONE_HOUR = 60 * 60 * 1000;
@@ -292,6 +300,7 @@
             recentHistory = [{ albumName, artist, cover }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
             renderHistory();
             saveGlobalState();
+            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
         }
 
         function renderHistory() {
