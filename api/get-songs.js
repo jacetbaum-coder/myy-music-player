@@ -16,7 +16,6 @@ export default async function handler(req, res) {
     });
 
     const allAlbums = [];
-
     for (const artist of artists.data.files) {
       const albums = await drive.files.list({
         q: `'${artist.id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
@@ -30,21 +29,23 @@ export default async function handler(req, res) {
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
-        const coverFile = content.data.files.find(f => f.name.toLowerCase().includes('cover'));
+        // Find the image file (usually named cover.jpg or similar)
+        const coverFile = content.data.files.find(f => 
+          f.mimeType.includes('image') || f.name.toLowerCase().includes('cover')
+        );
 
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
-          coverArt: coverFile ? `https://drive.google.com/thumbnail?id=${coverFile.id}&sz=w1000` : null,
+          // FIX: Use Cloudflare to proxy the image too
+          coverArt: coverFile ? `https://music-streamer.jacetbaum.workers.dev/?id=${coverFile.id}` : null,
           songs: songs.map(s => ({ 
             name: s.name, 
-            // THE FIX: Directing the play link through your Cloudflare Worker
             link: `https://music-streamer.jacetbaum.workers.dev/?id=${s.id}` 
           }))
         });
       }
     }
-
     res.status(200).json(allAlbums);
   } catch (error) {
     res.status(500).json({ error: error.message });
