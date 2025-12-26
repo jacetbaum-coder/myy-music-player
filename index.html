@@ -11,7 +11,10 @@
         
         /* Sidebar Styles */
         .sidebar { width: 300px; background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
-        .sidebar-hidden { width: 0; padding: 0; opacity: 0; pointer-events: none; transform: translateX(50px); transition: all 0.5s ease; }
+        
+        /* Artist Spotlight Transition */
+        #right-sidebar { transition: width 0.5s ease, opacity 0.5s ease, padding 0.5s ease; width: 300px; }
+        .sidebar-hidden { width: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; }
         
         /* Main Content */
         .main-view { flex: 1; background: linear-gradient(to bottom, #1a1a1a, #000); overflow-y: auto; padding: 24px; }
@@ -22,7 +25,7 @@
         .player-bar { 
             height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; 
             align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100;
-            transition: transform 0.6s ease, opacity 0.6s ease;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease;
         }
         .dock-hidden { transform: translateY(100%); opacity: 0; }
 
@@ -35,12 +38,10 @@
         input[type="range"]::-webkit-slider-thumb { appearance: none; height: 12px; width: 12px; background: white; border-radius: 50%; opacity: 0; transition: 0.1s; }
         .progress-container:hover input[type="range"]::-webkit-slider-thumb { opacity: 1; }
 
-        /* Icons */
         .control-btn { color: #b3b3b3; transition: 0.2s; cursor: pointer; font-size: 16px; }
         .control-btn:hover { color: white; }
         .play-main { font-size: 32px; color: white; }
         
-        /* Utility */
         #context-menu { position: fixed; display: none; background: #282828; border-radius: 4px; padding: 4px; min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); z-index: 1000; }
         .menu-item { padding: 12px 16px; cursor: pointer; font-size: 14px; border-radius: 2px; }
         .menu-item:hover { background: #3e3e3e; }
@@ -80,11 +81,6 @@
         </aside>
     </div>
 
-    <div id="context-menu">
-        <div class="menu-item border-b border-white/5" onclick="createNewPlaylist()">New Playlist</div>
-        <div id="add-to-options" class="pt-1"></div>
-    </div>
-
     <div id="player-dock" class="player-bar dock-hidden">
         <div class="flex items-center gap-4 overflow-hidden">
             <div id="mini-cover" class="w-14 h-14 bg-zinc-800 rounded shadow-md hidden md:block bg-cover bg-center"></div>
@@ -92,7 +88,6 @@
                 <div id="now-playing" class="font-bold text-[14px] text-white truncate">Nothing Playing</div>
                 <div id="now-artist" class="text-[11px] text-zinc-400 truncate"></div>
             </div>
-            <i class="far fa-heart text-zinc-400 hover:text-[#1db954] cursor-pointer ml-2 text-sm"></i>
         </div>
 
         <div class="flex flex-col items-center gap-2">
@@ -111,23 +106,8 @@
         </div>
 
         <div class="flex items-center justify-end gap-4 text-zinc-400">
-            <i class="fas fa-microphone control-btn text-xs"></i>
-            <i class="fas fa-list control-btn text-xs"></i>
-            <div class="flex items-center gap-2 w-24">
-                <i id="volume-icon" class="fas fa-volume-up text-xs"></i>
-                <input type="range" id="volume-bar" value="80" min="0" max="100" oninput="changeVolume()">
-            </div>
-        </div>
-    </div>
-
-    <div id="playlist-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center bg-black/80">
-        <div class="bg-[#282828] p-8 rounded-lg w-full max-w-md">
-            <h2 class="text-2xl font-bold mb-4">New Playlist</h2>
-            <input type="text" id="modal-input" class="bg-[#3e3e3e] border-none text-white p-3 rounded-md w-full mb-4 outline-none">
-            <div class="flex justify-end gap-3">
-                <button onclick="closeModal()" class="text-zinc-400 font-bold">Cancel</button>
-                <button onclick="confirmPlaylist()" class="bg-white text-black px-6 py-2 rounded-full font-bold">Create</button>
-            </div>
+            <i id="volume-icon" class="fas fa-volume-up text-xs"></i>
+            <input type="range" id="volume-bar" value="80" min="0" max="100" class="w-24" oninput="changeVolume()">
         </div>
     </div>
 
@@ -137,7 +117,6 @@
         let albums = [];
         let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
-        let selectedSongForMenu = null;
         let inactivityTimer;
         const ONE_HOUR = 60 * 60 * 1000;
 
@@ -155,21 +134,84 @@
                 renderPlaylists();
                 renderHistory();
                 showGrid();
-                resetInactivityTimer();
-            } catch (err) { console.error("Error loading songs:", err); }
+                
+                // Hide dock on initial load since nothing has played yet
+                document.getElementById('player-dock').classList.add('dock-hidden');
+                document.getElementById('right-sidebar').classList.add('sidebar-hidden');
+            } catch (err) { console.error(err); }
         }
 
-        // --- Dock Visibility Logic ---
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
-            // Only start the timer if the player is paused
-            if (player.paused || !player.src) {
+            // If paused, start the 1-hour countdown to hide the UI
+            if (player.paused) {
                 inactivityTimer = setTimeout(() => {
                     document.getElementById('player-dock').classList.add('dock-hidden');
                     document.getElementById('right-sidebar').classList.add('sidebar-hidden');
                 }, ONE_HOUR);
             }
         }
+
+        function playSong(link, title, artist, cover, albumName) {
+            player.src = link;
+            player.play();
+            updateNowPlayingUI(title, artist, cover);
+            
+            recentHistory = [{ artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
+            renderHistory();
+            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
+        }
+
+        function updateNowPlayingUI(title, artist, cover) {
+            // Set values
+            document.getElementById('now-playing').innerText = title;
+            document.getElementById('now-artist').innerText = artist;
+            document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
+            document.getElementById('mini-cover').classList.remove('hidden');
+            
+            // Show UI
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+            
+            document.getElementById('artist-spotlight').innerHTML = `
+                <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover shadow-xl">
+                <h4 class="font-bold text-xl">${artist}</h4>
+                <p class="text-xs text-zinc-400 mt-2">Currently loaded: ${title}</p>`;
+        }
+
+        function togglePlay() {
+            if (player.paused) player.play();
+            else player.pause();
+        }
+
+        player.onplay = () => {
+            masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
+            clearTimeout(inactivityTimer); // Cancel hide timer while playing
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+        };
+
+        player.onpause = () => {
+            masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
+            resetInactivityTimer(); // Start 1-hour countdown when paused
+        };
+
+        player.ontimeupdate = () => {
+            if (!player.duration) return;
+            const percent = (player.currentTime / player.duration) * 100;
+            progressBar.value = percent;
+            progressBar.style.backgroundSize = percent + '% 100%';
+            document.getElementById('current-time').innerText = formatTime(player.currentTime);
+            document.getElementById('total-time').innerText = formatTime(player.duration);
+        };
+
+        function seekAudio() { player.currentTime = player.duration * (progressBar.value / 100); }
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' + sec : sec}`;
+        }
+        function changeVolume() { player.volume = document.getElementById('volume-bar').value / 100; }
 
         // --- View Logic ---
         function showGrid() {
@@ -207,84 +249,15 @@
             album.songs.forEach((s, idx) => {
                 const row = document.createElement('div');
                 row.className = 'track-row p-3 cursor-pointer rounded-md flex items-center gap-4 text-zinc-400 group hover:bg-white/10';
-                row.dataset.songInfo = JSON.stringify({link: s.link, name: s.name.replace('.mp3',''), artist: album.artistName, cover: album.coverArt});
                 row.innerHTML = `<span class="w-6 text-right text-sm">${idx + 1}</span><span class="text-white font-medium flex-1">${s.name.replace('.mp3','')}</span>`;
                 row.onclick = () => playSong(s.link, s.name.replace('.mp3',''), album.artistName, album.coverArt, album.albumName);
                 container.appendChild(row);
             });
         }
 
-        // --- Player Logic ---
-        function playSong(link, title, artist, cover, albumName) {
-            player.src = link;
-            player.play();
-            updateNowPlayingUI(title, artist, cover);
-            
-            recentHistory = [{ artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
-            renderHistory();
-            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
-        }
-
-        function updateNowPlayingUI(title, artist, cover) {
-            document.getElementById('now-playing').innerText = title;
-            document.getElementById('now-artist').innerText = artist;
-            document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
-            document.getElementById('mini-cover').classList.remove('hidden');
-            
-            // Show dock and sidebar when a song starts
-            document.getElementById('player-dock').classList.remove('dock-hidden');
-            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-            
-            document.getElementById('artist-spotlight').innerHTML = `
-                <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover">
-                <h4 class="font-bold text-xl">${artist}</h4>
-                <p class="text-xs text-zinc-400 mt-2">Playing from ${title}</p>`;
-        }
-
-        function togglePlay() {
-            if (player.paused) player.play();
-            else player.pause();
-        }
-
-        player.onplay = () => {
-            masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
-            clearTimeout(inactivityTimer); // Keep dock visible while playing
-            document.getElementById('player-dock').classList.remove('dock-hidden');
-            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-        };
-
-        player.onpause = () => {
-            masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
-            resetInactivityTimer(); // Start 1-hour countdown on pause
-        };
-
-        player.ontimeupdate = () => {
-            const percent = (player.currentTime / player.duration) * 100;
-            progressBar.value = percent || 0;
-            progressBar.style.backgroundSize = (percent || 0) + '% 100%';
-            document.getElementById('current-time').innerText = formatTime(player.currentTime);
-            document.getElementById('total-time').innerText = formatTime(player.duration || 0);
-        };
-
-        function seekAudio() { player.currentTime = player.duration * (progressBar.value / 100); }
-
-        function formatTime(s) {
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${m}:${sec < 10 ? '0' + sec : sec}`;
-        }
-
-        function changeVolume() {
-            const vol = document.getElementById('volume-bar').value;
-            player.volume = vol / 100;
-        }
-
-        // --- Playlist Logic ---
         function renderPlaylists() {
             const container = document.getElementById('playlist-list');
-            container.innerHTML = Object.keys(playlists).map(p => `
-                <div class="p-2 hover:bg-zinc-800 rounded cursor-pointer text-sm font-medium text-zinc-400 hover:text-white" onclick="showPlaylist('${p}')">${p}</div>
-            `).join('');
+            container.innerHTML = Object.keys(playlists).map(p => `<div class="p-2 hover:bg-zinc-800 rounded cursor-pointer text-sm text-zinc-400 hover:text-white">${p}</div>`).join('');
         }
 
         function renderHistory() {
@@ -301,43 +274,7 @@
             if (idx !== -1) showTracks(idx);
         }
 
-        function createNewPlaylist() {
-            document.getElementById('playlist-modal').classList.remove('hidden');
-            document.getElementById('modal-input').focus();
-        }
-
-        function confirmPlaylist() {
-            const name = document.getElementById('modal-input').value.trim();
-            if (name) {
-                playlists[name] = [];
-                localStorage.setItem('userPlaylists', JSON.stringify(playlists));
-                renderPlaylists();
-                closeModal();
-            }
-        }
-
-        function closeModal() { document.getElementById('playlist-modal').classList.add('hidden'); }
-        function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
-
-        window.oncontextmenu = (e) => {
-            const row = e.target.closest('.track-row');
-            if (row) {
-                e.preventDefault();
-                selectedSongForMenu = JSON.parse(row.dataset.songInfo);
-                const menu = document.getElementById('context-menu');
-                menu.style.display = 'block';
-                menu.style.left = e.pageX + 'px';
-                menu.style.top = e.pageY + 'px';
-                document.getElementById('add-to-options').innerHTML = Object.keys(playlists).map(p => 
-                    `<div class="menu-item" onclick="addToPlaylist('${p}')">Add to ${p}</div>`).join('');
-            }
-        };
-
-        function addToPlaylist(p) {
-            playlists[p].push(selectedSongForMenu);
-            localStorage.setItem('userPlaylists', JSON.stringify(playlists));
-            hideMenu();
-        }
+        function hideMenu() { /* Context menu placeholder */ }
     </script>
 </body>
 </html>
