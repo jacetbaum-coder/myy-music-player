@@ -7,21 +7,22 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background: #000; color: white; font-family: 'Circular', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .app-container { display: flex; flex: 1; overflow: hidden; }
+        .app-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
-        /* Sidebar Styles */
-        .sidebar { width: 300px; background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
-        
-        /* Artist Spotlight Transition */
-        #right-sidebar { transition: width 0.5s ease, opacity 0.5s ease; width: 300px; }
+        /* 3. Discreet Drag Panels */
+        .sidebar { background: #000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; min-width: 150px; max-width: 450px; position: relative; }
+        .resizer-left, .resizer-right { width: 4px; cursor: col-resize; position: absolute; top: 0; bottom: 0; z-index: 10; transition: background 0.2s; }
+        .resizer-left:hover, .resizer-right:hover { background: rgba(255,255,255,0.1); }
+        .resizer-left { right: 0; }
+        .resizer-right { left: 0; }
+
+        #right-sidebar { transition: opacity 0.5s ease; width: 300px; }
         .sidebar-hidden { width: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; }
         
-        /* Main Content */
         .main-view { flex: 1; background: linear-gradient(to bottom, #1a1a1a, #000); overflow-y: auto; padding: 24px; }
         .album-card { background: #181818; padding: 16px; border-radius: 8px; transition: 0.3s; cursor: pointer; }
         .album-card:hover { background: #282828; }
         
-        /* Spotify-style Player Bar */
         .player-bar { 
             height: 90px; background: #000; display: grid; grid-template-columns: 30% 40% 30%; 
             align-items: center; padding: 0 16px; border-top: 1px solid #282828; z-index: 100;
@@ -29,27 +30,29 @@
         }
         .dock-hidden { transform: translateY(100%); opacity: 0; }
 
-        /* Progress Bar Styling */
+        /* 1. Smaller Volume Bar */
         input[type="range"] { 
-            flex: 1; appearance: none; height: 4px; background: #4d4d4d; border-radius: 2px; cursor: pointer;
+            appearance: none; height: 4px; background: #4d4d4d; border-radius: 2px; cursor: pointer;
             background-image: linear-gradient(#1db954, #1db954); background-size: 0% 100%; background-repeat: no-repeat;
         }
+        #volume-bar { width: 80px; height: 3px; } /* Thinner and shorter */
+        #volume-bar::-webkit-slider-thumb { appearance: none; height: 10px; width: 10px; background: #fff; border-radius: 50%; }
+
         .control-btn { color: #b3b3b3; transition: 0.2s; cursor: pointer; }
         .control-btn:hover { color: white; }
     </style>
 </head>
-<body onclick="hideMenu()">
+<body>
 
-    <div class="app-container">
-        <aside class="sidebar border-r border-zinc-800">
+    <div class="app-container" id="container">
+        <aside class="sidebar border-r border-zinc-800" id="left-panel">
             <div class="mb-8">
-                <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest flex justify-between items-center">
-                    Your Library
-                </h3>
+                <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">Your Library</h3>
                 <div id="playlist-list" class="space-y-2"></div>
             </div>
             <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">Recently Listened</h3>
             <div id="recent-list" class="space-y-4"></div>
+            <div class="resizer-left" id="resizer-l"></div>
         </aside>
 
         <main class="main-view">
@@ -64,6 +67,7 @@
         </main>
 
         <aside id="right-sidebar" class="sidebar border-l border-zinc-800 sidebar-hidden">
+            <div class="resizer-right" id="resizer-r"></div>
             <h3 class="font-bold text-zinc-400 mb-4 uppercase text-[11px] tracking-widest">About the Artist</h3>
             <div id="artist-spotlight"></div>
         </aside>
@@ -86,14 +90,14 @@
             </div>
             <div class="w-full flex items-center gap-2 text-[11px] text-zinc-400">
                 <span id="current-time">0:00</span>
-                <input type="range" id="progress-bar" value="0" min="0" max="100" oninput="seekAudio()">
+                <input type="range" id="progress-bar" value="0" min="0" max="100" class="flex-1" oninput="seekAudio()">
                 <span id="total-time">0:00</span>
             </div>
         </div>
 
         <div class="flex justify-end items-center gap-3">
             <i class="fas fa-volume-up text-zinc-400 text-xs"></i>
-            <input type="range" id="volume-bar" class="w-24" value="80" oninput="changeVolume()">
+            <input type="range" id="volume-bar" value="80" oninput="changeVolume()">
         </div>
     </div>
 
@@ -121,132 +125,73 @@
                 renderHistory();
                 showGrid();
                 
-                // RESTORE SESSION: Show dock if played within last hour
                 const now = Date.now();
                 if (recentHistory.length > 0 && (now - lastPlayedTime < ONE_HOUR)) {
                     const last = recentHistory[0];
                     updateNowPlayingUI(last.songName, last.artist, last.cover);
                 }
+                initResizers();
             } catch (err) { console.error(err); }
         }
 
-        function showGrid() {
-            const grid = document.getElementById('album-grid');
-            grid.innerHTML = '';
-            document.getElementById('track-list').classList.add('hidden');
-            document.getElementById('back-btn').classList.add('hidden');
-            grid.classList.remove('hidden');
-            albums.forEach((a, i) => {
-                const div = document.createElement('div');
-                div.className = 'album-card';
-                div.innerHTML = `<img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4">
-                                 <div class="font-bold truncate text-sm text-white">${a.albumName}</div>
-                                 <div class="text-xs text-zinc-500 truncate">${a.artistName}</div>`;
-                div.onclick = () => showTracks(i);
-                grid.appendChild(div);
+        // 2. Space Bar ONLY for Play/Pause
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevents page scrolling or clicking active elements
+                togglePlay();
+            }
+        });
+
+        // 3. Resizer Logic
+        function initResizers() {
+            const leftPanel = document.getElementById('left-panel');
+            const rightPanel = document.getElementById('right-sidebar');
+            const resizerL = document.getElementById('resizer-l');
+            const resizerR = document.getElementById('resizer-r');
+
+            resizerL.addEventListener('mousedown', (e) => {
+                document.addEventListener('mousemove', resizeL);
+                document.addEventListener('mouseup', () => document.removeEventListener('mousemove', resizeL));
             });
-        }
 
-        function showTracks(index) {
-            const album = albums[index];
-            const list = document.getElementById('track-list');
-            document.getElementById('album-grid').classList.add('hidden');
-            list.classList.remove('hidden');
-            document.getElementById('back-btn').classList.remove('hidden');
+            resizerR.addEventListener('mousedown', (e) => {
+                document.addEventListener('mousemove', resizeR);
+                document.addEventListener('mouseup', () => document.removeEventListener('mousemove', resizeR));
+            });
 
-            document.getElementById('album-header-container').innerHTML = `
-                <div class="flex items-end gap-6 mb-8">
-                    <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
-                    <div><h1 class="text-5xl font-black text-white">${album.albumName}</h1><p class="mt-4 font-bold text-zinc-400">${album.artistName}</p></div>
-                </div>`;
-
-            const container = document.getElementById('songs-container');
-            container.innerHTML = album.songs.map((s, idx) => `
-                <div class="p-3 hover:bg-white/10 rounded-md cursor-pointer flex items-center gap-4 text-zinc-400 group" 
-                     onclick="playSong('${s.link}', '${s.name.replace('.mp3','')}', '${album.artistName}', '${album.coverArt}', '${album.albumName}')">
-                    <span class="w-4 text-sm">${idx + 1}</span>
-                    <span class="text-white flex-1 font-medium">${s.name.replace('.mp3','')}</span>
-                </div>`).join('');
-        }
-
-        // Sidebar Navigation Fix
-        function openAlbumByName(name) {
-            const idx = albums.findIndex(a => a.albumName === name);
-            if (idx !== -1) showTracks(idx);
-        }
-
-        function renderHistory() {
-            const container = document.getElementById('recent-list');
-            container.innerHTML = recentHistory.map(h => {
-                const safeName = h.albumName.replace(/'/g, "\\'");
-                return `
-                <div class="flex items-center gap-3 cursor-pointer group" onclick="openAlbumByName('${safeName}')">
-                    <img src="${h.cover}" class="w-12 h-12 rounded object-cover">
-                    <div class="truncate">
-                        <div class="text-sm font-bold truncate text-white group-hover:underline">${h.albumName}</div>
-                        <div class="text-[11px] text-zinc-500">${h.artist}</div>
-                    </div>
-                </div>`;
-            }).join('');
+            function resizeL(e) { leftPanel.style.width = e.clientX + 'px'; }
+            function resizeR(e) { rightPanel.style.width = (window.innerWidth - e.clientX) + 'px'; }
         }
 
         async function playSong(link, title, artist, cover, albumName) {
             try {
                 player.pause();
                 player.src = link;
-                player.load(); // Proper buffering
-                
+                player.load();
                 updateNowPlayingUI(title, artist, cover);
-                
                 lastPlayedTime = Date.now();
                 localStorage.setItem('lastPlayedTime', lastPlayedTime);
-
                 recentHistory = [{ songName: title, artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
                 localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
                 renderHistory();
-
-                await player.play(); // Prevent 1-second stop glitch
-            } catch (err) { console.error("Playback Error:", err); }
+                await player.play();
+            } catch (err) { console.error(err); }
         }
 
         function updateNowPlayingUI(title, artist, cover) {
             document.getElementById('now-playing').innerText = title;
             document.getElementById('now-artist').innerText = artist;
             document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
-            
-            // Explicitly show both dock and spotlight
             document.getElementById('player-dock').classList.remove('dock-hidden');
             document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-            
             document.getElementById('artist-spotlight').innerHTML = `
                 <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover shadow-xl">
-                <h4 class="font-bold text-xl text-white">${artist}</h4>
-                <p class="text-xs text-zinc-400 mt-2">${title}</p>`;
-        }
-
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            if (player.paused) {
-                inactivityTimer = setTimeout(() => {
-                    document.getElementById('player-dock').classList.add('dock-hidden');
-                    document.getElementById('right-sidebar').classList.add('sidebar-hidden');
-                }, ONE_HOUR); // Hide dock only after 1 hour of silence
-            }
+                <h4 class="font-bold text-xl text-white">${artist}</h4>`;
         }
 
         function togglePlay() { if (player.paused) player.play(); else player.pause(); }
-
-        player.onplay = () => {
-            masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
-            clearTimeout(inactivityTimer);
-            document.getElementById('player-dock').classList.remove('dock-hidden');
-            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
-        };
-
-        player.onpause = () => {
-            masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
-            resetInactivityTimer();
-        };
+        player.onplay = () => masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
+        player.onpause = () => masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
 
         player.ontimeupdate = () => {
             const percent = (player.currentTime / player.duration) * 100;
@@ -256,14 +201,43 @@
             document.getElementById('total-time').innerText = formatTime(player.duration || 0);
         };
 
-        function renderPlaylists() {
-            const container = document.getElementById('playlist-list');
-            container.innerHTML = Object.keys(playlists).map(p => `<div class="p-2 hover:bg-zinc-800 rounded cursor-pointer text-sm text-zinc-400 hover:text-white">${p}</div>`).join('');
+        function showGrid() {
+            const grid = document.getElementById('album-grid'); grid.innerHTML = '';
+            document.getElementById('track-list').classList.add('hidden');
+            document.getElementById('back-btn').classList.add('hidden');
+            grid.classList.remove('hidden');
+            albums.forEach((a, i) => {
+                const div = document.createElement('div');
+                div.className = 'album-card';
+                div.innerHTML = `<img src="${a.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4"><div class="font-bold truncate text-sm text-white">${a.albumName}</div>`;
+                div.onclick = () => showTracks(i);
+                grid.appendChild(div);
+            });
         }
 
+        function showTracks(index) {
+            const album = albums[index];
+            document.getElementById('album-grid').classList.add('hidden');
+            document.getElementById('track-list').classList.remove('hidden');
+            document.getElementById('back-btn').classList.remove('hidden');
+            document.getElementById('album-header-container').innerHTML = `<h1 class="text-5xl font-black text-white">${album.albumName}</h1>`;
+            document.getElementById('songs-container').innerHTML = album.songs.map((s, idx) => `
+                <div class="p-3 hover:bg-white/10 rounded-md cursor-pointer flex items-center text-zinc-400" onclick="playSong('${s.link}', '${s.name.replace('.mp3','')}', '${album.artistName}', '${album.coverArt}', '${album.albumName}')">
+                <span class="w-8">${idx+1}</span><span class="text-white">${s.name.replace('.mp3','')}</span></div>`).join('');
+        }
+
+        function renderHistory() {
+            document.getElementById('recent-list').innerHTML = recentHistory.map(h => `
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="openAlbumByName('${h.albumName.replace(/'/g, "\\'")}')">
+                <img src="${h.cover}" class="w-12 h-12 rounded object-cover">
+                <div class="text-sm font-bold truncate text-white">${h.albumName}</div></div>`).join('');
+        }
+
+        function openAlbumByName(name) { const idx = albums.findIndex(a => a.albumName === name); if (idx !== -1) showTracks(idx); }
         function formatTime(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0'+sec:sec}`; }
         function seekAudio() { player.currentTime = player.duration * (progressBar.value / 100); }
         function changeVolume() { player.volume = document.getElementById('volume-bar').value / 100; }
+        function renderPlaylists() {}
         function hideMenu() {}
     </script>
 </body>
