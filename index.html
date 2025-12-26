@@ -113,55 +113,102 @@
 
     <audio id="audioPlayer" crossorigin="anonymous"></audio>
 
-    <script>
-        let albums = [];
-        let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
-        let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
-        let inactivityTimer;
-        const ONE_HOUR = 60 * 60 * 1000;
+    let albums = [];
+let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
+let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
+let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
+let inactivityTimer;
+const ONE_HOUR = 60 * 60 * 1000;
 
-        const player = document.getElementById('audioPlayer');
-        const progressBar = document.getElementById('progress-bar');
-        const masterPlay = document.getElementById('master-play');
+const player = document.getElementById('audioPlayer');
+const progressBar = document.getElementById('progress-bar');
+const masterPlay = document.getElementById('master-play');
 
-        window.onload = init;
+window.onload = init;
 
-        async function init() {
-            try {
-                const res = await fetch('/api/get-songs');
-                const data = await res.json();
-                albums = data.albums || data;
-                renderPlaylists();
-                renderHistory();
-                showGrid();
-                
-                // Hide dock on initial load since nothing has played yet
-                document.getElementById('player-dock').classList.add('dock-hidden');
-                document.getElementById('right-sidebar').classList.add('sidebar-hidden');
-            } catch (err) { console.error(err); }
+async function init() {
+    try {
+        const res = await fetch('/api/get-songs');
+        const data = await res.json();
+        albums = data.albums || data;
+        renderPlaylists();
+        renderHistory();
+        showGrid();
+        
+        // CHECK SESSION: Should we show the dock on load?
+        const now = Date.now();
+        const sessionActive = (now - lastPlayedTime) < ONE_HOUR;
+        
+        if (recentHistory.length > 0 && sessionActive) {
+            const last = recentHistory[0];
+            // Restore the UI but don't auto-play
+            updateNowPlayingUI(last.songName || "Resume", last.artist, last.cover, false);
+        } else {
+            // Hide if it's been over an hour or no history exists
+            document.getElementById('player-dock').classList.add('dock-hidden');
+            document.getElementById('right-sidebar').classList.add('sidebar-hidden');
         }
+    } catch (err) { console.error(err); }
+}
 
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            // If paused, start the 1-hour countdown to hide the UI
-            if (player.paused) {
-                inactivityTimer = setTimeout(() => {
-                    document.getElementById('player-dock').classList.add('dock-hidden');
-                    document.getElementById('right-sidebar').classList.add('sidebar-hidden');
-                }, ONE_HOUR);
-            }
-        }
+function updateNowPlayingUI(title, artist, cover, animate = true) {
+    document.getElementById('now-playing').innerText = title;
+    document.getElementById('now-artist').innerText = artist;
+    document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
+    document.getElementById('mini-cover').classList.remove('hidden');
+    
+    // Slide up
+    document.getElementById('player-dock').classList.remove('dock-hidden');
+    document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+    
+    document.getElementById('artist-spotlight').innerHTML = `
+        <img src="${cover}" class="w-full aspect-square rounded-lg mb-4 object-cover shadow-xl">
+        <h4 class="font-bold text-xl">${artist}</h4>
+        <p class="text-xs text-zinc-400 mt-2">Loaded from library</p>`;
+}
 
-        function playSong(link, title, artist, cover, albumName) {
-            player.src = link;
-            player.play();
-            updateNowPlayingUI(title, artist, cover);
-            
-            recentHistory = [{ artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
-            renderHistory();
-            localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
-        }
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    if (player.paused) {
+        inactivityTimer = setTimeout(() => {
+            document.getElementById('player-dock').classList.add('dock-hidden');
+            document.getElementById('right-sidebar').classList.add('sidebar-hidden');
+        }, ONE_HOUR);
+    }
+}
 
+// Update the "Last Played" timestamp whenever the player is active
+function updateSessionTimestamp() {
+    lastPlayedTime = Date.now();
+    localStorage.setItem('lastPlayedTime', lastPlayedTime);
+}
+
+player.onplay = () => {
+    masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
+    updateSessionTimestamp(); 
+    clearTimeout(inactivityTimer);
+    document.getElementById('player-dock').classList.remove('dock-hidden');
+    document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+};
+
+player.onpause = () => {
+    masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
+    updateSessionTimestamp(); // Record the time you paused
+    resetInactivityTimer();
+};
+
+// ... keep your existing showGrid, showTracks, and seekAudio functions ...
+
+function playSong(link, title, artist, cover, albumName) {
+    player.src = link;
+    player.play();
+    updateNowPlayingUI(title, artist, cover);
+    
+    // Save songName into history so we can restore it on refresh
+    recentHistory = [{ songName: title, artist, cover, albumName }, ...recentHistory.filter(h => h.albumName !== albumName)].slice(0, 8);
+    renderHistory();
+    localStorage.setItem('recentHistory', JSON.stringify(recentHistory));
+}
         function updateNowPlayingUI(title, artist, cover) {
             // Set values
             document.getElementById('now-playing').innerText = title;
