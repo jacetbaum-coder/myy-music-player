@@ -138,6 +138,9 @@
         let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || {};
         let recentHistory = JSON.parse(localStorage.getItem('recentHistory')) || [];
         let selectedSongForMenu = null;
+        let inactivityTimer;
+        const ONE_HOUR = 60 * 60 * 1000;
+
         const player = document.getElementById('audioPlayer');
         const progressBar = document.getElementById('progress-bar');
         const masterPlay = document.getElementById('master-play');
@@ -152,7 +155,20 @@
                 renderPlaylists();
                 renderHistory();
                 showGrid();
+                resetInactivityTimer();
             } catch (err) { console.error("Error loading songs:", err); }
+        }
+
+        // --- Dock Visibility Logic ---
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            // Only start the timer if the player is paused
+            if (player.paused || !player.src) {
+                inactivityTimer = setTimeout(() => {
+                    document.getElementById('player-dock').classList.add('dock-hidden');
+                    document.getElementById('right-sidebar').classList.add('sidebar-hidden');
+                }, ONE_HOUR);
+            }
         }
 
         // --- View Logic ---
@@ -214,6 +230,8 @@
             document.getElementById('now-artist').innerText = artist;
             document.getElementById('mini-cover').style.backgroundImage = `url(${cover})`;
             document.getElementById('mini-cover').classList.remove('hidden');
+            
+            // Show dock and sidebar when a song starts
             document.getElementById('player-dock').classList.remove('dock-hidden');
             document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
             
@@ -228,8 +246,17 @@
             else player.pause();
         }
 
-        player.onplay = () => masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
-        player.onpause = () => masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
+        player.onplay = () => {
+            masterPlay.classList.replace('fa-play-circle', 'fa-pause-circle');
+            clearTimeout(inactivityTimer); // Keep dock visible while playing
+            document.getElementById('player-dock').classList.remove('dock-hidden');
+            document.getElementById('right-sidebar').classList.remove('sidebar-hidden');
+        };
+
+        player.onpause = () => {
+            masterPlay.classList.replace('fa-pause-circle', 'fa-play-circle');
+            resetInactivityTimer(); // Start 1-hour countdown on pause
+        };
 
         player.ontimeupdate = () => {
             const percent = (player.currentTime / player.duration) * 100;
