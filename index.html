@@ -127,25 +127,29 @@ let albums = [];
         const ONE_HOUR = 60 * 60 * 1000;
         const player = document.getElementById('audioPlayer');
 
-        async function init() {
+       async function init() {
             try {
                 const res = await fetch('/api/get-songs');
                 const data = await res.json();
                 
-                // Load core data
+                // Load the songs for the grid
                 albums = data.albums || (Array.isArray(data) ? data : []);
                 
-                // Load persistent state from Upstash if it exists
+                // ONLY use server data if it actually exists, 
+                // otherwise keep what we loaded from localStorage
                 if (data.appState) {
-                    playlists = data.appState.playlists || {};
-                    recentHistory = data.appState.recentHistory || [];
+                    if (data.appState.playlists && Object.keys(data.appState.playlists).length > 0) {
+                        playlists = data.appState.playlists;
+                    }
+                    if (data.appState.recentHistory && data.appState.recentHistory.length > 0) {
+                        recentHistory = data.appState.recentHistory;
+                    }
                     if (data.appState.lastPlayed) {
                         restoreLastPlayed(data.appState.lastPlayed);
                     }
-                } else {
-                    playlists = data.playlists || {};
                 }
 
+                // Force a redraw of the UI with our saved data
                 renderPlaylists();
                 renderHistory();
                 showGrid();
