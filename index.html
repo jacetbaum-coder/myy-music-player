@@ -43,6 +43,9 @@
 
         /* Active states */
         .active-green { color: #1db954 !important; }
+        
+        /* Cursor helpers */
+        .editable-title:hover { text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -145,11 +148,11 @@
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6 text-zinc-400">
                 <i id="btn-shuffle" onclick="this.classList.toggle('active-green')" class="fas fa-shuffle hover:text-white cursor-pointer"></i>
-                <i class="fas fa-step-backward hover:text-white cursor-pointer"></i>
+                <i class="fas fa-step-backward hover:text-white cursor-pointer" onclick="prevSong()"></i>
                 <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 cursor-pointer text-black" onclick="togglePlay()">
                     <i id="play-icon" class="fas fa-play ml-1"></i>
                 </div>
-                <i class="fas fa-step-forward hover:text-white cursor-pointer"></i>
+                <i class="fas fa-step-forward hover:text-white cursor-pointer" onclick="nextSong()"></i>
                 <i id="btn-repeat" onclick="this.classList.toggle('active-green')" class="fas fa-repeat hover:text-white cursor-pointer"></i>
             </div>
             <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
@@ -169,6 +172,10 @@
     <audio id="audio-player"></audio>
 
     <script>
+        /**
+         * APPLICATION STATE
+         * Tracks your music library, current playback, and persistent user data.
+         */
         let libraryData = [];
         let currentSong = null;
         let menuTargetSong = null;
@@ -176,12 +183,17 @@
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
         let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
+        let activePlaylistIndex = null;
         
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
 
+        /**
+         * INITIALIZATION
+         * Runs when the page loads to sync the UI with saved data.
+         */
         window.onload = async () => {
             renderHistory();
             renderPlaylists();
@@ -191,6 +203,7 @@
             initGlobalKeys();
             
             try {
+                // Fetching your cloud library
                 const response = await fetch('/api/get-songs');
                 libraryData = await response.json();
                 document.getElementById('loading').classList.add('hidden');
@@ -214,6 +227,11 @@
         }
 
         // --- INFINITE PLAYLIST ENGINE ---
+        
+        /**
+         * Renders the sidebar playlist list.
+         * Note: The pencil icon has been removed from the innerHTML here.
+         */
         function renderPlaylists() {
             const listContainer = document.getElementById('dynamic-playlists-list');
             const submenu = document.getElementById('playlist-submenu');
@@ -239,7 +257,6 @@
                         <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
                     </div>
                     <div class="flex gap-2 opacity-0 group-hover:opacity-100">
-                        <i onclick="renamePlaylist(${index}, event)" class="fas fa-pencil text-xs text-zinc-500 hover:text-white p-1"></i>
                         <i onclick="deletePlaylist(${index}, event)" class="fas fa-trash text-xs text-zinc-500 hover:text-red-500 p-1"></i>
                     </div>
                 `;
@@ -271,12 +288,18 @@
             }
         }
 
+        /**
+         * Triggered by clicking the title in the Main View.
+         * Updates both the state and the UI.
+         */
         function renamePlaylist(index, e) {
-            e.stopPropagation();
+            if (e) e.stopPropagation();
             const newName = prompt("Rename Playlist:", playlists[index].name);
-            if (newName) {
+            if (newName && newName.trim() !== "") {
                 playlists[index].name = newName;
                 saveAndRefresh();
+                // Refresh the current view to show the new title
+                showView('playlist', index);
             }
         }
 
@@ -339,6 +362,7 @@
         function showView(viewType, playlistIndex = null) {
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.add('hidden');
+            activePlaylistIndex = playlistIndex;
             
             if (viewType === 'home') {
                 document.getElementById('grid-view').classList.remove('hidden');
@@ -398,6 +422,9 @@
             });
         }
 
+        /**
+         * Updated to allow clicking the title to rename.
+         */
         function renderCollection(title, list, isDynamic = false, plIndex = null) {
             const hero = document.getElementById('album-hero');
             let coverContent = `<i class="fas fa-music text-zinc-500 text-6xl"></i>`;
@@ -405,9 +432,15 @@
             else if (list.length >= 4) coverContent = `<div class="grid-cover">${list.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
             else if (list.length > 0) coverContent = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
 
+            // Adding onclick="renamePlaylist" to the h1 for dynamic playlists
+            const titleAction = isDynamic ? `onclick="renamePlaylist(${plIndex}, event)" class="editable-title"` : "";
+
             hero.innerHTML = `
                 <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">${coverContent}</div>
-                <div><p class="text-xs font-bold uppercase">Playlist</p><h1 class="text-6xl font-black my-4">${title}</h1></div>`;
+                <div>
+                    <p class="text-xs font-bold uppercase">Playlist</p>
+                    <h1 class="text-6xl font-black my-4" ${titleAction}>${title}</h1>
+                </div>`;
             
             const listEl = document.getElementById('track-list');
             listEl.innerHTML = list.length === 0 ? `<p class="text-zinc-500 p-4">Empty.</p>` : '';
@@ -462,6 +495,14 @@
             checkDockVisibility();
         }
 
+        function nextSong() {
+            console.log("Next track functionality can be mapped to library index...");
+        }
+        
+        function prevSong() {
+             console.log("Previous track functionality can be mapped to library index...");
+        }
+
         function seek(e) {
             const rect = document.getElementById('progress-container').getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
@@ -508,6 +549,10 @@
             });
         }
 
+        /**
+         * Enforcement of your rule: 
+         * No dock unless song played within hour or is playing.
+         */
         function checkDockVisibility() {
             const oneHour = 3600000;
             const isRecent = (Date.now() - lastPlayedTime < oneHour);
