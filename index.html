@@ -114,10 +114,10 @@
             </div>
         </div>
 
-        <div class="flex justify-end pr-4 gap-4">
-            <i onclick="addToPlaylist('liked')" class="far fa-heart hover:text-red-500 cursor-pointer" title="Add to Liked"></i>
-            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer" title="Add to Playlist #1"></i>
-            <i class="fas fa-volume-up text-zinc-400"></i>
+        <div class="flex justify-end pr-4 gap-4 items-center">
+            <i onclick="addToPlaylist('liked')" class="far fa-heart hover:text-red-500 cursor-pointer text-lg" title="Add to Liked"></i>
+            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer text-lg" title="Add to Playlist #1"></i>
+            <i class="fas fa-volume-up text-zinc-400 ml-2"></i>
         </div>
     </div>
 
@@ -171,8 +171,8 @@
         }
 
         function renderGrid() {
-            document.getElementById('album-grid').innerHTML = libraryData.map((album, idx) => `
-                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer group" onclick="openAlbum(${idx})">
+            document.getElementById('album-grid').innerHTML = libraryData.map((album) => `
+                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer group" onclick="openAlbumByName('${album.albumName}')">
                     <div class="relative shadow-xl mb-4 rounded-md overflow-hidden">
                         <img src="${album.coverArt}" class="w-full aspect-square object-cover">
                         <div class="absolute bottom-2 right-2 bg-[#1db954] w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg">
@@ -185,8 +185,11 @@
             `).join('');
         }
 
-        function openAlbum(index) {
-            const album = libraryData[index];
+        // UNIVERSAL FINDER: Opens by Album Name so Sidebar always works
+        function openAlbumByName(name) {
+            const album = libraryData.find(a => a.albumName === name);
+            if (!album) return;
+
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.remove('hidden');
             document.getElementById('album-hero').innerHTML = `
@@ -247,24 +250,19 @@
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
             
-            const albumIdx = libraryData.findIndex(a => a.albumName === album);
-            addToHistory(album, artist, cover, albumIdx);
+            addToHistory(album, artist, cover);
         }
 
         function addToPlaylist(type) {
             if (!currentSong) return;
-            if (type === 'liked') {
-                if (!likedSongs.some(s => s.url === currentSong.url)) {
-                    likedSongs.push(currentSong);
-                    localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
-                }
-            } else {
-                if (!customPlaylist.some(s => s.url === currentSong.url)) {
-                    customPlaylist.push(currentSong);
-                    localStorage.setItem('customPlaylist', JSON.stringify(customPlaylist));
-                }
+            const list = (type === 'liked') ? likedSongs : customPlaylist;
+            const storageKey = (type === 'liked') ? 'likedSongs' : 'customPlaylist';
+
+            if (!list.some(s => s.url === currentSong.url)) {
+                list.push({...currentSong});
+                localStorage.setItem(storageKey, JSON.stringify(list));
+                updateCounts();
             }
-            updateCounts();
         }
 
         function checkDockVisibility() {
@@ -286,22 +284,27 @@
             }
         }
 
-        function addToHistory(album, artist, cover, index) {
+        function addToHistory(album, artist, cover) {
             history = history.filter(h => h.album !== album);
-            history.unshift({ album, artist, cover, index });
+            history.unshift({ album, artist, cover });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            // Keep the header, clear the items
             container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>';
             history.forEach(h => {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
-                div.onclick = () => openAlbum(h.index);
-                div.innerHTML = `<img src="${h.cover}" class="w-10 h-10 rounded object-cover"><div class="truncate"><div class="text-sm font-bold text-white">${h.album}</div></div>`;
+                // This now searches the library by name to open it
+                div.onclick = () => openAlbumByName(h.album);
+                div.innerHTML = `
+                    <img src="${h.cover}" class="w-10 h-10 rounded object-cover">
+                    <div class="truncate">
+                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
+                        <div class="text-xs text-zinc-400">${h.artist}</div>
+                    </div>`;
                 container.appendChild(div);
             });
         }
