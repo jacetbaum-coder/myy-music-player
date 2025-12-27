@@ -1,20 +1,17 @@
 import { google } from 'googleapis';
 import { kv } from '@vercel/kv';
 
-// Cache settings to keep the app fast
 let cachedData = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; 
 
 export default async function handler(req, res) {
-  // 1. SAVE LOGIC: If you "Edit" a cover, save it to Upstash
   if (req.method === 'POST') {
     const { key, url } = req.body;
     await kv.set(key, url);
     return res.status(200).json({ success: true });
   }
 
-  // 2. CACHE CHECK: Speed up the refresh
   const now = Date.now();
   if (cachedData && (now - lastFetchTime < CACHE_DURATION)) {
     return res.status(200).json(cachedData);
@@ -48,14 +45,9 @@ export default async function handler(req, res) {
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
-        
-        // UNIQUE KEY for this album in your Upstash database
         const storageKey = `cover-${artist.name}-${album.name}`.replace(/\s+/g, '-').toLowerCase();
-        
-        // CHECK UPSTASH FIRST for a custom cover
         let coverUrl = await kv.get(storageKey);
 
-        // FALLBACK to iTunes if no custom cover exists
         if (!coverUrl) {
           const searchTerm = encodeURIComponent(`${artist.name} ${album.name}`);
           const itunesRes = await fetch(`https://itunes.apple.com/search?term=${searchTerm}&entity=album&limit=1`);
@@ -67,10 +59,14 @@ export default async function handler(req, res) {
           artistName: artist.name,
           albumName: album.name,
           coverArt: coverUrl, 
-          songs: songs.map(s => ({ 
-            name: s.name, 
-            link: `https://music-streamer.jacetbaum.workers.dev/?id=${s.id}` 
-          }))
+          songs: songs.map(s => {
+            // NEW LOGIC: This creates the "Artist/Album/Song.mp3" path for R2
+            const r2Path = `${artist.name}/${album.name}/${s.name}`;
+            return { 
+              name: s.name, 
+              link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(r2Path)}` 
+            };
+          })
         });
       }
     }));
