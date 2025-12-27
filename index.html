@@ -46,6 +46,19 @@
         
         /* Cursor helpers */
         .editable-title:hover { text-decoration: underline; cursor: pointer; }
+
+        /* MOBILE OVERRIDES (NEW) */
+        @media (max-width: 768px) {
+            .sidebar, .resizer, .right-sidebar { display: none !important; }
+            .main-view { padding: 16px; padding-bottom: 160px; } /* Space for mobile nav/player */
+            .track-row { grid-template-columns: 1fr 40px; } /* Simpler list for mobile */
+            .track-row span:nth-child(3), 
+            .track-row span:nth-child(4), 
+            .track-row span:nth-child(5) { display: none; }
+            .player-bar { display: none !important; } /* Hide desktop player on mobile */
+            #album-hero { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+            #album-hero h1 { font-size: 2.5rem; }
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -114,7 +127,7 @@
                 </button>
                 <div id="album-hero" class="flex items-end gap-6 mb-8"></div>
                 <div class="track-row track-header">
-                    <span>#</span><span>Title</span><span>Album</span><span>Date Added</span><span><i class="far fa-clock"></i></span>
+                    <span>#</span><span>Title</span><span class="hidden md:block">Album</span><span class="hidden md:block">Date Added</span><span class="hidden md:block"><i class="far fa-clock"></i></span>
                 </div>
                 <div id="track-list"></div>
             </div>
@@ -230,11 +243,11 @@
         
         /**
          * Renders the sidebar playlist list.
-         * Note: The pencil icon has been removed from the innerHTML here.
          */
         function renderPlaylists() {
             const listContainer = document.getElementById('dynamic-playlists-list');
             const submenu = document.getElementById('playlist-submenu');
+            if (!listContainer || !submenu) return;
             listContainer.innerHTML = '';
             submenu.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
 
@@ -288,17 +301,12 @@
             }
         }
 
-        /**
-         * Triggered by clicking the title in the Main View.
-         * Updates both the state and the UI.
-         */
         function renamePlaylist(index, e) {
             if (e) e.stopPropagation();
             const newName = prompt("Rename Playlist:", playlists[index].name);
             if (newName && newName.trim() !== "") {
                 playlists[index].name = newName;
                 saveAndRefresh();
-                // Refresh the current view to show the new title
                 showView('playlist', index);
             }
         }
@@ -415,16 +423,13 @@
                 row.innerHTML = `
                     <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
                     <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
-                    <span class="truncate">${album.albumName}</span>
-                    <span>Recent</span>
-                    <span>3:45</span>`;
+                    <span class="truncate hidden md:block">${album.albumName}</span>
+                    <span class="hidden md:block">Recent</span>
+                    <span class="hidden md:block">3:45</span>`;
                 listEl.appendChild(row);
             });
         }
 
-        /**
-         * Updated to allow clicking the title to rename.
-         */
         function renderCollection(title, list, isDynamic = false, plIndex = null) {
             const hero = document.getElementById('album-hero');
             let coverContent = `<i class="fas fa-music text-zinc-500 text-6xl"></i>`;
@@ -432,7 +437,6 @@
             else if (list.length >= 4) coverContent = `<div class="grid-cover">${list.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
             else if (list.length > 0) coverContent = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
 
-            // Adding onclick="renamePlaylist" to the h1 for dynamic playlists
             const titleAction = isDynamic ? `onclick="renamePlaylist(${plIndex}, event)" class="editable-title"` : "";
 
             hero.innerHTML = `
@@ -453,9 +457,9 @@
                 row.innerHTML = `
                     <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
                     <div class="text-white font-medium truncate">${(song.title || song.name).replace('.mp3', '')}</div>
-                    <span class="truncate">${song.album}</span>
-                    <span>Saved</span>
-                    <span>3:45</span>`;
+                    <span class="truncate hidden md:block">${song.album}</span>
+                    <span class="hidden md:block">Saved</span>
+                    <span class="hidden md:block">3:45</span>`;
                 listEl.appendChild(row);
             });
         }
@@ -495,13 +499,8 @@
             checkDockVisibility();
         }
 
-        function nextSong() {
-            console.log("Next track functionality can be mapped to library index...");
-        }
-        
-        function prevSong() {
-             console.log("Previous track functionality can be mapped to library index...");
-        }
+        function nextSong() { console.log("Next track..."); }
+        function prevSong() { console.log("Previous track..."); }
 
         function seek(e) {
             const rect = document.getElementById('progress-container').getBoundingClientRect();
@@ -522,12 +521,14 @@
 
         function updateHeartUI() {
             const heart = document.getElementById('dock-heart');
+            if (!heart) return;
             const isLiked = currentSong && likedSongs.some(s => s.url === currentSong.url);
             heart.className = isLiked ? "fas fa-heart text-red-500 cursor-pointer text-lg" : "far fa-heart hover:text-red-500 cursor-pointer text-lg";
         }
 
         function updateCounts() {
-            document.getElementById('count-liked').innerText = `${likedSongs.length} songs`;
+            const el = document.getElementById('count-liked');
+            if (el) el.innerText = `${likedSongs.length} songs`;
         }
 
         function addToHistory(album, artist, cover) {
@@ -539,6 +540,7 @@
 
         function renderHistory() {
             const container = document.getElementById('history-container');
+            if (!container) return;
             container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>';
             history.forEach(h => {
                 const div = document.createElement('div');
@@ -549,10 +551,6 @@
             });
         }
 
-        /**
-         * Enforcement of your rule: 
-         * No dock unless song played within hour or is playing.
-         */
         function checkDockVisibility() {
             const oneHour = 3600000;
             const isRecent = (Date.now() - lastPlayedTime < oneHour);
@@ -565,6 +563,7 @@
 
         function initResizers() {
             const handleResize = (side, resizer, element) => {
+                if (!resizer || !element) return;
                 resizer.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     const resize = (ev) => {
@@ -585,14 +584,18 @@
         }
 
         function toggleRightSidebar(show) {
-            document.getElementById('right-sidebar').classList.toggle('sidebar-hidden', !show);
+            const el = document.getElementById('right-sidebar');
+            if (el) el.classList.toggle('sidebar-hidden', !show);
         }
 
         player.ontimeupdate = () => {
             if(player.duration) {
-                document.getElementById('progress-fill').style.width = (player.currentTime / player.duration) * 100 + "%";
-                document.getElementById('t-curr').innerText = formatTime(player.currentTime);
-                document.getElementById('t-total').innerText = formatTime(player.duration);
+                const fill = document.getElementById('progress-fill');
+                const curr = document.getElementById('t-curr');
+                const total = document.getElementById('t-total');
+                if (fill) fill.style.width = (player.currentTime / player.duration) * 100 + "%";
+                if (curr) curr.innerText = formatTime(player.currentTime);
+                if (total) total.innerText = formatTime(player.duration);
             }
         };
 
@@ -602,7 +605,6 @@
             return `${m}:${sec < 10 ? '0'+sec : sec}`;
         }
         
-        // Final interval check for the 1-hour dock rule
         setInterval(checkDockVisibility, 60000);
     </script>
 </body>
