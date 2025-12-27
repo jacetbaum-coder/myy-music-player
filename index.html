@@ -27,9 +27,22 @@
         .hidden { display: none !important; }
         .dock-hidden { transform: translateY(100%); }
         .sidebar-hidden { display: none !important; }
+
+        /* Context Menu Styles */
+        #context-menu { position: fixed; background: #282828; border-radius: 4px; padding: 4px; min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); z-index: 1000; display: none; }
+        .menu-item { padding: 10px 12px; font-size: 14px; color: #eaeaea; cursor: pointer; border-radius: 2px; display: flex; justify-content: space-between; align-items: center; }
+        .menu-item:hover { background: #3e3e3e; }
+
+        /* Grid Cover for Playlists */
+        .grid-cover { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: 100%; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;">
+
+    <div id="context-menu">
+        <div class="menu-item" onclick="menuAction('like')">Add to Liked Songs <i class="far fa-heart"></i></div>
+        <div class="menu-item" onclick="menuAction('playlist')">Add to Playlist #1 <i class="fas fa-plus"></i></div>
+    </div>
 
     <div class="flex flex-1 overflow-hidden">
         <aside id="left-sidebar" class="sidebar">
@@ -49,7 +62,7 @@
 
             <div class="flex-1 overflow-y-auto space-y-2">
                 <div onclick="showView('liked')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-                    <div class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded flex items-center justify-center">
+                    <div id="cover-liked" class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded overflow-hidden flex items-center justify-center">
                         <i class="fas fa-heart text-white"></i>
                     </div>
                     <div>
@@ -59,7 +72,7 @@
                 </div>
                 
                 <div onclick="showView('playlist')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-                    <div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center">
+                    <div id="cover-custom" class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">
                         <i class="fas fa-music text-zinc-500"></i>
                     </div>
                     <div>
@@ -76,7 +89,7 @@
 
         <div id="resizer-left" class="resizer hidden md:block"></div>
 
-        <main class="main-view">
+        <main class="main-view" id="main-scroll-area">
             <div id="loading" class="text-center mt-20">
                 <i class="fas fa-spinner fa-spin text-4xl text-[#1db954]"></i>
                 <p class="mt-4 text-zinc-400">Loading your cloud library...</p>
@@ -109,7 +122,6 @@
             <img id="right-cover" class="w-full aspect-square rounded-lg shadow-2xl mb-4 bg-zinc-800">
             <h2 id="right-title" class="text-xl font-bold truncate"></h2>
             <p id="right-artist" class="text-zinc-400 text-sm mb-6"></p>
-            
             <div class="bg-zinc-900 rounded-lg p-4">
                 <p class="text-xs font-bold uppercase text-zinc-400 mb-2">About the artist</p>
                 <p id="right-bio" class="text-sm text-zinc-300">Fetching cloud metadata...</p>
@@ -125,7 +137,6 @@
                 <div id="p-artist" class="text-xs text-zinc-400 truncate"></div>
             </div>
         </div>
-
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6 text-zinc-400">
                 <i class="fas fa-shuffle hover:text-white cursor-pointer"></i>
@@ -144,10 +155,9 @@
                 <span id="t-total">0:00</span>
             </div>
         </div>
-
         <div class="flex justify-end pr-4 gap-4 items-center">
-            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart hover:text-red-500 cursor-pointer text-lg" title="Like Song"></i>
-            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer text-lg" title="Add to Playlist #1"></i>
+            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart hover:text-red-500 cursor-pointer text-lg"></i>
+            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer text-lg"></i>
             <i class="fas fa-volume-up text-zinc-400 ml-2"></i>
         </div>
     </div>
@@ -157,6 +167,7 @@
     <script>
         let libraryData = [];
         let currentSong = null;
+        let menuTargetSong = null;
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let customPlaylist = JSON.parse(localStorage.getItem('customPlaylist')) || [];
@@ -165,12 +176,15 @@
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
+        const contextMenu = document.getElementById('context-menu');
 
         window.onload = async () => {
             renderHistory();
+            updatePlaylistCovers();
             updateCounts();
             checkDockVisibility();
             initResizers();
+            initGlobalKeys();
             
             try {
                 const response = await fetch('/api/get-songs');
@@ -182,7 +196,71 @@
             }
         };
 
-        // --- RESIZABLE SIDEBAR LOGIC ---
+        // --- FEATURE 1: SPACEBAR ALWAYS PAUSE/PLAY ---
+        function initGlobalKeys() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === "Space") {
+                    e.preventDefault(); // Stop page scrolling
+                    togglePlay();
+                }
+            });
+
+            // Close context menu on click elsewhere
+            document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
+        }
+
+        // --- FEATURE 2: CONTEXT MENU (RIGHT CLICK / LONG PRESS) ---
+        function handleContextMenu(e, songData) {
+            e.preventDefault();
+            menuTargetSong = songData;
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+        }
+
+        function menuAction(type) {
+            if (!menuTargetSong) return;
+            // Temporarily set currentSong to target for the existing logic to work
+            let temp = currentSong;
+            currentSong = menuTargetSong;
+            if (type === 'like') toggleLike();
+            else addToPlaylist('custom');
+            currentSong = temp; // Restore
+            contextMenu.style.display = 'none';
+        }
+
+        // Handle Long Press for Mobile
+        let pressTimer;
+        function setupLongPress(element, songData) {
+            element.addEventListener('touchstart', (e) => {
+                pressTimer = window.setTimeout(() => handleContextMenu(e.touches[0], songData), 700);
+            });
+            element.addEventListener('touchend', () => clearTimeout(pressTimer));
+        }
+
+        // --- FEATURE 3: DYNAMIC PLAYLIST COVERS (GRID 4+) ---
+        function updatePlaylistCovers() {
+            const updateUI = (list, elementId, defaultIcon) => {
+                const container = document.getElementById(elementId);
+                if (list.length === 0) {
+                    container.innerHTML = `<i class="fas ${defaultIcon} text-zinc-500"></i>`;
+                } else if (list.length < 4) {
+                    container.innerHTML = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
+                } else {
+                    // Create 2x2 Grid for 4+ songs
+                    container.innerHTML = `
+                        <div class="grid-cover">
+                            <img src="${list[0].cover}" class="w-full h-full object-cover">
+                            <img src="${list[1].cover}" class="w-full h-full object-cover">
+                            <img src="${list[2].cover}" class="w-full h-full object-cover">
+                            <img src="${list[3].cover}" class="w-full h-full object-cover">
+                        </div>`;
+                }
+            };
+            updateUI(likedSongs, 'cover-liked', 'fa-heart');
+            updateUI(customPlaylist, 'cover-custom', 'fa-music');
+        }
+
         function initResizers() {
             const leftResizer = document.getElementById('resizer-left');
             const rightResizer = document.getElementById('resizer-right');
@@ -195,7 +273,6 @@
                     document.addEventListener('mousemove', resize);
                     document.addEventListener('mouseup', stopResize);
                 });
-
                 function resize(e) {
                     if (side === 'left') {
                         const newWidth = e.clientX;
@@ -205,12 +282,8 @@
                         if (newWidth > 200 && newWidth < 450) element.style.width = newWidth + 'px';
                     }
                 }
-
-                function stopResize() {
-                    document.removeEventListener('mousemove', resize);
-                }
+                function stopResize() { document.removeEventListener('mousemove', resize); }
             }
-
             handleResize('left', leftResizer, leftSidebar);
             handleResize('right', rightResizer, rightSidebar);
         }
@@ -218,12 +291,12 @@
         function updateCounts() {
             document.getElementById('count-liked').innerText = `${likedSongs.length} songs`;
             document.getElementById('count-playlist').innerText = `${customPlaylist.length} songs`;
+            updatePlaylistCovers();
         }
 
         function showView(viewType) {
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.add('hidden');
-
             if (viewType === 'home') {
                 document.getElementById('grid-view').classList.remove('hidden');
                 renderGrid();
@@ -252,13 +325,10 @@
         }
 
         function openAlbumByName(name) {
-            // Check if name corresponds to a Playlist first
             if (name === "Liked Songs") return showView('liked');
             if (name === "My Playlist #1") return showView('playlist');
-
             const album = libraryData.find(a => a.albumName === name);
             if (!album) return;
-
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.remove('hidden');
             document.getElementById('album-hero').innerHTML = `
@@ -269,95 +339,83 @@
                     <div class="flex items-center gap-2 text-sm font-bold"><span>${album.artistName}</span></div>
                 </div>
             `;
-            document.getElementById('track-list').innerHTML = album.songs.map((song, i) => `
-                <div class="track-row group" onclick="playSpecificSong('${song.link}', '${song.name}', '${album.albumName}', '${album.artistName}', '${album.coverArt}')">
+            const listEl = document.getElementById('track-list');
+            listEl.innerHTML = '';
+            album.songs.forEach((song, i) => {
+                const row = document.createElement('div');
+                row.className = "track-row group";
+                row.onclick = () => playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
+                row.oncontextmenu = (e) => handleContextMenu(e, {link: song.link, title: song.name, album: album.albumName, artist: album.artistName, cover: album.coverArt});
+                setupLongPress(row, {link: song.link, title: song.name, album: album.albumName, artist: album.artistName, cover: album.coverArt});
+                row.innerHTML = `
                     <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
                     <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
                     <span class="truncate">${album.albumName}</span>
-                    <span>Dec 27, 2025</span>
-                    <span>3:45</span>
-                </div>
-            `).join('');
+                    <span>Recent</span>
+                    <span>3:45</span>`;
+                listEl.appendChild(row);
+            });
         }
 
         function renderCollection(title, list) {
-            document.getElementById('album-hero').innerHTML = `
-                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl">
-                    <i class="fas fa-music text-6xl text-zinc-600"></i>
+            const hero = document.getElementById('album-hero');
+            const elementId = title === "Liked Songs" ? "cover-liked" : "cover-custom";
+            const coverHtml = document.getElementById(elementId).innerHTML;
+            
+            hero.innerHTML = `
+                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">
+                    ${coverHtml.replace('w-10 h-10', 'w-full h-full')}
                 </div>
                 <div>
                     <p class="text-xs font-bold uppercase">Playlist</p>
                     <h1 class="text-6xl font-black my-4">${title}</h1>
-                </div>
-            `;
-            if (list.length === 0) {
-                document.getElementById('track-list').innerHTML = `<p class="text-zinc-500 p-4">This playlist is empty.</p>`;
-            } else {
-                document.getElementById('track-list').innerHTML = list.map((song, i) => `
-                    <div class="track-row group" onclick="playSpecificSong('${song.link}', '${song.title}', '${song.album}', '${song.artist}', '${song.cover}')">
-                        <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
-                        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
-                        <span class="truncate">${song.album}</span>
-                        <span>Saved</span>
-                        <span>3:45</span>
-                    </div>
-                `).join('');
-            }
+                </div>`;
+            
+            const listEl = document.getElementById('track-list');
+            listEl.innerHTML = list.length === 0 ? `<p class="text-zinc-500 p-4">Empty.</p>` : '';
+            list.forEach((song, i) => {
+                const row = document.createElement('div');
+                row.className = "track-row group";
+                row.onclick = () => playSpecificSong(song.link, song.title, song.album, song.artist, song.cover);
+                row.oncontextmenu = (e) => handleContextMenu(e, song);
+                setupLongPress(row, song);
+                row.innerHTML = `
+                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
+                    <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+                    <span class="truncate">${song.album}</span>
+                    <span>Saved</span>
+                    <span>3:45</span>`;
+                listEl.appendChild(row);
+            });
         }
 
         function playSpecificSong(url, title, album, artist, cover) {
             currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
-            
             dock.classList.remove('dock-hidden');
             if (window.innerWidth >= 768) rightSidebar.classList.remove('sidebar-hidden');
-
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
-
-            // Update UI elements
             document.getElementById('p-cover').src = cover;
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
-
-            // Update Right Sidebar
             document.getElementById('right-cover').src = cover;
             document.getElementById('right-title').innerText = title.replace('.mp3', '');
             document.getElementById('right-artist').innerText = artist;
-            
-            // Check if heart should be red
             updateHeartUI();
-            
-            // Add to history (handles both Albums and Playlists)
             addToHistory(album, artist, cover);
         }
 
-        function toggleRightSidebar(show) {
-            if (show) rightSidebar.classList.remove('sidebar-hidden');
-            else rightSidebar.classList.add('sidebar-hidden');
-        }
-
-        // --- UPDATED: TOGGLE LIKE (RED HEART LOGIC) ---
         function toggleLike() {
             if (!currentSong) return;
             const index = likedSongs.findIndex(s => s.url === currentSong.url);
-
-            if (index === -1) {
-                likedSongs.push({...currentSong});
-            } else {
-                likedSongs.splice(index, 1);
-            }
-
+            if (index === -1) likedSongs.push({...currentSong});
+            else likedSongs.splice(index, 1);
             localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
             updateCounts();
             updateHeartUI();
-            
-            // If current view is "Liked Songs", refresh it
-            if (document.getElementById('album-hero').innerText.includes("Liked Songs")) {
-                renderCollection("Liked Songs", likedSongs);
-            }
         }
 
         function updateHeartUI() {
@@ -373,7 +431,6 @@
             if (!currentSong) return;
             const list = (type === 'liked') ? likedSongs : customPlaylist;
             const storageKey = (type === 'liked') ? 'likedSongs' : 'customPlaylist';
-
             if (!list.some(s => s.url === currentSong.url)) {
                 list.push({...currentSong});
                 localStorage.setItem(storageKey, JSON.stringify(list));
@@ -383,15 +440,11 @@
         }
 
         function checkDockVisibility() {
-            const oneHour = 60 * 60 * 1000;
+            const oneHour = 3600000;
             const isRecent = (Date.now() - lastPlayedTime < oneHour);
-            const isPlaying = !player.paused;
-
-            if (isRecent || isPlaying) {
+            if (isRecent || !player.paused) {
                 dock.classList.remove('dock-hidden');
-                if (window.innerWidth >= 768 && lastPlayedTime > 0) {
-                    rightSidebar.classList.remove('sidebar-hidden');
-                }
+                if (window.innerWidth >= 768 && lastPlayedTime > 0) rightSidebar.classList.remove('sidebar-hidden');
             } else {
                 dock.classList.add('dock-hidden');
                 rightSidebar.classList.add('sidebar-hidden');
@@ -408,17 +461,9 @@
             }
         }
 
-        // --- UPDATED: HISTORY SUPPORTS PLAYLISTS ---
         function addToHistory(album, artist, cover) {
-            // Determine if we are tracking an album or a specific playlist
-            let entryName = album;
-            let entryArtist = artist;
-            let entryCover = cover;
-
-            // If playing from a playlist, the 'album' property in currentSong is often the playlist title
-            // but we filter the history by name to prevent duplicates
-            history = history.filter(h => h.album !== entryName);
-            history.unshift({ album: entryName, artist: entryArtist, cover: entryCover });
+            history = history.filter(h => h.album !== album);
+            history.unshift({ album, artist, cover });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
@@ -430,18 +475,8 @@
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
                 div.onclick = () => openAlbumByName(h.album);
-                
-                // Set default icon if no cover (for playlists)
-                const imgHtml = h.cover.startsWith('http') 
-                    ? `<img src="${h.cover}" class="w-10 h-10 rounded object-cover">`
-                    : `<div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center"><i class="fas fa-music text-zinc-500 text-xs"></i></div>`;
-
-                div.innerHTML = `
-                    ${imgHtml}
-                    <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
-                        <div class="text-xs text-zinc-400">${h.artist}</div>
-                    </div>`;
+                const imgHtml = h.cover.startsWith('http') ? `<img src="${h.cover}" class="w-10 h-10 rounded object-cover">` : `<div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center"><i class="fas fa-music text-zinc-500 text-xs"></i></div>`;
+                div.innerHTML = `${imgHtml}<div class="truncate"><div class="text-sm font-bold text-white truncate">${h.album}</div><div class="text-xs text-zinc-400">${h.artist}</div></div>`;
                 container.appendChild(div);
             });
         }
@@ -458,6 +493,11 @@
             const m = Math.floor(s/60);
             const sec = Math.floor(s%60);
             return `${m}:${sec < 10 ? '0'+sec : sec}`;
+        }
+        
+        function toggleRightSidebar(show) {
+            if (show) rightSidebar.classList.remove('sidebar-hidden');
+            else rightSidebar.classList.add('sidebar-hidden');
         }
     </script>
 </body>
