@@ -7,20 +7,32 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .sidebar { width: 260px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; }
+        
+        /* Layout Containers */
+        .sidebar { width: 260px; min-width: 150px; max-width: 400px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; }
+        .right-sidebar { width: 280px; min-width: 200px; max-width: 450px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; transition: transform 0.3s ease; }
         .main-view { flex: 1; background: linear-gradient(180deg, #222 0%, #000 100%); overflow-y: auto; padding: 32px; position: relative; }
+        
+        /* Resizer Handles (Desktop Only) */
+        .resizer { width: 4px; cursor: col-resize; background: transparent; transition: background 0.2s; z-index: 10; }
+        .resizer:hover { background: rgba(255,255,255,0.3); }
+
+        /* Track Rows */
         .track-row { display: grid; grid-template-columns: 40px 4fr 3fr 2fr 60px; gap: 12px; padding: 10px; border-radius: 4px; align-items: center; color: #b3b3b3; font-size: 14px; user-select: none; }
         .track-row:hover { background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
         .track-header { text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; padding-bottom: 8px; }
+        
+        /* Player Bar & Visibility */
         .player-bar { height: 90px; background: #000; border-top: 1px solid #282828; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; z-index: 50; transition: transform 0.3s ease; }
         .hidden { display: none !important; }
         .dock-hidden { transform: translateY(100%); }
+        .sidebar-hidden { display: none !important; }
     </style>
 </head>
 <body>
 
     <div class="flex flex-1 overflow-hidden">
-        <aside class="sidebar">
+        <aside id="left-sidebar" class="sidebar">
             <div class="space-y-5">
                 <div onclick="showView('home')" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
                     <i class="fas fa-home text-xl w-6"></i> Home
@@ -62,6 +74,8 @@
             </div>
         </aside>
 
+        <div id="resizer-left" class="resizer hidden md:block"></div>
+
         <main class="main-view">
             <div id="loading" class="text-center mt-20">
                 <i class="fas fa-spinner fa-spin text-4xl text-[#1db954]"></i>
@@ -84,14 +98,31 @@
                 <div id="track-list"></div>
             </div>
         </main>
+
+        <div id="resizer-right" class="resizer hidden md:block"></div>
+
+        <aside id="right-sidebar" class="right-sidebar hidden md:flex sidebar-hidden">
+            <div class="flex justify-between items-center mb-6">
+                <span class="font-bold text-sm">Now Playing</span>
+                <i class="fas fa-times text-zinc-400 hover:text-white cursor-pointer" onclick="toggleRightSidebar(false)"></i>
+            </div>
+            <img id="right-cover" class="w-full aspect-square rounded-lg shadow-2xl mb-4 bg-zinc-800">
+            <h2 id="right-title" class="text-xl font-bold truncate"></h2>
+            <p id="right-artist" class="text-zinc-400 text-sm mb-6"></p>
+            
+            <div class="bg-zinc-900 rounded-lg p-4">
+                <p class="text-xs font-bold uppercase text-zinc-400 mb-2">About the artist</p>
+                <p id="right-bio" class="text-sm text-zinc-300">Fetching cloud metadata...</p>
+            </div>
+        </aside>
     </div>
 
     <div id="main-dock" class="player-bar dock-hidden">
         <div class="flex items-center gap-4">
             <img id="p-cover" class="w-14 h-14 rounded shadow bg-zinc-800">
-            <div>
-                <div id="p-title" class="font-bold text-sm text-white"></div>
-                <div id="p-artist" class="text-xs text-zinc-400"></div>
+            <div class="overflow-hidden">
+                <div id="p-title" class="font-bold text-sm text-white truncate"></div>
+                <div id="p-artist" class="text-xs text-zinc-400 truncate"></div>
             </div>
         </div>
 
@@ -107,7 +138,7 @@
             </div>
             <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
                 <span id="t-curr">0:00</span>
-                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer">
+                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer" id="progress-container">
                     <div id="progress-fill" class="h-full bg-white rounded-full w-0 group-hover:bg-[#1db954]"></div>
                 </div>
                 <span id="t-total">0:00</span>
@@ -133,11 +164,13 @@
         
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
+        const rightSidebar = document.getElementById('right-sidebar');
 
         window.onload = async () => {
             renderHistory();
             updateCounts();
             checkDockVisibility();
+            initResizers();
             
             try {
                 const response = await fetch('/api/get-songs');
@@ -148,6 +181,39 @@
                 document.getElementById('loading').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
             }
         };
+
+        // --- RESIZABLE SIDEBAR LOGIC ---
+        function initResizers() {
+            const leftResizer = document.getElementById('resizer-left');
+            const rightResizer = document.getElementById('resizer-right');
+            const leftSidebar = document.getElementById('left-sidebar');
+            const rightSidebar = document.getElementById('right-sidebar');
+
+            function handleResize(side, resizer, element) {
+                resizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    document.addEventListener('mousemove', resize);
+                    document.addEventListener('mouseup', stopResize);
+                });
+
+                function resize(e) {
+                    if (side === 'left') {
+                        const newWidth = e.clientX;
+                        if (newWidth > 150 && newWidth < 400) element.style.width = newWidth + 'px';
+                    } else {
+                        const newWidth = window.innerWidth - e.clientX;
+                        if (newWidth > 200 && newWidth < 450) element.style.width = newWidth + 'px';
+                    }
+                }
+
+                function stopResize() {
+                    document.removeEventListener('mousemove', resize);
+                }
+            }
+
+            handleResize('left', leftResizer, leftSidebar);
+            handleResize('right', rightResizer, rightSidebar);
+        }
 
         function updateCounts() {
             document.getElementById('count-liked').innerText = `${likedSongs.length} songs`;
@@ -185,7 +251,6 @@
             `).join('');
         }
 
-        // UNIVERSAL FINDER: Opens by Album Name so Sidebar always works
         function openAlbumByName(name) {
             const album = libraryData.find(a => a.albumName === name);
             if (!album) return;
@@ -242,15 +307,29 @@
             player.play();
             
             dock.classList.remove('dock-hidden');
+            // Show right sidebar on desktop when playing
+            if (window.innerWidth >= 768) rightSidebar.classList.remove('sidebar-hidden');
+
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
 
+            // Update UI elements
             document.getElementById('p-cover').src = cover;
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
+
+            // Update Right Sidebar
+            document.getElementById('right-cover').src = cover;
+            document.getElementById('right-title').innerText = title.replace('.mp3', '');
+            document.getElementById('right-artist').innerText = artist;
             
             addToHistory(album, artist, cover);
+        }
+
+        function toggleRightSidebar(show) {
+            if (show) rightSidebar.classList.remove('sidebar-hidden');
+            else rightSidebar.classList.add('sidebar-hidden');
         }
 
         function addToPlaylist(type) {
@@ -267,10 +346,18 @@
 
         function checkDockVisibility() {
             const oneHour = 60 * 60 * 1000;
-            if (Date.now() - lastPlayedTime > oneHour && player.paused) {
-                dock.classList.add('dock-hidden');
-            } else if (lastPlayedTime > 0) {
+            const isRecent = (Date.now() - lastPlayedTime < oneHour);
+            const isPlaying = !player.paused;
+
+            if (isRecent || isPlaying) {
                 dock.classList.remove('dock-hidden');
+                // Desktop Sidebar follows dock visibility rules
+                if (window.innerWidth >= 768 && lastPlayedTime > 0) {
+                    rightSidebar.classList.remove('sidebar-hidden');
+                }
+            } else {
+                dock.classList.add('dock-hidden');
+                rightSidebar.classList.add('sidebar-hidden');
             }
         }
 
@@ -297,7 +384,6 @@
             history.forEach(h => {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
-                // This now searches the library by name to open it
                 div.onclick = () => openAlbumByName(h.album);
                 div.innerHTML = `
                     <img src="${h.cover}" class="w-10 h-10 rounded object-cover">
