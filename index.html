@@ -14,7 +14,7 @@
         .track-header { text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; padding-bottom: 8px; }
         .player-bar { height: 90px; background: #000; border-top: 1px solid #282828; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; z-index: 50; transition: transform 0.3s ease; }
         .hidden { display: none !important; }
-        .dock-hidden { transform: translateY(100%); } /* Rule for your 1-hour hide */
+        .dock-hidden { transform: translateY(100%); }
     </style>
 </head>
 <body>
@@ -42,7 +42,7 @@
                     </div>
                     <div>
                         <div class="text-sm font-bold">Liked Songs</div>
-                        <div class="text-xs text-zinc-400">Playlist • 43 songs</div>
+                        <div id="count-liked" class="text-xs text-zinc-400">0 songs</div>
                     </div>
                 </div>
                 
@@ -52,7 +52,7 @@
                     </div>
                     <div>
                         <div class="text-sm font-bold">My Playlist #1</div>
-                        <div class="text-xs text-zinc-400">Playlist • 12 songs</div>
+                        <div id="count-playlist" class="text-xs text-zinc-400">0 songs</div>
                     </div>
                 </div>
 
@@ -114,7 +114,9 @@
             </div>
         </div>
 
-        <div class="flex justify-end pr-4">
+        <div class="flex justify-end pr-4 gap-4">
+            <i onclick="addToPlaylist('liked')" class="far fa-heart hover:text-red-500 cursor-pointer" title="Add to Liked"></i>
+            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer" title="Add to Playlist #1"></i>
             <i class="fas fa-volume-up text-zinc-400"></i>
         </div>
     </div>
@@ -123,14 +125,19 @@
 
     <script>
         let libraryData = [];
+        let currentSong = null;
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
+        let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
+        let customPlaylist = JSON.parse(localStorage.getItem('customPlaylist')) || [];
         let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
+        
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
 
         window.onload = async () => {
             renderHistory();
-            checkDockVisibility(); // Your "1 hour" rule
+            updateCounts();
+            checkDockVisibility();
             
             try {
                 const response = await fetch('/api/get-songs');
@@ -142,6 +149,11 @@
             }
         };
 
+        function updateCounts() {
+            document.getElementById('count-liked').innerText = `${likedSongs.length} songs`;
+            document.getElementById('count-playlist').innerText = `${customPlaylist.length} songs`;
+        }
+
         function showView(viewType) {
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.add('hidden');
@@ -149,9 +161,12 @@
             if (viewType === 'home') {
                 document.getElementById('grid-view').classList.remove('hidden');
                 renderGrid();
-            } else if (viewType === 'liked' || viewType === 'playlist') {
+            } else if (viewType === 'liked') {
                 document.getElementById('album-view').classList.remove('hidden');
-                renderSpecialPlaylist(viewType === 'liked' ? "Liked Songs" : "My Playlist #1");
+                renderCollection("Liked Songs", likedSongs);
+            } else if (viewType === 'playlist') {
+                document.getElementById('album-view').classList.remove('hidden');
+                renderCollection("My Playlist #1", customPlaylist);
             }
         }
 
@@ -172,11 +187,12 @@
 
         function openAlbum(index) {
             const album = libraryData[index];
-            showView('album-details'); // Just a trigger to hide grid
+            document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.remove('hidden');
             document.getElementById('album-hero').innerHTML = `
                 <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
                 <div>
+                    <p class="text-xs font-bold uppercase">Album</p>
                     <h1 class="text-6xl font-black my-4">${album.albumName}</h1>
                     <div class="flex items-center gap-2 text-sm font-bold"><span>${album.artistName}</span></div>
                 </div>
@@ -192,16 +208,36 @@
             `).join('');
         }
 
-        function renderSpecialPlaylist(title) {
-            document.getElementById('album-hero').innerHTML = `<h1 class="text-6xl font-black my-4">${title}</h1>`;
-            document.getElementById('track-list').innerHTML = `<p class="text-zinc-500 p-4">Your collection of ${title} will appear here.</p>`;
+        function renderCollection(title, list) {
+            document.getElementById('album-hero').innerHTML = `
+                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl">
+                    <i class="fas fa-music text-6xl text-zinc-600"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-bold uppercase">Playlist</p>
+                    <h1 class="text-6xl font-black my-4">${title}</h1>
+                </div>
+            `;
+            if (list.length === 0) {
+                document.getElementById('track-list').innerHTML = `<p class="text-zinc-500 p-4">This playlist is empty.</p>`;
+            } else {
+                document.getElementById('track-list').innerHTML = list.map((song, i) => `
+                    <div class="track-row group" onclick="playSpecificSong('${song.link}', '${song.title}', '${song.album}', '${song.artist}', '${song.cover}')">
+                        <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
+                        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+                        <span class="truncate">${song.album}</span>
+                        <span>Saved</span>
+                        <span>3:45</span>
+                    </div>
+                `).join('');
+            }
         }
 
         function playSpecificSong(url, title, album, artist, cover) {
+            currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
             
-            // SHOW DOCK & UPDATE TIME
             dock.classList.remove('dock-hidden');
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
@@ -210,7 +246,25 @@
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
-            addToHistory(album, artist, cover);
+            
+            const albumIdx = libraryData.findIndex(a => a.albumName === album);
+            addToHistory(album, artist, cover, albumIdx);
+        }
+
+        function addToPlaylist(type) {
+            if (!currentSong) return;
+            if (type === 'liked') {
+                if (!likedSongs.some(s => s.url === currentSong.url)) {
+                    likedSongs.push(currentSong);
+                    localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
+                }
+            } else {
+                if (!customPlaylist.some(s => s.url === currentSong.url)) {
+                    customPlaylist.push(currentSong);
+                    localStorage.setItem('customPlaylist', JSON.stringify(customPlaylist));
+                }
+            }
+            updateCounts();
         }
 
         function checkDockVisibility() {
@@ -232,19 +286,21 @@
             }
         }
 
-        function addToHistory(album, artist, cover) {
+        function addToHistory(album, artist, cover, index) {
             history = history.filter(h => h.album !== album);
-            history.unshift({ album, artist, cover });
+            history.unshift({ album, artist, cover, index });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            while (container.childNodes.length > 2) container.removeChild(container.lastChild);
+            // Keep the header, clear the items
+            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>';
             history.forEach(h => {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+                div.onclick = () => openAlbum(h.index);
                 div.innerHTML = `<img src="${h.cover}" class="w-10 h-10 rounded object-cover"><div class="truncate"><div class="text-sm font-bold text-white">${h.album}</div></div>`;
                 container.appendChild(div);
             });
