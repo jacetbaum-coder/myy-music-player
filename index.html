@@ -26,7 +26,7 @@
         /* Player Bar */
         .player-bar { height: 90px; background: #000; border-top: 1px solid #282828; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; z-index: 50; transition: transform 0.3s ease; }
         .hidden { display: none !important; }
-        .dock-hidden { transform: translateY(100%); }
+        .dock-hidden { transform: translateY(100%); pointer-events: none; }
         .sidebar-hidden { display: none !important; }
 
         /* Context Menu with Submenu Support */
@@ -40,6 +40,9 @@
 
         /* 2x2 Grid Cover */
         .grid-cover { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: 100%; }
+
+        /* Active states */
+        .active-green { color: #1db954 !important; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -141,17 +144,17 @@
         </div>
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6 text-zinc-400">
-                <i class="fas fa-shuffle hover:text-white cursor-pointer"></i>
+                <i id="btn-shuffle" onclick="this.classList.toggle('active-green')" class="fas fa-shuffle hover:text-white cursor-pointer"></i>
                 <i class="fas fa-step-backward hover:text-white cursor-pointer"></i>
                 <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 cursor-pointer text-black" onclick="togglePlay()">
                     <i id="play-icon" class="fas fa-play ml-1"></i>
                 </div>
                 <i class="fas fa-step-forward hover:text-white cursor-pointer"></i>
-                <i class="fas fa-repeat hover:text-white cursor-pointer"></i>
+                <i id="btn-repeat" onclick="this.classList.toggle('active-green')" class="fas fa-repeat hover:text-white cursor-pointer"></i>
             </div>
             <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
                 <span id="t-curr">0:00</span>
-                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer" id="progress-container">
+                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer" id="progress-container" onclick="seek(event)">
                     <div id="progress-fill" class="h-full bg-white rounded-full w-0 group-hover:bg-[#1db954]"></div>
                 </div>
                 <span id="t-total">0:00</span>
@@ -171,10 +174,7 @@
         let menuTargetSong = null;
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
-        
-        // --- NEW: Infinite Playlist Storage ---
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
-        
         let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
         
         const player = document.getElementById('audio-player');
@@ -184,7 +184,7 @@
 
         window.onload = async () => {
             renderHistory();
-            renderPlaylists(); // Initialize Library Sidebar
+            renderPlaylists();
             updateCounts();
             checkDockVisibility();
             initResizers();
@@ -217,39 +217,34 @@
         function renderPlaylists() {
             const listContainer = document.getElementById('dynamic-playlists-list');
             const submenu = document.getElementById('playlist-submenu');
-            
             listContainer.innerHTML = '';
-            // Reset submenu but keep "New Playlist" button
             submenu.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
 
             playlists.forEach((pl, index) => {
-                // Sidebar Item
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group relative";
                 div.onclick = () => showView('playlist', index);
                 
                 let coverHtml = `<i class="fas fa-music text-zinc-500"></i>`;
                 if (pl.songs.length >= 4) {
-                    coverHtml = `<div class="grid-cover">
-                        ${pl.songs.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}
-                    </div>`;
+                    coverHtml = `<div class="grid-cover">${pl.songs.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
                 } else if (pl.songs.length > 0) {
                     coverHtml = `<img src="${pl.songs[0].cover}" class="w-full h-full object-cover">`;
                 }
 
                 div.innerHTML = `
-                    <div class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">
-                        ${coverHtml}
-                    </div>
+                    <div class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">${coverHtml}</div>
                     <div class="flex-1 truncate">
                         <div class="text-sm font-bold truncate">${pl.name}</div>
                         <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
                     </div>
-                    <i onclick="renamePlaylist(${index}, event)" class="fas fa-pencil text-xs text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-white p-1"></i>
+                    <div class="flex gap-2 opacity-0 group-hover:opacity-100">
+                        <i onclick="renamePlaylist(${index}, event)" class="fas fa-pencil text-xs text-zinc-500 hover:text-white p-1"></i>
+                        <i onclick="deletePlaylist(${index}, event)" class="fas fa-trash text-xs text-zinc-500 hover:text-red-500 p-1"></i>
+                    </div>
                 `;
                 listContainer.appendChild(div);
 
-                // Context Submenu Item
                 const subItem = document.createElement('div');
                 subItem.className = "menu-item";
                 subItem.innerText = pl.name;
@@ -267,6 +262,15 @@
             }
         }
 
+        function deletePlaylist(index, e) {
+            e.stopPropagation();
+            if(confirm(`Delete "${playlists[index].name}"?`)) {
+                playlists.splice(index, 1);
+                saveAndRefresh();
+                showView('home');
+            }
+        }
+
         function renamePlaylist(index, e) {
             e.stopPropagation();
             const newName = prompt("Rename Playlist:", playlists[index].name);
@@ -279,9 +283,7 @@
         function addSongToPlaylist(playlistIndex) {
             const songToAdd = menuTargetSong || currentSong;
             if (!songToAdd) return;
-            
-            // Prevent duplicates
-            const exists = playlists[playlistIndex].songs.some(s => s.url === (songToAdd.url || songToAdd.link));
+            const exists = playlists[playlistIndex].songs.some(s => (s.url || s.link) === (songToAdd.url || songToAdd.link));
             if (!exists) {
                 playlists[playlistIndex].songs.push({
                     url: songToAdd.link || songToAdd.url,
@@ -377,8 +379,7 @@
                     <p class="text-xs font-bold uppercase">Album</p>
                     <h1 class="text-6xl font-black my-4">${album.albumName}</h1>
                     <div class="flex items-center gap-2 text-sm font-bold"><span>${album.artistName}</span></div>
-                </div>
-            `;
+                </div>`;
             const listEl = document.getElementById('track-list');
             listEl.innerHTML = '';
             album.songs.forEach((song, i) => {
@@ -400,25 +401,13 @@
         function renderCollection(title, list, isDynamic = false, plIndex = null) {
             const hero = document.getElementById('album-hero');
             let coverContent = `<i class="fas fa-music text-zinc-500 text-6xl"></i>`;
-            
-            if (title === "Liked Songs") {
-                coverContent = `<i class="fas fa-heart text-white text-6xl"></i>`;
-            } else if (list.length >= 4) {
-                coverContent = `<div class="grid-cover">
-                    ${list.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}
-                </div>`;
-            } else if (list.length > 0) {
-                coverContent = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
-            }
+            if (title === "Liked Songs") coverContent = `<i class="fas fa-heart text-white text-6xl"></i>`;
+            else if (list.length >= 4) coverContent = `<div class="grid-cover">${list.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
+            else if (list.length > 0) coverContent = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
 
             hero.innerHTML = `
-                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">
-                    ${coverContent}
-                </div>
-                <div>
-                    <p class="text-xs font-bold uppercase">Playlist</p>
-                    <h1 class="text-6xl font-black my-4">${title}</h1>
-                </div>`;
+                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">${coverContent}</div>
+                <div><p class="text-xs font-bold uppercase">Playlist</p><h1 class="text-6xl font-black my-4">${title}</h1></div>`;
             
             const listEl = document.getElementById('track-list');
             listEl.innerHTML = list.length === 0 ? `<p class="text-zinc-500 p-4">Empty.</p>` : '';
@@ -462,6 +451,7 @@
         }
 
         function togglePlay() {
+            if (!currentSong) return;
             if (player.paused) {
                 player.play();
                 document.getElementById('play-icon').className = "fas fa-pause";
@@ -469,6 +459,13 @@
                 player.pause();
                 document.getElementById('play-icon').className = "fas fa-play ml-1";
             }
+            checkDockVisibility();
+        }
+
+        function seek(e) {
+            const rect = document.getElementById('progress-container').getBoundingClientRect();
+            const pct = (e.clientX - rect.left) / rect.width;
+            player.currentTime = pct * player.duration;
         }
 
         // --- UTILS & UI UPDATES ---
@@ -512,9 +509,12 @@
         }
 
         function checkDockVisibility() {
-            const isRecent = (Date.now() - lastPlayedTime < 3600000);
+            const oneHour = 3600000;
+            const isRecent = (Date.now() - lastPlayedTime < oneHour);
             if (isRecent || !player.paused) {
                 dock.classList.remove('dock-hidden');
+            } else {
+                dock.classList.add('dock-hidden');
             }
         }
 
@@ -556,6 +556,9 @@
             const sec = Math.floor(s%60);
             return `${m}:${sec < 10 ? '0'+sec : sec}`;
         }
+        
+        // Final interval check for the 1-hour dock rule
+        setInterval(checkDockVisibility, 60000);
     </script>
 </body>
 </html>
