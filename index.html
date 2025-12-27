@@ -2,27 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My Cloud Collection - Infinite Playlists</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* --- ROOT & CORE RESET --- */
+        :root {
+            --spotify-green: #1db954;
+            --bg-base: #000000;
+            --bg-surface: #121212;
+            --bg-elevated: #282828;
+            --text-main: #ffffff;
+            --text-sub: #b3b3b3;
+            --nav-height: 70px;
+            --player-height: 90px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body { 
-            background: #000; 
-            color: white; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-base); 
+            color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             height: 100vh; 
             display: flex; 
             flex-direction: column; 
             overflow: hidden; 
+            margin: 0;
         }
-        
-        /* Layout Containers */
+
+        /* --- DESKTOP LAYOUT --- */
         .sidebar { 
             width: 260px; 
-            min-width: 150px; 
-            max-width: 400px; 
-            background: #000; 
+            min-width: 200px; 
+            max-width: 450px; 
+            background: var(--bg-base); 
             display: flex; 
             flex-direction: column; 
             padding: 24px 16px; 
@@ -30,26 +48,28 @@
         }
 
         .right-sidebar { 
-            width: 280px; 
-            min-width: 200px; 
+            width: 300px; 
+            min-width: 250px; 
             max-width: 450px; 
-            background: #000; 
+            background: var(--bg-base); 
             display: flex; 
             flex-direction: column; 
             padding: 24px 16px; 
             flex-shrink: 0; 
-            transition: transform 0.3s ease; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
         }
 
         .main-view { 
             flex: 1; 
-            background: linear-gradient(180deg, #222 0%, #000 100%); 
+            background: linear-gradient(180deg, #222 0%, var(--bg-base) 100%); 
             overflow-y: auto; 
             padding: 32px; 
             position: relative; 
+            scrollbar-width: thin;
+            scrollbar-color: #555 transparent;
         }
-        
-        /* Resizer Handles */
+
+        /* --- INTERACTIVE ELEMENTS --- */
         .resizer { 
             width: 4px; 
             cursor: col-resize; 
@@ -57,58 +77,84 @@
             transition: background 0.2s; 
             z-index: 10; 
         }
-        .resizer:hover { background: rgba(255,255,255,0.3); }
+        .resizer:hover { background: rgba(255,255,255,0.2); }
 
-        /* Track Rows */
         .track-row { 
             display: grid; 
-            grid-template-columns: 40px 4fr 3fr 2fr 60px; 
-            gap: 12px; 
-            padding: 10px; 
-            border-radius: 4px; 
+            grid-template-columns: 40px 6fr 4fr 3fr 80px; 
+            gap: 16px; 
+            padding: 12px; 
+            border-radius: 6px; 
             align-items: center; 
-            color: #b3b3b3; 
+            color: var(--text-sub); 
             font-size: 14px; 
             user-select: none; 
+            transition: background 0.1s;
         }
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
             color: white; 
             cursor: pointer; 
         }
+        .track-row.active-track {
+            color: var(--spotify-green);
+        }
+
         .track-header { 
             text-transform: uppercase; 
             font-size: 11px; 
-            letter-spacing: 1px; 
+            letter-spacing: 1.5px; 
             border-bottom: 1px solid rgba(255,255,255,0.1); 
             margin-bottom: 16px; 
-            padding-bottom: 8px; 
+            padding-bottom: 12px; 
+            position: sticky;
+            top: 0;
+            background: rgba(18,18,18,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 5;
         }
-        
-        /* Player Bar */
+
+        /* --- DOCK & PLAYER --- */
         .player-bar { 
-            height: 90px; 
-            background: #000; 
+            height: var(--player-height); 
+            background: var(--bg-base); 
             border-top: 1px solid #282828; 
             display: grid; 
             grid-template-columns: 30% 40% 30%; 
             align-items: center; 
-            padding: 0 16px; 
-            z-index: 50; 
-            transition: transform 0.3s ease; 
+            padding: 0 20px; 
+            z-index: 100; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
         }
 
-        /* Mobile Bottom Nav Bar */
+        .progress-bar-container {
+            height: 4px;
+            width: 100%;
+            background: #4f4f4f;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: #fff;
+            border-radius: 2px;
+            width: 0%;
+        }
+        .progress-bar-container:hover .progress-bar-fill {
+            background: var(--spotify-green);
+        }
+
+        /* --- MOBILE NAVIGATION --- */
         .mobile-nav {
             display: none;
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 70px;
-            background: #000;
-            border-top: 1px solid #282828;
-            z-index: 100;
+            height: var(--nav-height);
+            background: linear-gradient(to top, #000 80%, transparent);
+            z-index: 200;
             justify-content: space-around;
             align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
@@ -118,90 +164,133 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            color: #b3b3b3;
-            font-size: 10px;
+            color: var(--text-sub);
+            font-size: 11px;
             gap: 4px;
             cursor: pointer;
+            flex: 1;
+            padding: 10px 0;
+            transition: color 0.2s, transform 0.1s;
+        }
+        .nav-item:active { transform: scale(0.9); }
+        .nav-item.active { color: white; }
+        .nav-item i { font-size: 22px; }
+
+        /* --- SEARCH BOX --- */
+        .search-container {
+            position: relative;
+            max-width: 400px;
+            margin-bottom: 24px;
+        }
+        .search-input {
+            width: 100%;
+            background: white;
+            color: black;
+            border-radius: 500px;
+            padding: 12px 12px 12px 48px;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+        }
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #121212;
+            font-size: 18px;
         }
 
-        .nav-item.active {
-            color: white;
-        }
-
-        .nav-item i {
-            font-size: 20px;
-        }
-
+        /* --- UTILITIES --- */
         .hidden { display: none !important; }
-        .dock-hidden { transform: translateY(100%); pointer-events: none; }
+        .dock-hidden { transform: translateY(100%); opacity: 0; }
         .sidebar-hidden { display: none !important; }
+        .active-green { color: var(--spotify-green) !important; }
 
-        /* Context Menu */
+        /* --- CONTEXT MENU --- */
         #context-menu { 
             position: fixed; 
-            background: #282828; 
-            border-radius: 4px; 
-            padding: 4px; 
-            min-width: 200px; 
-            box-shadow: 0 8px 16px rgba(0,0,0,0.5); 
-            z-index: 1000; 
+            background: var(--bg-elevated); 
+            border-radius: 8px; 
+            padding: 6px; 
+            min-width: 220px; 
+            box-shadow: 0 16px 24px rgba(0,0,0,0.5); 
+            z-index: 2000; 
             display: none; 
+            animation: fadeIn 0.15s ease-out;
         }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
         .menu-item { 
-            padding: 10px 12px; 
+            padding: 12px 16px; 
             font-size: 14px; 
             color: #eaeaea; 
             cursor: pointer; 
-            border-radius: 2px; 
+            border-radius: 4px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             position: relative; 
         }
         .menu-item:hover { background: #3e3e3e; }
-        
-        /* Submenu */
         .submenu { 
             position: absolute; 
             left: 100%; 
             top: 0; 
-            background: #282828; 
-            border-radius: 4px; 
-            padding: 4px; 
-            min-width: 180px; 
+            background: var(--bg-elevated); 
+            border-radius: 8px; 
+            padding: 6px; 
+            min-width: 200px; 
             display: none; 
-            box-shadow: 8px 8px 16px rgba(0,0,0,0.5); 
+            box-shadow: 12px 0 24px rgba(0,0,0,0.5); 
         }
         .menu-item:hover > .submenu { display: block; }
 
-        /* Helpers */
-        .grid-cover { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: 100%; }
-        .active-green { color: #1db954 !important; }
-        .editable-title:hover { text-decoration: underline; cursor: pointer; }
-
-        /* MOBILE OVERRIDES */
+        /* --- MEDIA QUERIES --- */
         @media (max-width: 768px) {
             .sidebar, .resizer, .right-sidebar { display: none !important; }
             .mobile-nav { display: flex; }
-            .main-view { padding: 16px; padding-bottom: 160px; } 
-            .track-row { grid-template-columns: 1fr 40px; }
+            
+            .main-view { 
+                padding: 16px; 
+                padding-bottom: 160px; /* Space for dock + nav */
+            }
+
+            .track-row { 
+                grid-template-columns: 1fr 40px; 
+                padding: 14px 8px;
+            }
+            .track-row span:nth-child(1),
             .track-row span:nth-child(3), 
             .track-row span:nth-child(4), 
             .track-row span:nth-child(5) { display: none; }
+
             .player-bar { 
                 position: fixed;
-                bottom: 70px;
-                left: 0;
-                right: 0;
-                height: 75px;
-                background: rgba(0,0,0,0.95);
-                border-top: none;
-                grid-template-columns: 1fr 1fr;
-            } 
-            .player-bar .flex-col { display: none; } /* Hide timeline on tiny mobile player bar */
-            #album-hero { flex-direction: column; align-items: flex-start !important; gap: 16px; }
-            #album-hero h1 { font-size: 2.5rem; }
+                bottom: var(--nav-height);
+                left: 10px;
+                right: 10px;
+                height: 64px;
+                background: #222;
+                border-radius: 8px;
+                border: none;
+                grid-template-columns: 1fr auto;
+                padding: 0 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            }
+            .player-bar .flex-col { display: none; } /* Progress bar hidden on mobile mini-player */
+            
+            #album-hero h1 { font-size: 2rem; }
+            #album-hero img { width: 140px; height: 140px; }
+            
+            .search-input { font-size: 16px; } /* Prevent iOS auto-zoom */
         }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #888; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -218,30 +307,34 @@
                 </div>
             </div>
         </div>
+        <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
+            Remove from this playlist <i class="fas fa-minus-circle"></i>
+        </div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
+        
         <aside id="left-sidebar" class="sidebar">
-            <div class="space-y-5">
+            <div class="space-y-6">
                 <div onclick="showView('home')" id="side-nav-home" class="flex items-center gap-4 text-white hover:text-white cursor-pointer transition font-bold text-sm">
-                    <i class="fas fa-home text-xl w-6"></i> Home
+                    <i class="fas fa-home text-2xl w-8"></i> Home
                 </div>
-                <div class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
-                    <i class="fas fa-search text-xl w-6"></i> Search
+                <div onclick="showView('search')" id="side-nav-search" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
+                    <i class="fas fa-search text-2xl w-8"></i> Search
                 </div>
             </div>
 
-            <div class="mt-8 mb-4 flex items-center justify-between">
+            <div class="mt-10 mb-4 flex items-center justify-between">
                 <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your Library</span>
-                <i onclick="createNewPlaylist()" class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer"></i>
+                <i onclick="createNewPlaylist()" class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer p-1"></i>
             </div>
 
-            <div class="flex-1 overflow-y-auto space-y-2">
-                <div onclick="showView('liked')" id="side-nav-liked" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-                    <div id="cover-liked" class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded overflow-hidden flex items-center justify-center">
+            <div class="flex-1 overflow-y-auto space-y-2 pr-2">
+                <div onclick="showView('liked')" id="side-nav-liked" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-800 to-blue-300 rounded overflow-hidden flex items-center justify-center shadow-lg">
                         <i class="fas fa-heart text-white"></i>
                     </div>
-                    <div>
+                    <div class="flex-1">
                         <div class="text-sm font-bold">Liked Songs</div>
                         <div id="count-liked" class="text-xs text-zinc-400">0 songs</div>
                     </div>
@@ -249,8 +342,8 @@
                 
                 <div id="dynamic-playlists-list"></div>
 
-                <div id="history-container" class="pt-4 border-t border-zinc-800 mt-4">
-                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>
+                <div id="history-container" class="pt-6 border-t border-zinc-800 mt-4">
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>
                 </div>
             </div>
         </aside>
@@ -258,29 +351,56 @@
         <div id="resizer-left" class="resizer hidden md:block"></div>
 
         <main class="main-view" id="main-scroll-area">
-            <div id="loading" class="text-center mt-20">
-                <i class="fas fa-spinner fa-spin text-4xl text-[#1db954]"></i>
-                <p class="mt-4 text-zinc-400">Loading your cloud library...</p>
+            
+            <div id="loading" class="flex flex-col items-center justify-center h-full">
+                <div class="w-12 h-12 border-4 border-zinc-700 border-t-[#1db954] rounded-full animate-spin"></div>
+                <p class="mt-6 text-zinc-400 font-medium tracking-wide">Connecting to Cloud Storage...</p>
             </div>
 
             <div id="grid-view" class="hidden">
-                <h1 class="text-2xl font-black mb-6">Good evening</h1>
-                <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
+                <div class="flex items-center justify-between mb-8">
+                    <h1 id="greeting-text" class="text-3xl font-black">Good evening</h1>
+                    <div class="flex gap-2">
+                        <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-left"></i></button>
+                        <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+            </div>
+
+            <div id="search-view" class="hidden">
+                <h1 class="text-3xl font-black mb-6">Search</h1>
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="global-search" class="search-input" placeholder="What do you want to listen to?" oninput="handleSearch(this.value)">
+                </div>
+                <div id="search-results" class="space-y-2">
+                    <p class="text-zinc-500">Start typing to search your cloud library...</p>
+                </div>
             </div>
 
             <div id="album-view" class="hidden">
-                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/80 rounded-full w-8 h-8 flex items-center justify-center transition">
-                    <i class="fas fa-chevron-left text-white"></i>
+                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
+                    <i class="fas fa-arrow-left text-white"></i>
                 </button>
-                <div id="album-hero" class="flex items-end gap-6 mb-8"></div>
+                <div id="album-hero" class="flex items-end gap-6 mb-10"></div>
+                
+                <div class="flex items-center gap-8 mb-8">
+                    <button id="hero-play-btn" class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
+                        <i class="fas fa-play text-black text-xl ml-1"></i>
+                    </button>
+                    <i class="far fa-heart text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
+                    <i class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
+                </div>
+
                 <div class="track-row track-header">
                     <span>#</span>
                     <span>Title</span>
                     <span class="hidden md:block">Album</span>
                     <span class="hidden md:block">Date Added</span>
-                    <span class="hidden md:block"><i class="far fa-clock"></i></span>
+                    <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
                 </div>
-                <div id="track-list"></div>
+                <div id="track-list" class="space-y-1"></div>
             </div>
         </main>
 
@@ -288,15 +408,21 @@
 
         <aside id="right-sidebar" class="right-sidebar hidden md:flex sidebar-hidden">
             <div class="flex justify-between items-center mb-6">
-                <span class="font-bold text-sm">Now Playing</span>
-                <i class="fas fa-times text-zinc-400 hover:text-white cursor-pointer" onclick="toggleRightSidebar(false)"></i>
+                <span class="font-bold text-sm">Now Playing Info</span>
+                <i class="fas fa-times text-zinc-400 hover:text-white cursor-pointer p-1" onclick="toggleRightSidebar(false)"></i>
             </div>
-            <img id="right-cover" class="w-full aspect-square rounded-lg shadow-2xl mb-4 bg-zinc-800">
-            <h2 id="right-title" class="text-xl font-bold truncate"></h2>
-            <p id="right-artist" class="text-zinc-400 text-sm mb-6"></p>
-            <div class="bg-zinc-900 rounded-lg p-4">
-                <p class="text-xs font-bold uppercase text-zinc-400 mb-2">About the artist</p>
-                <p id="right-bio" class="text-sm text-zinc-300">Fetching cloud metadata...</p>
+            <img id="right-cover" class="w-full aspect-square rounded-xl shadow-2xl mb-6 bg-zinc-800 object-cover">
+            <h2 id="right-title" class="text-2xl font-bold truncate mb-1"></h2>
+            <p id="right-artist" class="text-zinc-400 font-medium mb-8"></p>
+            
+            <div class="bg-zinc-900/50 rounded-xl p-5 border border-white/5">
+                <div class="flex justify-between items-center mb-4">
+                    <p class="text-xs font-bold uppercase tracking-widest text-zinc-400">Artist Profile</p>
+                    <button class="text-xs font-bold border border-zinc-500 px-3 py-1 rounded-full hover:border-white transition">Follow</button>
+                </div>
+                <p id="right-bio" class="text-sm text-zinc-300 leading-relaxed">
+                    Cloud Metadata: This artist's info is being pulled from your library tags.
+                </p>
             </div>
         </aside>
     </div>
@@ -306,78 +432,94 @@
             <i class="fas fa-home"></i>
             <span>Home</span>
         </div>
-        <div class="nav-item" id="nav-search">
+        <div class="nav-item" id="nav-search" onclick="showView('search')">
             <i class="fas fa-search"></i>
             <span>Search</span>
         </div>
         <div class="nav-item" id="nav-library" onclick="showView('liked')">
-            <i class="fas fa-book"></i>
-            <span>Your Library</span>
+            <i class="fas fa-layer-group"></i>
+            <span>Library</span>
         </div>
-        <div class="nav-item" id="nav-create" onclick="createNewPlaylist()">
-            <i class="fas fa-plus-square"></i>
-            <span>Create</span>
+        <div class="nav-item" id="nav-premium">
+            <i class="fab fa-spotify"></i>
+            <span>Cloud</span>
         </div>
     </nav>
 
     <div id="main-dock" class="player-bar dock-hidden">
-        <div class="flex items-center gap-4">
-            <img id="p-cover" class="w-14 h-14 rounded shadow bg-zinc-800">
+        <div class="flex items-center gap-4 overflow-hidden">
+            <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
             <div class="overflow-hidden">
-                <div id="p-title" class="font-bold text-sm text-white truncate"></div>
-                <div id="p-artist" class="text-xs text-zinc-400 truncate"></div>
+                <div id="p-title" class="font-bold text-sm text-white truncate hover:underline cursor-pointer"></div>
+                <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white cursor-pointer"></div>
             </div>
+            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart ml-2 text-zinc-400 hover:text-white cursor-pointer"></i>
         </div>
         
-        <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col items-center gap-3">
             <div class="flex items-center gap-6 text-zinc-400">
-                <i id="btn-shuffle" onclick="this.classList.toggle('active-green')" class="fas fa-shuffle hover:text-white cursor-pointer"></i>
-                <i class="fas fa-step-backward hover:text-white cursor-pointer" onclick="prevSong()"></i>
-                <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 cursor-pointer text-black" onclick="togglePlay()">
+                <i id="btn-shuffle" onclick="this.classList.toggle('active-green')" class="fas fa-shuffle hover:text-white cursor-pointer text-sm"></i>
+                <i class="fas fa-step-backward hover:text-white cursor-pointer text-xl" onclick="prevSong()"></i>
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition" onclick="togglePlay()">
                     <i id="play-icon" class="fas fa-play ml-1"></i>
                 </div>
-                <i class="fas fa-step-forward hover:text-white cursor-pointer" onclick="nextSong()"></i>
-                <i id="btn-repeat" onclick="this.classList.toggle('active-green')" class="fas fa-repeat hover:text-white cursor-pointer"></i>
+                <i class="fas fa-step-forward hover:text-white cursor-pointer text-xl" onclick="nextSong()"></i>
+                <i id="btn-repeat" onclick="this.classList.toggle('active-green')" class="fas fa-repeat hover:text-white cursor-pointer text-sm"></i>
             </div>
-            <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
+            <div class="w-full flex items-center gap-3 text-[11px] font-medium text-zinc-500">
                 <span id="t-curr">0:00</span>
-                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer" id="progress-container" onclick="seek(event)">
-                    <div id="progress-fill" class="h-full bg-white rounded-full w-0 group-hover:bg-[#1db954]"></div>
+                <div class="progress-bar-container" id="progress-container" onclick="seek(event)">
+                    <div id="progress-fill" class="progress-bar-fill"></div>
                 </div>
                 <span id="t-total">0:00</span>
             </div>
         </div>
 
-        <div class="flex justify-end pr-4 gap-4 items-center">
-            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart hover:text-red-500 cursor-pointer text-lg"></i>
-            <i class="fas fa-volume-up text-zinc-400 ml-2"></i>
+        <div class="flex justify-end gap-5 items-center">
+            <i class="fas fa-list-ul text-zinc-400 hover:text-white cursor-pointer text-sm"></i>
+            <i class="fas fa-desktop text-zinc-400 hover:text-white cursor-pointer text-sm" onclick="toggleRightSidebar(true)"></i>
+            <div class="flex items-center gap-2 group">
+                <i class="fas fa-volume-up text-zinc-400 text-sm"></i>
+                <div class="w-24 h-1 bg-zinc-600 rounded-full overflow-hidden">
+                    <div class="bg-white h-full w-2/3 group-hover:bg-[#1db954]"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <audio id="audio-player"></audio>
+    <audio id="audio-player" preload="auto"></audio>
 
     <script>
         /**
-         * APPLICATION STATE
+         * ---------------------------------------------------------------------
+         * GLOBAL APP STATE
+         * ---------------------------------------------------------------------
          */
         let libraryData = [];
         let currentSong = null;
         let menuTargetSong = null;
+        let activePlaylistIndex = null;
+        
+        // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
-        let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
-        let activePlaylistIndex = null;
-        
+        let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
+
+        // Elements
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
+        const greetingEl = document.getElementById('greeting-text');
 
         /**
-         * INITIALIZATION
+         * ---------------------------------------------------------------------
+         * INITIALIZATION & LIFECYCLE
+         * ---------------------------------------------------------------------
          */
         window.onload = async () => {
+            setGreeting();
             renderHistory();
             renderPlaylists();
             updateCounts();
@@ -385,38 +527,54 @@
             initResizers();
             initGlobalKeys();
             
+            // Simulation of high-volume library fetching
             try {
-                const response = await fetch('/api/get-songs');
+                const response = await fetch('/api/get-songs'); // This endpoint provides the structure
                 libraryData = await response.json();
+                
+                // Sort library alphabetically by album
+                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+                
                 document.getElementById('loading').classList.add('hidden');
                 showView('home');
             } catch (error) {
-                document.getElementById('loading').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+                console.error("Fetch error:", error);
+                document.getElementById('loading').innerHTML = `
+                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                    <p class="text-white font-bold">Cloud Connection Failed</p>
+                    <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+                `;
             }
         };
 
-        // --- GLOBAL CONTROLS ---
-        function initGlobalKeys() {
-            window.addEventListener('keydown', (e) => {
-                if (e.code === "Space") {
-                    e.preventDefault();
-                    togglePlay();
-                }
-            });
-            document.addEventListener('click', (e) => { 
-                if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none'; 
-            });
+        function setGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) greetingEl.innerText = "Good morning";
+            else if (hour < 18) greetingEl.innerText = "Good afternoon";
+            else greetingEl.innerText = "Good evening";
         }
 
-        // --- NAVIGATION & VIEW RENDERING ---
+        /**
+         * ---------------------------------------------------------------------
+         * CORE NAVIGATION LOGIC
+         * ---------------------------------------------------------------------
+         */
         function showView(viewType, playlistIndex = null) {
-            document.getElementById('grid-view').classList.add('hidden');
-            document.getElementById('album-view').classList.add('hidden');
+            // Hide all
+            ['grid-view', 'album-view', 'search-view'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+
             activePlaylistIndex = playlistIndex;
-            
+            const scrollArea = document.getElementById('main-scroll-area');
+            scrollArea.scrollTop = 0;
+
             if (viewType === 'home') {
                 document.getElementById('grid-view').classList.remove('hidden');
-                renderGrid();
+                renderGrid(libraryData);
+            } else if (viewType === 'search') {
+                document.getElementById('search-view').classList.remove('hidden');
+                document.getElementById('global-search').focus();
             } else if (viewType === 'liked') {
                 document.getElementById('album-view').classList.remove('hidden');
                 renderCollection("Liked Songs", likedSongs);
@@ -429,43 +587,37 @@
             updateActiveStates(viewType);
         }
 
-        /**
-         * Handles the "Active States" logic for icons
-         */
         function updateActiveStates(viewType) {
-            // Reset all mobile nav icons
-            const mobileItems = ['nav-home', 'nav-search', 'nav-library', 'nav-create'];
-            mobileItems.forEach(id => {
-                document.getElementById(id).classList.remove('active');
-            });
+            // Mobile Nav
+            const navIds = { home: 'nav-home', search: 'nav-search', liked: 'nav-library' };
+            Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
+            if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
 
-            // Reset all desktop sidebar links
-            const sideHome = document.getElementById('side-nav-home');
-            const sideLiked = document.getElementById('side-nav-liked');
-            sideHome.classList.replace('text-white', 'text-zinc-400');
-            sideLiked.classList.remove('bg-zinc-900');
-
-            // Set active based on view
-            if (viewType === 'home') {
-                document.getElementById('nav-home').classList.add('active');
-                sideHome.classList.replace('text-zinc-400', 'text-white');
-            } else if (viewType === 'liked') {
-                document.getElementById('nav-library').classList.add('active');
-                sideLiked.classList.add('bg-zinc-900');
-            }
+            // Desktop Sidebar
+            document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home');
+            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', viewType !== 'home');
+            document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
+            document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
+            document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
         }
 
-        function renderGrid() {
+        /**
+         * ---------------------------------------------------------------------
+         * RENDERERS
+         * ---------------------------------------------------------------------
+         */
+        function renderGrid(data) {
             const grid = document.getElementById('album-grid');
-            grid.innerHTML = libraryData.map((album) => `
-                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer group" onclick="openAlbumByName('${album.albumName}')">
-                    <div class="relative shadow-xl mb-4 rounded-md overflow-hidden">
-                        <img src="${album.coverArt}" class="w-full aspect-square object-cover">
-                        <div class="absolute bottom-2 right-2 bg-[#1db954] w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg">
-                            <i class="fas fa-play text-black ml-1"></i>
+            grid.innerHTML = data.map((album) => `
+                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg" 
+                     onclick="openAlbumByName('${album.albumName.replace(/'/g, "\\'")}')">
+                    <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
+                        <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
+                        <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl">
+                            <i class="fas fa-play text-black text-lg ml-1"></i>
                         </div>
                     </div>
-                    <div class="font-bold text-white truncate">${album.albumName}</div>
+                    <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
                     <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
                 </div>
             `).join('');
@@ -479,12 +631,13 @@
             document.getElementById('album-view').classList.remove('hidden');
             
             document.getElementById('album-hero').innerHTML = `
-                <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
-                <div>
-                    <p class="text-xs font-bold uppercase">Album</p>
-                    <h1 class="text-6xl font-black my-4">${album.albumName}</h1>
+                <img src="${album.coverArt}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
+                <div class="flex-1">
+                    <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
+                    <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
                     <div class="flex items-center gap-2 text-sm font-bold">
-                        <span>${album.artistName}</span>
+                        <span class="hover:underline cursor-pointer">${album.artistName}</span>
+                        <span class="text-zinc-400">• ${album.songs.length} songs</span>
                     </div>
                 </div>`;
                 
@@ -494,83 +647,100 @@
             album.songs.forEach((song, i) => {
                 const row = document.createElement('div');
                 row.className = "track-row group";
+                const isCurrent = currentSong && (currentSong.url === song.link);
+                if (isCurrent) row.classList.add('active-track');
+
                 row.onclick = () => playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
                 row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
-                setupLongPress(row, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
                 
                 row.innerHTML = `
-                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
-                    <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+                    <span class="text-zinc-400 group-hover:text-white text-center">${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}</span>
+                    <div class="flex flex-col">
+                        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+                        <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
+                    </div>
                     <span class="truncate hidden md:block">${album.albumName}</span>
-                    <span class="hidden md:block">Recent</span>
-                    <span class="hidden md:block">3:45</span>`;
+                    <span class="hidden md:block">Just now</span>
+                    <span class="hidden md:block text-center">3:20</span>`;
                 listEl.appendChild(row);
             });
         }
 
-        function renderCollection(title, list, isDynamic = false, plIndex = null) {
-            const hero = document.getElementById('album-hero');
-            let coverContent = `<i class="fas fa-music text-zinc-500 text-6xl"></i>`;
-            
-            if (title === "Liked Songs") {
-                coverContent = `<i class="fas fa-heart text-white text-6xl"></i>`;
-            } else if (list.length >= 4) {
-                coverContent = `<div class="grid-cover">${list.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
-            } else if (list.length > 0) {
-                coverContent = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
+        /**
+         * ---------------------------------------------------------------------
+         * SEARCH LOGIC
+         * ---------------------------------------------------------------------
+         */
+        function handleSearch(query) {
+            const results = document.getElementById('search-results');
+            if (!query.trim()) {
+                results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+                return;
             }
 
-            const titleAction = isDynamic ? `onclick="renamePlaylist(${plIndex}, event)" class="editable-title"` : "";
+            const q = query.toLowerCase();
+            let matches = [];
 
-            hero.innerHTML = `
-                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">${coverContent}</div>
-                <div>
-                    <p class="text-xs font-bold uppercase">Playlist</p>
-                    <h1 class="text-6xl font-black my-4" ${titleAction}>${title}</h1>
-                </div>`;
-            
-            const listEl = document.getElementById('track-list');
-            listEl.innerHTML = list.length === 0 ? `<p class="text-zinc-500 p-4">Empty.</p>` : '';
-            
-            list.forEach((song, i) => {
-                const row = document.createElement('div');
-                row.className = "track-row group";
-                row.onclick = () => playSpecificSong(song.url || song.link, song.title || song.name, song.album, song.artist, song.cover);
-                row.oncontextmenu = (e) => handleContextMenu(e, song);
-                setupLongPress(row, song);
-                
-                row.innerHTML = `
-                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
-                    <div class="text-white font-medium truncate">${(song.title || song.name).replace('.mp3', '')}</div>
-                    <span class="truncate hidden md:block">${song.album}</span>
-                    <span class="hidden md:block">Saved</span>
-                    <span class="hidden md:block">3:45</span>`;
-                listEl.appendChild(row);
+            libraryData.forEach(album => {
+                album.songs.forEach(song => {
+                    if (song.name.toLowerCase().includes(q) || album.artistName.toLowerCase().includes(q)) {
+                        matches.push({ ...song, album: album.albumName, artist: album.artistName, cover: album.coverArt });
+                    }
+                });
             });
+
+            if (matches.length === 0) {
+                results.innerHTML = `<p class="text-zinc-500">No results found for "${query}"</p>`;
+                return;
+            }
+
+            results.innerHTML = matches.slice(0, 15).map(s => `
+                <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group" 
+                     onclick="playSpecificSong('${s.link}','${s.name}','${s.album}','${s.artist}','${s.cover}')">
+                    <img src="${s.cover}" class="w-12 h-12 rounded object-cover">
+                    <div class="flex-1 overflow-hidden">
+                        <div class="text-white font-bold truncate">${s.name.replace('.mp3','')}</div>
+                        <div class="text-sm text-zinc-400 truncate">${s.artist} • ${s.album}</div>
+                    </div>
+                    <i class="fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400"></i>
+                </div>
+            `).join('');
         }
 
-        // --- PLAYBACK ENGINE ---
+        /**
+         * ---------------------------------------------------------------------
+         * PLAYER & AUDIO CONTROL
+         * ---------------------------------------------------------------------
+         */
         function playSpecificSong(url, title, album, artist, cover) {
             currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
+            
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
             
+            // UI Updates
             dock.classList.remove('dock-hidden');
-            if (window.innerWidth >= 768) rightSidebar.classList.remove('sidebar-hidden');
-            
             document.getElementById('p-cover').src = cover;
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
             
+            // Sidebars
+            if (window.innerWidth >= 1024) toggleRightSidebar(true);
             document.getElementById('right-cover').src = cover;
             document.getElementById('right-title').innerText = title.replace('.mp3', '');
             document.getElementById('right-artist').innerText = artist;
             
             updateHeartUI();
             addToHistory(album, artist, cover);
+            
+            // Refresh current track view list to show active green state
+            if (!document.getElementById('album-view').classList.contains('hidden')) {
+                const rows = document.querySelectorAll('.track-row');
+                rows.forEach(r => r.classList.remove('active-track'));
+            }
         }
 
         function togglePlay() {
@@ -582,190 +752,34 @@
                 player.pause();
                 document.getElementById('play-icon').className = "fas fa-play ml-1";
             }
-            checkDockVisibility();
         }
-
-        function nextSong() { console.log("Next track logic goes here"); }
-        function prevSong() { console.log("Prev track logic goes here"); }
 
         function seek(e) {
             const rect = document.getElementById('progress-container').getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
-            player.currentTime = pct * player.duration;
+            if (pct >= 0 && pct <= 1) player.currentTime = pct * player.duration;
         }
 
-        // --- PLAYLIST & HISTORY LOGIC ---
-        function renderPlaylists() {
-            const listContainer = document.getElementById('dynamic-playlists-list');
-            const submenu = document.getElementById('playlist-submenu');
-            if (!listContainer || !submenu) return;
-            
-            listContainer.innerHTML = '';
-            submenu.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
-
-            playlists.forEach((pl, index) => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group relative";
-                div.onclick = () => showView('playlist', index);
-                
-                let coverHtml = `<i class="fas fa-music text-zinc-500"></i>`;
-                if (pl.songs.length >= 4) {
-                    coverHtml = `<div class="grid-cover">${pl.songs.slice(0,4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}</div>`;
-                } else if (pl.songs.length > 0) {
-                    coverHtml = `<img src="${pl.songs[0].cover}" class="w-full h-full object-cover">`;
-                }
-
-                div.innerHTML = `
-                    <div class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">${coverHtml}</div>
-                    <div class="flex-1 truncate">
-                        <div class="text-sm font-bold truncate">${pl.name}</div>
-                        <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
-                    </div>
-                    <div class="flex gap-2 opacity-0 group-hover:opacity-100">
-                        <i onclick="deletePlaylist(${index}, event)" class="fas fa-trash text-xs text-zinc-500 hover:text-red-500 p-1"></i>
-                    </div>`;
-                listContainer.appendChild(div);
-
-                const subItem = document.createElement('div');
-                subItem.className = "menu-item";
-                subItem.innerText = pl.name;
-                subItem.onclick = () => { addSongToPlaylist(index); contextMenu.style.display = 'none'; };
-                submenu.appendChild(subItem);
-            });
-        }
-
-        function createNewPlaylist() {
-            const name = prompt("Playlist Name:", `My Playlist #${playlists.length + 1}`);
-            if (name) {
-                playlists.push({ name: name, songs: [] });
-                saveAndRefresh();
+        player.ontimeupdate = () => {
+            if (player.duration) {
+                const pct = (player.currentTime / player.duration) * 100;
+                document.getElementById('progress-fill').style.width = pct + "%";
+                document.getElementById('t-curr').innerText = formatTime(player.currentTime);
+                document.getElementById('t-total').innerText = formatTime(player.duration);
             }
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' + sec : sec}`;
         }
 
-        function deletePlaylist(index, e) {
-            e.stopPropagation();
-            if(confirm(`Delete "${playlists[index].name}"?`)) {
-                playlists.splice(index, 1);
-                saveAndRefresh();
-                showView('home');
-            }
-        }
-
-        function renamePlaylist(index, e) {
-            if (e) e.stopPropagation();
-            const newName = prompt("Rename Playlist:", playlists[index].name);
-            if (newName && newName.trim() !== "") {
-                playlists[index].name = newName;
-                saveAndRefresh();
-                showView('playlist', index);
-            }
-        }
-
-        function addSongToPlaylist(playlistIndex) {
-            const songToAdd = menuTargetSong || currentSong;
-            if (!songToAdd) return;
-            const exists = playlists[playlistIndex].songs.some(s => (s.url || s.link) === (songToAdd.url || songToAdd.link));
-            if (!exists) {
-                playlists[playlistIndex].songs.push({
-                    url: songToAdd.link || songToAdd.url,
-                    title: songToAdd.name || songToAdd.title,
-                    album: songToAdd.album,
-                    artist: songToAdd.artist,
-                    cover: songToAdd.cover || songToAdd.coverArt
-                });
-                saveAndRefresh();
-            }
-        }
-
-        function saveAndRefresh() {
-            localStorage.setItem('playlists', JSON.stringify(playlists));
-            renderPlaylists();
-        }
-
-        // --- UI & CONTEXT MENU ---
-        function handleContextMenu(e, songData) {
-            e.preventDefault();
-            menuTargetSong = songData;
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = e.pageX + 'px';
-            contextMenu.style.top = e.pageY + 'px';
-        }
-
-        function menuAction(type) {
-            if (!menuTargetSong) return;
-            if (type === 'like') {
-                const temp = currentSong;
-                currentSong = {
-                    url: menuTargetSong.link || menuTargetSong.url,
-                    title: menuTargetSong.name || menuTargetSong.title,
-                    cover: menuTargetSong.cover || menuTargetSong.coverArt,
-                    artist: menuTargetSong.artist,
-                    album: menuTargetSong.album
-                };
-                toggleLike();
-                currentSong = temp;
-            }
-            contextMenu.style.display = 'none';
-        }
-
-        function setupLongPress(element, songData) {
-            let pressTimer;
-            element.addEventListener('touchstart', (e) => {
-                pressTimer = window.setTimeout(() => handleContextMenu(e.touches[0], songData), 700);
-            });
-            element.addEventListener('touchend', () => clearTimeout(pressTimer));
-        }
-
-        function toggleLike() {
-            if (!currentSong) return;
-            const index = likedSongs.findIndex(s => s.url === currentSong.url);
-            if (index === -1) {
-                likedSongs.push({...currentSong});
-            } else {
-                likedSongs.splice(index, 1);
-            }
-            localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
-            updateCounts();
-            updateHeartUI();
-        }
-
-        function updateHeartUI() {
-            const heart = document.getElementById('dock-heart');
-            if (!heart) return;
-            const isLiked = currentSong && likedSongs.some(s => s.url === currentSong.url);
-            heart.className = isLiked ? "fas fa-heart text-red-500 cursor-pointer text-lg" : "far fa-heart hover:text-red-500 cursor-pointer text-lg";
-        }
-
-        function updateCounts() {
-            const el = document.getElementById('count-liked');
-            if (el) el.innerText = `${likedSongs.length} songs`;
-        }
-
-        function addToHistory(album, artist, cover) {
-            history = history.filter(h => h.album !== album);
-            history.unshift({ album, artist, cover });
-            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
-            renderHistory();
-        }
-
-        function renderHistory() {
-            const container = document.getElementById('history-container');
-            if (!container) return;
-            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>';
-            history.forEach(h => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
-                div.onclick = () => openAlbumByName(h.album);
-                div.innerHTML = `
-                    <img src="${h.cover}" class="w-10 h-10 rounded object-cover">
-                    <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
-                        <div class="text-xs text-zinc-400">${h.artist}</div>
-                    </div>`;
-                container.appendChild(div);
-            });
-        }
-
+        /**
+         * ---------------------------------------------------------------------
+         * PERSISTENCE & UTILS
+         * ---------------------------------------------------------------------
+         */
         function checkDockVisibility() {
             const oneHour = 3600000;
             const isRecent = (Date.now() - lastPlayedTime < oneHour);
@@ -776,51 +790,146 @@
             }
         }
 
-        function initResizers() {
-            const handleResize = (side, resizer, element) => {
-                if (!resizer || !element) return;
-                resizer.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    const resize = (ev) => {
-                        if (side === 'left') {
-                            if (ev.clientX > 150 && ev.clientX < 400) element.style.width = ev.clientX + 'px';
-                        } else {
-                            const w = window.innerWidth - ev.clientX;
-                            if (w > 200 && w < 450) element.style.width = w + 'px';
-                        }
-                    };
-                    const stop = () => document.removeEventListener('mousemove', resize);
-                    document.addEventListener('mousemove', resize);
-                    document.addEventListener('mouseup', stop);
-                });
-            };
-            handleResize('left', document.getElementById('resizer-left'), document.getElementById('left-sidebar'));
-            handleResize('right', document.getElementById('resizer-right'), document.getElementById('right-sidebar'));
-        }
-
         function toggleRightSidebar(show) {
-            const el = document.getElementById('right-sidebar');
-            if (el) el.classList.toggle('sidebar-hidden', !show);
+            rightSidebar.classList.toggle('sidebar-hidden', !show);
         }
 
-        player.ontimeupdate = () => {
-            if(player.duration) {
-                const fill = document.getElementById('progress-fill');
-                const curr = document.getElementById('t-curr');
-                const total = document.getElementById('t-total');
-                if (fill) fill.style.width = (player.currentTime / player.duration) * 100 + "%";
-                if (curr) curr.innerText = formatTime(player.currentTime);
-                if (total) total.innerText = formatTime(player.duration);
+        function initResizers() {
+            const resizerL = document.getElementById('resizer-left');
+            const sidebarL = document.getElementById('left-sidebar');
+            
+            if (resizerL) {
+                resizerL.addEventListener('mousedown', (e) => {
+                    const doDrag = (ev) => {
+                        if (ev.clientX > 180 && ev.clientX < 450) sidebarL.style.width = ev.clientX + 'px';
+                    };
+                    const stopDrag = () => {
+                        document.removeEventListener('mousemove', doDrag);
+                        document.removeEventListener('mouseup', stopDrag);
+                    };
+                    document.addEventListener('mousemove', doDrag);
+                    document.addEventListener('mouseup', stopDrag);
+                });
             }
-        };
-
-        function formatTime(s) {
-            const m = Math.floor(s/60);
-            const sec = Math.floor(s%60);
-            return `${m}:${sec < 10 ? '0'+sec : sec}`;
         }
-        
-        setInterval(checkDockVisibility, 60000);
+
+        function initGlobalKeys() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === "Space" && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    togglePlay();
+                }
+            });
+            document.addEventListener('click', (e) => { 
+                if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none'; 
+            });
+        }
+
+        // Context Menu & Playlists
+        function handleContextMenu(e, song) {
+            e.preventDefault();
+            menuTargetSong = song;
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
+            contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
+        }
+
+        function addToHistory(album, artist, cover) {
+            history = history.filter(h => h.album !== album);
+            history.unshift({ album, artist, cover });
+            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 8)));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            if (!container) return;
+            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
+            history.forEach(h => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+                div.onclick = () => openAlbumByName(h.album);
+                div.innerHTML = `
+                    <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
+                    <div class="truncate">
+                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
+                        <div class="text-xs text-zinc-400">${h.artist}</div>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function createNewPlaylist() {
+            const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
+            if (name && name.trim()) {
+                playlists.push({ name: name.trim(), songs: [] });
+                localStorage.setItem('playlists', JSON.stringify(playlists));
+                renderPlaylists();
+            }
+        }
+
+        function renderPlaylists() {
+            const list = document.getElementById('dynamic-playlists-list');
+            const sub = document.getElementById('playlist-submenu');
+            list.innerHTML = '';
+            sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
+
+            playlists.forEach((pl, i) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
+                div.onclick = () => showView('playlist', i);
+                div.innerHTML = `
+                    <div class="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center">
+                        <i class="fas fa-music text-zinc-600"></i>
+                    </div>
+                    <div class="flex-1 truncate">
+                        <div class="text-sm font-bold truncate">${pl.name}</div>
+                        <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
+                    </div>
+                `;
+                list.appendChild(div);
+
+                const item = document.createElement('div');
+                item.className = "menu-item";
+                item.innerText = pl.name;
+                item.onclick = () => {
+                    const s = menuTargetSong;
+                    playlists[i].songs.push({
+                        url: s.link || s.url, title: s.name || s.title,
+                        album: s.album, artist: s.artist, cover: s.cover || s.coverArt
+                    });
+                    localStorage.setItem('playlists', JSON.stringify(playlists));
+                    renderPlaylists();
+                    contextMenu.style.display = 'none';
+                };
+                sub.appendChild(item);
+            });
+        }
+
+        function updateCounts() {
+            const el = document.getElementById('count-liked');
+            if (el) el.innerText = `${likedSongs.length} songs`;
+        }
+
+        function updateHeartUI() {
+            const h = document.getElementById('dock-heart');
+            const isLiked = currentSong && likedSongs.some(s => s.url === currentSong.url);
+            h.className = isLiked ? "fas fa-heart text-[#1db954] cursor-pointer" : "far fa-heart text-zinc-400 cursor-pointer";
+        }
+
+        function toggleLike() {
+            if (!currentSong) return;
+            const idx = likedSongs.findIndex(s => s.url === currentSong.url);
+            if (idx === -1) likedSongs.push({...currentSong});
+            else likedSongs.splice(idx, 1);
+            localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
+            updateCounts();
+            updateHeartUI();
+        }
+
+        // Auto-hide dock interval
+        setInterval(checkDockVisibility, 30000);
+
     </script>
 </body>
 </html>
