@@ -1,102 +1,268 @@
-<aside class="sidebar">
-    <div class="space-y-5">
-        <div onclick="showView('home')" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
-            <i class="fas fa-home text-xl w-6"></i> Home
-        </div>
-        <div class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
-            <i class="fas fa-search text-xl w-6"></i> Search
-        </div>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Cloud Collection - Stable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar { width: 260px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; }
+        .main-view { flex: 1; background: linear-gradient(180deg, #222 0%, #000 100%); overflow-y: auto; padding: 32px; position: relative; }
+        .track-row { display: grid; grid-template-columns: 40px 4fr 3fr 2fr 60px; gap: 12px; padding: 10px; border-radius: 4px; align-items: center; color: #b3b3b3; font-size: 14px; user-select: none; }
+        .track-row:hover { background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
+        .track-header { text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; padding-bottom: 8px; }
+        .player-bar { height: 90px; background: #000; border-top: 1px solid #282828; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; z-index: 50; transition: transform 0.3s ease; }
+        .hidden { display: none !important; }
+        .dock-hidden { transform: translateY(100%); } /* Rule for your 1-hour hide */
+    </style>
+</head>
+<body>
 
-    <div class="mt-8 mb-4 flex items-center justify-between">
-        <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your Library</span>
-        <i class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer"></i>
-    </div>
-
-    <div class="flex-1 overflow-y-auto space-y-2">
-        <div onclick="showView('liked')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-            <div class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded flex items-center justify-center">
-                <i class="fas fa-heart text-white"></i>
-            </div>
-            <div>
-                <div class="text-sm font-bold">Liked Songs</div>
-                <div class="text-xs text-zinc-400">Playlist • 43 songs</div>
-            </div>
-        </div>
-        
-        <div onclick="showView('playlist')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-            <div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center">
-                <i class="fas fa-music text-zinc-500"></i>
-            </div>
-            <div>
-                <div class="text-sm font-bold">My Playlist #1</div>
-                <div class="text-xs text-zinc-400">Playlist • 12 songs</div>
-            </div>
-        </div>
-
-        <div id="history-container" class="pt-4 border-t border-zinc-800 mt-4">
-            <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>
-        </div>
-    </div>
-</aside>
-
-<script>
-    let libraryData = [];
-    let history = JSON.parse(localStorage.getItem('historyLog')) || [];
-    const player = document.getElementById('audio-player');
-
-    // 1. Navigation Controller
-    function showView(viewType) {
-        // Hide everything first
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('grid-view').classList.add('hidden');
-        document.getElementById('album-view').classList.add('hidden');
-
-        if (viewType === 'home') {
-            document.getElementById('grid-view').classList.remove('hidden');
-            renderGrid();
-        } else if (viewType === 'liked') {
-            document.getElementById('album-view').classList.remove('hidden');
-            renderSpecialPlaylist("Liked Songs", "from-purple-700 to-blue-300", "fa-heart");
-        } else if (viewType === 'playlist') {
-            document.getElementById('album-view').classList.remove('hidden');
-            renderSpecialPlaylist("My Playlist #1", "from-zinc-700 to-zinc-900", "fa-music");
-        }
-    }
-
-    // 2. Specialized Renderer for Sidebar Items
-    function renderSpecialPlaylist(title, gradient, icon) {
-        document.getElementById('album-hero').innerHTML = `
-            <div class="w-52 h-52 shadow-2xl rounded bg-gradient-to-br ${gradient} flex items-center justify-center">
-                <i class="fas ${icon} text-6xl text-white"></i>
-            </div>
-            <div>
-                <span class="text-xs font-bold uppercase tracking-wider">Playlist</span>
-                <h1 class="text-6xl font-black my-4">${title}</h1>
-                <div class="text-sm font-bold">Your private collection</div>
-            </div>
-        `;
-
-        // For now, this just shows all songs as a placeholder
-        // You can filter libraryData here later if you have actual 'liked' tags
-        const allSongs = libraryData.flatMap(album => 
-            album.songs.map(s => ({...s, albumName: album.albumName, artistName: album.artistName, coverArt: album.coverArt}))
-        );
-
-        document.getElementById('track-list').innerHTML = allSongs.slice(0, 20).map((song, i) => `
-            <div class="track-row group" onclick="playSpecificSong('${song.link}', '${song.name}', '${song.albumName}', '${song.artistName}', '${song.coverArt}')">
-                <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
-                <div>
-                    <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
-                    <div class="text-xs text-zinc-400 group-hover:text-white">${song.artistName}</div>
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="sidebar">
+            <div class="space-y-5">
+                <div onclick="showView('home')" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
+                    <i class="fas fa-home text-xl w-6"></i> Home
                 </div>
-                <span class="truncate">${song.albumName}</span>
-                <span>Dec 26, 2025</span>
-                <span>3:45</span>
+                <div class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
+                    <i class="fas fa-search text-xl w-6"></i> Search
+                </div>
             </div>
-        `).join('');
-    }
 
-    // Keep your existing renderGrid, openAlbum, playSpecificSong functions here...
-    // Just make sure they call showView() when needed!
-</script>
+            <div class="mt-8 mb-4 flex items-center justify-between">
+                <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your Library</span>
+                <i class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer"></i>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-2">
+                <div onclick="showView('liked')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded flex items-center justify-center">
+                        <i class="fas fa-heart text-white"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold">Liked Songs</div>
+                        <div class="text-xs text-zinc-400">Playlist • 43 songs</div>
+                    </div>
+                </div>
+                
+                <div onclick="showView('playlist')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
+                    <div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center">
+                        <i class="fas fa-music text-zinc-500"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold">My Playlist #1</div>
+                        <div class="text-xs text-zinc-400">Playlist • 12 songs</div>
+                    </div>
+                </div>
+
+                <div id="history-container" class="pt-4 border-t border-zinc-800 mt-4">
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-view">
+            <div id="loading" class="text-center mt-20">
+                <i class="fas fa-spinner fa-spin text-4xl text-[#1db954]"></i>
+                <p class="mt-4 text-zinc-400">Loading your cloud library...</p>
+            </div>
+
+            <div id="grid-view" class="hidden">
+                <h1 class="text-2xl font-black mb-6">Good evening</h1>
+                <div id="album-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"></div>
+            </div>
+
+            <div id="album-view" class="hidden">
+                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/80 rounded-full w-8 h-8 flex items-center justify-center transition">
+                    <i class="fas fa-chevron-left text-white"></i>
+                </button>
+                <div id="album-hero" class="flex items-end gap-6 mb-8"></div>
+                <div class="track-row track-header">
+                    <span>#</span><span>Title</span><span>Album</span><span>Date Added</span><span><i class="far fa-clock"></i></span>
+                </div>
+                <div id="track-list"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="main-dock" class="player-bar dock-hidden">
+        <div class="flex items-center gap-4">
+            <img id="p-cover" class="w-14 h-14 rounded shadow bg-zinc-800">
+            <div>
+                <div id="p-title" class="font-bold text-sm text-white"></div>
+                <div id="p-artist" class="text-xs text-zinc-400"></div>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center gap-2">
+            <div class="flex items-center gap-6 text-zinc-400">
+                <i class="fas fa-shuffle hover:text-white cursor-pointer"></i>
+                <i class="fas fa-step-backward hover:text-white cursor-pointer"></i>
+                <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 cursor-pointer text-black" onclick="togglePlay()">
+                    <i id="play-icon" class="fas fa-play ml-1"></i>
+                </div>
+                <i class="fas fa-step-forward hover:text-white cursor-pointer"></i>
+                <i class="fas fa-repeat hover:text-white cursor-pointer"></i>
+            </div>
+            <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
+                <span id="t-curr">0:00</span>
+                <div class="h-1 bg-zinc-600 rounded-full flex-1 relative group cursor-pointer">
+                    <div id="progress-fill" class="h-full bg-white rounded-full w-0 group-hover:bg-[#1db954]"></div>
+                </div>
+                <span id="t-total">0:00</span>
+            </div>
+        </div>
+
+        <div class="flex justify-end pr-4">
+            <i class="fas fa-volume-up text-zinc-400"></i>
+        </div>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+    <script>
+        let libraryData = [];
+        let history = JSON.parse(localStorage.getItem('historyLog')) || [];
+        let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
+        const player = document.getElementById('audio-player');
+        const dock = document.getElementById('main-dock');
+
+        window.onload = async () => {
+            renderHistory();
+            checkDockVisibility(); // Your "1 hour" rule
+            
+            try {
+                const response = await fetch('/api/get-songs');
+                libraryData = await response.json();
+                document.getElementById('loading').classList.add('hidden');
+                showView('home');
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        };
+
+        function showView(viewType) {
+            document.getElementById('grid-view').classList.add('hidden');
+            document.getElementById('album-view').classList.add('hidden');
+
+            if (viewType === 'home') {
+                document.getElementById('grid-view').classList.remove('hidden');
+                renderGrid();
+            } else if (viewType === 'liked' || viewType === 'playlist') {
+                document.getElementById('album-view').classList.remove('hidden');
+                renderSpecialPlaylist(viewType === 'liked' ? "Liked Songs" : "My Playlist #1");
+            }
+        }
+
+        function renderGrid() {
+            document.getElementById('album-grid').innerHTML = libraryData.map((album, idx) => `
+                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer group" onclick="openAlbum(${idx})">
+                    <div class="relative shadow-xl mb-4 rounded-md overflow-hidden">
+                        <img src="${album.coverArt}" class="w-full aspect-square object-cover">
+                        <div class="absolute bottom-2 right-2 bg-[#1db954] w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg">
+                            <i class="fas fa-play text-black ml-1"></i>
+                        </div>
+                    </div>
+                    <div class="font-bold text-white truncate">${album.albumName}</div>
+                    <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
+                </div>
+            `).join('');
+        }
+
+        function openAlbum(index) {
+            const album = libraryData[index];
+            showView('album-details'); // Just a trigger to hide grid
+            document.getElementById('album-view').classList.remove('hidden');
+            document.getElementById('album-hero').innerHTML = `
+                <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
+                <div>
+                    <h1 class="text-6xl font-black my-4">${album.albumName}</h1>
+                    <div class="flex items-center gap-2 text-sm font-bold"><span>${album.artistName}</span></div>
+                </div>
+            `;
+            document.getElementById('track-list').innerHTML = album.songs.map((song, i) => `
+                <div class="track-row group" onclick="playSpecificSong('${song.link}', '${song.name}', '${album.albumName}', '${album.artistName}', '${album.coverArt}')">
+                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
+                    <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+                    <span class="truncate">${album.albumName}</span>
+                    <span>Dec 27, 2025</span>
+                    <span>3:45</span>
+                </div>
+            `).join('');
+        }
+
+        function renderSpecialPlaylist(title) {
+            document.getElementById('album-hero').innerHTML = `<h1 class="text-6xl font-black my-4">${title}</h1>`;
+            document.getElementById('track-list').innerHTML = `<p class="text-zinc-500 p-4">Your collection of ${title} will appear here.</p>`;
+        }
+
+        function playSpecificSong(url, title, album, artist, cover) {
+            player.src = url;
+            player.play();
+            
+            // SHOW DOCK & UPDATE TIME
+            dock.classList.remove('dock-hidden');
+            lastPlayedTime = Date.now();
+            localStorage.setItem('lastPlayedTime', lastPlayedTime);
+
+            document.getElementById('p-cover').src = cover;
+            document.getElementById('p-title').innerText = title.replace('.mp3', '');
+            document.getElementById('p-artist').innerText = artist;
+            document.getElementById('play-icon').className = "fas fa-pause";
+            addToHistory(album, artist, cover);
+        }
+
+        function checkDockVisibility() {
+            const oneHour = 60 * 60 * 1000;
+            if (Date.now() - lastPlayedTime > oneHour && player.paused) {
+                dock.classList.add('dock-hidden');
+            } else if (lastPlayedTime > 0) {
+                dock.classList.remove('dock-hidden');
+            }
+        }
+
+        function togglePlay() {
+            if (player.paused) {
+                player.play();
+                document.getElementById('play-icon').className = "fas fa-pause";
+            } else {
+                player.pause();
+                document.getElementById('play-icon').className = "fas fa-play ml-1";
+            }
+        }
+
+        function addToHistory(album, artist, cover) {
+            history = history.filter(h => h.album !== album);
+            history.unshift({ album, artist, cover });
+            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            while (container.childNodes.length > 2) container.removeChild(container.lastChild);
+            history.forEach(h => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+                div.innerHTML = `<img src="${h.cover}" class="w-10 h-10 rounded object-cover"><div class="truncate"><div class="text-sm font-bold text-white">${h.album}</div></div>`;
+                container.appendChild(div);
+            });
+        }
+
+        player.ontimeupdate = () => {
+            if(player.duration) {
+                document.getElementById('progress-fill').style.width = (player.currentTime / player.duration) * 100 + "%";
+                document.getElementById('t-curr').innerText = formatTime(player.currentTime);
+                document.getElementById('t-total').innerText = formatTime(player.duration);
+            }
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60);
+            return `${m}:${sec < 10 ? '0'+sec : sec}`;
+        }
+    </script>
+</body>
+</html>
