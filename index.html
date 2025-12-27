@@ -115,7 +115,8 @@
         }
 
         /* --- DOCK & PLAYER --- */
-       .player-bar { 
+       /* Desktop Styles: Full Width */
+            .player-bar { 
                 position: fixed;
                 bottom: 0;
                 left: 0;
@@ -128,6 +129,23 @@
                 align-items: center;
                 padding: 0 16px;
                 z-index: 999;
+            }
+
+            /* Mobile Styles: Floating Pill */
+            @media (max-width: 768px) {
+                .player-bar {
+                    bottom: calc(var(--nav-height) + 8px);
+                    left: 8px;
+                    right: 8px;
+                    height: 56px;
+                    background: #282828;
+                    border-radius: 8px;
+                    border: none;
+                    display: flex;
+                    justify-content: space-between;
+                    grid-template-columns: none;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                }
             }
 
             @media (max-width: 768px) {
@@ -145,11 +163,12 @@
                 }
             }
             /* Ensure text doesn't disappear on small screens */
-            #main-dock > div:first-child { 
+           #main-dock > div:first-child { 
                 display: flex;
                 align-items: center;
                 gap: 12px;
-                min-width: 0;
+                min-width: 0; /* Prevents text from pushing outside the box */
+                width: 100%;
             }
         .progress-bar-container {
             height: 4px;
