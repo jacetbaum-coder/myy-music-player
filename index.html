@@ -116,16 +116,26 @@
 
         /* --- DOCK & PLAYER --- */
         .player-bar { 
-            height: var(--player-height); 
-            background: var(--bg-base); 
-            border-top: 1px solid #282828; 
-            display: grid; 
-            grid-template-columns: 30% 40% 30%; 
-            align-items: center; 
-            padding: 0 20px; 
-            z-index: 100; 
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
+                position: fixed;
+                bottom: calc(var(--nav-height) + 8px);
+                left: 8px;
+                right: 8px;
+                height: 56px;
+                background: #282828;
+                border-radius: 8px;
+                border: none;
+                display: flex; /* Changed from grid to flex for better mobile spacing */
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                z-index: 999;
+            }
+            /* Ensure text doesn't disappear on small screens */
+            #main-dock > div:first-child { 
+                flex: 1; 
+                min-width: 0; 
+            }
 
         .progress-bar-container {
             height: 4px;
@@ -488,7 +498,7 @@
         </div>
     </nav>
 
-    <div id="main-dock" class="player-bar dock-hidden">
+    <div id="main-dock" class="player-bar dock-hidden" onclick="handleDockClick(event)">
         <i id="mobile-play-btn" class="fas fa-play md:hidden" onclick="togglePlay()"></i>
         <div class="flex items-center gap-4 overflow-hidden">
             <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
@@ -759,6 +769,15 @@
             currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
+            // This updates the "Swipe Down" menu and Lock Screen metadata
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title.replace('.mp3', ''),
+                    artist: artist,
+                    album: album,
+                    artwork: [{ src: cover, sizes: '512x512', type: 'image/png' }]
+                });
+            }
             
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
@@ -787,6 +806,19 @@
         }
 
         function togglePlay() {
+            function handleDockClick(e) {
+            // If the user clicks the play button or heart, don't open the full view
+            if (e.target.closest('i') || e.target.closest('.w-10')) return;
+            
+            // On mobile, this will toggle the right sidebar which contains the full cover/info
+            if (window.innerWidth < 768) {
+                const rs = document.getElementById('right-sidebar');
+                rs.classList.remove('hidden', 'md:flex', 'sidebar-hidden');
+                rs.style.cssText = "position:fixed; inset:0; width:100%; max-width:100%; z-index:1000; background:#121212; padding:24px; display:flex;";
+            } else {
+                toggleRightSidebar(true);
+            }
+        }
             if (!currentSong) return;
             if (player.paused) {
                 player.play();
