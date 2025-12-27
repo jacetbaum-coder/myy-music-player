@@ -7,54 +7,92 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Layout Containers */
         .sidebar { width: 260px; min-width: 150px; max-width: 400px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; }
         .right-sidebar { width: 280px; min-width: 200px; max-width: 450px; background: #000; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; transition: transform 0.3s ease; }
         .main-view { flex: 1; background: linear-gradient(180deg, #222 0%, #000 100%); overflow-y: auto; padding: 32px; position: relative; }
+        
+        /* Resizer Handles (Desktop Only) */
         .resizer { width: 4px; cursor: col-resize; background: transparent; transition: background 0.2s; z-index: 10; }
         .resizer:hover { background: rgba(255,255,255,0.3); }
+
+        /* Track Rows */
         .track-row { display: grid; grid-template-columns: 40px 4fr 3fr 2fr 60px; gap: 12px; padding: 10px; border-radius: 4px; align-items: center; color: #b3b3b3; font-size: 14px; user-select: none; }
         .track-row:hover { background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
+        .track-header { text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; padding-bottom: 8px; }
+        
+        /* Player Bar & Visibility */
         .player-bar { height: 90px; background: #000; border-top: 1px solid #282828; display: grid; grid-template-columns: 30% 40% 30%; align-items: center; padding: 0 16px; z-index: 50; transition: transform 0.3s ease; }
         .hidden { display: none !important; }
         .dock-hidden { transform: translateY(100%); }
         .sidebar-hidden { display: none !important; }
-        #context-menu { position: fixed; background: #282828; border-radius: 4px; padding: 4px; min-width: 220px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); z-index: 1000; display: none; }
+
+        /* Context Menu Styles */
+        #context-menu { position: fixed; background: #282828; border-radius: 4px; padding: 4px; min-width: 180px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); z-index: 1000; display: none; }
         .menu-item { padding: 10px 12px; font-size: 14px; color: #eaeaea; cursor: pointer; border-radius: 2px; display: flex; justify-content: space-between; align-items: center; }
         .menu-item:hover { background: #3e3e3e; }
+
+        /* Grid Cover for Playlists */
         .grid-cover { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: 100%; }
-        .rename-input { background: transparent; border: 1px solid #1db954; color: white; font-size: 3.75rem; font-weight: 900; width: 100%; outline: none; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
-    <div id="context-menu"></div>
+    <div id="context-menu">
+        <div class="menu-item" onclick="menuAction('like')">Add to Liked Songs <i class="far fa-heart"></i></div>
+        <div class="menu-item" onclick="menuAction('playlist')">Add to Playlist #1 <i class="fas fa-plus"></i></div>
+    </div>
 
     <div class="flex flex-1 overflow-hidden">
         <aside id="left-sidebar" class="sidebar">
             <div class="space-y-5">
-                <div onclick="showView('home')" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer font-bold text-sm">
+                <div onclick="showView('home')" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
                     <i class="fas fa-home text-xl w-6"></i> Home
+                </div>
+                <div class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
+                    <i class="fas fa-search text-xl w-6"></i> Search
                 </div>
             </div>
 
             <div class="mt-8 mb-4 flex items-center justify-between">
                 <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your Library</span>
-                <i class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer" onclick="createNewPlaylist()"></i>
+                <i class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer"></i>
             </div>
 
-            <div id="sidebar-playlists" class="flex-1 overflow-y-auto space-y-2">
+            <div class="flex-1 overflow-y-auto space-y-2">
+                <div onclick="showView('liked')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
+                    <div id="cover-liked" class="w-10 h-10 bg-gradient-to-br from-purple-700 to-blue-300 rounded overflow-hidden flex items-center justify-center">
+                        <i class="fas fa-heart text-white"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold">Liked Songs</div>
+                        <div id="count-liked" class="text-xs text-zinc-400">0 songs</div>
+                    </div>
+                </div>
+                
+                <div onclick="showView('playlist')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
+                    <div id="cover-custom" class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">
+                        <i class="fas fa-music text-zinc-500"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold">My Playlist #1</div>
+                        <div id="count-playlist" class="text-xs text-zinc-400">0 songs</div>
+                    </div>
                 </div>
 
-            <div id="history-container" class="pt-4 border-t border-zinc-800 mt-4">
-                <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>
+                <div id="history-container" class="pt-4 border-t border-zinc-800 mt-4">
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>
+                </div>
             </div>
         </aside>
 
         <div id="resizer-left" class="resizer hidden md:block"></div>
 
-        <main class="main-view">
+        <main class="main-view" id="main-scroll-area">
             <div id="loading" class="text-center mt-20">
                 <i class="fas fa-spinner fa-spin text-4xl text-[#1db954]"></i>
+                <p class="mt-4 text-zinc-400">Loading your cloud library...</p>
             </div>
 
             <div id="grid-view" class="hidden">
@@ -63,10 +101,13 @@
             </div>
 
             <div id="album-view" class="hidden">
-                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/80 rounded-full w-8 h-8 flex items-center justify-center">
+                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/80 rounded-full w-8 h-8 flex items-center justify-center transition">
                     <i class="fas fa-chevron-left text-white"></i>
                 </button>
                 <div id="album-hero" class="flex items-end gap-6 mb-8"></div>
+                <div class="track-row track-header">
+                    <span>#</span><span>Title</span><span>Album</span><span>Date Added</span><span><i class="far fa-clock"></i></span>
+                </div>
                 <div id="track-list"></div>
             </div>
         </main>
@@ -76,10 +117,15 @@
         <aside id="right-sidebar" class="right-sidebar hidden md:flex sidebar-hidden">
             <div class="flex justify-between items-center mb-6">
                 <span class="font-bold text-sm">Now Playing</span>
+                <i class="fas fa-times text-zinc-400 hover:text-white cursor-pointer" onclick="toggleRightSidebar(false)"></i>
             </div>
             <img id="right-cover" class="w-full aspect-square rounded-lg shadow-2xl mb-4 bg-zinc-800">
             <h2 id="right-title" class="text-xl font-bold truncate"></h2>
             <p id="right-artist" class="text-zinc-400 text-sm mb-6"></p>
+            <div class="bg-zinc-900 rounded-lg p-4">
+                <p class="text-xs font-bold uppercase text-zinc-400 mb-2">About the artist</p>
+                <p id="right-bio" class="text-sm text-zinc-300">Fetching cloud metadata...</p>
+            </div>
         </aside>
     </div>
 
@@ -93,11 +139,13 @@
         </div>
         <div class="flex flex-col items-center gap-2">
             <div class="flex items-center gap-6 text-zinc-400">
+                <i class="fas fa-shuffle hover:text-white cursor-pointer"></i>
                 <i class="fas fa-step-backward hover:text-white cursor-pointer"></i>
-                <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-black" onclick="togglePlay()">
+                <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 cursor-pointer text-black" onclick="togglePlay()">
                     <i id="play-icon" class="fas fa-play ml-1"></i>
                 </div>
                 <i class="fas fa-step-forward hover:text-white cursor-pointer"></i>
+                <i class="fas fa-repeat hover:text-white cursor-pointer"></i>
             </div>
             <div class="w-full flex items-center gap-2 text-xs text-zinc-500">
                 <span id="t-curr">0:00</span>
@@ -109,6 +157,7 @@
         </div>
         <div class="flex justify-end pr-4 gap-4 items-center">
             <i id="dock-heart" onclick="toggleLike()" class="far fa-heart hover:text-red-500 cursor-pointer text-lg"></i>
+            <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer text-lg"></i>
             <i class="fas fa-volume-up text-zinc-400 ml-2"></i>
         </div>
     </div>
@@ -119,216 +168,337 @@
         let libraryData = [];
         let currentSong = null;
         let menuTargetSong = null;
-        let activePlaylistId = null;
-        
-        let playlists = JSON.parse(localStorage.getItem('userPlaylists')) || [
-            { id: 'liked', name: 'Liked Songs', songs: [], type: 'system' },
-            { id: 'p1', name: 'My Playlist #1', songs: [], type: 'custom' }
-        ];
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
+        let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
+        let customPlaylist = JSON.parse(localStorage.getItem('customPlaylist')) || [];
         let lastPlayedTime = localStorage.getItem('lastPlayedTime') || 0;
         
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
+        const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
 
         window.onload = async () => {
-            renderSidebar();
             renderHistory();
+            updatePlaylistCovers();
+            updateCounts();
             checkDockVisibility();
             initResizers();
+            initGlobalKeys();
             
-            window.addEventListener('keydown', (e) => { if (e.code === "Space") { e.preventDefault(); togglePlay(); } });
-            document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
-
             try {
                 const response = await fetch('/api/get-songs');
                 libraryData = await response.json();
                 document.getElementById('loading').classList.add('hidden');
                 showView('home');
-            } catch (error) { console.error(error); }
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
         };
 
-        function renderSidebar() {
-            const container = document.getElementById('sidebar-playlists');
-            container.innerHTML = playlists.map(p => `
-                <div onclick="showPlaylist('${p.id}')" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
-                    <div class="w-10 h-10 bg-zinc-800 rounded overflow-hidden flex items-center justify-center">
-                        ${getCoverHtml(p, "text-xs")}
-                    </div>
-                    <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${p.name}</div>
-                        <div class="text-xs text-zinc-400">${p.songs.length} songs</div>
-                    </div>
-                </div>
-            `).join('');
+        // --- FEATURE 1: SPACEBAR ALWAYS PAUSE/PLAY ---
+        function initGlobalKeys() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === "Space") {
+                    e.preventDefault(); // Stop page scrolling
+                    togglePlay();
+                }
+            });
+
+            // Close context menu on click elsewhere
+            document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
         }
 
-        function getCoverHtml(playlist, sizeClass = "") {
-            if (playlist.songs.length === 0) return `<i class="fas ${playlist.id === 'liked' ? 'fa-heart' : 'fa-music'} text-zinc-500"></i>`;
-            if (playlist.songs.length < 4) return `<img src="${playlist.songs[0].cover}" class="w-full h-full object-cover">`;
-            return `<div class="grid-cover">
-                ${playlist.songs.slice(0, 4).map(s => `<img src="${s.cover}" class="w-full h-full object-cover">`).join('')}
-            </div>`;
-        }
-
-        function createNewPlaylist() {
-            const newId = 'p' + Date.now();
-            playlists.push({ id: newId, name: 'New Playlist', songs: [], type: 'custom' });
-            save();
-            renderSidebar();
-            showPlaylist(newId);
-        }
-
-        function handleContextMenu(e, song, fromPlaylistId = null) {
+        // --- FEATURE 2: CONTEXT MENU (RIGHT CLICK / LONG PRESS) ---
+        function handleContextMenu(e, songData) {
             e.preventDefault();
-            menuTargetSong = song;
-            let menuHtml = `
-                <div class="menu-item" onclick="toggleLikeTarget()">Add to Liked Songs <i class="far fa-heart"></i></div>
-                <div class="border-t border-zinc-700 my-1"></div>
-                <div class="text-[10px] text-zinc-500 px-3 uppercase py-1">Add to Playlist</div>
-                ${playlists.filter(p => p.id !== 'liked').map(p => `
-                    <div class="menu-item" onclick="addToSpecificPlaylist('${p.id}')">${p.name}</div>
-                `).join('')}
-                <div class="menu-item text-zinc-400" onclick="createNewPlaylist()">+ New Playlist</div>
-            `;
-            if (fromPlaylistId && fromPlaylistId !== 'liked') {
-                menuHtml += `
-                    <div class="border-t border-zinc-700 my-1"></div>
-                    <div class="menu-item text-red-500" onclick="removeFromPlaylist('${fromPlaylistId}')">Remove from this playlist</div>
-                `;
-            }
-            contextMenu.innerHTML = menuHtml;
+            menuTargetSong = songData;
             contextMenu.style.display = 'block';
             contextMenu.style.left = e.pageX + 'px';
             contextMenu.style.top = e.pageY + 'px';
         }
 
-        function addToSpecificPlaylist(id) {
-            const p = playlists.find(x => x.id === id);
-            if (p && !p.songs.some(s => s.url === menuTargetSong.url)) {
-                p.songs.push({...menuTargetSong});
-                save();
-                renderSidebar();
+        function menuAction(type) {
+            if (!menuTargetSong) return;
+            // Temporarily set currentSong to target for the existing logic to work
+            let temp = currentSong;
+            currentSong = menuTargetSong;
+            if (type === 'like') toggleLike();
+            else addToPlaylist('custom');
+            currentSong = temp; // Restore
+            contextMenu.style.display = 'none';
+        }
+
+        // Handle Long Press for Mobile
+        let pressTimer;
+        function setupLongPress(element, songData) {
+            element.addEventListener('touchstart', (e) => {
+                pressTimer = window.setTimeout(() => handleContextMenu(e.touches[0], songData), 700);
+            });
+            element.addEventListener('touchend', () => clearTimeout(pressTimer));
+        }
+
+        // --- FEATURE 3: DYNAMIC PLAYLIST COVERS (GRID 4+) ---
+        function updatePlaylistCovers() {
+            const updateUI = (list, elementId, defaultIcon) => {
+                const container = document.getElementById(elementId);
+                if (list.length === 0) {
+                    container.innerHTML = `<i class="fas ${defaultIcon} text-zinc-500"></i>`;
+                } else if (list.length < 4) {
+                    container.innerHTML = `<img src="${list[0].cover}" class="w-full h-full object-cover">`;
+                } else {
+                    // Create 2x2 Grid for 4+ songs
+                    container.innerHTML = `
+                        <div class="grid-cover">
+                            <img src="${list[0].cover}" class="w-full h-full object-cover">
+                            <img src="${list[1].cover}" class="w-full h-full object-cover">
+                            <img src="${list[2].cover}" class="w-full h-full object-cover">
+                            <img src="${list[3].cover}" class="w-full h-full object-cover">
+                        </div>`;
+                }
+            };
+            updateUI(likedSongs, 'cover-liked', 'fa-heart');
+            updateUI(customPlaylist, 'cover-custom', 'fa-music');
+        }
+
+        function initResizers() {
+            const leftResizer = document.getElementById('resizer-left');
+            const rightResizer = document.getElementById('resizer-right');
+            const leftSidebar = document.getElementById('left-sidebar');
+            const rightSidebar = document.getElementById('right-sidebar');
+
+            function handleResize(side, resizer, element) {
+                resizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    document.addEventListener('mousemove', resize);
+                    document.addEventListener('mouseup', stopResize);
+                });
+                function resize(e) {
+                    if (side === 'left') {
+                        const newWidth = e.clientX;
+                        if (newWidth > 150 && newWidth < 400) element.style.width = newWidth + 'px';
+                    } else {
+                        const newWidth = window.innerWidth - e.clientX;
+                        if (newWidth > 200 && newWidth < 450) element.style.width = newWidth + 'px';
+                    }
+                }
+                function stopResize() { document.removeEventListener('mousemove', resize); }
+            }
+            handleResize('left', leftResizer, leftSidebar);
+            handleResize('right', rightResizer, rightSidebar);
+        }
+
+        function updateCounts() {
+            document.getElementById('count-liked').innerText = `${likedSongs.length} songs`;
+            document.getElementById('count-playlist').innerText = `${customPlaylist.length} songs`;
+            updatePlaylistCovers();
+        }
+
+        function showView(viewType) {
+            document.getElementById('grid-view').classList.add('hidden');
+            document.getElementById('album-view').classList.add('hidden');
+            if (viewType === 'home') {
+                document.getElementById('grid-view').classList.remove('hidden');
+                renderGrid();
+            } else if (viewType === 'liked') {
+                document.getElementById('album-view').classList.remove('hidden');
+                renderCollection("Liked Songs", likedSongs);
+            } else if (viewType === 'playlist') {
+                document.getElementById('album-view').classList.remove('hidden');
+                renderCollection("My Playlist #1", customPlaylist);
             }
         }
 
-        function removeFromPlaylist(id) {
-            const p = playlists.find(x => x.id === id);
-            p.songs = p.songs.filter(s => s.url !== menuTargetSong.url);
-            save();
-            renderSidebar();
-            showPlaylist(id);
-        }
-
-        function showPlaylist(id) {
-            const p = playlists.find(x => x.id === id);
-            activePlaylistId = id;
-            document.getElementById('grid-view').classList.add('hidden');
-            const view = document.getElementById('album-view');
-            view.classList.remove('hidden');
-            
-            document.getElementById('album-hero').innerHTML = `
-                <div class="w-52 h-52 bg-zinc-800 rounded shadow-2xl overflow-hidden">${getCoverHtml(p)}</div>
-                <div>
-                    <p class="text-xs font-bold uppercase">Playlist</p>
-                    <h1 id="playlist-title" class="text-6xl font-black my-4 cursor-pointer hover:underline" onclick="enableRename('${p.id}')">${p.name}</h1>
-                </div>`;
-            
-            const list = document.getElementById('track-list');
-            list.innerHTML = p.songs.map((s, i) => `
-                <div class="track-row group" onclick="playSong(null, '${s.url}', '${s.title}', '${p.name}', '${s.artist}', '${s.cover}')" oncontextmenu="handleContextMenu(event, {url:'${s.url}', title:'${s.title}', artist:'${s.artist}', cover:'${s.cover}'}, '${p.id}')">
-                    <span class="text-zinc-400">${i+1}</span>
-                    <div class="text-white font-medium">${s.title}</div>
-                    <span class="truncate">${s.artist}</span>
-                    <span>Recent</span>
-                    <span>3:45</span>
+        function renderGrid() {
+            document.getElementById('album-grid').innerHTML = libraryData.map((album) => `
+                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer group" onclick="openAlbumByName('${album.albumName}')">
+                    <div class="relative shadow-xl mb-4 rounded-md overflow-hidden">
+                        <img src="${album.coverArt}" class="w-full aspect-square object-cover">
+                        <div class="absolute bottom-2 right-2 bg-[#1db954] w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg">
+                            <i class="fas fa-play text-black ml-1"></i>
+                        </div>
+                    </div>
+                    <div class="font-bold text-white truncate">${album.albumName}</div>
+                    <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
                 </div>
             `).join('');
         }
 
-        function enableRename(id) {
-            if (id === 'liked') return;
-            const titleEl = document.getElementById('playlist-title');
-            const currentName = titleEl.innerText;
-            titleEl.innerHTML = `<input type="text" class="rename-input" value="${currentName}" onblur="finalizeRename('${id}', this.value)" onkeydown="if(event.key==='Enter') this.blur()">`;
-            titleEl.querySelector('input').focus();
+        function openAlbumByName(name) {
+            if (name === "Liked Songs") return showView('liked');
+            if (name === "My Playlist #1") return showView('playlist');
+            const album = libraryData.find(a => a.albumName === name);
+            if (!album) return;
+            document.getElementById('grid-view').classList.add('hidden');
+            document.getElementById('album-view').classList.remove('hidden');
+            document.getElementById('album-hero').innerHTML = `
+                <img src="${album.coverArt}" class="w-52 h-52 shadow-2xl rounded">
+                <div>
+                    <p class="text-xs font-bold uppercase">Album</p>
+                    <h1 class="text-6xl font-black my-4">${album.albumName}</h1>
+                    <div class="flex items-center gap-2 text-sm font-bold"><span>${album.artistName}</span></div>
+                </div>
+            `;
+            const listEl = document.getElementById('track-list');
+            listEl.innerHTML = '';
+            album.songs.forEach((song, i) => {
+                const row = document.createElement('div');
+                row.className = "track-row group";
+                row.onclick = () => playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
+                row.oncontextmenu = (e) => handleContextMenu(e, {link: song.link, title: song.name, album: album.albumName, artist: album.artistName, cover: album.coverArt});
+                setupLongPress(row, {link: song.link, title: song.name, album: album.albumName, artist: album.artistName, cover: album.coverArt});
+                row.innerHTML = `
+                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
+                    <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+                    <span class="truncate">${album.albumName}</span>
+                    <span>Recent</span>
+                    <span>3:45</span>`;
+                listEl.appendChild(row);
+            });
         }
 
-        function finalizeRename(id, newName) {
-            const p = playlists.find(x => x.id === id);
-            if (newName.trim()) p.name = newName;
-            save();
-            renderSidebar();
-            showPlaylist(id);
+        function renderCollection(title, list) {
+            const hero = document.getElementById('album-hero');
+            const elementId = title === "Liked Songs" ? "cover-liked" : "cover-custom";
+            const coverHtml = document.getElementById(elementId).innerHTML;
+            
+            hero.innerHTML = `
+                <div class="w-52 h-52 bg-zinc-800 rounded flex items-center justify-center shadow-2xl overflow-hidden">
+                    ${coverHtml.replace('w-10 h-10', 'w-full h-full')}
+                </div>
+                <div>
+                    <p class="text-xs font-bold uppercase">Playlist</p>
+                    <h1 class="text-6xl font-black my-4">${title}</h1>
+                </div>`;
+            
+            const listEl = document.getElementById('track-list');
+            listEl.innerHTML = list.length === 0 ? `<p class="text-zinc-500 p-4">Empty.</p>` : '';
+            list.forEach((song, i) => {
+                const row = document.createElement('div');
+                row.className = "track-row group";
+                row.onclick = () => playSpecificSong(song.link, song.title, song.album, song.artist, song.cover);
+                row.oncontextmenu = (e) => handleContextMenu(e, song);
+                setupLongPress(row, song);
+                row.innerHTML = `
+                    <span class="text-zinc-400 group-hover:text-white">${i + 1}</span>
+                    <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+                    <span class="truncate">${song.album}</span>
+                    <span>Saved</span>
+                    <span>3:45</span>`;
+                listEl.appendChild(row);
+            });
         }
 
-        function playSong(e, url, title, albumOrPlaylist, artist, cover) {
-            currentSong = { url, title, album: albumOrPlaylist, artist, cover };
+        function playSpecificSong(url, title, album, artist, cover) {
+            currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
+            dock.classList.remove('dock-hidden');
+            if (window.innerWidth >= 768) rightSidebar.classList.remove('sidebar-hidden');
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
-            updateUI();
-            addToHistory(albumOrPlaylist, artist, cover);
-            checkDockVisibility();
+            document.getElementById('p-cover').src = cover;
+            document.getElementById('p-title').innerText = title.replace('.mp3', '');
+            document.getElementById('p-artist').innerText = artist;
+            document.getElementById('play-icon').className = "fas fa-pause";
+            document.getElementById('right-cover').src = cover;
+            document.getElementById('right-title').innerText = title.replace('.mp3', '');
+            document.getElementById('right-artist').innerText = artist;
+            updateHeartUI();
+            addToHistory(album, artist, cover);
         }
 
-        function addToHistory(name, artist, cover) {
-            history = history.filter(h => h.album !== name);
-            history.unshift({ album: name, artist, cover });
+        function toggleLike() {
+            if (!currentSong) return;
+            const index = likedSongs.findIndex(s => s.url === currentSong.url);
+            if (index === -1) likedSongs.push({...currentSong});
+            else likedSongs.splice(index, 1);
+            localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
+            updateCounts();
+            updateHeartUI();
+        }
+
+        function updateHeartUI() {
+            const heart = document.getElementById('dock-heart');
+            if (currentSong && likedSongs.some(s => s.url === currentSong.url)) {
+                heart.className = "fas fa-heart text-red-500 cursor-pointer text-lg";
+            } else {
+                heart.className = "far fa-heart hover:text-red-500 cursor-pointer text-lg";
+            }
+        }
+
+        function addToPlaylist(type) {
+            if (!currentSong) return;
+            const list = (type === 'liked') ? likedSongs : customPlaylist;
+            const storageKey = (type === 'liked') ? 'likedSongs' : 'customPlaylist';
+            if (!list.some(s => s.url === currentSong.url)) {
+                list.push({...currentSong});
+                localStorage.setItem(storageKey, JSON.stringify(list));
+                updateCounts();
+                if (type === 'liked') updateHeartUI();
+            }
+        }
+
+        function checkDockVisibility() {
+            const oneHour = 3600000;
+            const isRecent = (Date.now() - lastPlayedTime < oneHour);
+            if (isRecent || !player.paused) {
+                dock.classList.remove('dock-hidden');
+                if (window.innerWidth >= 768 && lastPlayedTime > 0) rightSidebar.classList.remove('sidebar-hidden');
+            } else {
+                dock.classList.add('dock-hidden');
+                rightSidebar.classList.add('sidebar-hidden');
+            }
+        }
+
+        function togglePlay() {
+            if (player.paused) {
+                player.play();
+                document.getElementById('play-icon').className = "fas fa-pause";
+            } else {
+                player.pause();
+                document.getElementById('play-icon').className = "fas fa-play ml-1";
+            }
+        }
+
+        function addToHistory(album, artist, cover) {
+            history = history.filter(h => h.album !== album);
+            history.unshift({ album, artist, cover });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
 
-        function showView(type) {
-            document.getElementById('album-view').classList.add('hidden');
-            const grid = document.getElementById('grid-view');
-            grid.classList.remove('hidden');
-            if (type === 'home') {
-                document.getElementById('album-grid').innerHTML = libraryData.map(a => `
-                    <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] cursor-pointer" onclick="openAlbum('${a.albumName}')">
-                        <img src="${a.coverArt}" class="w-full aspect-square rounded mb-4">
-                        <div class="font-bold truncate">${a.albumName}</div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        function openAlbum(name) {
-            const a = libraryData.find(x => x.albumName === name);
-            document.getElementById('grid-view').classList.add('hidden');
-            document.getElementById('album-view').classList.remove('hidden');
-            document.getElementById('album-hero').innerHTML = `<img src="${a.coverArt}" class="w-52 h-52 rounded shadow-2xl"><div><h1 class="text-6xl font-black">${a.albumName}</h1></div>`;
-            document.getElementById('track-list').innerHTML = a.songs.map((s, i) => `
-                <div class="track-row" onclick="playSong(event, '${s.link}', '${s.name}', '${a.albumName}', '${a.artistName}', '${a.coverArt}')" oncontextmenu="handleContextMenu(event, {url:'${s.link}', title:'${s.name}', artist:'${a.artistName}', cover:'${a.coverArt}'})">
-                    <span>${i+1}</span><div class="text-white">${s.name}</div><span>${a.albumName}</span><span>Recent</span><span>3:45</span>
-                </div>
-            `).join('');
-        }
-
-        function save() { localStorage.setItem('userPlaylists', JSON.stringify(playlists)); }
-        function togglePlay() { player.paused ? player.play() : player.pause(); updateUI(); }
-        function updateUI() {
-            if (!currentSong) return;
-            document.getElementById('p-title').innerText = currentSong.title;
-            document.getElementById('p-cover').src = currentSong.cover;
-            document.getElementById('right-cover').src = currentSong.cover;
-            document.getElementById('play-icon').className = player.paused ? "fas fa-play ml-1" : "fas fa-pause";
-        }
-        function checkDockVisibility() {
-            const oneHour = 3600000;
-            if (Date.now() - lastPlayedTime < oneHour || !player.paused) {
-                document.getElementById('main-dock').classList.remove('dock-hidden');
-            }
-        }
         function renderHistory() {
             const container = document.getElementById('history-container');
-            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>' + 
-            history.map(h => `<div class="flex items-center gap-3 p-2 hover:bg-zinc-900 cursor-pointer" onclick="playlists.some(p=>p.name==='${h.album}') ? showPlaylist(playlists.find(p=>p.name==='${h.album}').id) : openAlbum('${h.album}')">
-                <img src="${h.cover}" class="w-10 h-10 rounded"><div><div class="text-sm font-bold text-white">${h.album}</div></div></div>`).join('');
+            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-3">Recently Listened</span>';
+            history.forEach(h => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+                div.onclick = () => openAlbumByName(h.album);
+                const imgHtml = h.cover.startsWith('http') ? `<img src="${h.cover}" class="w-10 h-10 rounded object-cover">` : `<div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center"><i class="fas fa-music text-zinc-500 text-xs"></i></div>`;
+                div.innerHTML = `${imgHtml}<div class="truncate"><div class="text-sm font-bold text-white truncate">${h.album}</div><div class="text-xs text-zinc-400">${h.artist}</div></div>`;
+                container.appendChild(div);
+            });
         }
-        function initResizers() { /* Implementation same as previous */ }
+
+        player.ontimeupdate = () => {
+            if(player.duration) {
+                document.getElementById('progress-fill').style.width = (player.currentTime / player.duration) * 100 + "%";
+                document.getElementById('t-curr').innerText = formatTime(player.currentTime);
+                document.getElementById('t-total').innerText = formatTime(player.duration);
+            }
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60);
+            return `${m}:${sec < 10 ? '0'+sec : sec}`;
+        }
+        
+        function toggleRightSidebar(show) {
+            if (show) rightSidebar.classList.remove('sidebar-hidden');
+            else rightSidebar.classList.add('sidebar-hidden');
+        }
     </script>
 </body>
 </html>
