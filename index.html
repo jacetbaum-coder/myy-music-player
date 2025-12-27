@@ -115,28 +115,42 @@
         }
 
         /* --- DOCK & PLAYER --- */
-        .player-bar { 
+       .player-bar { 
                 position: fixed;
-                bottom: calc(var(--nav-height) + 8px);
-                left: 8px;
-                right: 8px;
-                height: 56px;
-                background: #282828;
-                border-radius: 8px;
-                border: none;
-                display: flex; /* Changed from grid to flex for better mobile spacing */
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: var(--player-height);
+                background: var(--bg-base);
+                border-top: 1px solid #282828;
+                display: grid;
+                grid-template-columns: 30% 1fr 30%;
                 align-items: center;
-                justify-content: space-between;
-                padding: 0 12px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                padding: 0 16px;
                 z-index: 999;
+            }
+
+            @media (max-width: 768px) {
+                .player-bar {
+                    bottom: calc(var(--nav-height) + 8px);
+                    left: 8px;
+                    right: 8px;
+                    height: 56px;
+                    background: #282828;
+                    border-radius: 8px;
+                    border: none;
+                    display: flex;
+                    justify-content: space-between;
+                    grid-template-columns: none;
+                }
             }
             /* Ensure text doesn't disappear on small screens */
             #main-dock > div:first-child { 
-                flex: 1; 
-                min-width: 0; 
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-width: 0;
             }
-
         .progress-bar-container {
             height: 4px;
             width: 100%;
