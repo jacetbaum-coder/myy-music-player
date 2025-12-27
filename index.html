@@ -805,20 +805,22 @@
             }
         }
 
-        function togglePlay() {
-            function handleDockClick(e) {
+function handleDockClick(e) {
             // If the user clicks the play button or heart, don't open the full view
             if (e.target.closest('i') || e.target.closest('.w-10')) return;
             
-            // On mobile, this will toggle the right sidebar which contains the full cover/info
+            // On mobile, this will toggle the right sidebar (Full Screen View)
             if (window.innerWidth < 768) {
                 const rs = document.getElementById('right-sidebar');
                 rs.classList.remove('hidden', 'md:flex', 'sidebar-hidden');
-                rs.style.cssText = "position:fixed; inset:0; width:100%; max-width:100%; z-index:1000; background:#121212; padding:24px; display:flex;";
+                // Added flex-direction:column to stack cover and text like your screenshot
+                rs.style.cssText = "position:fixed; inset:0; width:100%; max-width:100%; z-index:1000; background:#121212; padding:24px; display:flex; flex-direction:column;";
             } else {
                 toggleRightSidebar(true);
             }
         }
+
+        function togglePlay() {
             if (!currentSong) return;
             if (player.paused) {
                 player.play();
