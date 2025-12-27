@@ -146,7 +146,7 @@
         </div>
 
         <div class="flex justify-end pr-4 gap-4 items-center">
-            <i onclick="addToPlaylist('liked')" class="far fa-heart hover:text-red-500 cursor-pointer text-lg" title="Add to Liked"></i>
+            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart hover:text-red-500 cursor-pointer text-lg" title="Like Song"></i>
             <i onclick="addToPlaylist('custom')" class="fas fa-plus-circle hover:text-blue-400 cursor-pointer text-lg" title="Add to Playlist #1"></i>
             <i class="fas fa-volume-up text-zinc-400 ml-2"></i>
         </div>
@@ -252,6 +252,10 @@
         }
 
         function openAlbumByName(name) {
+            // Check if name corresponds to a Playlist first
+            if (name === "Liked Songs") return showView('liked');
+            if (name === "My Playlist #1") return showView('playlist');
+
             const album = libraryData.find(a => a.albumName === name);
             if (!album) return;
 
@@ -307,7 +311,6 @@
             player.play();
             
             dock.classList.remove('dock-hidden');
-            // Show right sidebar on desktop when playing
             if (window.innerWidth >= 768) rightSidebar.classList.remove('sidebar-hidden');
 
             lastPlayedTime = Date.now();
@@ -324,12 +327,46 @@
             document.getElementById('right-title').innerText = title.replace('.mp3', '');
             document.getElementById('right-artist').innerText = artist;
             
+            // Check if heart should be red
+            updateHeartUI();
+            
+            // Add to history (handles both Albums and Playlists)
             addToHistory(album, artist, cover);
         }
 
         function toggleRightSidebar(show) {
             if (show) rightSidebar.classList.remove('sidebar-hidden');
             else rightSidebar.classList.add('sidebar-hidden');
+        }
+
+        // --- UPDATED: TOGGLE LIKE (RED HEART LOGIC) ---
+        function toggleLike() {
+            if (!currentSong) return;
+            const index = likedSongs.findIndex(s => s.url === currentSong.url);
+
+            if (index === -1) {
+                likedSongs.push({...currentSong});
+            } else {
+                likedSongs.splice(index, 1);
+            }
+
+            localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
+            updateCounts();
+            updateHeartUI();
+            
+            // If current view is "Liked Songs", refresh it
+            if (document.getElementById('album-hero').innerText.includes("Liked Songs")) {
+                renderCollection("Liked Songs", likedSongs);
+            }
+        }
+
+        function updateHeartUI() {
+            const heart = document.getElementById('dock-heart');
+            if (currentSong && likedSongs.some(s => s.url === currentSong.url)) {
+                heart.className = "fas fa-heart text-red-500 cursor-pointer text-lg";
+            } else {
+                heart.className = "far fa-heart hover:text-red-500 cursor-pointer text-lg";
+            }
         }
 
         function addToPlaylist(type) {
@@ -341,6 +378,7 @@
                 list.push({...currentSong});
                 localStorage.setItem(storageKey, JSON.stringify(list));
                 updateCounts();
+                if (type === 'liked') updateHeartUI();
             }
         }
 
@@ -351,7 +389,6 @@
 
             if (isRecent || isPlaying) {
                 dock.classList.remove('dock-hidden');
-                // Desktop Sidebar follows dock visibility rules
                 if (window.innerWidth >= 768 && lastPlayedTime > 0) {
                     rightSidebar.classList.remove('sidebar-hidden');
                 }
@@ -371,9 +408,17 @@
             }
         }
 
+        // --- UPDATED: HISTORY SUPPORTS PLAYLISTS ---
         function addToHistory(album, artist, cover) {
-            history = history.filter(h => h.album !== album);
-            history.unshift({ album, artist, cover });
+            // Determine if we are tracking an album or a specific playlist
+            let entryName = album;
+            let entryArtist = artist;
+            let entryCover = cover;
+
+            // If playing from a playlist, the 'album' property in currentSong is often the playlist title
+            // but we filter the history by name to prevent duplicates
+            history = history.filter(h => h.album !== entryName);
+            history.unshift({ album: entryName, artist: entryArtist, cover: entryCover });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
@@ -385,8 +430,14 @@
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
                 div.onclick = () => openAlbumByName(h.album);
+                
+                // Set default icon if no cover (for playlists)
+                const imgHtml = h.cover.startsWith('http') 
+                    ? `<img src="${h.cover}" class="w-10 h-10 rounded object-cover">`
+                    : `<div class="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center"><i class="fas fa-music text-zinc-500 text-xs"></i></div>`;
+
                 div.innerHTML = `
-                    <img src="${h.cover}" class="w-10 h-10 rounded object-cover">
+                    ${imgHtml}
                     <div class="truncate">
                         <div class="text-sm font-bold text-white truncate">${h.album}</div>
                         <div class="text-xs text-zinc-400">${h.artist}</div>
