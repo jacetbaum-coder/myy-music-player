@@ -614,7 +614,14 @@ if (volumeContainer) {
             try {
                 const parsed = new URL(url);
                 const id = parsed.searchParams.get('id');
-                return id ? `title-${id}` : null;
+                if (!id) return null;
+                let decodedId = id;
+                try {
+                    decodedId = decodeURIComponent(id);
+                } catch (error) {
+                    decodedId = id;
+                }
+                return `title-${decodedId}`;
             } catch (error) {
                 return null;
             }
@@ -660,6 +667,7 @@ if (volumeContainer) {
             }
 
             return cleaned;
+        }
         }
         /**
          * ---------------------------------------------------------------------
@@ -893,7 +901,8 @@ function openAlbumByName(name) {
 
             libraryData.forEach(album => {
                 album.songs.forEach(song => {
-                    if (song.name.toLowerCase().includes(q) || album.artistName.toLowerCase().includes(q)) {
+                    const cleanedTitle = formatSongTitle(song.name, song.link);
+                    if (song.name.toLowerCase().includes(q) || cleanedTitle.toLowerCase().includes(q) || album.artistName.toLowerCase().includes(q)) {
                         matches.push({ ...song, album: album.albumName, artist: album.artistName, cover: album.coverArt });
                     }
                 });
