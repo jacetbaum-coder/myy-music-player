@@ -506,11 +506,14 @@
             <i class="fas fa-list-ul text-zinc-400 hover:text-white cursor-pointer text-sm"></i>
             <i class="fas fa-desktop text-zinc-400 hover:text-white cursor-pointer text-sm" onclick="toggleRightSidebar(true)"></i>
             <div class="flex items-center gap-2 group">
-                <i class="fas fa-volume-up text-zinc-400 text-sm"></i>
-                <div class="w-24 h-1 bg-zinc-600 rounded-full overflow-hidden">
-                    <div class="bg-white h-full w-2/3 group-hover:bg-[#1db954]"></div>
-                </div>
-            </div>
+    <i id="volume-icon" class="fas fa-volume-up text-zinc-400 text-sm"></i>
+    <div id="volume-container"
+         class="w-24 h-1 bg-zinc-600 rounded-full overflow-hidden cursor-pointer">
+        <div id="volume-fill"
+             class="bg-white h-full w-2/3 group-hover:bg-[#1db954]"></div>
+    </div>
+</div>
+
         </div>
     </div>
 
@@ -537,6 +540,56 @@
 
         // Elements
         const player = document.getElementById('audio-player');
+        // -----------------------
+// VOLUME CONTROL
+// -----------------------
+
+const volumeContainer = document.getElementById('volume-container');
+const volumeFill = document.getElementById('volume-fill');
+const volumeIcon = document.getElementById('volume-icon');
+
+// Default volume
+player.volume = 0.66;
+volumeFill.style.width = "66%";
+
+function setVolumeFromClientX(clientX) {
+    const rect = volumeContainer.getBoundingClientRect();
+    const pct = (clientX - rect.left) / rect.width;
+    const clamped = Math.max(0, Math.min(1, pct));
+
+    player.volume = clamped;
+    volumeFill.style.width = (clamped * 100) + "%";
+
+    // Icon state
+    if (clamped === 0) {
+        volumeIcon.className = "fas fa-volume-mute text-zinc-400 text-sm";
+    } else if (clamped < 0.5) {
+        volumeIcon.className = "fas fa-volume-down text-zinc-400 text-sm";
+    } else {
+        volumeIcon.className = "fas fa-volume-up text-zinc-400 text-sm";
+    }
+}
+
+if (volumeContainer) {
+    volumeContainer.addEventListener('click', (e) => {
+        setVolumeFromClientX(e.clientX);
+    });
+
+    volumeContainer.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        setVolumeFromClientX(e.clientX);
+
+        const move = (ev) => setVolumeFromClientX(ev.clientX);
+        const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+        };
+
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+    });
+}
+
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
