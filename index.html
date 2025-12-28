@@ -606,7 +606,61 @@ if (volumeContainer) {
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
         const greetingEl = document.getElementById('greeting-text');
+        const cleanedTitleCache = new Map();
+        const persistedTitleKeys = new Set();
 
+        function getTitleKeyFromUrl(url) {
+            if (!url) return null;
+            try {
+                const parsed = new URL(url);
+                const id = parsed.searchParams.get('id');
+                return id ? `title-${id}` : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function cleanSongTitle(rawTitle) {
+            if (!rawTitle) return '';
+            let cleaned = rawTitle.replace('.mp3', '').trim();
+            const hyphenIndex = cleaned.indexOf('-');
+            if (hyphenIndex !== -1) {
+                cleaned = cleaned.slice(hyphenIndex + 1).trim();
+            }
+            return cleaned;
+        }
+
+        async function persistCleanTitle(titleKey, cleanedTitle) {
+            if (!titleKey || persistedTitleKeys.has(titleKey)) return;
+            persistedTitleKeys.add(titleKey);
+            try {
+                await fetch('/api/get-songs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: titleKey, title: cleanedTitle })
+                });
+            } catch (error) {
+                console.error('Failed to persist cleaned title:', error);
+            }
+        }
+
+        function formatSongTitle(rawTitle, url) {
+            const titleKey = getTitleKeyFromUrl(url);
+            const cacheKey = titleKey || url || rawTitle;
+            if (cleanedTitleCache.has(cacheKey)) {
+                return cleanedTitleCache.get(cacheKey);
+            }
+
+            const cleaned = cleanSongTitle(rawTitle);
+            const hasHyphen = Boolean(rawTitle && rawTitle.includes('-'));
+            cleanedTitleCache.set(cacheKey, cleaned);
+
+            if (hasHyphen && cleaned && cleaned !== rawTitle.replace('.mp3', '').trim()) {
+                persistCleanTitle(titleKey, cleaned);
+            }
+
+            return cleaned;
+        }
         /**
          * ---------------------------------------------------------------------
          * INITIALIZATION & LIFECYCLE
@@ -809,7 +863,7 @@ function openAlbumByName(name) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+        <div class="text-white font-medium truncate">${formatSongTitle(song.name, song.link)}</div>
         <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
       </div>
       <span class="truncate hidden md:block">${album.albumName}</span>
@@ -868,7 +922,7 @@ function openAlbumByName(name) {
 
                 const title = document.createElement('div');
                 title.className = 'text-white font-bold truncate';
-                title.textContent = s.name.replace('.mp3', '');
+                title.textContent = formatSongTitle(s.name, s.link);
 
                 const meta = document.createElement('div');
                 meta.className = 'text-sm text-zinc-400 truncate';
@@ -899,7 +953,8 @@ function openAlbumByName(name) {
          * ---------------------------------------------------------------------
          */
         function playSpecificSong(url, title, album, artist, cover) {
-            currentSong = { url, title, album, artist, cover };
+            const displayTitle = formatSongTitle(title, url);
+            currentSong = { url, title: displayTitle, album, artist, cover };;
             player.src = url;
             player.play();
             
@@ -909,14 +964,14 @@ function openAlbumByName(name) {
             // UI Updates
             dock.classList.remove('dock-hidden');
             document.getElementById('p-cover').src = cover;
-            document.getElementById('p-title').innerText = title.replace('.mp3', '');
+            document.getElementById('p-title').innerText = displayTitle;
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
             
             // Sidebars
             if (window.innerWidth >= 1024) toggleRightSidebar(true);
             document.getElementById('right-cover').src = cover;
-            document.getElementById('right-title').innerText = title.replace('.mp3', '');
+            document.getElementById('right-title').innerText = displayTitle;
             document.getElementById('right-artist').innerText = artist;
             
             updateHeartUI();
@@ -1348,8 +1403,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 item.innerText = pl.name;
                 item.onclick = () => {
                     const s = menuTargetSong;
+                    const songUrl = s.link || s.url;
                     playlists[i].songs.push({
-                        url: s.link || s.url, title: s.name || s.title,
+                        url: songUrl, title: formatSongTitle(s.name || s.title, songUrl),
                         album: s.album, artist: s.artist, cover: s.cover || s.coverArt
                     });
                     savePlaylists();
@@ -1488,7 +1544,8 @@ function nextSong() {
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
   if (!url) return null;
-  const title = song.name || song.title || "Unknown Title";
+  const rawTitle = song.name || song.title || "Unknown Title";
+  const title = formatSongTitle(rawTitle, url);
   const album = song.album || song.albumName || fallback.album || "Unknown Album";
   const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
   const cover = song.cover || song.coverArt || fallback.cover || "";
@@ -1568,7 +1625,7 @@ if (hero && activePlaylistId) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+       <div class="text-white font-medium truncate">${formatSongTitle(song.title, song.url)}</div>
         <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
