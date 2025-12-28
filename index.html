@@ -59,6 +59,109 @@
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
         }
 
+        .library-controls {
+            position: relative;
+        }
+
+        .library-menu-button {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sub);
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .library-menu-button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+        }
+
+        .library-menu {
+            position: absolute;
+            top: 36px;
+            right: 0;
+            width: 240px;
+            background: #2a2a2a;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 50;
+        }
+
+        .library-menu.hidden {
+            display: none;
+        }
+
+        .library-menu-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #b3b3b3;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .library-menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: var(--text-main);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .library-menu-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .library-menu-item.active {
+            color: var(--spotify-green);
+            font-weight: 600;
+        }
+
+        .library-menu-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 12px 0;
+        }
+
+        .library-view-toggle {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 8px;
+            border-radius: 12px;
+        }
+
+        .library-view-button {
+            flex: 1;
+            height: 36px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sub);
+            background: transparent;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .library-view-button.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
+
+        .library-view-button i {
+            font-size: 16px;
+        }
+
         .main-view { 
             flex: 1; 
             background: linear-gradient(180deg, #222 0%, var(--bg-base) 100%); 
@@ -92,8 +195,43 @@
     transition: background 0.1s;
 }
 .track-row > * {
-    min-width: 0;
-}
+            min-width: 0;
+        }
+
+        .album-grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .album-grid.compact-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        }
+
+        .album-grid.compact-list {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .album-card.list-view {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+        }
+
+        .album-card.list-view .album-art {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0;
+        }
+
+        .album-card.list-view .album-play {
+            display: none;
+        }
+
+        .album-card.list-view .album-meta {
+            margin: 0;
+        }
 
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
@@ -351,7 +489,39 @@
 
             <div class="mt-10 mb-4 flex items-center justify-between">
                 <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your Library</span>
-                <i onclick="createNewPlaylist()" class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer p-1"></i>
+                <div class="flex items-center gap-2 library-controls">
+                    <button class="library-menu-button" onclick="toggleLibraryMenu()" aria-label="Sort and view options">
+                        <i class="fas fa-sort-amount-down"></i>
+                    </button>
+                    <i onclick="createNewPlaylist()" class="fas fa-plus text-zinc-400 hover:text-white cursor-pointer p-1"></i>
+
+                    <div id="library-menu" class="library-menu hidden">
+                        <div class="library-menu-title">Sort by</div>
+                        <div class="library-menu-item" data-sort="recents" onclick="setSortMode('recents')">
+                            <span>Recents</span>
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="library-menu-item active" data-sort="recently-added" onclick="setSortMode('recently-added')">
+                            <span>Recently added</span>
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="library-menu-item" data-sort="alphabetical" onclick="setSortMode('alphabetical')">
+                            <span>Alphabetical</span>
+                            <i class="fas fa-check"></i>
+                        </div>
+
+                        <div class="library-menu-divider"></div>
+                        <div class="library-menu-title">View as</div>
+                        <div class="library-view-toggle">
+                            <div class="library-view-button active" data-view="compact-list" onclick="setViewMode('compact-list')" aria-label="Compact list view">
+                                <i class="fas fa-list"></i>
+                            </div>
+                            <div class="library-view-button" data-view="compact-grid" onclick="setViewMode('compact-grid')" aria-label="Compact grid view">
+                                <i class="fas fa-th"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="flex-1 overflow-y-auto space-y-2 pr-2">
