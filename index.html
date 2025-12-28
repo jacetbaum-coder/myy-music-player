@@ -740,17 +740,40 @@ function openAlbumByName(name) {
                 return;
             }
 
-            results.innerHTML = matches.slice(0, 15).map(s => `
-                <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group" 
-                     onclick="playSpecificSong('${s.link}','${s.name}','${s.album}','${s.artist}','${s.cover}')">
-                    <img src="${s.cover}" class="w-12 h-12 rounded object-cover">
-                    <div class="flex-1 overflow-hidden">
-                        <div class="text-white font-bold truncate">${s.name.replace('.mp3','')}</div>
-                        <div class="text-sm text-zinc-400 truncate">${s.artist} • ${s.album}</div>
-                    </div>
-                    <i class="fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400"></i>
-                </div>
-            `).join('');
+             results.innerHTML = '';
+
+            matches.slice(0, 15).forEach((s) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+                row.addEventListener('click', () => {
+                    playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+                });
+
+                const img = document.createElement('img');
+                img.src = s.cover;
+                img.className = 'w-12 h-12 rounded object-cover';
+
+                const info = document.createElement('div');
+                info.className = 'flex-1 overflow-hidden';
+
+                const title = document.createElement('div');
+                title.className = 'text-white font-bold truncate';
+                title.textContent = s.name.replace('.mp3', '');
+
+                const meta = document.createElement('div');
+                meta.className = 'text-sm text-zinc-400 truncate';
+                meta.textContent = `${s.artist} • ${s.album}`;
+
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
+
+                info.appendChild(title);
+                info.appendChild(meta);
+                row.appendChild(img);
+                row.appendChild(info);
+                row.appendChild(icon);
+                results.appendChild(row);
+            });
         }
 
         /**
