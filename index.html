@@ -540,13 +540,14 @@
         // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
-        let playlists = [];
-        try {
-            const storedPlaylists = JSON.parse(localStorage.getItem('playlists')) || [];
-            playlists = Array.isArray(storedPlaylists) ? storedPlaylists : [];
-        } catch (e) {
-            playlists = [];
-        }
+        let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
+        // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
+playlists = playlists.map(pl => ({
+  ...pl,
+  id: pl.id || crypto.randomUUID()
+}));
+localStorage.setItem('playlists', JSON.stringify(playlists));
+
         let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
         // Elements
@@ -1117,11 +1118,12 @@ function checkDockVisibility() {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
 
-                if (h.type === 'playlist' && h.id) {
+                 if (h.type === 'playlist' && h.id) {
                     const idx = playlists.findIndex(pl => pl.id === h.id);
                     div.onclick = () => {
                         if (idx !== -1) showView('playlist', idx);
                     };
+                    attachPlaylistPressHandlers(div, h.id);
                 } else {
                     div.onclick = () => openAlbumByName(h.album);
                 }
@@ -1176,7 +1178,7 @@ function pinPlaylist(id) {
   if (pinned.includes(id)) return;
 
   if (pinned.length >= 4) {
-    showAppMessage("You can only pin up to 4 playlists.");
+    alert("You can only pin 4 playlists max.");
     return;
   }
   pinned.unshift(id);
@@ -1192,46 +1194,15 @@ function unpinPlaylist(id) {
 
 function ensurePlaylistIds() {
   let changed = false;
-  const originalLength = playlists.length;
-  playlists = playlists
-    .filter(pl => pl && typeof pl === 'object')
-    .map(pl => {
-      const normalized = {
-        id: pl.id,
-        name: pl.name || 'Untitled Playlist',
-        songs: Array.isArray(pl.songs) ? pl.songs : []
-      };
-      if (!normalized.id) {
-        normalized.id = crypto.randomUUID();
-        changed = true;
-      }
-      if (normalized.name !== pl.name || normalized.songs !== pl.songs) {
-        changed = true;
-      }
-      return normalized;
-    });
-  if (playlists.length !== originalLength) {
-    changed = true;
-  }
+  playlists.forEach(pl => {
+    if (!pl.id) { pl.id = crypto.randomUUID(); changed = true; }
+  });
   if (changed) savePlaylists();
 }
 function savePlaylists() {
   localStorage.setItem('playlists', JSON.stringify(playlists));
 }
-function showAppMessage(message) {
-  const toast = document.getElementById('app-message');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.remove('hidden', 'opacity-0', 'translate-y-2');
-  toast.classList.add('opacity-100', 'translate-y-0');
 
-  clearTimeout(toast._hideTimer);
-  toast._hideTimer = setTimeout(() => {
-    toast.classList.remove('opacity-100', 'translate-y-0');
-    toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.classList.add('hidden'), 200);
-  }, 2200);
-}
 // Menu plumbing
 let playlistMenuTargetId = null;
 
@@ -1254,14 +1225,9 @@ function showPlaylistMenuAt(x, y, playlistId) {
   pinBtn.classList.toggle('hidden', pinned);
   unpinBtn.classList.toggle('hidden', !pinned);
 
+  m.style.left = x + "px";
+  m.style.top = y + "px";
   m.classList.remove('hidden');
-  const menuWidth = m.offsetWidth || 220;
-  const menuHeight = m.offsetHeight || 120;
-  const padding = 12;
-  const left = Math.min(Math.max(padding, x), window.innerWidth - menuWidth - padding);
-  const top = Math.min(Math.max(padding, y), window.innerHeight - menuHeight - padding);
-  m.style.left = left + "px";
-  m.style.top = top + "px";
 }
 function openPlaylistPinMenuFromHero(e) {
   // Only works when you're inside a playlist view
@@ -1278,6 +1244,27 @@ function openPlaylistPinMenuFromHero(e) {
   // Open menu just under the 3 dots
   showPlaylistMenuAt(rect.left, rect.bottom + 8, activePlaylistId);
 }
+
+function attachPlaylistPressHandlers(el, playlistId) {
+  if (!el) return;
+
+  // Desktop: right-click
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    hideAnyOtherMenus?.(); // if you have something like this; safe if not
+    showPlaylistMenuAt(e.clientX, e.clientY, playlistId);
+  });
+
+  // Mobile: press-and-hold (long press)
+  let pressTimer = null;
+  el.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const t = e.touches[0];
+    pressTimer = setTimeout(() => {
+      showPlaylistMenuAt(t.clientX, t.clientY, playlistId);
+    }, 500);
+  }, { passive: true });
+
   const cancel = () => { if (pressTimer) clearTimeout(pressTimer); pressTimer = null; };
   el.addEventListener('touchend', cancel, { passive: true });
   el.addEventListener('touchmove', cancel, { passive: true });
@@ -1351,6 +1338,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
                     </div>
                 `;
+                attachPlaylistPressHandlers(div, pl.id);
                 list.appendChild(div);
             });
 
@@ -1651,7 +1639,6 @@ player.addEventListener('ended', () => {
         setInterval(checkDockVisibility, 30000);
 
     </script>
-    <div id="app-message" class="hidden fixed bottom-24 right-6 z-[60] rounded-xl bg-zinc-900 text-white text-sm px-4 py-3 shadow-lg border border-white/10 transition duration-200 opacity-0 translate-y-2"></div>
     <!-- PLAYLIST PIN MENU -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[220px]">
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
