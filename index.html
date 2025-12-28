@@ -396,7 +396,6 @@
                     <button id="hero-play-btn" class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
                         <i class="fas fa-play text-black text-xl ml-1"></i>
                     </button>
-                    <i class="far fa-heart text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
                     <i class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
                 </div>
 
@@ -615,78 +614,105 @@
          * RENDERERS
          * ---------------------------------------------------------------------
          */
-        function renderGrid(data) {
-            const grid = document.getElementById('album-grid');
-            grid.innerHTML = data.map((album) => `
-                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg" 
-                     onclick="openAlbumByName('${album.albumName.replace(/'/g, "\\'")}')">
-                    <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
-                        <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
-                        <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl">
-                            <i class="fas fa-play text-black text-lg ml-1"></i>
-                        </div>
-                    </div>
-                    <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
-                    <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
-                </div>
-            `).join('');
-        }
+function renderGrid(data) {
+  const grid = document.getElementById('album-grid');
 
-        function openAlbumByName(name) {
-    const album = libraryData.find(a => a.albumName === name);
-    if (!album) return;
+  grid.innerHTML = data.map((album) => {
+    const safeName = album.albumName.replace(/'/g, "\\'");
 
-    currentQueue = album.songs.map(s => ({
-        url: s.link,
-        title: s.name,
-        album: album.albumName,
-        artist: album.artistName,
-        cover: album.coverArt
-    }));
+    return `
+      <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg"
+           onclick="openAlbumByName('${safeName}')">
 
-    document.getElementById('grid-view').classList.add('hidden');
-    document.getElementById('album-view').classList.remove('hidden');
+        <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
+          <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
 
-            
-            document.getElementById('album-hero').innerHTML = `
-                <img src="${album.coverArt}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
-                <div class="flex-1">
-                    <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
-                    <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
-                    <div class="flex items-center gap-2 text-sm font-bold">
-                        <span class="hover:underline cursor-pointer">${album.artistName}</span>
-                        <span class="text-zinc-400">• ${album.songs.length} songs</span>
-                    </div>
-                </div>`;
-                
-            const listEl = document.getElementById('track-list');
-            listEl.innerHTML = '';
-            
-            album.songs.forEach((song, i) => {
-                const row = document.createElement('div');
-                row.className = "track-row group";
-                const isCurrent = currentSong && (currentSong.url === song.link);
-                if (isCurrent) row.classList.add('active-track');
+          <!-- GREEN PLAY CIRCLE -->
+          <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center
+                      opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl"
+               onclick="event.stopPropagation(); playAlbumByName('${safeName}')">
+            <i class="fas fa-play text-black text-lg ml-1"></i>
+          </div>
+        </div>
 
-                row.onclick = () => {
-    currentIndex = i;
-    playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
-};
+        <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
+        <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
+      </div>
+    `;
+  }).join('');
+}
 
-                row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
-                
-                row.innerHTML = `
-                    <span class="text-zinc-400 group-hover:text-white text-center">${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}</span>
-                    <div class="flex flex-col">
-                        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
-                        <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
-                    </div>
-                    <span class="truncate hidden md:block">${album.albumName}</span>
-                    <span class="hidden md:block">Just now</span>
-                    <span class="hidden md:block text-center">3:20</span>`;
-                listEl.appendChild(row);
-            });
-        }
+function openAlbumByName(name) {
+  const album = libraryData.find(a => a.albumName === name);
+  if (!album) return;
+
+  // Build the queue for next/prev
+  currentQueue = album.songs.map(s => ({
+    url: s.link,
+    title: s.name,
+    album: album.albumName,
+    artist: album.artistName,
+    cover: album.coverArt
+  }));
+
+  // Nothing selected yet until user clicks a track or presses play
+  currentIndex = -1;
+
+  document.getElementById('grid-view').classList.add('hidden');
+  document.getElementById('album-view').classList.remove('hidden');
+
+  // Hook the big green hero play button to play this album
+  const heroPlay = document.getElementById('hero-play-btn');
+  if (heroPlay) heroPlay.onclick = () => playAlbumByName(name);
+
+  document.getElementById('album-hero').innerHTML = `
+    <img src="${album.coverArt}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
+    <div class="flex-1">
+      <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
+      <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
+      <div class="flex items-center gap-2 text-sm font-bold">
+        <span class="hover:underline cursor-pointer">${album.artistName}</span>
+        <span class="text-zinc-400">• ${album.songs.length} songs</span>
+      </div>
+    </div>
+  `;
+
+  const listEl = document.getElementById('track-list');
+  listEl.innerHTML = '';
+
+  album.songs.forEach((song, i) => {
+    const row = document.createElement('div');
+    row.className = "track-row group";
+
+    const isCurrent = currentSong && (currentSong.url === song.link);
+    if (isCurrent) row.classList.add('active-track');
+
+    row.onclick = () => {
+      currentIndex = i;
+      playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
+    };
+
+    row.oncontextmenu = (e) =>
+      handleContextMenu(e, { ...song, album: album.albumName, artist: album.artistName, cover: album.coverArt });
+
+    // Keep your row HTML (your full version)
+    row.innerHTML = `
+      <span class="text-zinc-400 group-hover:text-white text-center">
+        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+      </span>
+      <div class="flex flex-col">
+        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+        <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
+      </div>
+      <span class="truncate hidden md:block">${album.albumName}</span>
+      <span class="hidden md:block">Just now</span>
+      <span class="hidden md:block text-center">3:20</span>
+    `;
+
+    listEl.appendChild(row);
+  });
+}
+
 
         /**
          * ---------------------------------------------------------------------
