@@ -507,11 +507,6 @@
                 <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white cursor-pointer"></div>
             </div>
             <i id="dock-heart" onclick="toggleLike()" class="far fa-heart ml-2 text-zinc-400 hover:text-white cursor-pointer"></i>
-            <button id="mini-toggle" class="md:hidden ml-2 w-9 h-9 bg-white rounded-full flex items-center justify-center text-black"
-        onclick="togglePlay()">
-  <i id="mini-play-icon" class="fas fa-play ml-1"></i>
-</button>
-
         </div>
         
         <div class="flex flex-col items-center gap-3">
@@ -797,52 +792,12 @@ function openAlbumByName(name) {
 
              results.innerHTML = '';
 
-matches.slice(0, 15).forEach((s) => {
-    const row = document.createElement('div');
-    row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-
-    // Click = play song
-    row.addEventListener('click', () => {
-        playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
-    });
-
-    // Right-click = add to playlist menu
-    row.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        handleContextMenu(e, {
-            link: s.link,
-            name: s.name,
-            album: s.album,
-            artist: s.artist,
-            coverArt: s.cover
-        });
-    });
-
-    const img = document.createElement('img');
-    img.src = s.cover;
-    img.className = 'w-12 h-12 rounded object-cover';
-
-    const info = document.createElement('div');
-    info.className = 'flex-1 overflow-hidden';
-
-    const title = document.createElement('div');
-    title.className = 'text-white font-bold truncate';
-    title.textContent = s.name.replace('.mp3', '');
-
-    const meta = document.createElement('div');
-    meta.className = 'text-sm text-zinc-400 truncate';
-    meta.textContent = `${s.artist} • ${s.album}`;
-
-    const icon = document.createElement('i');
-    icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
-
-    info.appendChild(title);
-    info.appendChild(meta);
-    row.appendChild(img);
-    row.appendChild(info);
-    row.appendChild(icon);
-    results.appendChild(row);
-});
+            matches.slice(0, 15).forEach((s) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+                row.addEventListener('click', () => {
+                    playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+                });
 
                 const img = document.createElement('img');
                 img.src = s.cover;
@@ -896,7 +851,7 @@ matches.slice(0, 15).forEach((s) => {
             document.getElementById('p-cover').src = cover;
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
-            setPlayIcons(true);
+            document.getElementById('play-icon').className = "fas fa-pause";
             
             // Sidebars
             if (window.innerWidth >= 1024) toggleRightSidebar(true);
@@ -914,38 +869,17 @@ matches.slice(0, 15).forEach((s) => {
             }
         }
 
-function setPlayIcons(isPlaying) {
-    // Main (desktop) play icon
-    const main = document.getElementById('play-icon');
-    if (main) {
-        main.className = isPlaying ? "fas fa-pause" : "fas fa-play ml-1";
-    }
-
-    // Mobile mini play icon
-    const mini = document.getElementById('mini-play-icon');
-    if (mini) {
-        mini.className = isPlaying ? "fas fa-pause" : "fas fa-play ml-1";
-    }
-}
-
-function setPlayIcons(isPlaying) {
-  document.getElementById('play-icon').className = isPlaying ? "fas fa-pause" : "fas fa-play ml-1";
-  const mini = document.getElementById('mini-play-icon');
-  if (mini) mini.className = isPlaying ? "fas fa-pause" : "fas fa-play ml-1";
-}
-
 function togglePlay() {
-  if (!currentSong) return;
+    if (!currentSong) return;
 
-  if (player.paused) {
-    player.play();
-    setPlayIcons(true);
-  } else {
-    player.pause();
-    setPlayIcons(false);
-  }
+    if (player.paused) {
+        player.play();
+        document.getElementById('play-icon').className = "fas fa-pause";
+    } else {
+        player.pause();
+        document.getElementById('play-icon').className = "fas fa-play ml-1";
+    }
 }
-
 
 /* -----------------------
    PROGRESS BAR SEEKING
@@ -1001,9 +935,6 @@ if (progressBar) {
         if (!isScrubbing) return;
         onScrubMove(e.touches[0].clientX);
     }, { passive: true });
-    player.addEventListener('play', () => setPlayIcons(true));
-player.addEventListener('pause', () => setPlayIcons(false));
-
 
     window.addEventListener('touchend', () => {
         isScrubbing = false;
@@ -1080,29 +1011,6 @@ function checkDockVisibility() {
             contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
             contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
         }
-let pressTimer = null;
-
-row.addEventListener('touchstart', (e) => {
-    pressTimer = setTimeout(() => {
-        handleContextMenu(e, {
-            link: s.link,
-            name: s.name,
-            album: s.album,
-            artist: s.artist,
-            coverArt: s.cover
-        });
-    }, 450);
-}, { passive: true });
-
-row.addEventListener('touchend', () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-});
-
-row.addEventListener('touchmove', () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-}, { passive: true });
 
         function addToHistory(album, artist, cover) {
             history = history.filter(h => h.album !== album);
