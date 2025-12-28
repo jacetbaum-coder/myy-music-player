@@ -1066,8 +1066,23 @@ function checkDockVisibility() {
         }
 
         function addToHistory(album, artist, cover) {
-            history = history.filter(h => h.album !== album);
-            history.unshift({ album, artist, cover });
+             const playlistMatch = activePlaylistId
+                ? playlists.find(pl => pl.id === activePlaylistId)
+                : null;
+
+            if (playlistMatch) {
+                history = history.filter(h => h.id !== playlistMatch.id || h.type !== 'playlist');
+                history.unshift({
+                    type: 'playlist',
+                    id: playlistMatch.id,
+                    name: playlistMatch.name,
+                    cover
+                });
+            } else {
+                history = history.filter(h => h.album !== album || h.type === 'playlist');
+                history.unshift({ type: 'album', album, artist, cover });
+            }
+
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 8)));
             renderHistory();
         }
@@ -1079,12 +1094,22 @@ function checkDockVisibility() {
             history.forEach(h => {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
-                div.onclick = () => openAlbumByName(h.album);
+
+                 if (h.type === 'playlist' && h.id) {
+                    const idx = playlists.findIndex(pl => pl.id === h.id);
+                    div.onclick = () => {
+                        if (idx !== -1) showView('playlist', idx);
+                    };
+                    attachPlaylistPressHandlers(div, h.id);
+                } else {
+                    div.onclick = () => openAlbumByName(h.album);
+                }
+
                 div.innerHTML = `
                     <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
                     <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
-                        <div class="text-xs text-zinc-400">${h.artist}</div>
+                        <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? h.name : h.album}</div>
+                        <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : h.artist}</div>
                     </div>`;
                 container.appendChild(div);
             });
@@ -1100,8 +1125,22 @@ function checkDockVisibility() {
         }
 // ---------------- PINNED PLAYLISTS ----------------
 function loadPinnedPlaylists() {
-  try { return JSON.parse(localStorage.getItem('pinnedPlaylists') || "[]"); }
-  catch { return []; }
+  let stored = [];
+  try { stored = JSON.parse(localStorage.getItem('pinnedPlaylists') || "[]"); }
+  catch { stored = []; }
+
+  const validIds = new Set(playlists.map(pl => pl.id));
+  const unique = [];
+  if (Array.isArray(stored)) {
+    stored.forEach(id => {
+      if (validIds.has(id) && !unique.includes(id)) unique.push(id);
+    });
+  }
+  const normalized = unique.slice(0, 4);
+  if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
+    savePinnedPlaylists(normalized);
+  }
+  return normalized;
 }
 function savePinnedPlaylists(ids) {
   localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
@@ -1136,6 +1175,9 @@ function ensurePlaylistIds() {
     if (!pl.id) { pl.id = crypto.randomUUID(); changed = true; }
   });
   if (changed) savePlaylists();
+}
+function savePlaylists() {
+  localStorage.setItem('playlists', JSON.stringify(playlists));
 }
 
 // Menu plumbing
@@ -1226,7 +1268,14 @@ function attachPlaylistPressHandlers(el, playlistId) {
             list.innerHTML = '';
             sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
 
-            playlists.forEach((pl, i) => {
+            const pinnedIds = loadPinnedPlaylists();
+            const pinnedSet = new Set(pinnedIds);
+            const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+            const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+            const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+
+            orderedPlaylists.forEach((pl) => {
+                const i = playlists.findIndex(p => p.id === pl.id);
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
                 div.onclick = () => showView('playlist', i);
@@ -1239,6 +1288,11 @@ function attachPlaylistPressHandlers(el, playlistId) {
                         <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
                     </div>
                 `;
+                attachPlaylistPressHandlers(div, pl.id);
+                list.appendChild(div);
+            });
+
+            playlists.forEach((pl, i) => {
                 list.appendChild(div);
 
                 const item = document.createElement('div');
@@ -1250,7 +1304,7 @@ function attachPlaylistPressHandlers(el, playlistId) {
                         url: s.link || s.url, title: s.name || s.title,
                         album: s.album, artist: s.artist, cover: s.cover || s.coverArt
                     });
-                    localStorage.setItem('playlists', JSON.stringify(playlists));
+                    savePlaylists();
                     renderPlaylists();
                     contextMenu.style.display = 'none';
                 };
