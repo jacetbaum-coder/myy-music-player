@@ -504,6 +504,8 @@
          */
         let libraryData = [];
         let currentSong = null;
+        let currentQueue = [];
+        let currentIndex = -1;
         let menuTargetSong = null;
         let activePlaylistIndex = null;
         
@@ -631,11 +633,20 @@
         }
 
         function openAlbumByName(name) {
-            const album = libraryData.find(a => a.albumName === name);
-            if (!album) return;
-            
-            document.getElementById('grid-view').classList.add('hidden');
-            document.getElementById('album-view').classList.remove('hidden');
+    const album = libraryData.find(a => a.albumName === name);
+    if (!album) return;
+
+    currentQueue = album.songs.map(s => ({
+        url: s.link,
+        title: s.name,
+        album: album.albumName,
+        artist: album.artistName,
+        cover: album.coverArt
+    }));
+
+    document.getElementById('grid-view').classList.add('hidden');
+    document.getElementById('album-view').classList.remove('hidden');
+
             
             document.getElementById('album-hero').innerHTML = `
                 <img src="${album.coverArt}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
@@ -657,7 +668,11 @@
                 const isCurrent = currentSong && (currentSong.url === song.link);
                 if (isCurrent) row.classList.add('active-track');
 
-                row.onclick = () => playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
+                row.onclick = () => {
+    currentIndex = i;
+    playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
+};
+
                 row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
                 
                 row.innerHTML = `
