@@ -1123,6 +1123,10 @@ function toggleShuffle() {
 function isShuffleOn() {
     return document.getElementById('btn-shuffle')?.classList.contains('active-green');
 }
+        function isRepeatOn() {
+    return document.getElementById('btn-repeat')?.classList.contains('active-green');
+}
+
 
 function nextSong() {
     if (!currentQueue || currentQueue.length === 0) return;
@@ -1306,15 +1310,17 @@ function prevSong() {
 
 // Auto-advance when a song ends
 player.addEventListener('ended', () => {
+    // Repeat ONE song if repeat is on
     if (isRepeatOn()) {
         player.currentTime = 0;
         player.play();
         document.getElementById('play-icon').className = "fas fa-pause";
-    } else {
-        nextSong();
+        return;
     }
-});
 
+    // Otherwise go to the next song in the current album/playlist queue
+    nextSong();
+});
 
 // Auto-hide dock interval
 
