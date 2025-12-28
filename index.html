@@ -789,37 +789,55 @@ function openAlbumByName(name) {
             }
         }
 
-        function togglePlay() {
-            if (!currentSong) return;
-            if (player.paused) {
-                player.play();
-                document.getElementById('play-icon').className = "fas fa-pause";
-            } else {
-                player.pause();
-                document.getElementById('play-icon').className = "fas fa-play ml-1";
-            }
-        }
+function togglePlay() {
+    if (!currentSong) return;
 
-        function seek(e) {
-            const rect = document.getElementById('progress-container').getBoundingClientRect();
-            const pct = (e.clientX - rect.left) / rect.width;
-            if (pct >= 0 && pct <= 1) player.currentTime = pct * player.duration;
-        }
+    if (player.paused) {
+        player.play();
+        document.getElementById('play-icon').className = "fas fa-pause";
+    } else {
+        player.pause();
+        document.getElementById('play-icon').className = "fas fa-play ml-1";
+    }
+}
 
-        player.ontimeupdate = () => {
-            if (player.duration) {
-                const pct = (player.currentTime / player.duration) * 100;
-                document.getElementById('progress-fill').style.width = pct + "%";
-                document.getElementById('t-curr').innerText = formatTime(player.currentTime);
-                document.getElementById('t-total').innerText = formatTime(player.duration);
-            }
-        };
+/* -----------------------
+   PROGRESS BAR SEEKING
+------------------------ */
 
-        function formatTime(s) {
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${m}:${sec < 10 ? '0' + sec : sec}`;
-        }
+function seekToClientX(clientX) {
+    const bar = document.getElementById('progress-container');
+    if (!bar || !player.duration) return;
+
+    const rect = bar.getBoundingClientRect();
+    const pct = (clientX - rect.left) / rect.width;
+    const clamped = Math.max(0, Math.min(1, pct));
+    player.currentTime = clamped * player.duration;
+}
+
+function seek(e) {
+    // click-to-seek
+    seekToClientX(e.clientX);
+}
+
+let isScrubbing = false;
+
+function onScrubMove(clientX) {
+    seekToClientX(clientX);
+}
+
+const progressBar = document.getElementById('progress-container');
+
+if (progressBar) {
+    // Mouse
+    progressBar.addEventListener('mousedown', (e) => {
+        isScrubbing = true;
+        onScrubMove(e.clientX);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isScrubbing) return;
+        onScrubMove(e.cli
 
         /**
          * ---------------------------------------------------------------------
