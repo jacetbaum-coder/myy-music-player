@@ -606,7 +606,23 @@
             // Simulation of high-volume library fetching
             try {
                 const response = await fetch('/api/get-songs'); // This endpoint provides the structure
+                if (!response.ok) {
+                    let errorMessage = `Request failed with status ${response.status}`;
+                    try {
+                        const errorPayload = await response.json();
+                        if (errorPayload?.error) {
+                            errorMessage = errorPayload.error;
+                        }
+                    } catch (parseError) {
+                        // Ignore JSON parse errors and keep default message.
+                    }
+                    throw new Error(errorMessage);
+                }
+                
                 libraryData = await response.json();
+                if (!Array.isArray(libraryData)) {
+                    throw new Error('Unexpected library payload from the server.');
+                }
                 
                 // Sort library alphabetically by album
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
@@ -619,6 +635,7 @@
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
                     <p class="text-white font-bold">Cloud Connection Failed</p>
                     <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+                    <p class="text-zinc-600 text-xs mt-2">${error.message}</p>
                 `;
             }
         };
