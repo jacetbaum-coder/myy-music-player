@@ -948,6 +948,54 @@
             updateCounts();
             updateHeartUI();
         }
+// --- Playback navigation (Next/Prev + Shuffle) ---
+function isShuffleOn() {
+    return document.getElementById('btn-shuffle')?.classList.contains('active-green');
+}
+
+function nextSong() {
+    if (!currentQueue || currentQueue.length === 0) return;
+
+    if (isShuffleOn()) {
+        if (currentQueue.length === 1) return;
+        let next = currentIndex;
+        while (next === currentIndex) {
+            next = Math.floor(Math.random() * currentQueue.length);
+        }
+        currentIndex = next;
+    } else {
+        currentIndex = (currentIndex + 1) % currentQueue.length;
+    }
+
+    const s = currentQueue[currentIndex];
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+}
+
+function prevSong() {
+    if (!currentQueue || currentQueue.length === 0) return;
+
+    if (isShuffleOn()) {
+        if (currentQueue.length === 1) return;
+        let prev = currentIndex;
+        while (prev === currentIndex) {
+            prev = Math.floor(Math.random() * currentQueue.length);
+        }
+        currentIndex = prev;
+    } else {
+        currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length;
+    }
+
+    const s = currentQueue[currentIndex];
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+}
+
+// Auto-advance when a song ends
+player.addEventListener('ended', () => {
+    nextSong();
+});
+
+// Auto-hide dock interval
+setInterval(checkDockVisibility, 30000);
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
