@@ -271,7 +271,56 @@
         }
         .menu-item:hover > .submenu { display: block; }
 
+        /* --- HOME (Spotify-like mobile recents tiles) --- */
+.home-recents {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.recent-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 56px;
+  cursor: pointer;
+  user-select: none;
+}
+.recent-tile:active { transform: scale(0.99); }
+
+.recent-tile img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.recent-tile .recent-title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px;
+}
+
+.home-section-header {
+  margin: 14px 0 12px;
+}
+
+
         /* --- MEDIA QUERIES --- */
+        @media (max-width: 768px) {
+  .home-recents.hidden { display: none !important; }
+  .home-recents { display: grid; }
+}
+
         @media (max-width: 768px) {
             .sidebar, .resizer, .right-sidebar { display: none !important; }
             .mobile-nav { display: flex; }
@@ -383,13 +432,25 @@
             </div>
 
             <div id="grid-view" class="hidden">
-                <div class="flex items-center justify-between mb-8">
-                    <h1 id="greeting-text" class="text-3xl font-black">Good evening</h1>
-                    <div class="flex gap-2">
-                        <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-left"></i></button>
-                        <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-right"></i></button>
-                    </div>
-                </div>
+  <div class="flex items-center justify-between mb-6">
+    <h1 id="greeting-text" class="text-3xl font-black">Good evening</h1>
+    <div class="flex gap-2">
+      <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-left"></i></button>
+      <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <!-- MOBILE: RECENTLY LISTENED (Spotify-like small rectangles) -->
+  <div id="home-recents" class="home-recents hidden"></div>
+
+  <!-- ALBUMS HEADER (where Spotify has “Your top mixes”) -->
+  <div class="home-section-header">
+    <h2 class="text-2xl font-black">Albums</h2>
+  </div>
+
+  <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+</div>
+
                 <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
             </div>
 
@@ -686,8 +747,9 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
   scrollArea.scrollTop = 0;
 
   if (viewType === 'home') {
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
+  document.getElementById('grid-view').classList.remove('hidden');
+  renderGrid(libraryData);
+  renderHistory(); // <-- add this so the home-recents tiles refresh
   } else if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
     document.getElementById('global-search').focus();
@@ -1111,32 +1173,71 @@ function checkDockVisibility() {
         }
 
         function renderHistory() {
-            const container = document.getElementById('history-container');
-            if (!container) return;
-            container.innerHTML = '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
-            history.forEach(h => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+  // Sidebar container (desktop)
+  const sidebarContainer = document.getElementById('history-container');
 
-                 if (h.type === 'playlist' && h.id) {
-                    const idx = playlists.findIndex(pl => pl.id === h.id);
-                    div.onclick = () => {
-                        if (idx !== -1) showView('playlist', idx);
-                    };
-                    attachPlaylistPressHandlers(div, h.id);
-                } else {
-                    div.onclick = () => openAlbumByName(h.album);
-                }
+  // Home container (mobile + also ok on desktop)
+  const homeRecents = document.getElementById('home-recents');
 
-                div.innerHTML = `
-                    <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
-                    <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? h.name : h.album}</div>
-                        <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : h.artist}</div>
-                    </div>`;
-                container.appendChild(div);
-            });
+  // --- Render SIDEBAR (existing behavior) ---
+  if (sidebarContainer) {
+    sidebarContainer.innerHTML =
+      '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
+
+    history.forEach(h => {
+      const div = document.createElement('div');
+      div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+
+      if (h.type === 'playlist' && h.id) {
+        const idx = playlists.findIndex(pl => pl.id === h.id);
+        div.onclick = () => { if (idx !== -1) showView('playlist', idx); };
+        attachPlaylistPressHandlers(div, h.id);
+      } else {
+        div.onclick = () => openAlbumByName(h.album);
+      }
+
+      div.innerHTML = `
+        <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
+        <div class="truncate">
+          <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? h.name : h.album}</div>
+          <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : h.artist}</div>
+        </div>`;
+      sidebarContainer.appendChild(div);
+    });
+  }
+
+  // --- Render HOME RECENTS (Spotify-like tiles) ---
+  if (homeRecents) {
+    // Only show if we have history and we're on Home view (grid-view visible)
+    const onHome = !document.getElementById('grid-view')?.classList.contains('hidden');
+    const hasHistory = Array.isArray(history) && history.length > 0;
+
+    homeRecents.classList.toggle('hidden', !(onHome && hasHistory));
+    homeRecents.innerHTML = '';
+
+    if (onHome && hasHistory) {
+      history.slice(0, 6).forEach(h => {
+        const tile = document.createElement('div');
+        tile.className = 'recent-tile';
+
+        if (h.type === 'playlist' && h.id) {
+          const idx = playlists.findIndex(pl => pl.id === h.id);
+          tile.onclick = () => { if (idx !== -1) showView('playlist', idx); };
+          attachPlaylistPressHandlers(tile, h.id);
+        } else {
+          tile.onclick = () => openAlbumByName(h.album);
         }
+
+        tile.innerHTML = `
+          <img src="${h.cover}" alt="">
+          <div class="recent-title">${h.type === 'playlist' ? h.name : h.album}</div>
+        `;
+        homeRecents.appendChild(tile);
+      });
+    }
+  }
+}
+
 
         function createNewPlaylist() {
             const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
