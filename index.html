@@ -845,7 +845,6 @@ matches.slice(0, 15).forEach((s) => {
     title.className = 'text-white font-bold truncate';
     title.textContent = stripArtistPrefix(s.name.replace('.mp3', ''), s.artist);
 
-
     const meta = document.createElement('div');
     meta.className = 'text-sm text-zinc-400 truncate';
     meta.textContent = `${s.artist} • ${s.album}`;
@@ -858,8 +857,10 @@ matches.slice(0, 15).forEach((s) => {
     row.appendChild(img);
     row.appendChild(info);
     row.appendChild(icon);
+
     results.appendChild(row);
 });
+
 
                 const img = document.createElement('img');
                 img.src = s.cover;
@@ -1119,24 +1120,6 @@ function checkDockVisibility() {
             contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
             contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
         }
-let pressTimer = null;
-
-row.addEventListener('touchstart', (e) => {
-    pressTimer = setTimeout(() => {
-        handleContextMenu(e, {
-            link: s.link,
-            name: s.name,
-            album: s.album,
-            artist: s.artist,
-            coverArt: s.cover
-        });
-    }, 450);
-}, { passive: true });
-
-row.addEventListener('touchend', () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-});
 
 row.addEventListener('touchmove', () => {
     if (pressTimer) clearTimeout(pressTimer);
