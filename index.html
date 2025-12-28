@@ -495,7 +495,7 @@
             </div>
             <div class="w-full flex items-center gap-3 text-[11px] font-medium text-zinc-500">
                 <span id="t-curr">0:00</span>
-                <div class="progress-bar-container" id="progress-container" onclick="seek(event)">
+                <div class="progress-bar-container" id="progress-container">
                     <div id="progress-fill" class="progress-bar-fill"></div>
                 </div>
                 <span id="t-total">0:00</span>
@@ -872,42 +872,39 @@ function seek(e) {
     seekToClientX(e.clientX);
 }
 
+const progressBar = document.getElementById('progress-container');
 let isScrubbing = false;
 
-function onScrubMove(clientX) {
-    seekToClientX(clientX);
+function getClientX(e) {
+    if (e.touches && e.touches[0]) return e.touches[0].clientX;
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
+    return e.clientX;
 }
 
-const progressBar = document.getElementById('progress-container');
-
 if (progressBar) {
-    // Mouse
-    progressBar.addEventListener('mousedown', (e) => {
+    // Tap/click anywhere = jump there immediately
+    progressBar.addEventListener('click', (e) => {
+        seekToClientX(getClientX(e));
+    });
+
+    // Drag/scrub using Pointer Events (works for mouse + touch)
+    progressBar.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
         isScrubbing = true;
-        onScrubMove(e.clientX);
+        seekToClientX(getClientX(e));
+        progressBar.setPointerCapture(e.pointerId);
     });
 
-    window.addEventListener('mousemove', (e) => {
+    progressBar.addEventListener('pointermove', (e) => {
         if (!isScrubbing) return;
-        onScrubMove(e.clientX);
+        seekToClientX(getClientX(e));
     });
 
-    window.addEventListener('mouseup', () => {
+    progressBar.addEventListener('pointerup', () => {
         isScrubbing = false;
     });
 
-    // Touch
-    progressBar.addEventListener('touchstart', (e) => {
-        isScrubbing = true;
-        onScrubMove(e.touches[0].clientX);
-    }, { passive: true });
-
-    window.addEventListener('touchmove', (e) => {
-        if (!isScrubbing) return;
-        onScrubMove(e.touches[0].clientX);
-    }, { passive: true });
-
-    window.addEventListener('touchend', () => {
+    progressBar.addEventListener('pointercancel', () => {
         isScrubbing = false;
     });
 }
