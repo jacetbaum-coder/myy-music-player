@@ -664,15 +664,12 @@
             const listEl = document.getElementById('track-list');
             listEl.innerHTML = '';
             
-            album.songs.forEach((song, i) => {
-                const row = document.createElement('div');
-                row.className = "track-row group";
-                const isCurrent = currentSong && (currentSong.url === song.link);
-                if (isCurrent) row.classList.add('active-track');
-
-                album.songs.forEach((song, i) => {
+           album.songs.forEach((song, i) => {
     const row = document.createElement('div');
-    row.className = "track-row";
+    row.className = "track-row group";
+
+    const isCurrent = currentSong && (currentSong.url === song.link);
+    if (isCurrent) row.classList.add('active-track');
 
     row.onclick = () => {
         currentIndex = i;
@@ -684,6 +681,15 @@
             album.coverArt
         );
     };
+
+    row.innerHTML = `
+        <span class="text-zinc-400 text-center">${i + 1}</span>
+        <div class="truncate">${song.name.replace('.mp3','')}</div>
+    `;
+
+    listEl.appendChild(row);
+});
+
 
     row.innerHTML = `
         <span class="text-zinc-400 text-center">${i + 1}</span>
