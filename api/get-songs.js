@@ -7,16 +7,8 @@ const CACHE_DURATION = 5 * 60 * 1000;
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { key, url, title } = req.body || {};
-    const value = title ?? url;
-    if (!key || !value) {
-      return res.status(400).json({ success: false, error: 'Missing key or value' });
-    }
-    await kv.set(key, value);
-    if (!key || !value) {
-      return res.status(400).json({ success: false, error: 'Missing key or value' });
-    }
-    await kv.set(key, value);
+    const { key, url } = req.body;
+    await kv.set(key, url);
     return res.status(200).json({ success: true });
   }
 
@@ -63,32 +55,17 @@ export default async function handler(req, res) {
           coverUrl = itunesData.results?.[0]?.artworkUrl100.replace('100x100bb', '600x600bb') || 'https://via.placeholder.com/600x600?text=No+Cover+Found';
         }
 
-         const songsWithMetadata = await Promise.all(songs.map(async (s) => {
-          const r2Path = `${artist.name}/${album.name}/${s.name}`;
-          const titleKey = `title-${r2Path}`;
-          const legacyTitleKey = `title-${encodeURIComponent(r2Path)}`;
-          let savedTitle = null;
-          try {
-            savedTitle = await kv.get(titleKey);
-            if (!savedTitle) {
-              savedTitle = await kv.get(legacyTitleKey);
-            }
-          } catch (error) {
-            savedTitle = null;
-          }
-          return {
-            name: savedTitle || s.name,
-            originalName: s.name,
-            titleKey,
-            link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(r2Path)}`
-          };
-        }));
-
         allAlbums.push({
           artistName: artist.name,
           albumName: album.name,
-          coverArt: coverUrl,
-          songs: songsWithMetadata
+          coverArt: coverUrl, 
+          songs: songs.map(s => {
+            // NEW LOGIC: This creates the "Artist/Album/Song.mp3" path for R2
+            const r2Path = `${artist.name}/${album.name}/${s.name}`;
+            return { 
+              name: s.name, 
+              link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(r2Path)}` 
+            };
           })
         });
       }
