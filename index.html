@@ -606,23 +606,7 @@
             // Simulation of high-volume library fetching
             try {
                 const response = await fetch('/api/get-songs'); // This endpoint provides the structure
-                if (!response.ok) {
-                    let errorMessage = `Request failed with status ${response.status}`;
-                    try {
-                        const errorPayload = await response.json();
-                        if (errorPayload?.error) {
-                            errorMessage = errorPayload.error;
-                        }
-                    } catch (parseError) {
-                        // Ignore JSON parse errors and keep default message.
-                    }
-                    throw new Error(errorMessage);
-                }
-                
                 libraryData = await response.json();
-                if (!Array.isArray(libraryData)) {
-                    throw new Error('Unexpected library payload from the server.');
-                }
                 
                 // Sort library alphabetically by album
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
@@ -635,7 +619,6 @@
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
                     <p class="text-white font-bold">Cloud Connection Failed</p>
                     <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-                    <p class="text-zinc-600 text-xs mt-2">${error.message}</p>
                 `;
             }
         };
@@ -862,6 +845,7 @@ matches.slice(0, 15).forEach((s) => {
     title.className = 'text-white font-bold truncate';
     title.textContent = stripArtistPrefix(s.name.replace('.mp3', ''), s.artist);
 
+
     const meta = document.createElement('div');
     meta.className = 'text-sm text-zinc-400 truncate';
     meta.textContent = `${s.artist} • ${s.album}`;
@@ -874,10 +858,8 @@ matches.slice(0, 15).forEach((s) => {
     row.appendChild(img);
     row.appendChild(info);
     row.appendChild(icon);
-
     results.appendChild(row);
 });
-
 
                 const img = document.createElement('img');
                 img.src = s.cover;
@@ -1137,6 +1119,24 @@ function checkDockVisibility() {
             contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
             contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
         }
+let pressTimer = null;
+
+row.addEventListener('touchstart', (e) => {
+    pressTimer = setTimeout(() => {
+        handleContextMenu(e, {
+            link: s.link,
+            name: s.name,
+            album: s.album,
+            artist: s.artist,
+            coverArt: s.cover
+        });
+    }, 450);
+}, { passive: true });
+
+row.addEventListener('touchend', () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+});
 
 row.addEventListener('touchmove', () => {
     if (pressTimer) clearTimeout(pressTimer);
