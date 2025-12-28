@@ -560,7 +560,7 @@
                         <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
-                <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+                <div id="album-grid" class="album-grid compact-grid"></div>
             </div>
 
             <div id="search-view" class="hidden">
@@ -698,6 +698,9 @@
         let currentIndex = -1;
         let menuTargetSong = null;
         let activePlaylistIndex = null;
+        let librarySortMode = 'recently-added';
+        let libraryViewMode = 'compact-grid';
+        let libraryDataOriginal = [];
         
         // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
@@ -725,11 +728,31 @@
             checkDockVisibility();
             initResizers();
             initGlobalKeys();
+            initLibraryMenu();
+            updateLibraryMenuState();
             
             // Simulation of high-volume library fetching
             try {
                 const response = await fetch('/api/get-songs'); // This endpoint provides the structure
+                if (!response.ok) {
+                    let errorMessage = `Request failed with status ${response.status}`;
+                    try {
+                        const errorPayload = await response.json();
+                        if (errorPayload?.error) {
+                            errorMessage = errorPayload.error;
+                        }
+                    } catch (parseError) {
+                        // Ignore JSON parse errors and keep default message.
+                    }
+                    throw new Error(errorMessage);
+                }
+
                 libraryData = await response.json();
+                 if (!Array.isArray(libraryData)) {
+                    throw new Error('Unexpected library payload from the server.');
+                }
+
+                libraryDataOriginal = [...libraryData];
                 
                 // Sort library alphabetically by album
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
@@ -742,6 +765,7 @@
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
                     <p class="text-white font-bold">Cloud Connection Failed</p>
                     <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+                    <p class="text-zinc-600 text-xs mt-2">${error.message}</p>
                 `;
             }
         };
@@ -770,6 +794,7 @@
 
             if (viewType === 'home') {
                 document.getElementById('grid-view').classList.remove('hidden');
+                applyLibraryView();
                 renderGrid(libraryData);
             } else if (viewType === 'search') {
                 document.getElementById('search-view').classList.remove('hidden');
@@ -800,37 +825,129 @@
             document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
         }
 
+        function initLibraryMenu() {
+            document.addEventListener('click', (event) => {
+                const menu = document.getElementById('library-menu');
+                const controls = document.querySelector('.library-controls');
+                if (!menu || !controls) return;
+                if (!controls.contains(event.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+        }
+
+        function toggleLibraryMenu() {
+            const menu = document.getElementById('library-menu');
+            if (!menu) return;
+            menu.classList.toggle('hidden');
+        }
+
+        function closeLibraryMenu() {
+            const menu = document.getElementById('library-menu');
+            if (!menu) return;
+            menu.classList.add('hidden');
+        }
+
+        function setSortMode(mode) {
+            librarySortMode = mode;
+            applyLibrarySort();
+            updateLibraryMenuState();
+            renderGrid(libraryData);
+            closeLibraryMenu();
+        }
+
+        function setViewMode(mode) {
+            libraryViewMode = mode;
+            applyLibraryView();
+            updateLibraryMenuState();
+            renderGrid(libraryData);
+            closeLibraryMenu();
+        }
+
+        function updateLibraryMenuState() {
+            document.querySelectorAll('.library-menu-item').forEach((item) => {
+                const isActive = item.dataset.sort === librarySortMode;
+                item.classList.toggle('active', isActive);
+                const icon = item.querySelector('i');
+                if (icon) icon.style.opacity = isActive ? '1' : '0';
+            });
+
+            document.querySelectorAll('.library-view-button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.view === libraryViewMode);
+            });
+        }
+
+        function applyLibrarySort() {
+            if (librarySortMode === 'alphabetical') {
+                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+                return;
+            }
+
+            if (librarySortMode === 'recently-added') {
+                libraryData = [...libraryDataOriginal];
+                return;
+            }
+
+            if (librarySortMode === 'recents') {
+                const historyOrder = new Map();
+                history.forEach((item, index) => {
+                    historyOrder.set(item.album, index);
+                });
+
+                libraryData.sort((a, b) => {
+                    const indexA = historyOrder.has(a.albumName) ? historyOrder.get(a.albumName) : Number.POSITIVE_INFINITY;
+                    const indexB = historyOrder.has(b.albumName) ? historyOrder.get(b.albumName) : Number.POSITIVE_INFINITY;
+                    if (indexA === indexB) {
+                        return a.albumName.localeCompare(b.albumName);
+                    }
+                    return indexA - indexB;
+                });
+            }
+        }
+
+        function applyLibraryView() {
+            const grid = document.getElementById('album-grid');
+            if (!grid) return;
+            grid.classList.toggle('compact-list', libraryViewMode === 'compact-list');
+            grid.classList.toggle('compact-grid', libraryViewMode === 'compact-grid');
+        }
+
+
         /**
          * ---------------------------------------------------------------------
          * RENDERERS
          * ---------------------------------------------------------------------
          */
-function renderGrid(data) {
+        function renderGrid(data) {
   const grid = document.getElementById('album-grid');
 
   grid.innerHTML = data.map((album) => {
     const safeName = album.albumName.replace(/'/g, "\\'");
 
     return `
-      <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg"
+      <div class="album-card bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg"
            onclick="openAlbumByName('${safeName}')">
-
-        <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
+            <div class="album-art relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
           <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
 
           <!-- GREEN PLAY CIRCLE -->
-          <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center
+          <div class="album-play absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center
                       opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl"
                onclick="event.stopPropagation(); playAlbumByName('${safeName}')">
             <i class="fas fa-play text-black text-lg ml-1"></i>
           </div>
         </div>
 
-        <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
-        <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
+        <div class="album-meta">
+          <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
+          <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
+        </div>
       </div>
     `;
   }).join('');
+        grid.querySelectorAll('.album-card').forEach((card) => {
+    card.classList.toggle('list-view', libraryViewMode === 'compact-list');
+  });
 }
 
 function openAlbumByName(name) {
@@ -1159,6 +1276,10 @@ function checkDockVisibility() {
             history.unshift({ album, artist, cover });
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 8)));
             renderHistory();
+            if (librarySortMode === 'recents') {
+                applyLibrarySort();
+                renderGrid(libraryData);
+            }
         }
 
         function renderHistory() {
