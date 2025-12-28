@@ -103,22 +103,6 @@
     min-width: 0;
 }
 
-    /* Track titles: show full text on desktop */
-.track-title {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-/* Track titles: keep them compact on mobile */
-@media (max-width: 768px) {
-  .track-title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
             color: white; 
@@ -843,8 +827,7 @@ matches.slice(0, 15).forEach((s) => {
 
     const title = document.createElement('div');
     title.className = 'text-white font-bold truncate';
-    title.textContent = stripArtistPrefix(s.name.replace('.mp3', ''), s.artist);
-
+    title.textContent = s.name.replace('.mp3', '');
 
     const meta = document.createElement('div');
     meta.className = 'text-sm text-zinc-400 truncate';
@@ -911,16 +894,14 @@ matches.slice(0, 15).forEach((s) => {
             // UI Updates
             dock.classList.remove('dock-hidden');
             document.getElementById('p-cover').src = cover;
-            document.getElementById('p-title').innerText = stripArtistPrefix(title.replace('.mp3', ''), artist);
-
+            document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             setPlayIcons(true);
             
             // Sidebars
             if (window.innerWidth >= 1024) toggleRightSidebar(true);
             document.getElementById('right-cover').src = cover;
-            document.getElementById('right-title').innerText = stripArtistPrefix(title.replace('.mp3', ''), artist);
-
+            document.getElementById('right-title').innerText = title.replace('.mp3', '');
             document.getElementById('right-artist').innerText = artist;
             
             updateHeartUI();
@@ -1038,26 +1019,6 @@ player.addEventListener('timeupdate', () => {
     document.getElementById('t-curr').innerText = formatTime(player.currentTime);
     document.getElementById('t-total').innerText = formatTime(player.duration);
 });
-function stripArtistPrefix(title, artist) {
-    if (!title || !artist) return title;
-
-    const t = title.toLowerCase();
-    const a = artist.toLowerCase();
-
-    const prefixes = [
-        `${a} - `,
-        `${a} – `,
-        `${a}: `
-    ];
-
-    for (const p of prefixes) {
-        if (t.startsWith(p)) {
-            return title.slice(p.length);
-        }
-    }
-
-    return title;
-}
 
 function formatTime(s) {
     const m = Math.floor(s / 60);
