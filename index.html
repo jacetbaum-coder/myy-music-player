@@ -505,8 +505,6 @@
         let currentSong = null;
         let currentQueue = [];
         let currentIndex = -1;
-        let currentView = 'home';
-
         let menuTargetSong = null;
         let activePlaylistIndex = null;
         
@@ -528,48 +526,40 @@
          * INITIALIZATION & LIFECYCLE
          * ---------------------------------------------------------------------
          */
-     window.onload = async () => {
-    setGreeting();
-    renderHistory();
-    renderPlaylists();
-    updateCounts();
-    checkDockVisibility();
-    initResizers();
-    initGlobalKeys();
-
-    try {
-        const response = await fetch('/api/get-songs');
-        libraryData = await response.json();
-
-        libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
-
-        document.getElementById('loading').classList.add('hidden');
-
-        // 👇 THIS LINE IS NEW
-        history.replaceState(
-            { view: "home", playlistIndex: null },
-            "",
-            location.pathname + location.search
-        );
-
-        // 👇 UPDATED CALL (no push)
-        showView("home");
-
-    } catch (error) {
-        console.error("Fetch error:", error);
-        document.getElementById('loading').innerHTML = `
-            <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-            <p class="text-white font-bold">Cloud Connection Failed</p>
-            <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-        `;
-    }
-};
+        window.onload = async () => {
+            setGreeting();
+            renderHistory();
+            renderPlaylists();
+            updateCounts();
+            checkDockVisibility();
+            initResizers();
+            initGlobalKeys();
+            
+            // Simulation of high-volume library fetching
+            try {
+                const response = await fetch('/api/get-songs'); // This endpoint provides the structure
+                libraryData = await response.json();
+                
+                // Sort library alphabetically by album
+                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+                
+                document.getElementById('loading').classList.add('hidden');
+                showView('home');
+            } catch (error) {
+                console.error("Fetch error:", error);
+                document.getElementById('loading').innerHTML = `
+                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                    <p class="text-white font-bold">Cloud Connection Failed</p>
+                    <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+                `;
+            }
+        };
 
         function setGreeting() {
             const hour = new Date().getHours();
-            if (hour < 12) greetingEl.innerText = "Good morning, Jason";
-            else if (hour < 18) greetingEl.innerText = "Good afternoon, Jason";
-            else greetingEl.innerText = "Good evening, Jason";
+            if (hour < 12) greetingEl.innerText = "Good morning";
+            else if (hour < 18) greetingEl.innerText = "Good afternoon";
+            else greetingEl.innerText = "Good evening";
         }
 
         /**
@@ -577,68 +567,33 @@
          * CORE NAVIGATION LOGIC
          * ---------------------------------------------------------------------
          */
+        function showView(viewType, playlistIndex = null) {
+            // Hide all
+            ['grid-view', 'album-view', 'search-view'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
 
-        let isHandlingPop = false;
+            activePlaylistIndex = playlistIndex;
+            const scrollArea = document.getElementById('main-scroll-area');
+            scrollArea.scrollTop = 0;
 
-function viewToState(viewType, playlistIndex) {
-  return { viewType, playlistIndex: playlistIndex ?? null };
-}
+            if (viewType === 'home') {
+                document.getElementById('grid-view').classList.remove('hidden');
+                renderGrid(libraryData);
+            } else if (viewType === 'search') {
+                document.getElementById('search-view').classList.remove('hidden');
+                document.getElementById('global-search').focus();
+            } else if (viewType === 'liked') {
+                document.getElementById('album-view').classList.remove('hidden');
+                renderCollection("Liked Songs", likedSongs);
+            } else if (viewType === 'playlist') {
+                document.getElementById('album-view').classList.remove('hidden');
+                const pl = playlists[playlistIndex];
+                renderCollection(pl.name, pl.songs, true, playlistIndex);
+            }
 
-       function showView(viewType, playlistIndex = null, options = {}) {
-  const { push = true } = options;
-
-  // If this showView call came from a Back/Forward swipe, don't push again
-  if (isHandlingPop) {
-    // force push off during pop handling
-    // (options.push will already be false in our pop handler, this is extra safety)
-  }
-
-  // Push into browser history so Back/Swipe stays inside the site
-  if (push) {
-    const state = viewToState(viewType, playlistIndex);
-    history.pushState(state, "", location.pathname + location.search);
-  }
-
-  // Hide all
-  ['grid-view', 'album-view', 'search-view'].forEach(id => {
-    document.getElementById(id).classList.add('hidden');
-  });
-
-  activePlaylistIndex = playlistIndex;
-  const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
-
-  if (viewType === 'home') {
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
-  } else if (viewType === 'search') {
-    document.getElementById('search-view').classList.remove('hidden');
-    document.getElementById('global-search').focus();
-  } else if (viewType === 'liked') {
-    document.getElementById('album-view').classList.remove('hidden');
-    renderCollection("Liked Songs", likedSongs);
-  } else if (viewType === 'playlist') {
-    document.getElementById('album-view').classList.remove('hidden');
-    const pl = playlists[playlistIndex];
-    renderCollection(pl.name, pl.songs, true, playlistIndex);
-  }
-
-  updateActiveStates(viewType);
-}
-window.addEventListener("popstate", (e) => {
-  // If we have a view saved in history, show it
-  if (e.state && e.state.viewType) {
-    isHandlingPop = true;
-    showView(e.state.viewType, e.state.playlistIndex ?? null, { push: false });
-    isHandlingPop = false;
-    return;
-  }
-
-  // If there's no saved state (first page), keep user inside app by going home
-  isHandlingPop = true;
-  showView("home", null, { push: false });
-  isHandlingPop = false;
-});
+            updateActiveStates(viewType);
+        }
 
         function updateActiveStates(viewType) {
             // Mobile Nav
