@@ -13,6 +13,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'Missing key or value' });
     }
     await kv.set(key, value);
+    if (!key || !value) {
+      return res.status(400).json({ success: false, error: 'Missing key or value' });
+    }
+    await kv.set(key, value);
     return res.status(200).json({ success: true });
   }
 
@@ -61,8 +65,17 @@ export default async function handler(req, res) {
 
          const songsWithMetadata = await Promise.all(songs.map(async (s) => {
           const r2Path = `${artist.name}/${album.name}/${s.name}`;
-          const titleKey = `title-${encodeURIComponent(r2Path)}`;
-          const savedTitle = await kv.get(titleKey);
+          const titleKey = `title-${r2Path}`;
+          const legacyTitleKey = `title-${encodeURIComponent(r2Path)}`;
+          let savedTitle = null;
+          try {
+            savedTitle = await kv.get(titleKey);
+            if (!savedTitle) {
+              savedTitle = await kv.get(legacyTitleKey);
+            }
+          } catch (error) {
+            savedTitle = null;
+          }
           return {
             name: savedTitle || s.name,
             originalName: s.name,
