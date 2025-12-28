@@ -395,16 +395,34 @@
 
             <div id="search-view" class="hidden">
                 <h1 class="text-3xl font-black mb-6">Search</h1>
-                <div class="search-container">
-                <button type="button" class="search-clear" onclick="exitSearch()" aria-label="Back to home">
-                    <i class="fas fa-times"></i>
-                </button>
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="global-search" class="search-input" placeholder="What do you want to listen to?" oninput="handleSearch(this.value)">
-                </div>
-                <div id="search-results" class="space-y-2">
-                    <p class="text-zinc-500">Start typing to search your cloud library...</p>
-                </div>
+                <!-- SEARCH HEADER (EXIT SEARCH) -->
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-black">Search</h1>
+
+    <!-- EXIT SEARCH (GO HOME) -->
+    <button onclick="exitSearchView()"
+            class="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60
+                   flex items-center justify-center transition"
+            aria-label="Exit search">
+        <i class="fas fa-times text-white"></i>
+    </button>
+</div>
+
+<!-- SEARCH INPUT -->
+<div class="search-container">
+    <i class="fas fa-search search-icon"></i>
+    <input
+        type="search"
+        id="global-search"
+        class="search-input"
+        placeholder="What do you want to listen to?"
+        oninput="handleSearch(this.value)">
+</div>
+
+<div id="search-results" class="space-y-2">
+    <p class="text-zinc-500">Start typing to search your cloud library...</p>
+</div>
+
             </div>
 
             <div id="album-view" class="hidden">
@@ -797,12 +815,12 @@ function openAlbumByName(name) {
             });
         }
 
-        function exitSearch() {
-            const input = document.getElementById('global-search');
-            input.value = '';
-            handleSearch('');
-            showView('home');
-        }
+        function exitSearchView() {
+    const input = document.getElementById('global-search');
+    if (input) input.value = '';
+    handleSearch('');
+    showView('home');
+}
 
         /**
          * ---------------------------------------------------------------------
