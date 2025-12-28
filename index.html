@@ -856,17 +856,36 @@ function togglePlay() {
    PROGRESS BAR SEEKING
 ------------------------ */
 
+let pendingSeekPct = null;
+
 function seekToClientX(clientX) {
-    const bar = document.getElementById('progress-container');
-    if (!bar) return;
+  const bar = document.getElementById('progress-container');
+  if (!bar) return;
 
-    const rect = bar.getBoundingClientRect();
-    const pct = (clientX - rect.left) / rect.width;
-    const clamped = Math.max(0, Math.min(1, pct));
+  const rect = bar.getBoundingClientRect();
+  const pct = (clientX - rect.left) / rect.width;
+  const clamped = Math.max(0, Math.min(1, pct));
 
-    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
-    player.currentTime = clamped * player.duration;
+  // If duration isn't ready yet (common on mobile), store it and apply later
+  if (!Number.isFinite(player.duration) || player.duration <= 0) {
+    pendingSeekPct = clamped;
+    return;
+  }
+
+  player.currentTime = clamped * player.duration;
 }
+
+        function applyPendingSeek() {
+  if (pendingSeekPct == null) return;
+  if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+
+  player.currentTime = pendingSeekPct * player.duration;
+  pendingSeekPct = null;
+}
+
+player.addEventListener('loadedmetadata', applyPendingSeek);
+player.addEventListener('durationchange', applyPendingSeek);
+player.addEventListener('canplay', applyPendingSeek);
 
 function seek(e) {
     seekToClientX(e.clientX);
