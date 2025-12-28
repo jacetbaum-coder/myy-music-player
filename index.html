@@ -194,7 +194,7 @@
             background: white;
             color: black;
             border-radius: 500px;
-            padding: 12px 12px 12px 48px;
+            padding: 12px 48px 12px 48px;
             font-size: 14px;
             font-weight: 500;
             outline: none;
@@ -206,6 +206,24 @@
             transform: translateY(-50%);
             color: #121212;
             font-size: 18px;
+        }
+         .search-clear {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            color: #121212;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+        .search-clear:hover {
+            color: #000;
+            background: rgba(0, 0, 0, 0.08);
         }
 
         /* --- UTILITIES --- */
@@ -378,8 +396,11 @@
             <div id="search-view" class="hidden">
                 <h1 class="text-3xl font-black mb-6">Search</h1>
                 <div class="search-container">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="global-search" class="search-input" placeholder="What do you want to listen to?" oninput="handleSearch(this.value)">
+                <button type="button" class="search-clear" onclick="exitSearch()" aria-label="Back to home">
+                    <i class="fas fa-times"></i>
+                </button>
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="global-search" class="search-input" placeholder="What do you want to listen to?" oninput="handleSearch(this.value)">
                 </div>
                 <div id="search-results" class="space-y-2">
                     <p class="text-zinc-500">Start typing to search your cloud library...</p>
@@ -774,6 +795,14 @@ function openAlbumByName(name) {
                 row.appendChild(icon);
                 results.appendChild(row);
             });
+        }
+
+        function exitSearch() {
+            const input = document.getElementById('global-search');
+            input.value = '';
+            handleSearch('');
+            showView('home');
+        }
         }
 
         /**
