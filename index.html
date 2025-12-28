@@ -619,9 +619,20 @@ if (volumeContainer) {
             
             // Simulation of high-volume library fetching
             try {
-                const response = await fetch('/api/get-songs'); // This endpoint provides the structure
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const response = await fetch('/api/get-songs', { signal: controller.signal }); // This endpoint provides the structure
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
                 libraryData = await response.json();
-                
+
+                if (!Array.isArray(libraryData)) {
+                    throw new Error('Invalid library response');
+                }
+            
                 // Sort library alphabetically by album
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
                 
@@ -634,14 +645,17 @@ if (volumeContainer) {
                     <p class="text-white font-bold">Cloud Connection Failed</p>
                     <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
                 `;
+                libraryData = [];
+                document.getElementById('loading').classList.add('hidden');
+                showView('home');
             }
         };
 
         function setGreeting() {
             const hour = new Date().getHours();
-            if (hour < 12) greetingEl.innerText = "Good morning";
-            else if (hour < 18) greetingEl.innerText = "Good afternoon";
-            else greetingEl.innerText = "Good evening";
+            if (hour < 12) greetingEl.innerText = "Good morning, Jason";
+            else if (hour < 18) greetingEl.innerText = "Good afternoon, Jason";
+            else greetingEl.innerText = "Good evening, Jason";
         }
 
         /**
@@ -1293,8 +1307,6 @@ function attachPlaylistPressHandlers(el, playlistId) {
             });
 
             playlists.forEach((pl, i) => {
-                list.appendChild(div);
-
                 const item = document.createElement('div');
                 item.className = "menu-item";
                 item.innerText = pl.name;
