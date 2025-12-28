@@ -12,20 +12,27 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
+  const requiredEnv = ['GCP_SERVICE_ACCOUNT_EMAIL', 'GCP_PRIVATE_KEY', 'GCP_FOLDER_ID'];
+  const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+  if (missingEnv.length > 0) {
+    return res.status(500).json({
+      error: `Missing required environment variables: ${missingEnv.join(', ')}`
+    });
+  }
+  
   const now = Date.now();
   if (cachedData && (now - lastFetchTime < CACHE_DURATION)) {
     return res.status(200).json(cachedData);
   }
 
-  const auth = new google.auth.JWT(
-    process.env.GCP_SERVICE_ACCOUNT_EMAIL,
-    null,
-    process.env.GCP_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    ['https://www.googleapis.com/auth/drive.readonly']
-  );
-  const drive = google.drive({ version: 'v3', auth });
-
   try {
+    const auth = new google.auth.JWT(
+      process.env.GCP_SERVICE_ACCOUNT_EMAIL,
+      null,
+      process.env.GCP_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      ['https://www.googleapis.com/auth/drive.readonly']
+    );
+    const drive = google.drive({ version: 'v3', auth });
     const artists = await drive.files.list({
       q: `'${process.env.GCP_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
       fields: 'files(id, name)',
