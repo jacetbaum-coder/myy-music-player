@@ -1271,21 +1271,18 @@ function attachPlaylistPressHandlers(el, playlistId) {
   const pinBtn = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
 
-  if (pinBtn) {
-    pinBtn.onclick = () => {
-      if (!playlistMenuTargetId) return;
-      pinPlaylist(playlistMenuTargetId);
-      hidePlaylistMenu();
-    };
-  }
+  pinBtn.onclick = () => {
+  if (playlistMenuTargetId == null) return;
+  pinPlaylist(playlistMenuTargetId);
+  hidePlaylistMenu();
+};
 
-  if (unpinBtn) {
-    unpinBtn.onclick = () => {
-      if (!playlistMenuTargetId) return;
-      unpinPlaylist(playlistMenuTargetId);
-      hidePlaylistMenu();
-    };
-  }
+unpinBtn.onclick = () => {
+  if (playlistMenuTargetId == null) return;
+  unpinPlaylist(playlistMenuTargetId);
+  hidePlaylistMenu();
+};
+
 
   window.addEventListener('click', (e) => {
     const m = document.getElementById('playlist-menu');
@@ -1318,7 +1315,11 @@ function attachPlaylistPressHandlers(el, playlistId) {
                         <i class="fas fa-music text-zinc-600"></i>
                     </div>
                     <div class="flex-1 truncate">
-                        <div class="text-sm font-bold truncate">${pl.name}</div>
+                        <div class="text-sm font-bold truncate flex items-center gap-2">
+  ${pinnedSet.has(pl.id) ? '<i class="fas fa-thumbtack text-[#1db954]"></i>' : ''}
+  <span class="truncate">${pl.name}</span>
+</div>
+
                         <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
                     </div>
                 `;
