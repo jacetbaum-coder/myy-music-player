@@ -807,16 +807,17 @@ function togglePlay() {
 
 function seekToClientX(clientX) {
     const bar = document.getElementById('progress-container');
-    if (!bar || !player.duration) return;
+    if (!bar) return;
 
     const rect = bar.getBoundingClientRect();
     const pct = (clientX - rect.left) / rect.width;
     const clamped = Math.max(0, Math.min(1, pct));
+
+    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
     player.currentTime = clamped * player.duration;
 }
 
 function seek(e) {
-    // click-to-seek
     seekToClientX(e.clientX);
 }
 
@@ -837,12 +838,45 @@ if (progressBar) {
 
     window.addEventListener('mousemove', (e) => {
         if (!isScrubbing) return;
-        onScrubMove(e.cli
+        onScrubMove(e.clientX);
+    });
 
-        /**
-         * ---------------------------------------------------------------------
-         * PERSISTENCE & UTILS
-         * ---------------------------------------------------------------------
+    window.addEventListener('mouseup', () => {
+        isScrubbing = false;
+    });
+
+    // Touch
+    progressBar.addEventListener('touchstart', (e) => {
+        isScrubbing = true;
+        onScrubMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!isScrubbing) return;
+        onScrubMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        isScrubbing = false;
+    });
+}
+
+// Keep the fill + time text updated
+player.addEventListener('timeupdate', () => {
+    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+
+    const pct = (player.currentTime / player.duration) * 100;
+    document.getElementById('progress-fill').style.width = pct + "%";
+    document.getElementById('t-curr').innerText = formatTime(player.currentTime);
+    document.getElementById('t-total').innerText = formatTime(player.duration);
+});
+
+function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec < 10 ? '0' + sec : sec}`;
+}
+
          */
         function checkDockVisibility() {
             const oneHour = 3600000;
@@ -994,6 +1028,9 @@ if (progressBar) {
         // --- Shuffle "no repeats" state ---
 let shuffleOrder = [];
 let shufflePos = 0;
+let playedStack = [];      // history of played indexes (for Prev)
+let isAutoNav = false;     // true only when Next/Prev triggers playback
+        
 
 function buildShuffleOrder(len, startIndex) {
     // Makes a shuffled list of indexes that does NOT start with the current song
@@ -1019,6 +1056,18 @@ function resetShuffleForQueue() {
     shuffleOrder = buildShuffleOrder(currentQueue.length, currentIndex);
     shufflePos = 0;
 }
+function toggleShuffle() {
+    const btn = document.getElementById('btn-shuffle');
+    if (!btn) return;
+
+    btn.classList.toggle('active-green');
+
+    // If a song is currently selected, reset shuffle order + history
+    if (currentQueue && currentQueue.length > 0 && currentIndex >= 0) {
+        resetShuffleForQueue();
+        playedStack = [currentIndex];
+    }
+}
 
 function isShuffleOn() {
     return document.getElementById('btn-shuffle')?.classList.contains('active-green');
@@ -1027,14 +1076,17 @@ function isShuffleOn() {
 function nextSong() {
     if (!currentQueue || currentQueue.length === 0) return;
 
-    // If shuffle is ON: play through a shuffled order with no repeats
+    const len = currentQueue.length;
+
+    // SHUFFLE ON (no repeats, stop when done)
     if (isShuffleOn()) {
-        // If we haven't built the shuffle order yet (or it doesn't match queue size), build it
-        if (shuffleOrder.length !== currentQueue.length - 1) {
+        // Build (or rebuild) shuffle list if needed
+        const expectedLen = (currentIndex === -1) ? len : (len - 1);
+        if (!shuffleOrder || shuffleOrder.length !== expectedLen) {
             resetShuffleForQueue();
         }
 
-        // If there's nowhere left to go, STOP (do not loop)
+        // If we've used up all shuffled songs, STOP
         if (shufflePos >= shuffleOrder.length) {
             player.pause();
             player.currentTime = 0;
@@ -1042,22 +1094,36 @@ function nextSong() {
             return;
         }
 
-        currentIndex = shuffleOrder[shufflePos];
-        shufflePos += 1;
-    } else {
-        // If shuffle is OFF: go to the next track, but STOP at the end (no looping)
-        if (currentIndex >= currentQueue.length - 1) {
-            player.pause();
-            player.currentTime = 0;
-            document.getElementById('play-icon').className = "fas fa-play ml-1";
-            return;
+        // If nothing is playing yet, start with the first shuffled song.
+        // Otherwise, move to the next shuffled song.
+        if (currentIndex === -1) {
+            currentIndex = shuffleOrder[0];
+            shufflePos = 1;
+        } else {
+            currentIndex = shuffleOrder[shufflePos];
+            shufflePos += 1;
         }
-        currentIndex = currentIndex + 1;
+    }
+    // SHUFFLE OFF (normal order, stop at end)
+    else {
+        if (currentIndex === -1) {
+            currentIndex = 0; // if nothing is playing yet, start at first song
+        } else {
+            // If we're at the last song, STOP (do not loop)
+            if (currentIndex >= len - 1) {
+                player.pause();
+                player.currentTime = 0;
+                document.getElementById('play-icon').className = "fas fa-play ml-1";
+                return;
+            }
+            currentIndex = currentIndex + 1;
+        }
     }
 
     const s = currentQueue[currentIndex];
     playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
+
 
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
@@ -1076,11 +1142,15 @@ function buildQueueFromSongs(songs, fallback) {
 function playQueue(queue, startIndex = 0) {
   if (!queue.length) return;
   currentQueue = queue;
-currentIndex = startIndex;
-resetShuffleForQueue();
+  currentIndex = startIndex;
+
+  playedStack = [currentIndex];   // <— add this
+  resetShuffleForQueue();
+
   const s = currentQueue[currentIndex];
   playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
+
 
 function renderCollection(name, songs, isPlaylist = false) {
   const queue = buildQueueFromSongs(songs, { album: name });
@@ -1158,28 +1228,44 @@ function playAlbumByName(name) {
 function prevSong() {
     if (!currentQueue || currentQueue.length === 0) return;
 
+    // Shuffle ON: go back through actual history
     if (isShuffleOn()) {
-        if (currentQueue.length === 1) return;
-        let prev = currentIndex;
-        while (prev === currentIndex) {
-            prev = Math.floor(Math.random() * currentQueue.length);
-        }
-        currentIndex = prev;
-    } else {
-        currentIndex = (currentIndex - 1 + currentQueue.length) % currentQueue.length;
+        if (playedStack.length <= 1) return; // no previous
+
+        playedStack.pop(); // remove current
+        currentIndex = playedStack[playedStack.length - 1];
+
+        const s = currentQueue[currentIndex];
+        isAutoNav = true;
+        playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+        isAutoNav = false;
+        return;
     }
 
+    // Shuffle OFF: go back one, but STOP at the start (no looping)
+    if (currentIndex <= 0) return;
+    currentIndex = currentIndex - 1;
+
     const s = currentQueue[currentIndex];
+    isAutoNav = true;
     playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+    isAutoNav = false;
 }
+
 
 // Auto-advance when a song ends
 player.addEventListener('ended', () => {
-    nextSong();
+    if (isRepeatOn()) {
+        player.currentTime = 0;
+        player.play();
+        document.getElementById('play-icon').className = "fas fa-pause";
+    } else {
+        nextSong();
+    }
 });
 
+
 // Auto-hide dock interval
-setInterval(checkDockVisibility, 30000);
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
