@@ -80,17 +80,21 @@
         .resizer:hover { background: rgba(255,255,255,0.2); }
 
         .track-row { 
-            display: grid; 
-            grid-template-columns: 40px 6fr 4fr 3fr 80px; 
-            gap: 16px; 
-            padding: 12px; 
-            border-radius: 6px; 
-            align-items: center; 
-            color: var(--text-sub); 
-            font-size: 14px; 
-            user-select: none; 
-            transition: background 0.1s;
-        }
+    display: grid; 
+    grid-template-columns: 40px 6fr 4fr 3fr 80px; 
+    gap: 16px; 
+    padding: 12px; 
+    border-radius: 6px; 
+    align-items: center; 
+    color: var(--text-sub); 
+    font-size: 14px; 
+    user-select: none; 
+    transition: background 0.1s;
+}
+.track-row > * {
+    min-width: 0;
+}
+
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
             color: white; 
@@ -115,17 +119,20 @@
         }
 
         /* --- DOCK & PLAYER --- */
-        .player-bar { 
-            height: var(--player-height); 
-            background: var(--bg-base); 
-            border-top: 1px solid #282828; 
-            display: grid; 
-            grid-template-columns: 30% 40% 30%; 
-            align-items: center; 
-            padding: 0 20px; 
-            z-index: 100; 
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
+        .player-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--player-height);
+    background: var(--bg-base);
+    border-top: 1px solid #282828;
+    display: grid;
+    grid-template-columns: 30% 40% 30%;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 100;
+}
 
         .progress-bar-container {
             height: 4px;
