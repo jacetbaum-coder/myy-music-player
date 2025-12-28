@@ -24,6 +24,142 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+ /* Fullscreen Now Playing (mobile) */
+.np.hidden { display: none !important; }
+
+.np {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+}
+
+.np-sheet{
+  position: absolute;
+  inset: 0;
+  background: #0b0b0b;
+  padding: 14px 16px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.np-topbar{
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.np-icon{
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.np-titlewrap{
+  text-align: center;
+  overflow: hidden;
+}
+.np-context{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.65);
+}
+
+.np-art-wrap{
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 18px 0 10px;
+}
+.np-cover{
+  width: min(78vw, 420px);
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  background: #111;
+}
+
+.np-meta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px 10px;
+}
+.np-song{
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.05;
+  color: #fff;
+}
+.np-artist{
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+}
+
+.np-progress{
+  padding: 6px 4px 10px;
+}
+.np-progress-bar{
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.18);
+  overflow: hidden;
+}
+.np-progress-fill{
+  height: 100%;
+  width: 0%;
+  background: #fff;
+}
+.np-times{
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 8px;
+}
+
+.np-controls{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding-top: 8px;
+}
+.np-btn{
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 22px;
+}
+.np-play{
+  width: 76px;
+  height: 76px;
+  border-radius: 9999px;
+  border: none;
+  background: #fff;
+  color: #000;
+  font-size: 30px;
+}
+
+/* Only show overlay pattern on mobile */
+@media (min-width: 769px) {
+  #now-playing { display: none !important; }
+}
 
         /* --- ROOT & CORE RESET --- */
         :root {
@@ -742,6 +878,59 @@
 
         </div>
     </div>
+<!-- FULLSCREEN NOW PLAYING (mobile) -->
+<div id="now-playing" class="np hidden" aria-hidden="true">
+  <div class="np-sheet" id="np-sheet">
+    <div class="np-topbar">
+      <button id="np-close" class="np-icon" aria-label="Close">
+        <i class="fas fa-chevron-down"></i>
+      </button>
+
+      <div class="np-titlewrap">
+        <div id="np-context" class="np-context">Now playing</div>
+      </div>
+
+      <button class="np-icon" aria-label="More options">
+        <i class="fas fa-ellipsis-h"></i>
+      </button>
+    </div>
+
+    <div class="np-art-wrap">
+      <img id="np-cover" class="np-cover" alt="">
+    </div>
+
+    <div class="np-meta">
+      <div class="np-meta-text">
+        <div id="np-title" class="np-song"></div>
+        <div id="np-artist" class="np-artist"></div>
+      </div>
+    </div>
+
+    <div class="np-progress">
+      <div class="np-progress-bar" id="np-progress-container">
+        <div class="np-progress-fill" id="np-progress-fill"></div>
+      </div>
+      <div class="np-times">
+        <span id="np-t-curr">0:00</span>
+        <span id="np-t-total">0:00</span>
+      </div>
+    </div>
+
+    <div class="np-controls">
+      <button class="np-btn" onclick="prevSong()" aria-label="Previous">
+        <i class="fas fa-step-backward"></i>
+      </button>
+
+      <button class="np-play" onclick="togglePlay()" aria-label="Play or pause">
+        <i id="np-play-icon" class="fas fa-play"></i>
+      </button>
+
+      <button class="np-btn" onclick="nextSong()" aria-label="Next">
+        <i class="fas fa-step-forward"></i>
+      </button>
+    </div>
+  </div>
+</div>
 
     <audio id="audio-player" preload="auto"></audio>
 
@@ -883,6 +1072,73 @@ if (volumeContainer) {
             else if (hour < 18) greetingEl.innerText = "Good afternoon, Jason";
             else greetingEl.innerText = "Good evening, Jason";
         }
+function openNowPlaying() {
+  if (!currentSong) return;
+
+  const np = document.getElementById('now-playing');
+  np.classList.remove('hidden');
+  np.setAttribute('aria-hidden', 'false');
+
+  // Fill content from the dock/current song
+  document.getElementById('np-cover').src = document.getElementById('p-cover')?.src || '';
+  document.getElementById('np-title').innerText = document.getElementById('p-title')?.innerText || '';
+  document.getElementById('np-artist').innerText = document.getElementById('p-artist')?.innerText || '';
+
+  // Icon state
+  document.getElementById('np-play-icon').className = player.paused ? 'fas fa-play' : 'fas fa-pause';
+
+  // Prevent background scroll on iOS
+  document.body.style.overflow = 'hidden';
+}
+
+function closeNowPlaying() {
+  const np = document.getElementById('now-playing');
+  np.classList.add('hidden');
+  np.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+// Tap on dock (but NOT on its play button) opens fullscreen
+(function initDockOpenNowPlaying(){
+  const dock = document.getElementById('main-dock');
+  if (!dock) return;
+
+  dock.addEventListener('click', (e) => {
+    const playBtn = document.getElementById('dock-play-btn');
+    if (playBtn && (e.target === playBtn || playBtn.contains(e.target))) return;
+    openNowPlaying();
+  });
+})();
+
+// Close button
+document.getElementById('np-close')?.addEventListener('click', closeNowPlaying);
+
+// Swipe down to close
+(function initSwipeDownToClose(){
+  const sheet = document.getElementById('np-sheet');
+  if (!sheet) return;
+
+  let startY = null;
+  let dy = 0;
+
+  sheet.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+    dy = 0;
+  }, { passive: true });
+
+  sheet.addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+
+  sheet.addEventListener('touchend', () => {
+    if (dy > 90) closeNowPlaying();
+    sheet.style.transform = '';
+    startY = null;
+    dy = 0;
+  });
+})();
 
         /**
          * ---------------------------------------------------------------------
@@ -1181,19 +1437,17 @@ if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
 function togglePlay() {
   if (!currentSong) return;
 
-  const desktopIcon = document.getElementById('play-icon');
-  const mobileIcon = document.getElementById('mobile-play-icon');
-
   if (player.paused) {
     player.play();
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+    document.getElementById('play-icon').className = "fas fa-pause";
+    document.getElementById('np-play-icon') && (document.getElementById('np-play-icon').className = "fas fa-pause");
   } else {
     player.pause();
-    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
-    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+    document.getElementById('play-icon').className = "fas fa-play ml-1";
+    document.getElementById('np-play-icon') && (document.getElementById('np-play-icon').className = "fas fa-play");
   }
 }
+
 
 
 /* -----------------------
@@ -1272,15 +1526,59 @@ if (progressBar) {
     });
 }
 
+        (function initNpSeek(){
+  const bar = document.getElementById('np-progress-container');
+  if (!bar) return;
+
+  function seekNpToClientX(clientX) {
+    const rect = bar.getBoundingClientRect();
+    const pct = (clientX - rect.left) / rect.width;
+    const clamped = Math.max(0, Math.min(1, pct));
+
+    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+    player.currentTime = clamped * player.duration;
+  }
+
+  bar.addEventListener('click', (e) => {
+    const x = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+    seekNpToClientX(x);
+  });
+
+  bar.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    seekNpToClientX(e.clientX);
+    bar.setPointerCapture(e.pointerId);
+  });
+
+  bar.addEventListener('pointermove', (e) => {
+    if (e.buttons !== 1) return;
+    seekNpToClientX(e.clientX);
+  });
+})();
+
 // Keep the fill + time text updated
 player.addEventListener('timeupdate', () => {
-    if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+  if (!Number.isFinite(player.duration) || player.duration <= 0) return;
 
-    const pct = (player.currentTime / player.duration) * 100;
-    document.getElementById('progress-fill').style.width = pct + "%";
-    document.getElementById('t-curr').innerText = formatTime(player.currentTime);
-    document.getElementById('t-total').innerText = formatTime(player.duration);
+  const pct = (player.currentTime / player.duration) * 100;
+
+  // Dock
+  const pf = document.getElementById('progress-fill');
+  if (pf) pf.style.width = pct + "%";
+  const tc = document.getElementById('t-curr');
+  const tt = document.getElementById('t-total');
+  if (tc) tc.innerText = formatTime(player.currentTime);
+  if (tt) tt.innerText = formatTime(player.duration);
+
+  // Fullscreen
+  const npf = document.getElementById('np-progress-fill');
+  if (npf) npf.style.width = pct + "%";
+  const ntc = document.getElementById('np-t-curr');
+  const ntt = document.getElementById('np-t-total');
+  if (ntc) ntc.innerText = formatTime(player.currentTime);
+  if (ntt) ntt.innerText = formatTime(player.duration);
 });
+
 
 function formatTime(s) {
     const m = Math.floor(s / 60);
