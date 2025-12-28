@@ -396,6 +396,7 @@
                     <button id="hero-play-btn" class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
                         <i class="fas fa-play text-black text-xl ml-1"></i>
                     </button>
+                    <i class="far fa-heart text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
                     <i class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
                 </div>
 
@@ -621,8 +622,7 @@
                      onclick="openAlbumByName('${album.albumName.replace(/'/g, "\\'")}')">
                     <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
                         <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
-                        <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl"
-     onclick="event.stopPropagation(); playAlbumByName('${album.albumName.replace(/'/g, "\\'")}')">
+                        <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl">
                             <i class="fas fa-play text-black text-lg ml-1"></i>
                         </div>
                     </div>
@@ -644,7 +644,6 @@
         cover: album.coverArt
     }));
 
-    currentIndex = -1; 
     document.getElementById('grid-view').classList.add('hidden');
     document.getElementById('album-view').classList.remove('hidden');
 
@@ -673,24 +672,6 @@
     currentIndex = i;
     playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
 };
-function playAlbumByName(name) {
-  const album = libraryData.find(a => a.albumName === name);
-  if (!album || !album.songs || album.songs.length === 0) return;
-
-  // build the queue for next/prev
-  currentQueue = album.songs.map(s => ({
-    url: s.link,
-    title: s.name,
-    album: album.albumName,
-    artist: album.artistName,
-    cover: album.coverArt
-  }));
-
-  currentIndex = 0;
-
-  const first = currentQueue[0];
-  playSpecificSong(first.url, first.title, first.album, first.artist, first.cover);
-}
 
                 row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
                 
@@ -1018,29 +999,6 @@ setInterval(checkDockVisibility, 30000);
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
-// --- Playback navigation (Next/Prev + Shuffle) ---
-// No looping: stops at ends of the queue.
-
-function isShuffleOn() {
-    return document.getElementById('btn-shuffle')?.classList.contains('active-green');
-}
-
-function nextSong() {
-    if (!currentQueue || currentQueue.length === 0) return;
-
-    // If nothing selected yet, start at first track
-    if (currentIndex === -1) currentIndex = 0;
-
-    if (isShuffleOn()) {
-        if (currentQueue.length === 1) return;
-        let next = currentIndex;
-        while (next === currentIndex) {
-            next = Math.floor(Math.random() * currentQueue.length);
-        }
-        currentIndex = next;
-    } else {
-        // NO LOOPING
-        if
 
     </script>
 </body>
