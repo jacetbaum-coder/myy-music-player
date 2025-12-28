@@ -464,7 +464,7 @@
         
         <div class="flex flex-col items-center gap-3">
             <div class="flex items-center gap-6 text-zinc-400">
-                <i id="btn-shuffle" onclick="this.classList.toggle('active-green')" class="fas fa-shuffle hover:text-white cursor-pointer text-sm"></i>
+                <i id="btn-shuffle" onclick="toggleShuffle()" class="fas fa-shuffle hover:text-white cursor-pointer text-sm"></i>
                 <i class="fas fa-step-backward hover:text-white cursor-pointer text-xl" onclick="prevSong()"></i>
                 <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition" onclick="togglePlay()">
                     <i id="play-icon" class="fas fa-play ml-1"></i>
@@ -991,6 +991,35 @@ if (progressBar) {
             updateHeartUI();
         }
 // --- Playback navigation (Next/Prev + Shuffle) ---
+        // --- Shuffle "no repeats" state ---
+let shuffleOrder = [];
+let shufflePos = 0;
+
+function buildShuffleOrder(len, startIndex) {
+    // Makes a shuffled list of indexes that does NOT start with the current song
+    const arr = [];
+    for (let i = 0; i < len; i++) {
+        if (i !== startIndex) arr.push(i);
+    }
+
+    // Fisher–Yates shuffle
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function resetShuffleForQueue() {
+    if (!currentQueue || currentQueue.length <= 1) {
+        shuffleOrder = [];
+        shufflePos = 0;
+        return;
+    }
+    shuffleOrder = buildShuffleOrder(currentQueue.length, currentIndex);
+    shufflePos = 0;
+}
+
 function isShuffleOn() {
     return document.getElementById('btn-shuffle')?.classList.contains('active-green');
 }
@@ -998,20 +1027,38 @@ function isShuffleOn() {
 function nextSong() {
     if (!currentQueue || currentQueue.length === 0) return;
 
+    // If shuffle is ON: play through a shuffled order with no repeats
     if (isShuffleOn()) {
-        if (currentQueue.length === 1) return;
-        let next = currentIndex;
-        while (next === currentIndex) {
-            next = Math.floor(Math.random() * currentQueue.length);
+        // If we haven't built the shuffle order yet (or it doesn't match queue size), build it
+        if (shuffleOrder.length !== currentQueue.length - 1) {
+            resetShuffleForQueue();
         }
-        currentIndex = next;
+
+        // If there's nowhere left to go, STOP (do not loop)
+        if (shufflePos >= shuffleOrder.length) {
+            player.pause();
+            player.currentTime = 0;
+            document.getElementById('play-icon').className = "fas fa-play ml-1";
+            return;
+        }
+
+        currentIndex = shuffleOrder[shufflePos];
+        shufflePos += 1;
     } else {
-        currentIndex = (currentIndex + 1) % currentQueue.length;
+        // If shuffle is OFF: go to the next track, but STOP at the end (no looping)
+        if (currentIndex >= currentQueue.length - 1) {
+            player.pause();
+            player.currentTime = 0;
+            document.getElementById('play-icon').className = "fas fa-play ml-1";
+            return;
+        }
+        currentIndex = currentIndex + 1;
     }
 
     const s = currentQueue[currentIndex];
     playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
+
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
   if (!url) return null;
@@ -1029,7 +1076,8 @@ function buildQueueFromSongs(songs, fallback) {
 function playQueue(queue, startIndex = 0) {
   if (!queue.length) return;
   currentQueue = queue;
-  currentIndex = startIndex;
+currentIndex = startIndex;
+resetShuffleForQueue();
   const s = currentQueue[currentIndex];
   playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
