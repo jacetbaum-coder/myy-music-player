@@ -645,6 +645,7 @@
     }));
 
     currentIndex = -1; 
+            
     document.getElementById('grid-view').classList.add('hidden');
     document.getElementById('album-view').classList.remove('hidden');
 
@@ -669,10 +670,30 @@
                 const isCurrent = currentSong && (currentSong.url === song.link);
                 if (isCurrent) row.classList.add('active-track');
 
-                row.onclick = () => {
-    currentIndex = i;
-    playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
-};
+                album.songs.forEach((song, i) => {
+    const row = document.createElement('div');
+    row.className = "track-row";
+
+    row.onclick = () => {
+        currentIndex = i;
+        playSpecificSong(
+            song.link,
+            song.name,
+            album.albumName,
+            album.artistName,
+            album.coverArt
+        );
+    };
+
+    row.innerHTML = `
+        <span class="text-zinc-400 text-center">${i + 1}</span>
+        <div class="truncate">${song.name.replace('.mp3','')}</div>
+    `;
+
+    listEl.appendChild(row);
+});
+
+        }
 function playAlbumByName(name) {
   const album = libraryData.find(a => a.albumName === name);
   if (!album || !album.songs || album.songs.length === 0) return;
@@ -691,22 +712,6 @@ function playAlbumByName(name) {
   const first = currentQueue[0];
   playSpecificSong(first.url, first.title, first.album, first.artist, first.cover);
 }
-
-                row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
-                
-                row.innerHTML = `
-                    <span class="text-zinc-400 group-hover:text-white text-center">${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}</span>
-                    <div class="flex flex-col">
-                        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
-                        <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
-                    </div>
-                    <span class="truncate hidden md:block">${album.albumName}</span>
-                    <span class="hidden md:block">Just now</span>
-                    <span class="hidden md:block text-center">3:20</span>`;
-                listEl.appendChild(row);
-            });
-        }
-
         /**
          * ---------------------------------------------------------------------
          * SEARCH LOGIC
@@ -1018,29 +1023,63 @@ setInterval(checkDockVisibility, 30000);
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
-// --- Playback navigation (Next/Prev + Shuffle) ---
-// No looping: stops at ends of the queue.
+        // ================================
+// PLAYBACK NAVIGATION (CLEAN)
+// ================================
 
 function isShuffleOn() {
     return document.getElementById('btn-shuffle')?.classList.contains('active-green');
 }
 
+// 0 = off, 1 = repeat once, 2 = repeat forever
+let repeatMode = 0;
+
+const repeatBtn = document.getElementById('btn-repeat');
+if (repeatBtn) {
+    repeatBtn.onclick = () => {
+        repeatMode = (repeatMode + 1) % 3;
+        repeatBtn.classList.toggle('active-green', repeatMode !== 0);
+    };
+}
+
 function nextSong() {
-    if (!currentQueue || currentQueue.length === 0) return;
+    if (!currentQueue.length) return;
+    if (currentIndex >= currentQueue.length - 1) return; // stop at end
 
-    // If nothing selected yet, start at first track
-    if (currentIndex === -1) currentIndex = 0;
+    currentIndex += 1;
+    const s = currentQueue[currentIndex];
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+}
 
-    if (isShuffleOn()) {
-        if (currentQueue.length === 1) return;
-        let next = currentIndex;
-        while (next === currentIndex) {
-            next = Math.floor(Math.random() * currentQueue.length);
-        }
-        currentIndex = next;
-    } else {
-        // NO LOOPING
-        if
+function prevSong() {
+    if (!currentQueue.length) return;
+    if (currentIndex <= 0) return; // stop at start
+
+    currentIndex -= 1;
+    const s = currentQueue[currentIndex];
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+}
+
+// Handle repeat when track ends
+player.addEventListener('ended', () => {
+    if (repeatMode === 2) {
+        player.currentTime = 0;
+        player.play();
+        return;
+    }
+
+    if (repeatMode === 1) {
+        repeatMode = 0;
+        repeatBtn?.classList.remove('active-green');
+        player.currentTime = 0;
+        player.play();
+        return;
+    }
+
+    nextSong();
+});
+
+setInterval(checkDockVisibility, 30000);
 
     </script>
 </body>
