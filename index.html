@@ -670,6 +670,10 @@ if (volumeContainer) {
          */
         let activePlaylistId = null;
         function showView(viewType, playlistIndex = null) {
+        // Always close menus when switching screens
+try { hidePlaylistMenu(); } catch (e) {}
+try { contextMenu.style.display = 'none'; } catch (e) {}
+
   // Hide all
   ['grid-view', 'album-view', 'search-view'].forEach(id => {
     document.getElementById(id).classList.add('hidden');
@@ -1267,31 +1271,42 @@ function attachPlaylistPressHandlers(el, playlistId) {
 }
 
 // Menu buttons + outside click
-(function initPlaylistMenuOnce() {
+// Menu buttons + outside click (run AFTER the page HTML exists)
+window.addEventListener('DOMContentLoaded', () => {
   const pinBtn = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
+  const menu = document.getElementById('playlist-menu');
 
-  pinBtn.onclick = () => {
-  if (playlistMenuTargetId == null) return;
-  pinPlaylist(playlistMenuTargetId);
-  hidePlaylistMenu();
-};
+  // If the menu HTML isn't on the page, do nothing (prevents crashes)
+  if (!pinBtn || !unpinBtn || !menu) return;
 
-unpinBtn.onclick = () => {
-  if (playlistMenuTargetId == null) return;
-  unpinPlaylist(playlistMenuTargetId);
-  hidePlaylistMenu();
-};
+  pinBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!playlistMenuTargetId) return;
+    pinPlaylist(playlistMenuTargetId);
+    hidePlaylistMenu();
+  };
 
+  unpinBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!playlistMenuTargetId) return;
+    unpinPlaylist(playlistMenuTargetId);
+    hidePlaylistMenu();
+  };
 
+  // Click anywhere else closes the menu
   window.addEventListener('click', (e) => {
-    const m = document.getElementById('playlist-menu');
-    if (!m) return;
-    if (!m.classList.contains('hidden') && !m.contains(e.target)) hidePlaylistMenu();
+    if (!menu.classList.contains('hidden') && !menu.contains(e.target)) {
+      hidePlaylistMenu();
+    }
   });
 
+  // Scroll closes the menu
   window.addEventListener('scroll', hidePlaylistMenu, true);
-})();
+});
+
 
         function renderPlaylists() {
             const list = document.getElementById('dynamic-playlists-list');
