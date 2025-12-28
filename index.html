@@ -124,11 +124,22 @@
             background: #121212;
             border-top: 1px solid #282828;
             display: grid;
-            grid-template-columns: 30% 1fr 30%; /* This splits desktop into 3 zones */
+            grid-template-columns: 30% 1fr 30%; /* Balanced 3-zone layout */
             align-items: center;
             padding: 0 16px;
             z-index: 999;
             transition: transform 0.3s ease;
+        }
+
+        /* Desktop Title Slot Logic */
+        @media (min-width: 769px) {
+            #main-dock > div:first-child {
+                min-width: 0;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
         }
 
         /* Mobile Styles: Floating Pill */
@@ -141,37 +152,26 @@
                 background: #282828;
                 border-radius: 8px;
                 border: none;
-                display: flex; /* Switches to simple flex for mobile */
+                display: flex;
                 justify-content: space-between;
                 grid-template-columns: none;
                 box-shadow: 0 8px 24px rgba(0,0,0,0.5);
                 width: auto;
+                padding: 0 12px;
+            }
+            
+            /* Hide the center and right sections on mobile pill */
+            .player-bar > div:nth-child(2), 
+            .player-bar > div:nth-child(3) { 
+                display: none !important; 
+            }
+            
+            .player-bar > div:first-child {
+                width: 100%;
+                display: flex !important;
             }
         }
 
-        /* Essential Desktop Title Fix */
-        @media (min-width: 769px) {
-            #main-dock > div:first-child {
-                min-width: 0;
-                width: 100%;
-            }
-        }
-                    background: #282828;
-                    border-radius: 8px;
-                    border: none;
-                    display: flex;
-                    justify-content: space-between;
-                    grid-template-columns: none;
-                }
-            }
-            /* Ensure text doesn't disappear on small screens */
-           #main-dock > div:first-child { 
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                min-width: 0; /* Prevents text from pushing outside the box */
-                width: 100%;
-            }
         .progress-bar-container {
             height: 4px;
             width: 100%;
@@ -203,6 +203,14 @@
             justify-content: space-around;
             align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-nav { 
+                display: flex; 
+                background: rgba(0,0,0,0.95);
+                backdrop-filter: blur(15px);
+            }
         }
 
         .nav-item {
@@ -248,7 +256,7 @@
 
         /* --- UTILITIES --- */
         .hidden { display: none !important; }
-        .dock-hidden { transform: translateY(100%); opacity: 0; }
+        .dock-hidden { transform: translateY(120%); opacity: 0; pointer-events: none; }
         .sidebar-hidden { display: none !important; }
         .active-green { color: var(--spotify-green) !important; }
 
@@ -290,88 +298,6 @@
             box-shadow: 12px 0 24px rgba(0,0,0,0.5); 
         }
         .menu-item:hover > .submenu { display: block; }
-
-        /* --- MEDIA QUERIES --- */
-        @media (max-width: 768px) {
-            /* Hide Desktop Elements */
-            .sidebar, .resizer, .right-sidebar { display: none !important; }
-            
-            /* Show Mobile Navigation */
-            .mobile-nav { 
-                display: flex; 
-                background: rgba(0,0,0,0.95);
-                backdrop-filter: blur(15px);
-            }
-            
-            .main-view { 
-                padding: 16px; 
-                padding-bottom: 180px; /* Extra room for mobile player + nav */
-                background: linear-gradient(180deg, #1a1a1a 0%, #000 100%);
-            }
-
-            /* Simplified Track Rows for Mobile */
-            .track-row { 
-                grid-template-columns: 1fr 40px; 
-                padding: 16px 8px; /* Larger touch target */
-                border-bottom: 1px solid rgba(255,255,255,0.05);
-            }
-            .track-row span:nth-child(1),
-            .track-row span:nth-child(3), 
-            .track-row span:nth-child(4), 
-            .track-row span:nth-child(5) { display: none; }
-
-            /* Floating Pill-Style Mini-Player */
-            .player-bar { 
-                position: fixed;
-                bottom: calc(var(--nav-height) + 10px); /* Sits above bottom nav */
-                left: 10px;
-                right: 10px;
-                height: 60px;
-                background: #282828;
-                border-radius: 8px;
-                border: none;
-                grid-template-columns: 1fr auto auto;
-                padding: 0 12px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-                width: auto;
-            }
-
-            /* Hide progress bar and volume on mobile mini-player to keep it clean */
-            .player-bar .flex-col, .player-bar .justify-end { display: none; } 
-            
-            /* Ensure the song info and play button show */
-            .player-bar > div:first-child { display: flex !important; width: 100%; }
-            #mobile-play-btn { display: block; color: white; font-size: 20px; margin-left: 15px; }
-
-            #album-hero { flex-direction: column; align-items: center; text-align: center; }
-            #album-hero h1 { font-size: 2.2rem; line-height: 1; }
-            #album-hero img { width: 200px; height: 200px; }
-        }
-            .track-row span:nth-child(1),
-            .track-row span:nth-child(3), 
-            .track-row span:nth-child(4), 
-            .track-row span:nth-child(5) { display: none; }
-
-            .player-bar { 
-                position: fixed;
-                bottom: var(--nav-height);
-                left: 10px;
-                right: 10px;
-                height: 64px;
-                background: #222;
-                border-radius: 8px;
-                border: none;
-                grid-template-columns: 1fr auto;
-                padding: 0 12px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            }
-            .player-bar .flex-col { display: none; } /* Progress bar hidden on mobile mini-player */
-            
-            #album-hero h1 { font-size: 2rem; }
-            #album-hero img { width: 140px; height: 140px; }
-            
-            .search-input { font-size: 16px; } /* Prevent iOS auto-zoom */
-        }
 
         /* --- SCROLLBAR --- */
         ::-webkit-scrollbar { width: 8px; }
@@ -557,7 +483,7 @@
             <div class="w-full flex items-center gap-3 text-[11px] font-medium text-zinc-500">
                 <span id="t-curr">0:00</span>
                 <div class="progress-bar-container flex-1 h-1 bg-zinc-600 rounded-full cursor-pointer relative" id="progress-container" onclick="event.stopPropagation(); seek(event)">
-                    <div id="progress-fill" class="absolute top-0 left-0 h-full bg-white rounded-full"></div>
+                    <div id="progress-fill" class="progress-bar-fill"></div>
                 </div>
                 <span id="t-total">0:00</span>
             </div>
@@ -575,6 +501,8 @@
         </div>
     </div>
 
+    <audio id="audio-player" preload="auto"></audio>
+
     <script>
         /**
          * ---------------------------------------------------------------------
@@ -586,24 +514,17 @@
         let menuTargetSong = null;
         let activePlaylistIndex = null;
         
-        // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
         let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
-        // Elements
         const player = document.getElementById('audio-player');
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
         const greetingEl = document.getElementById('greeting-text');
 
-        /**
-         * ---------------------------------------------------------------------
-         * INITIALIZATION & LIFECYCLE
-         * ---------------------------------------------------------------------
-         */
         window.onload = async () => {
             setGreeting();
             renderHistory();
@@ -613,23 +534,13 @@
             initResizers();
             initGlobalKeys();
             
-            // Simulation of high-volume library fetching
             try {
-                const response = await fetch('/api/get-songs'); // This endpoint provides the structure
-                libraryData = await response.json();
-                
-                // Sort library alphabetically by album
+                // Sorting library alphabetically
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
-                
                 document.getElementById('loading').classList.add('hidden');
                 showView('home');
             } catch (error) {
-                console.error("Fetch error:", error);
-                document.getElementById('loading').innerHTML = `
-                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-                    <p class="text-white font-bold">Cloud Connection Failed</p>
-                    <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-                `;
+                console.error("Initialization error:", error);
             }
         };
 
@@ -640,13 +551,7 @@
             else greetingEl.innerText = "Good evening";
         }
 
-        /**
-         * ---------------------------------------------------------------------
-         * CORE NAVIGATION LOGIC
-         * ---------------------------------------------------------------------
-         */
         function showView(viewType, playlistIndex = null) {
-            // Hide all
             ['grid-view', 'album-view', 'search-view'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
@@ -660,7 +565,6 @@
                 renderGrid(libraryData);
             } else if (viewType === 'search') {
                 document.getElementById('search-view').classList.remove('hidden');
-                document.getElementById('global-search').focus();
             } else if (viewType === 'liked') {
                 document.getElementById('album-view').classList.remove('hidden');
                 renderCollection("Liked Songs", likedSongs);
@@ -669,41 +573,26 @@
                 const pl = playlists[playlistIndex];
                 renderCollection(pl.name, pl.songs, true, playlistIndex);
             }
-
             updateActiveStates(viewType);
         }
 
         function updateActiveStates(viewType) {
-            // Mobile Nav
             const navIds = { home: 'nav-home', search: 'nav-search', liked: 'nav-library' };
             Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
             if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
 
-            // Desktop Sidebar
             document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home');
-            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', viewType !== 'home');
             document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
-            document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
             document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
         }
 
-        /**
-         * ---------------------------------------------------------------------
-         * RENDERERS
-         * ---------------------------------------------------------------------
-         */
         function renderGrid(data) {
             const grid = document.getElementById('album-grid');
             grid.innerHTML = data.map((album) => `
-                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg" 
+                <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all cursor-pointer group" 
                      onclick="openAlbumByName('${album.albumName.replace(/'/g, "\\'")}')">
-                    <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
-                        <img src="${album.coverArt}" class="w-full h-full object-cover transition transform group-hover:scale-105">
-                        <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl">
-                            <i class="fas fa-play text-black text-lg ml-1"></i>
-                        </div>
-                    </div>
-                    <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
+                    <img src="${album.coverArt}" class="w-full aspect-square object-cover rounded shadow-lg mb-4">
+                    <div class="font-bold text-white truncate text-base">${album.albumName}</div>
                     <div class="text-sm text-zinc-400 truncate">${album.artistName}</div>
                 </div>
             `).join('');
@@ -712,145 +601,57 @@
         function openAlbumByName(name) {
             const album = libraryData.find(a => a.albumName === name);
             if (!album) return;
-            
+            renderCollection(album.albumName, album.songs.map(s => ({...s, cover: album.coverArt, artist: album.artistName, album: album.albumName})));
+        }
+
+        function renderCollection(title, songs, isPlaylist = false, idx = null) {
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('album-view').classList.remove('hidden');
             
+            const firstCover = songs.length > 0 ? songs[0].cover : "https://via.placeholder.com/300";
+            
             document.getElementById('album-hero').innerHTML = `
-                <img src="${album.coverArt}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
+                <img src="${firstCover}" class="w-48 h-48 shadow-2xl rounded-lg object-cover">
                 <div class="flex-1">
-                    <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
-                    <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
-                    <div class="flex items-center gap-2 text-sm font-bold">
-                        <span class="hover:underline cursor-pointer">${album.artistName}</span>
-                        <span class="text-zinc-400">• ${album.songs.length} songs</span>
-                    </div>
+                    <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${title}</h1>
+                    <span class="text-zinc-400">• ${songs.length} songs</span>
                 </div>`;
                 
             const listEl = document.getElementById('track-list');
-            listEl.innerHTML = '';
-            
-            album.songs.forEach((song, i) => {
-                const row = document.createElement('div');
-                row.className = "track-row group";
-                const isCurrent = currentSong && (currentSong.url === song.link);
-                if (isCurrent) row.classList.add('active-track');
-
-                row.onclick = () => playSpecificSong(song.link, song.name, album.albumName, album.artistName, album.coverArt);
-                row.oncontextmenu = (e) => handleContextMenu(e, {...song, album: album.albumName, artist: album.artistName, cover: album.coverArt});
-                
-                row.innerHTML = `
-                    <span class="text-zinc-400 group-hover:text-white text-center">${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}</span>
-                    <div class="flex flex-col">
-                        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
-                        <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
+            listEl.innerHTML = songs.map((song, i) => `
+                <div class="track-row group" onclick="playSpecificSong('${song.link || song.url}','${song.name || song.title}','${song.album}','${song.artist}','${song.cover}')">
+                    <span class="text-zinc-400 group-hover:text-white text-center">${i + 1}</span>
+                    <div class="flex flex-col truncate">
+                        <div class="text-white font-medium truncate">${(song.name || song.title).replace('.mp3', '')}</div>
+                        <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
                     </div>
-                    <span class="truncate hidden md:block">${album.albumName}</span>
+                    <span class="truncate hidden md:block">${song.album}</span>
                     <span class="hidden md:block">Just now</span>
-                    <span class="hidden md:block text-center">3:20</span>`;
-                listEl.appendChild(row);
-            });
-        }
-
-        /**
-         * ---------------------------------------------------------------------
-         * SEARCH LOGIC
-         * ---------------------------------------------------------------------
-         */
-        function handleSearch(query) {
-            const results = document.getElementById('search-results');
-            if (!query.trim()) {
-                results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
-                return;
-            }
-
-            const q = query.toLowerCase();
-            let matches = [];
-
-            libraryData.forEach(album => {
-                album.songs.forEach(song => {
-                    if (song.name.toLowerCase().includes(q) || album.artistName.toLowerCase().includes(q)) {
-                        matches.push({ ...song, album: album.albumName, artist: album.artistName, cover: album.coverArt });
-                    }
-                });
-            });
-
-            if (matches.length === 0) {
-                results.innerHTML = `<p class="text-zinc-500">No results found for "${query}"</p>`;
-                return;
-            }
-
-            results.innerHTML = matches.slice(0, 15).map(s => `
-                <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group" 
-                     onclick="playSpecificSong('${s.link}','${s.name}','${s.album}','${s.artist}','${s.cover}')">
-                    <img src="${s.cover}" class="w-12 h-12 rounded object-cover">
-                    <div class="flex-1 overflow-hidden">
-                        <div class="text-white font-bold truncate">${s.name.replace('.mp3','')}</div>
-                        <div class="text-sm text-zinc-400 truncate">${s.artist} • ${s.album}</div>
-                    </div>
-                    <i class="fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400"></i>
+                    <span class="hidden md:block text-center">--:--</span>
                 </div>
             `).join('');
         }
 
-        /**
-         * ---------------------------------------------------------------------
-         * PLAYER & AUDIO CONTROL
-         * ---------------------------------------------------------------------
-         */
         function playSpecificSong(url, title, album, artist, cover) {
             currentSong = { url, title, album, artist, cover };
             player.src = url;
             player.play();
-            // This updates the "Swipe Down" menu and Lock Screen metadata
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: title.replace('.mp3', ''),
-                    artist: artist,
-                    album: album,
-                    artwork: [{ src: cover, sizes: '512x512', type: 'image/png' }]
-                });
-            }
             
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
             
-            // UI Updates
             dock.classList.remove('dock-hidden');
             document.getElementById('p-cover').src = cover;
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
             
-            // Sidebars
-            if (window.innerWidth >= 1024) toggleRightSidebar(true);
             document.getElementById('right-cover').src = cover;
             document.getElementById('right-title').innerText = title.replace('.mp3', '');
             document.getElementById('right-artist').innerText = artist;
             
             updateHeartUI();
             addToHistory(album, artist, cover);
-            
-            // Refresh current track view list to show active green state
-            if (!document.getElementById('album-view').classList.contains('hidden')) {
-                const rows = document.querySelectorAll('.track-row');
-                rows.forEach(r => r.classList.remove('active-track'));
-            }
-        }
-
-function handleDockClick(e) {
-            // If the user clicks the play button or heart, don't open the full view
-            if (e.target.closest('i') || e.target.closest('.w-10')) return;
-            
-            // On mobile, this will toggle the right sidebar (Full Screen View)
-            if (window.innerWidth < 768) {
-                const rs = document.getElementById('right-sidebar');
-                rs.classList.remove('hidden', 'md:flex', 'sidebar-hidden');
-                // Added flex-direction:column to stack cover and text like your screenshot
-                rs.style.cssText = "position:fixed; inset:0; width:100%; max-width:100%; z-index:1000; background:#121212; padding:24px; display:flex; flex-direction:column;";
-            } else {
-                toggleRightSidebar(true);
-            }
         }
 
         function togglePlay() {
@@ -861,6 +662,16 @@ function handleDockClick(e) {
             } else {
                 player.pause();
                 document.getElementById('play-icon').className = "fas fa-play ml-1";
+            }
+        }
+
+        function checkDockVisibility() {
+            const oneHour = 3600000;
+            const isRecent = (Date.now() - lastPlayedTime < oneHour);
+            if ((!player.paused && currentSong) || isRecent) {
+                dock.classList.remove('dock-hidden');
+            } else {
+                dock.classList.add('dock-hidden');
             }
         }
 
@@ -885,22 +696,6 @@ function handleDockClick(e) {
             return `${m}:${sec < 10 ? '0' + sec : sec}`;
         }
 
-        /**
-         * ---------------------------------------------------------------------
-         * PERSISTENCE & UTILS
-         * ---------------------------------------------------------------------
-         */
-        function checkDockVisibility() {
-            const oneHour = 3600000;
-            const isRecent = (Date.now() - lastPlayedTime < oneHour);
-            // Show dock if song is active OR played within the last hour
-            if ((!player.paused && currentSong) || isRecent) {
-                dock.classList.remove('dock-hidden');
-            } else {
-                dock.classList.add('dock-hidden');
-            }
-        }
-
         function toggleRightSidebar(show) {
             rightSidebar.classList.toggle('sidebar-hidden', !show);
         }
@@ -908,7 +703,6 @@ function handleDockClick(e) {
         function initResizers() {
             const resizerL = document.getElementById('resizer-left');
             const sidebarL = document.getElementById('left-sidebar');
-            
             if (resizerL) {
                 resizerL.addEventListener('mousedown', (e) => {
                     const doDrag = (ev) => {
@@ -925,34 +719,15 @@ function handleDockClick(e) {
         }
 
         function initGlobalKeys() {
-            // Spacebar to play/pause
             window.addEventListener('keydown', (e) => {
                 if (e.code === "Space" && e.target.tagName !== 'INPUT') {
                     e.preventDefault();
                     togglePlay();
                 }
             });
-
-            // Handle Context Menu closing
             document.addEventListener('click', (e) => { 
                 if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none'; 
             });
-
-            // Prevent long-press context menu on mobile images (native feel)
-            document.querySelectorAll('img').forEach(img => {
-                img.addEventListener('touchstart', (e) => {
-                    if (e.touches.length > 1) e.preventDefault();
-                }, {passive: false});
-            });
-        }
-
-        // Context Menu & Playlists
-        function handleContextMenu(e, song) {
-            e.preventDefault();
-            menuTargetSong = song;
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
-            contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
         }
 
         function addToHistory(album, artist, cover) {
@@ -970,61 +745,21 @@ function handleDockClick(e) {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
                 div.onclick = () => openAlbumByName(h.album);
-                div.innerHTML = `
-                    <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
-                    <div class="truncate">
-                        <div class="text-sm font-bold text-white truncate">${h.album}</div>
-                        <div class="text-xs text-zinc-400">${h.artist}</div>
-                    </div>`;
+                div.innerHTML = `<img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover"><div class="truncate"><div class="text-sm font-bold text-white truncate">${h.album}</div><div class="text-xs text-zinc-400">${h.artist}</div></div>`;
                 container.appendChild(div);
             });
         }
 
-        function createNewPlaylist() {
-            const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
-            if (name && name.trim()) {
-                playlists.push({ name: name.trim(), songs: [] });
-                localStorage.setItem('playlists', JSON.stringify(playlists));
-                renderPlaylists();
-            }
-        }
-
         function renderPlaylists() {
             const list = document.getElementById('dynamic-playlists-list');
-            const sub = document.getElementById('playlist-submenu');
-            list.innerHTML = '';
-            sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
-
-            playlists.forEach((pl, i) => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
-                div.onclick = () => showView('playlist', i);
-                div.innerHTML = `
-                    <div class="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center">
-                        <i class="fas fa-music text-zinc-600"></i>
+            if (list) {
+                list.innerHTML = playlists.map((pl, i) => `
+                    <div onclick="showView('playlist', ${i})" class="flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer">
+                        <div class="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>
+                        <div class="truncate"><div class="text-sm font-bold truncate">${pl.name}</div><div class="text-xs text-zinc-400">${pl.songs.length} songs</div></div>
                     </div>
-                    <div class="flex-1 truncate">
-                        <div class="text-sm font-bold truncate">${pl.name}</div>
-                        <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
-                    </div>
-                `;
-                list.appendChild(div);
-
-                const item = document.createElement('div');
-                item.className = "menu-item";
-                item.innerText = pl.name;
-                item.onclick = () => {
-                    const s = menuTargetSong;
-                    playlists[i].songs.push({
-                        url: s.link || s.url, title: s.name || s.title,
-                        album: s.album, artist: s.artist, cover: s.cover || s.coverArt
-                    });
-                    localStorage.setItem('playlists', JSON.stringify(playlists));
-                    renderPlaylists();
-                    contextMenu.style.display = 'none';
-                };
-                sub.appendChild(item);
-            });
+                `).join('');
+            }
         }
 
         function updateCounts() {
@@ -1048,7 +783,6 @@ function handleDockClick(e) {
             updateHeartUI();
         }
 
-        // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
 
     </script>
