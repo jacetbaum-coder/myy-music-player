@@ -390,6 +390,29 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     align-items: center;
   }
+/* MOBILE DOCK: keep only left info + ONE play/pause button */
+@media (max-width: 768px) {
+  /* Hide the desktop middle + right dock columns on mobile */
+  .player-bar > div:nth-child(2),
+  .player-bar > div:nth-child(3) {
+    display: none !important;
+  }
+
+  /* Show the mobile-only play button */
+  #mobile-play-btn {
+    display: inline-flex !important;
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Hide heart on mobile */
+  #dock-heart {
+    display: none !important;
+  }
+}
 
   /* hide the entire right-side desktop icons area (3rd column block) */
   .player-bar > div:nth-child(3) {
@@ -663,14 +686,6 @@
     <i id="mobile-play-icon" class="fas fa-play text-white text-xl"></i>
   </button>
 </div>
-
-            <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
-            <div class="overflow-hidden">
-                <div id="p-title" class="font-bold text-sm text-white truncate hover:underline cursor-pointer"></div>
-                <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white cursor-pointer"></div>
-            </div>
-            <i id="dock-heart" onclick="toggleLike()" class="far fa-heart ml-2 text-zinc-400 hover:text-white cursor-pointer"></i>
-        </div>
         
         <div class="flex flex-col items-center gap-3">
             <div class="flex items-center gap-6 text-zinc-400">
@@ -1124,6 +1139,10 @@ matches.sort((a, b) => b._score - a._score);
             document.getElementById('p-title').innerText = title.replace('.mp3', '');
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
+
+const mIcon = document.getElementById('mobile-play-icon');
+if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
+
             
             // Sidebars
             if (window.innerWidth >= 1024) toggleRightSidebar(true);
@@ -1142,16 +1161,22 @@ matches.sort((a, b) => b._score - a._score);
         }
 
 function togglePlay() {
-    if (!currentSong) return;
+  if (!currentSong) return;
 
-    if (player.paused) {
-        player.play();
-        document.getElementById('play-icon').className = "fas fa-pause";
-    } else {
-        player.pause();
-        document.getElementById('play-icon').className = "fas fa-play ml-1";
-    }
+  const desktopIcon = document.getElementById('play-icon');
+  const mobileIcon = document.getElementById('mobile-play-icon');
+
+  if (player.paused) {
+    player.play();
+    if (desktopIcon) desktopIcon.className = "fas fa-pause";
+    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+  } else {
+    player.pause();
+    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
+    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+  }
 }
+
 
 /* -----------------------
    PROGRESS BAR SEEKING
