@@ -536,6 +536,13 @@
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
+        // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
+playlists = playlists.map(pl => ({
+  ...pl,
+  id: pl.id || crypto.randomUUID()
+}));
+localStorage.setItem('playlists', JSON.stringify(playlists));
+
         let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
         // Elements
@@ -603,6 +610,7 @@ if (volumeContainer) {
         window.onload = async () => {
             setGreeting();
             renderHistory();
+            ensurePlaylistIds();
             renderPlaylists();
             updateCounts();
             checkDockVisibility();
@@ -641,33 +649,38 @@ if (volumeContainer) {
          * CORE NAVIGATION LOGIC
          * ---------------------------------------------------------------------
          */
+        let activePlaylistId = null;
         function showView(viewType, playlistIndex = null) {
-            // Hide all
-            ['grid-view', 'album-view', 'search-view'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
+  // Hide all
+  ['grid-view', 'album-view', 'search-view'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
 
-            activePlaylistIndex = playlistIndex;
-            const scrollArea = document.getElementById('main-scroll-area');
-            scrollArea.scrollTop = 0;
+  activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
 
-            if (viewType === 'home') {
-                document.getElementById('grid-view').classList.remove('hidden');
-                renderGrid(libraryData);
-            } else if (viewType === 'search') {
-                document.getElementById('search-view').classList.remove('hidden');
-                document.getElementById('global-search').focus();
-            } else if (viewType === 'liked') {
-                document.getElementById('album-view').classList.remove('hidden');
-                renderCollection("Liked Songs", likedSongs);
-            } else if (viewType === 'playlist') {
-                document.getElementById('album-view').classList.remove('hidden');
-                const pl = playlists[playlistIndex];
-                renderCollection(pl.name, pl.songs, true, playlistIndex);
-            }
+  const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
 
-            updateActiveStates(viewType);
-        }
+  if (viewType === 'home') {
+    document.getElementById('grid-view').classList.remove('hidden');
+    renderGrid(libraryData);
+  } else if (viewType === 'search') {
+    document.getElementById('search-view').classList.remove('hidden');
+    document.getElementById('global-search').focus();
+  } else if (viewType === 'liked') {
+    document.getElementById('album-view').classList.remove('hidden');
+    renderCollection("Liked Songs", likedSongs);
+  } else if (viewType === 'playlist') {
+    document.getElementById('album-view').classList.remove('hidden');
+    const pl = playlists[playlistIndex];
+    activePlaylistId = pl?.id || null;
+    renderCollection(pl.name, pl.songs, true, playlistIndex);
+  }
+
+  updateActiveStates(viewType);
+}
+
 
         function updateActiveStates(viewType) {
             // Mobile Nav
@@ -1080,11 +1093,132 @@ function checkDockVisibility() {
         function createNewPlaylist() {
             const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
             if (name && name.trim()) {
-                playlists.push({ name: name.trim(), songs: [] });
+                playlists.push({ id: crypto.randomUUID(), name: name.trim(), songs: [] });
                 localStorage.setItem('playlists', JSON.stringify(playlists));
                 renderPlaylists();
             }
         }
+// ---------------- PINNED PLAYLISTS ----------------
+function loadPinnedPlaylists() {
+  try { return JSON.parse(localStorage.getItem('pinnedPlaylists') || "[]"); }
+  catch { return []; }
+}
+function savePinnedPlaylists(ids) {
+  localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
+}
+
+function isPinnedPlaylist(id) {
+  return loadPinnedPlaylists().includes(id);
+}
+
+function pinPlaylist(id) {
+  const pinned = loadPinnedPlaylists();
+  if (pinned.includes(id)) return;
+
+  if (pinned.length >= 4) {
+    alert("You can only pin 4 playlists max.");
+    return;
+  }
+  pinned.unshift(id);
+  savePinnedPlaylists(pinned);
+  renderPlaylists();
+}
+
+function unpinPlaylist(id) {
+  const pinned = loadPinnedPlaylists().filter(x => x !== id);
+  savePinnedPlaylists(pinned);
+  renderPlaylists();
+}
+
+function ensurePlaylistIds() {
+  let changed = false;
+  playlists.forEach(pl => {
+    if (!pl.id) { pl.id = crypto.randomUUID(); changed = true; }
+  });
+  if (changed) savePlaylists();
+}
+
+// Menu plumbing
+let playlistMenuTargetId = null;
+
+function hidePlaylistMenu() {
+  const m = document.getElementById('playlist-menu');
+  if (m) m.classList.add('hidden');
+  playlistMenuTargetId = null;
+}
+
+function showPlaylistMenuAt(x, y, playlistId) {
+  const m = document.getElementById('playlist-menu');
+  if (!m) return;
+
+  playlistMenuTargetId = playlistId;
+
+  const pinBtn = document.getElementById('pm-pin');
+  const unpinBtn = document.getElementById('pm-unpin');
+
+  const pinned = isPinnedPlaylist(playlistId);
+  pinBtn.classList.toggle('hidden', pinned);
+  unpinBtn.classList.toggle('hidden', !pinned);
+
+  m.style.left = x + "px";
+  m.style.top = y + "px";
+  m.classList.remove('hidden');
+}
+
+function attachPlaylistPressHandlers(el, playlistId) {
+  if (!el) return;
+
+  // Desktop: right-click
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    hideAnyOtherMenus?.(); // if you have something like this; safe if not
+    showPlaylistMenuAt(e.clientX, e.clientY, playlistId);
+  });
+
+  // Mobile: press-and-hold (long press)
+  let pressTimer = null;
+  el.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const t = e.touches[0];
+    pressTimer = setTimeout(() => {
+      showPlaylistMenuAt(t.clientX, t.clientY, playlistId);
+    }, 500);
+  }, { passive: true });
+
+  const cancel = () => { if (pressTimer) clearTimeout(pressTimer); pressTimer = null; };
+  el.addEventListener('touchend', cancel, { passive: true });
+  el.addEventListener('touchmove', cancel, { passive: true });
+}
+
+// Menu buttons + outside click
+(function initPlaylistMenuOnce() {
+  const pinBtn = document.getElementById('pm-pin');
+  const unpinBtn = document.getElementById('pm-unpin');
+
+  if (pinBtn) {
+    pinBtn.onclick = () => {
+      if (!playlistMenuTargetId) return;
+      pinPlaylist(playlistMenuTargetId);
+      hidePlaylistMenu();
+    };
+  }
+
+  if (unpinBtn) {
+    unpinBtn.onclick = () => {
+      if (!playlistMenuTargetId) return;
+      unpinPlaylist(playlistMenuTargetId);
+      hidePlaylistMenu();
+    };
+  }
+
+  window.addEventListener('click', (e) => {
+    const m = document.getElementById('playlist-menu');
+    if (!m) return;
+    if (!m.classList.contains('hidden') && !m.contains(e.target)) hidePlaylistMenu();
+  });
+
+  window.addEventListener('scroll', hidePlaylistMenu, true);
+})();
 
         function renderPlaylists() {
             const list = document.getElementById('dynamic-playlists-list');
@@ -1303,6 +1437,12 @@ function renderCollection(name, songs, isPlaylist = false) {
     </div>
   `;
 
+const hero = document.getElementById('album-hero');
+if (hero && activePlaylistId) {
+    attachPlaylistPressHandlers(hero, activePlaylistId);
+}
+
+
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
@@ -1397,5 +1537,11 @@ player.addEventListener('ended', () => {
         setInterval(checkDockVisibility, 30000);
 
     </script>
+    <!-- PLAYLIST PIN MENU -->
+<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[220px]">
+  <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
+  <button id="pm-unpin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Unpin playlist</button>
+</div>
+
 </body>
 </html>
