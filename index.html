@@ -417,7 +417,12 @@
                     <button id="hero-play-btn" class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
                         <i class="fas fa-play text-black text-xl ml-1"></i>
                     </button>
-                    <i class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"></i>
+                    <button id="hero-more-btn"
+        class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"
+        onclick="openPlaylistPinMenuFromHero(event)"
+        aria-label="Playlist options">
+</button>
+
                 </div>
 
                 <div class="track-row track-header">
@@ -1219,6 +1224,21 @@ function showPlaylistMenuAt(x, y, playlistId) {
   m.style.left = x + "px";
   m.style.top = y + "px";
   m.classList.remove('hidden');
+}
+function openPlaylistPinMenuFromHero(e) {
+  // Only works when you're inside a playlist view
+  if (!activePlaylistId) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const btn = e.currentTarget || document.getElementById('hero-more-btn');
+  if (!btn) return;
+
+  const rect = btn.getBoundingClientRect();
+
+  // Open menu just under the 3 dots
+  showPlaylistMenuAt(rect.left, rect.bottom + 8, activePlaylistId);
 }
 
 function attachPlaylistPressHandlers(el, playlistId) {
