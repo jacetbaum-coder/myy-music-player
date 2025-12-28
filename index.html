@@ -248,60 +248,18 @@
 
         /* --- MEDIA QUERIES --- */
         @media (max-width: 768px) {
-            /* Hide Desktop Elements */
             .sidebar, .resizer, .right-sidebar { display: none !important; }
-            
-            /* Show Mobile Navigation */
-            .mobile-nav { 
-                display: flex; 
-                background: rgba(0,0,0,0.95);
-                backdrop-filter: blur(15px);
-            }
+            .mobile-nav { display: flex; }
             
             .main-view { 
                 padding: 16px; 
-                padding-bottom: 180px; /* Extra room for mobile player + nav */
-                background: linear-gradient(180deg, #1a1a1a 0%, #000 100%);
+                padding-bottom: 160px; /* Space for dock + nav */
             }
 
-            /* Simplified Track Rows for Mobile */
             .track-row { 
                 grid-template-columns: 1fr 40px; 
-                padding: 16px 8px; /* Larger touch target */
-                border-bottom: 1px solid rgba(255,255,255,0.05);
+                padding: 14px 8px;
             }
-            .track-row span:nth-child(1),
-            .track-row span:nth-child(3), 
-            .track-row span:nth-child(4), 
-            .track-row span:nth-child(5) { display: none; }
-
-            /* Floating Pill-Style Mini-Player */
-            .player-bar { 
-                position: fixed;
-                bottom: calc(var(--nav-height) + 10px); /* Sits above bottom nav */
-                left: 10px;
-                right: 10px;
-                height: 60px;
-                background: #282828;
-                border-radius: 8px;
-                border: none;
-                grid-template-columns: 1fr auto auto;
-                padding: 0 12px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-                width: auto;
-            }
-
-            /* Hide progress bar and volume on mobile mini-player to keep it clean */
-            .player-bar .flex-col, .player-bar .justify-end { display: none; } 
-            
-            /* Ensure the song info and play button show */
-            .player-bar > div:first-child { display: flex !important; width: 100%; }
-            #mobile-play-btn { display: block; color: white; font-size: 20px; margin-left: 15px; }
-
-            #album-hero { flex-direction: column; align-items: center; text-align: center; }
-            #album-hero h1 { font-size: 2.2rem; line-height: 1; }
-            #album-hero img { width: 200px; height: 200px; }
-        }
             .track-row span:nth-child(1),
             .track-row span:nth-child(3), 
             .track-row span:nth-child(4), 
@@ -489,7 +447,6 @@
     </nav>
 
     <div id="main-dock" class="player-bar dock-hidden">
-        <i id="mobile-play-btn" class="fas fa-play md:hidden" onclick="togglePlay()"></i>
         <div class="flex items-center gap-4 overflow-hidden">
             <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
             <div class="overflow-hidden">
@@ -826,8 +783,7 @@
         function checkDockVisibility() {
             const oneHour = 3600000;
             const isRecent = (Date.now() - lastPlayedTime < oneHour);
-            // Show dock if song is active OR played within the last hour
-            if ((!player.paused && currentSong) || isRecent) {
+            if (isRecent || !player.paused) {
                 dock.classList.remove('dock-hidden');
             } else {
                 dock.classList.add('dock-hidden');
@@ -858,24 +814,14 @@
         }
 
         function initGlobalKeys() {
-            // Spacebar to play/pause
             window.addEventListener('keydown', (e) => {
                 if (e.code === "Space" && e.target.tagName !== 'INPUT') {
                     e.preventDefault();
                     togglePlay();
                 }
             });
-
-            // Handle Context Menu closing
             document.addEventListener('click', (e) => { 
                 if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none'; 
-            });
-
-            // Prevent long-press context menu on mobile images (native feel)
-            document.querySelectorAll('img').forEach(img => {
-                img.addEventListener('touchstart', (e) => {
-                    if (e.touches.length > 1) e.preventDefault();
-                }, {passive: false});
             });
         }
 
