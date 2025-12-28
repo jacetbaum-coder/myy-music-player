@@ -540,7 +540,13 @@
         // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
-        let playlists = JSON.parse(localStorage.getItem('playlists')) || []
+        let playlists = [];
+        try {
+            const storedPlaylists = JSON.parse(localStorage.getItem('playlists')) || [];
+            playlists = Array.isArray(storedPlaylists) ? storedPlaylists : [];
+        } catch (e) {
+            playlists = [];
+        }
         let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
         // Elements
@@ -1111,7 +1117,7 @@ function checkDockVisibility() {
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
 
-                 if (h.type === 'playlist' && h.id) {
+                if (h.type === 'playlist' && h.id) {
                     const idx = playlists.findIndex(pl => pl.id === h.id);
                     div.onclick = () => {
                         if (idx !== -1) showView('playlist', idx);
@@ -1186,9 +1192,27 @@ function unpinPlaylist(id) {
 
 function ensurePlaylistIds() {
   let changed = false;
-  playlists.forEach(pl => {
-    if (!pl.id) { pl.id = crypto.randomUUID(); changed = true; }
-  });
+  const originalLength = playlists.length;
+  playlists = playlists
+    .filter(pl => pl && typeof pl === 'object')
+    .map(pl => {
+      const normalized = {
+        id: pl.id,
+        name: pl.name || 'Untitled Playlist',
+        songs: Array.isArray(pl.songs) ? pl.songs : []
+      };
+      if (!normalized.id) {
+        normalized.id = crypto.randomUUID();
+        changed = true;
+      }
+      if (normalized.name !== pl.name || normalized.songs !== pl.songs) {
+        changed = true;
+      }
+      return normalized;
+    });
+  if (playlists.length !== originalLength) {
+    changed = true;
+  }
   if (changed) savePlaylists();
 }
 function savePlaylists() {
@@ -1231,7 +1255,7 @@ function showPlaylistMenuAt(x, y, playlistId) {
   unpinBtn.classList.toggle('hidden', !pinned);
 
   m.classList.remove('hidden');
-    const menuWidth = m.offsetWidth || 220;
+  const menuWidth = m.offsetWidth || 220;
   const menuHeight = m.offsetHeight || 120;
   const padding = 12;
   const left = Math.min(Math.max(padding, x), window.innerWidth - menuWidth - padding);
