@@ -879,37 +879,38 @@ function onScrubMove(clientX) {
 }
 
 const progressBar = document.getElementById('progress-container');
-let isScrubbing = false;
-
-function getClientX(e) {
-  if (e.touches && e.touches[0]) return e.touches[0].clientX;
-  if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
-  return e.clientX;
-}
 
 if (progressBar) {
-  // Tap/click anywhere = jump there immediately
-  progressBar.addEventListener('click', (e) => {
-    seekToClientX(getClientX(e));
-  });
+    // Mouse
+    progressBar.addEventListener('mousedown', (e) => {
+        isScrubbing = true;
+        onScrubMove(e.clientX);
+    });
 
-  // Drag/scrub (works for mouse + touch + trackpad)
-  progressBar.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    isScrubbing = true;
-    seekToClientX(getClientX(e));
-  });
+    window.addEventListener('mousemove', (e) => {
+        if (!isScrubbing) return;
+        onScrubMove(e.clientX);
+    });
 
-  window.addEventListener('pointermove', (e) => {
-    if (!isScrubbing) return;
-    seekToClientX(getClientX(e));
-  });
+    window.addEventListener('mouseup', () => {
+        isScrubbing = false;
+    });
 
-  window.addEventListener('pointerup', () => {
-    isScrubbing = false;
-  });
+    // Touch
+    progressBar.addEventListener('touchstart', (e) => {
+        isScrubbing = true;
+        onScrubMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!isScrubbing) return;
+        onScrubMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        isScrubbing = false;
+    });
 }
-
 
 // Keep the fill + time text updated
 player.addEventListener('timeupdate', () => {
