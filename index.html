@@ -18,6 +18,14 @@
             --nav-height: 70px;
             --player-height: 90px;
         }
+        /* Desktop: allow full track titles */
+@media (min-width: 769px) {
+    .track-title {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
+}
 
         * {
             box-sizing: border-box;
@@ -738,7 +746,10 @@ function openAlbumByName(name) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.name.replace('.mp3', '')}</div>
+        <div class="text-white font-medium track-title">
+    ${stripArtistPrefix(song.title.replace('.mp3', ''), song.artist)}
+</div>
+
         <div class="text-xs text-zinc-400 md:hidden">${album.artistName}</div>
       </div>
       <span class="truncate hidden md:block">${album.albumName}</span>
@@ -1219,6 +1230,26 @@ function playQueue(queue, startIndex = 0) {
   const s = currentQueue[currentIndex];
   playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
+function stripArtistPrefix(title, artist) {
+    if (!title || !artist) return title;
+
+    const t = title.toLowerCase();
+    const a = artist.toLowerCase();
+
+    const prefixes = [
+        `${a} - `,
+        `${a} – `,
+        `${a}: `
+    ];
+
+    for (const p of prefixes) {
+        if (t.startsWith(p)) {
+            return title.slice(p.length);
+        }
+    }
+
+    return title;
+}
 
 
 function renderCollection(name, songs, isPlaylist = false) {
@@ -1271,7 +1302,10 @@ function renderCollection(name, songs, isPlaylist = false) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+        <div class="text-white font-medium track-title">
+    ${stripArtistPrefix(song.title.replace('.mp3', ''), song.artist)}
+</div>
+
         <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
