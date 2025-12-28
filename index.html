@@ -877,16 +877,16 @@ function formatTime(s) {
     return `${m}:${sec < 10 ? '0' + sec : sec}`;
 }
 
-         */
-        function checkDockVisibility() {
-            const oneHour = 3600000;
-            const isRecent = (Date.now() - lastPlayedTime < oneHour);
-            if (isRecent || !player.paused) {
-                dock.classList.remove('dock-hidden');
-            } else {
-                dock.classList.add('dock-hidden');
-            }
-        }
+function checkDockVisibility() {
+    const oneHour = 3600000;
+    const isRecent = (Date.now() - lastPlayedTime < oneHour);
+    if (isRecent || !player.paused) {
+        dock.classList.remove('dock-hidden');
+    } else {
+        dock.classList.add('dock-hidden');
+    }
+}
+
 
         function toggleRightSidebar(show) {
             rightSidebar.classList.toggle('sidebar-hidden', !show);
