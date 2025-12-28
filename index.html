@@ -444,81 +444,64 @@
   <div id="home-recents" class="home-recents hidden"></div>
 
   <!-- ALBUMS HEADER (where Spotify has “Your top mixes”) -->
-  <div class="home-section-header">
-    <h2 class="text-2xl font-black">Albums</h2>
-  </div>
-
-  <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+<div class="home-section-header">
+  <h2 class="text-2xl font-black">Albums</h2>
 </div>
 
-                <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
-            </div>
+<div id="album-grid"
+     class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+</div>
+</div> <!-- END grid-view -->
 
-            <div id="search-view" class="hidden">
-                <h1 class="text-3xl font-black mb-6">Search</h1>
-                <div class="search-container">
-                <button type="button" class="search-clear" onclick="exitSearch()" aria-label="Back to home">
-                    <i class="fas fa-times"></i>
-                </button>
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="global-search" class="search-input" placeholder="What do you want to listen to?" oninput="handleSearch(this.value)">
-                </div>
-                <div id="search-results" class="space-y-2">
-                    <p class="text-zinc-500">Start typing to search your cloud library...</p>
-                </div>
-            </div>
 
-            <div id="album-view" class="hidden">
-                <button onclick="showView('home')" class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
-                    <i class="fas fa-arrow-left text-white"></i>
-                </button>
-                <div id="album-hero" class="flex items-end gap-6 mb-10"></div>
-                
-                <div class="flex items-center gap-8 mb-8">
-                    <button id="hero-play-btn" class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
-                        <i class="fas fa-play text-black text-xl ml-1"></i>
-                    </button>
-                    <button id="hero-more-btn"
-        class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"
-        onclick="openPlaylistPinMenuFromHero(event)"
-        aria-label="Playlist options">
-</button>
+<div id="search-view" class="hidden">
+  <h1 class="text-3xl font-black mb-6">Search</h1>
+  <div class="search-container">
+    <button type="button" class="search-clear" onclick="exitSearch()" aria-label="Back to home">
+      <i class="fas fa-times"></i>
+    </button>
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" id="global-search" class="search-input"
+           placeholder="What do you want to listen to?"
+           oninput="handleSearch(this.value)">
+  </div>
+  <div id="search-results" class="space-y-2">
+    <p class="text-zinc-500">Start typing to search your cloud library...</p>
+  </div>
+</div>
 
-                </div>
+<div id="album-view" class="hidden">
+  <button onclick="showView('home')"
+          class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
+    <i class="fas fa-arrow-left text-white"></i>
+  </button>
 
-                <div class="track-row track-header">
-                    <span>#</span>
-                    <span>Title</span>
-                    <span class="hidden md:block">Album</span>
-                    <span class="hidden md:block">Date Added</span>
-                    <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
-                </div>
-                <div id="track-list" class="space-y-1"></div>
-            </div>
-        </main>
+  <div id="album-hero" class="flex items-end gap-6 mb-10"></div>
 
-        <div id="resizer-right" class="resizer hidden md:block"></div>
+  <div class="flex items-center gap-8 mb-8">
+    <button id="hero-play-btn"
+            class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
+      <i class="fas fa-play text-black text-xl ml-1"></i>
+    </button>
 
-        <aside id="right-sidebar" class="right-sidebar hidden md:flex sidebar-hidden">
-            <div class="flex justify-between items-center mb-6">
-                <span class="font-bold text-sm">Now Playing Info</span>
-                <i class="fas fa-times text-zinc-400 hover:text-white cursor-pointer p-1" onclick="toggleRightSidebar(false)"></i>
-            </div>
-            <img id="right-cover" class="w-full aspect-square rounded-xl shadow-2xl mb-6 bg-zinc-800 object-cover">
-            <h2 id="right-title" class="text-2xl font-bold truncate mb-1"></h2>
-            <p id="right-artist" class="text-zinc-400 font-medium mb-8"></p>
-            
-            <div class="bg-zinc-900/50 rounded-xl p-5 border border-white/5">
-                <div class="flex justify-between items-center mb-4">
-                    <p class="text-xs font-bold uppercase tracking-widest text-zinc-400">Artist Profile</p>
-                    <button class="text-xs font-bold border border-zinc-500 px-3 py-1 rounded-full hover:border-white transition">Follow</button>
-                </div>
-                <p id="right-bio" class="text-sm text-zinc-300 leading-relaxed">
-                    Cloud Metadata: This artist's info is being pulled from your library tags.
-                </p>
-            </div>
-        </aside>
-    </div>
+    <button id="hero-more-btn"
+            class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"
+            onclick="openPlaylistPinMenuFromHero(event)"
+            aria-label="Playlist options">
+    </button>
+  </div>
+
+  <div class="track-row track-header">
+    <span>#</span>
+    <span>Title</span>
+    <span class="hidden md:block">Album</span>
+    <span class="hidden md:block">Date Added</span>
+    <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
+  </div>
+
+  <div id="track-list" class="space-y-1"></div>
+</div>
+
 
     <nav class="mobile-nav">
         <div class="nav-item active" id="nav-home" onclick="showView('home')">
@@ -896,16 +879,39 @@ function openAlbumByName(name) {
                 return;
             }
 
-            const q = query.toLowerCase();
-            let matches = [];
+            const q = query.trim();
+let matches = [];
 
-            libraryData.forEach(album => {
-                album.songs.forEach(song => {
-                    if (song.name.toLowerCase().includes(q) || album.artistName.toLowerCase().includes(q)) {
-                        matches.push({ ...song, album: album.albumName, artist: album.artistName, cover: album.coverArt });
-                    }
-                });
-            });
+libraryData.forEach(album => {
+  const albumName = album.albumName || '';
+  const artistName = album.artistName || '';
+
+  album.songs.forEach(song => {
+    const songName = song.name || '';
+
+    // score against multiple fields
+    const s1 = fuzzyScore(q, songName);
+    const s2 = fuzzyScore(q, artistName);
+    const s3 = fuzzyScore(q, albumName);
+
+    const score = Math.max(s1, s2 * 0.9, s3 * 0.85);
+
+    // threshold: allow typos but avoid pure noise
+    if (score > 60) {
+      matches.push({
+        ...song,
+        album: albumName,
+        artist: artistName,
+        cover: album.coverArt,
+        _score: score
+      });
+    }
+  });
+});
+
+// best first
+matches.sort((a, b) => b._score - a._score);
+
 
             if (matches.length === 0) {
                 results.innerHTML = `<p class="text-zinc-500">No results found for "${query}"</p>`;
@@ -914,7 +920,7 @@ function openAlbumByName(name) {
 
              results.innerHTML = '';
 
-            matches.slice(0, 15).forEach((s) => {
+            matches.slice(0, 25).forEach((s) => {
                 const row = document.createElement('div');
                 row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
                 row.addEventListener('click', () => {
@@ -1352,7 +1358,9 @@ function attachPlaylistPressHandlers(el, playlistId) {
   // Desktop: right-click
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    hideAnyOtherMenus?.(); // if you have something like this; safe if not
+    try { hidePlaylistMenu(); } catch (e) {}
+try { contextMenu.style.display = 'none'; } catch (e) {}
+
     showPlaylistMenuAt(e.clientX, e.clientY, playlistId);
   });
 
