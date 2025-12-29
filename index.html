@@ -831,18 +831,66 @@ img {
             </div>
 
             <div id="home-view" class="hidden">
-  <!-- Mobile Home is intentionally blank for now -->
+
+  <!-- Spotify-like top tabs (not functional yet) -->
+  <div class="flex items-center gap-3 mb-5">
+    <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+      <i class="fas fa-user text-white/70"></i>
+    </div>
+
+    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+    </div>
+  </div>
+
+  <!-- 8 "recently listened" rectangles -->
+  <div id="home-recent-grid"
+       class="grid grid-cols-2 gap-3 mb-8">
+  </div>
+
+  <!-- Recently added -->
+  <div class="mt-2">
+    <h2 class="text-3xl font-black mb-4">Recently added</h2>
+
+    <div id="home-recently-added"
+         class="flex gap-4 overflow-x-auto pb-2">
+    </div>
+  </div>
+
 </div>
+
 
 <div id="grid-view" class="hidden">
 
-  <div class="flex items-center justify-between mb-6">
-    <h1 id="greeting-text" class="text-3xl font-black">Good evening</h1>
-    <div class="flex gap-2">
-      <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-left"></i></button>
-      <button class="bg-black/20 p-2 rounded-full hover:bg-black/40"><i class="fas fa-chevron-right"></i></button>
+    <!-- DESKTOP Home header (Spotify-ish) -->
+  <div id="desktop-home-header" class="hidden md:block mb-10">
+
+    <!-- Top tabs (not functional yet) -->
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+        <i class="fas fa-user text-white/70"></i>
+      </div>
+
+      <div class="flex gap-2 overflow-x-auto">
+        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+      </div>
     </div>
+
+    <!-- 8 recently listened rectangles -->
+    <div id="desktop-recent-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10"></div>
+
+    <!-- Recently added -->
+    <h2 class="text-3xl font-black mb-4">Recently added</h2>
+    <div id="desktop-recently-added" class="flex gap-5 overflow-x-auto pb-3"></div>
+
   </div>
+
 
   <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
   <div id="mobile-recent-section" class="mb-8 md:hidden">
@@ -1121,7 +1169,8 @@ img {
          * GLOBAL APP STATE
          * ---------------------------------------------------------------------
          */
-        let libraryData = [];
+                let libraryData = [];
+        let libraryDataOriginal = [];
         let currentSong = null;
         let currentQueue = [];
 let currentIndex = -1;
@@ -1488,17 +1537,22 @@ initSwipeBack();
                 if (!response.ok) {
                     throw new Error(`Request failed with status ${response.status}`);
                 }
-                libraryData = await response.json();
+                                libraryData = await response.json();
 
                 if (!Array.isArray(libraryData)) {
                     throw new Error('Invalid library response');
                 }
+
+                // Keep original order for "Recently added"
+                libraryDataOriginal = libraryData.slice();
             
-                // Sort library alphabetically by album
+                // Sort library alphabetically by album (Library grid)
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+
                 
-                document.getElementById('loading').classList.add('hidden');
+                                document.getElementById('loading').classList.add('hidden');
                 showView('home');
+                try { renderHome(); } catch (e) {}
             } catch (error) {
                 console.error("Fetch error:", error);
                 document.getElementById('loading').innerHTML = `
@@ -1693,15 +1747,17 @@ else if (viewType === 'playlist') {
 const scrollArea = document.getElementById('main-scroll-area');
   scrollArea.scrollTop = 0;
 
-    if (viewType === 'home') {
-    // MOBILE: Home is blank for now
+        if (viewType === 'home') {
+    // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
       document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
     } else {
-      // DESKTOP: keep your existing Home behavior
+      // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
       renderGrid(libraryData);
       renderHistory();
+      try { renderHome(); } catch (e) {}
     }
   }
 
@@ -2890,7 +2946,7 @@ function checkDockVisibility() {
   contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
 }
 
-        function addToHistory(album, artist, cover) {
+               function addToHistory(album, artist, cover) {
              const playlistMatch = activePlaylistId
                 ? playlists.find(pl => pl.id === activePlaylistId)
                 : null;
@@ -2910,7 +2966,115 @@ function checkDockVisibility() {
 
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 8)));
             renderHistory();
+
+            // Keep Home tiles synced
+            try { renderHome(); } catch (e) {}
         }
+
+        // -----------------------
+        // HOME RENDERING (Mobile Home + Desktop Home)
+        // -----------------------
+
+        function getHistoryItemsForHome() {
+          return Array.isArray(history) ? history.slice(0, 8) : [];
+        }
+
+        function getRecentlyAddedAlbums(limit = 12) {
+          const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
+            ? libraryDataOriginal
+            : (Array.isArray(libraryData) ? libraryData : []);
+
+          // last items are "most recently added"
+          return src.slice(-limit).reverse();
+        }
+
+        function renderHomeRecents(containerId) {
+          const grid = document.getElementById(containerId);
+          if (!grid) return;
+
+          const items = getHistoryItemsForHome();
+
+          if (!items.length) {
+            grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
+            return;
+          }
+
+          grid.innerHTML = items.map(h => {
+            const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
+            const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
+            const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+            const safeId = String(h.id || '').replace(/"/g,'&quot;');
+
+            return `
+              <div class="mobile-recent-card"
+                   data-type="${h.type}"
+                   data-id="${safeId}"
+                   data-album="${safeAlbum}">
+                <img src="${h.cover || ''}" alt="">
+                <div class="min-w-0">
+                  <div class="title">${title}</div>
+                  <div class="sub">${sub}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
+            card.addEventListener('click', () => {
+              const type = card.getAttribute('data-type');
+              if (type === 'playlist') {
+                const id = card.getAttribute('data-id');
+                const idx = playlists.findIndex(pl => pl.id === id);
+                if (idx !== -1) showView('playlist', idx);
+              } else {
+                const album = card.getAttribute('data-album');
+                if (album) openAlbumByName(album);
+              }
+            });
+          });
+        }
+
+        function renderHomeRecentlyAdded(containerId) {
+          const row = document.getElementById(containerId);
+          if (!row) return;
+
+          const albums = getRecentlyAddedAlbums(12);
+
+          if (!albums.length) {
+            row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
+            return;
+          }
+
+          row.innerHTML = albums.map(a => {
+            const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
+            const safeName = String(a.albumName || '').replace(/'/g, "\\'");
+            return `
+              <div class="min-w-[160px] max-w-[160px] cursor-pointer"
+                   onclick="openAlbumByName('${safeName}')">
+                <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
+                  <img src="${cover}" class="w-full h-full object-cover" alt="">
+                </div>
+                <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
+                <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        function renderHome() {
+          // Mobile Home
+          if (window.innerWidth <= 768) {
+            renderHomeRecents('home-recent-grid');
+            renderHomeRecentlyAdded('home-recently-added');
+            return;
+          }
+
+          // Desktop Home (inside grid-view header)
+          renderHomeRecents('desktop-recent-grid');
+          renderHomeRecentlyAdded('desktop-recently-added');
+        }
+
+        function renderHistory() {
 
         function renderHistory() {
   // Sidebar container (desktop)
