@@ -228,22 +228,51 @@
 }
 
         .progress-bar-container {
-            height: 4px;
-            width: 100%;
-            background: #4f4f4f;
-            border-radius: 2px;
-            position: relative;
-            cursor: pointer;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: #fff;
-            border-radius: 2px;
-            width: 0%;
-        }
-        .progress-bar-container:hover .progress-bar-fill {
-            background: var(--spotify-green);
-        }
+  height: 4px;
+  width: 100%;
+  background: #4f4f4f;
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Bigger invisible hitbox so you can grab it (desktop + mobile) */
+.progress-bar-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  bottom: -12px;
+  background: transparent;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  width: 0%;
+}
+
+.progress-bar-container:hover .progress-bar-fill {
+  background: var(--spotify-green);
+}
+
+/* Now Playing overlay progress bar: also give it a big hitbox */
+#np-progress-container {
+  position: relative;
+  cursor: pointer;
+}
+#np-progress-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -18px;
+  bottom: -18px;
+  background: transparent;
+}
+
 
         /* --- MOBILE NAVIGATION --- */
         .mobile-nav {
@@ -924,9 +953,9 @@
 
       <!-- progress -->
       <div class="mt-8">
-        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-          <div id="np-progress-fill" class="h-full w-[0%] bg-white rounded-full"></div>
-        </div>
+        <div id="np-progress-container" class="np-progress-container h-1 w-full bg-white/20 rounded-full overflow-hidden">
+  <div id="np-progress-fill" class="h-full w-[0%] bg-white rounded-full"></div>
+</div>
         <div class="mt-2 flex justify-between text-xs text-zinc-500 font-semibold">
           <span id="np-t-curr">0:00</span>
           <span id="np-t-total">0:00</span>
@@ -1624,92 +1653,85 @@ if (nowPlayingOverlay) {
 }
 
 /* -----------------------
-   PROGRESS BAR SEEKING
------------------------- */
-
-
-
-/* -----------------------
-   PROGRESS BAR SEEKING
------------------------- */
-
-
-
-/* -----------------------
-   PROGRESS BAR SEEKING
+   PROGRESS BAR SEEKING (Dock + Now Playing)
 ------------------------ */
 
 let pendingSeekPct = null;
+let pendingSeekBarId = null; // "progress-container" or "np-progress-container"
 
-function seekToClientX(clientX) {
-  const bar = document.getElementById('progress-container');
-  if (!bar) return;
+function getClientX(e) {
+  if (e.touches && e.touches[0]) return e.touches[0].clientX;
+  if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
+  return e.clientX;
+}
 
-  const rect = bar.getBoundingClientRect();
+function seekOnBar(barEl, clientX) {
+  if (!barEl) return;
+
+  const rect = barEl.getBoundingClientRect();
   const pct = (clientX - rect.left) / rect.width;
   const clamped = Math.max(0, Math.min(1, pct));
 
-  // If duration isn't ready yet (common on mobile), store it and apply later
+  // If duration isn't ready yet, store and apply later
   if (!Number.isFinite(player.duration) || player.duration <= 0) {
     pendingSeekPct = clamped;
+    pendingSeekBarId = barEl.id || null;
     return;
   }
 
   player.currentTime = clamped * player.duration;
 }
 
-        function applyPendingSeek() {
+function applyPendingSeek() {
   if (pendingSeekPct == null) return;
   if (!Number.isFinite(player.duration) || player.duration <= 0) return;
 
   player.currentTime = pendingSeekPct * player.duration;
   pendingSeekPct = null;
+  pendingSeekBarId = null;
 }
 
 player.addEventListener('loadedmetadata', applyPendingSeek);
 player.addEventListener('durationchange', applyPendingSeek);
 player.addEventListener('canplay', applyPendingSeek);
 
-function seek(e) {
-    seekToClientX(e.clientX);
+function bindSeekBar(barId) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+
+  let scrubbing = false;
+
+  // tap/click to jump
+  bar.addEventListener('click', (e) => {
+    seekOnBar(bar, getClientX(e));
+  });
+
+  // drag/scrub (mouse + touch)
+  bar.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    scrubbing = true;
+    seekOnBar(bar, getClientX(e));
+    try { bar.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  bar.addEventListener('pointermove', (e) => {
+    if (!scrubbing) return;
+    seekOnBar(bar, getClientX(e));
+  });
+
+  bar.addEventListener('pointerup', () => {
+    scrubbing = false;
+  });
+
+  bar.addEventListener('pointercancel', () => {
+    scrubbing = false;
+  });
 }
 
-const progressBar = document.getElementById('progress-container');
-let isScrubbing = false;
+// Bind BOTH progress bars
+bindSeekBar('progress-container');     // dock bar
+bindSeekBar('np-progress-container');  // now playing overlay bar
 
-function getClientX(e) {
-    if (e.touches && e.touches[0]) return e.touches[0].clientX;
-    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
-    return e.clientX;
-}
-
-if (progressBar) {
-    // Tap/click anywhere = jump there immediately
-    progressBar.addEventListener('click', (e) => {
-        seekToClientX(getClientX(e));
-    });
-
-    // Drag/scrub using Pointer Events (works for mouse + touch)
-    progressBar.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        isScrubbing = true;
-        seekToClientX(getClientX(e));
-        progressBar.setPointerCapture(e.pointerId);
-    });
-
-    progressBar.addEventListener('pointermove', (e) => {
-        if (!isScrubbing) return;
-        seekToClientX(getClientX(e));
-    });
-
-    progressBar.addEventListener('pointerup', () => {
-        isScrubbing = false;
-    });
-
-    progressBar.addEventListener('pointercancel', () => {
-        isScrubbing = false;
-    });
-}
 
 // Keep the fill + time text updated
 player.addEventListener('timeupdate', () => {
