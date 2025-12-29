@@ -1766,94 +1766,180 @@ function openArtistByName(artistName) {
          * ---------------------------------------------------------------------
          */
 
+        // --- FUZZY SEARCH HELPERS (typo-tolerant, punctuation-insensitive) ---
+
+        function normalizeForSearch(str) {
+          return String(str || "")
+            .toLowerCase()
+            // remove accents (á -> a)
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            // remove punctuation/symbols (keeps letters/numbers/spaces)
+            .replace(/[^a-z0-9\s]/g, " ")
+            // collapse spaces
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+
+        function levenshtein(a, b) {
+          a = a || "";
+          b = b || "";
+          const al = a.length, bl = b.length;
+          if (al === 0) return bl;
+          if (bl === 0) return al;
+
+          const dp = new Array(bl + 1);
+          for (let j = 0; j <= bl; j++) dp[j] = j;
+
+          for (let i = 1; i <= al; i++) {
+            let prev = dp[0];
+            dp[0] = i;
+            for (let j = 1; j <= bl; j++) {
+              const temp = dp[j];
+              const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+              dp[j] = Math.min(
+                dp[j] + 1,        // delete
+                dp[j - 1] + 1,    // insert
+                prev + cost       // replace
+              );
+              prev = temp;
+            }
+          }
+          return dp[bl];
+        }
+
+        // Returns 0..100 (higher = better match)
+        function fuzzyScore(query, target) {
+          const q = normalizeForSearch(query);
+          const t = normalizeForSearch(target);
+
+          if (!q || !t) return 0;
+          if (q === t) return 100;
+
+          // Strong bonus if query appears as a substring (handles "j cole" -> "j cole" inside "j cole")
+          if (t.includes(q)) {
+            // shorter targets get a tiny bonus
+            const bonus = Math.min(10, Math.max(0, 10 - Math.floor((t.length - q.length) / 6)));
+            return 90 + bonus; // 90..100
+          }
+
+          // Token overlap bonus (handles missing punctuation, missing spaces, etc)
+          const qTokens = q.split(" ").filter(Boolean);
+          const tTokens = t.split(" ").filter(Boolean);
+          const tSet = new Set(tTokens);
+
+          let tokenHits = 0;
+          for (const tok of qTokens) {
+            if (!tok) continue;
+            if (tSet.has(tok)) tokenHits++;
+          }
+          const tokenRatio = qTokens.length ? (tokenHits / qTokens.length) : 0; // 0..1
+
+          // Edit-distance similarity (typos like "fetwod mac")
+          const dist = levenshtein(q, t);
+          const maxLen = Math.max(q.length, t.length);
+          const sim = maxLen ? (1 - (dist / maxLen)) : 0; // 0..1
+
+          // Combine:
+          // - similarity carries the match
+          // - token overlap helps multi-word searches
+          const score = (sim * 75) + (tokenRatio * 25); // 0..100
+          return Math.max(0, Math.min(100, Math.round(score)));
+        }
+
         function handleSearch(query) {
-            const results = document.getElementById('search-results');
-            if (!query.trim()) {
-                results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
-                return;
-            }
+          const results = document.getElementById('search-results');
+          if (!results) return;
 
-            const q = query.trim();
-let matches = [];
+          const raw = String(query || "");
+          if (!raw.trim()) {
+            results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+            return;
+          }
 
-libraryData.forEach(album => {
-  const albumName = album.albumName || '';
-  const artistName = album.artistName || '';
+          const q = raw.trim();
+          let matches = [];
 
-  album.songs.forEach(song => {
-    const songName = song.name || '';
+          // Search across song title, artist, album
+          libraryData.forEach(album => {
+            const albumName = album.albumName || '';
+            const artistName = album.artistName || '';
 
-    // score against multiple fields
-    const s1 = fuzzyScore(q, songName);
-    const s2 = fuzzyScore(q, artistName);
-    const s3 = fuzzyScore(q, albumName);
+            album.songs.forEach(song => {
+              const songName = song.name || '';
 
-    const score = Math.max(s1, s2 * 0.9, s3 * 0.85);
+              const sTitle = fuzzyScore(q, songName);
+              const sArtist = fuzzyScore(q, artistName);
+              const sAlbum = fuzzyScore(q, albumName);
 
-    // threshold: allow typos but avoid pure noise
-    if (score > 60) {
-      matches.push({
-        ...song,
-        album: albumName,
-        artist: artistName,
-        cover: album.coverArt,
-        _score: score
-      });
-    }
-  });
-});
+              // Let title be strongest; artist/album slightly weaker
+              const score = Math.max(sTitle, Math.round(sArtist * 0.90), Math.round(sAlbum * 0.85));
 
-// best first
-matches.sort((a, b) => b._score - a._score);
-
-
-            if (matches.length === 0) {
-                results.innerHTML = `<p class="text-zinc-500">No results found for "${query}"</p>`;
-                return;
-            }
-
-             results.innerHTML = '';
-
-            matches.slice(0, 25).forEach((s) => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-                row.addEventListener('click', () => {
-  playContext = { type: 'search', label: query };
-  playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
-});
-
-                const img = document.createElement('img');
-                img.src = s.cover;
-                img.className = 'w-12 h-12 rounded object-cover';
-
-                const info = document.createElement('div');
-                info.className = 'flex-1 overflow-hidden';
-
-                const title = document.createElement('div');
-                title.className = 'text-white font-bold truncate';
-                title.textContent = s.name.replace('.mp3', '');
-
-                const meta = document.createElement('div');
-                meta.className = 'text-sm text-zinc-400 truncate';
-                meta.textContent = `${s.artist} • ${s.album}`;
-
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
-
-                info.appendChild(title);
-                info.appendChild(meta);
-                row.appendChild(img);
-                row.appendChild(info);
-                row.appendChild(icon);
-                results.appendChild(row);
+              // Threshold: typo-tolerant but avoids junk
+              if (score >= 55) {
+                matches.push({
+                  ...song,
+                  album: albumName,
+                  artist: artistName,
+                  cover: album.coverArt,
+                  _score: score
+                });
+              }
             });
+          });
+
+          // Best first
+          matches.sort((a, b) => b._score - a._score);
+
+          if (matches.length === 0) {
+            results.innerHTML = `<p class="text-zinc-500">No results found for "${q}"</p>`;
+            return;
+          }
+
+          results.innerHTML = '';
+
+          matches.slice(0, 25).forEach((s) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+
+            row.addEventListener('click', () => {
+              // Mobile top label: ".... in Search"
+              playContext = { type: 'search', label: q };
+
+              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+            });
+
+            const img = document.createElement('img');
+            img.src = s.cover;
+            img.className = 'w-12 h-12 rounded object-cover';
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = (s.name || '').replace('.mp3', '');
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = `${s.artist} • ${s.album}`;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
         }
 
         function exitSearch() {
-            const input = document.getElementById('global-search');
-            input.value = '';
-            handleSearch('');
-            showView('home');
+          const input = document.getElementById('global-search');
+          if (input) input.value = '';
+          handleSearch('');
+          showView('home');
         }
 
         /**
@@ -1861,6 +1947,7 @@ matches.sort((a, b) => b._score - a._score);
          * PLAYER & AUDIO CONTROL
          * ---------------------------------------------------------------------
          */
+
         function playSpecificSong(url, title, album, artist, cover) {
             currentSong = { url, title, album, artist, cover };
             player.src = url;
