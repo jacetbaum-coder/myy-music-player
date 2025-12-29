@@ -1467,8 +1467,10 @@ renderPlaylists();
 checkDockVisibility();
             initResizers();
             initGlobalKeys();
-            
-            // Simulation of high-volume library fetching
+initSwipeBack();
+
+// Simulation of high-volume library fetching
+
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -1517,7 +1519,107 @@ checkDockVisibility();
         let activePlaylistId = null;
 // (album/artist view state is declared above in the album override block)
 
-        function showView(viewType, playlistIndex = null) {
+// -----------------------
+// MOBILE BACK STACK (swipe-right to go back)
+// -----------------------
+let navStack = [];
+let navCurrent = { type: 'home' };
+let __isBackNav = false;
+
+function setNavCurrent(state) {
+  navCurrent = state || { type: 'home' };
+}
+
+function pushNavCurrent() {
+  // Don’t push during back navigation
+  if (__isBackNav) return;
+  // Don’t push empty
+  if (!navCurrent) navCurrent = { type: 'home' };
+  navStack.push(JSON.parse(JSON.stringify(navCurrent)));
+  // Keep it from growing forever
+  if (navStack.length > 80) navStack.shift();
+}
+
+function goBack() {
+  if (navStack.length === 0) return;
+
+  const prev = navStack.pop();
+  if (!prev || !prev.type) return;
+
+  __isBackNav = true;
+
+  try {
+    if (prev.type === 'album' && prev.albumName) {
+      openAlbumByName(prev.albumName);
+    } else if (prev.type === 'artist' && prev.artistName) {
+      openArtistByName(prev.artistName);
+    } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
+      showView('playlist', prev.playlistIndex);
+    } else if (prev.type === 'search') {
+      showView('search');
+    } else if (prev.type === 'liked') {
+      showView('liked');
+    } else {
+      showView('home');
+    }
+  } finally {
+    __isBackNav = false;
+  }
+}
+
+function initSwipeBack() {
+  // Mobile only
+  if (window.innerWidth > 768) return;
+
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  // Bind only once
+  if (area.dataset.swipeBackBound === "1") return;
+  area.dataset.swipeBackBound = "1";
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  area.addEventListener('pointerdown', (e) => {
+    // If Now Playing overlay is open, do NOT back-swipe the app
+    const np = document.getElementById('now-playing-overlay');
+    if (np && !np.classList.contains('hidden')) return;
+
+    // Don’t start swipe-back inside inputs (like search box)
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+
+    tracking = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  }, { passive: true });
+
+  area.addEventListener('pointermove', (e) => {
+    if (!tracking) return;
+
+    const dx = e.clientX - startX;   // swipe RIGHT => dx positive
+    const dy = e.clientY - startY;
+
+    // Must be mostly horizontal
+    if (Math.abs(dy) > 60) return;
+
+    // Trigger on a strong right swipe
+    if (dx > 90) {
+      tracking = false;
+      goBack();
+    }
+  }, { passive: true });
+
+  area.addEventListener('pointerup', () => { tracking = false; }, { passive: true });
+  area.addEventListener('pointercancel', () => { tracking = false; }, { passive: true });
+}
+
+function showView(viewType, playlistIndex = null) {
+  // BACK STACK: push the current state before switching views
+  pushNavCurrent();
+
   try { hidePlaylistMenu(); } catch (e) {}
   try { contextMenu.style.display = 'none'; } catch (e) {}
 
@@ -1526,9 +1628,21 @@ checkDockVisibility();
   });
 
   activePlaylistIndex = playlistIndex;
-  activePlaylistId = null;
+activePlaylistId = null;
 
-  const scrollArea = document.getElementById('main-scroll-area');
+// BACK STACK: set new current view
+if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'search') setNavCurrent({ type: 'search' });
+else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+else if (viewType === 'playlist') {
+  const pl = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: pl?.id || null });
+} else {
+  setNavCurrent({ type: viewType || 'home' });
+}
+
+const scrollArea = document.getElementById('main-scroll-area');
   scrollArea.scrollTop = 0;
 
   if (viewType === 'home') {
@@ -1622,7 +1736,11 @@ function renderGrid(data) {
 }
 
 function openAlbumByName(name) {
-    playContext = { type: 'album', label: name };
+  // BACK STACK: push current view before entering album
+  pushNavCurrent();
+  setNavCurrent({ type: 'album', albumName: name });
+
+  playContext = { type: 'album', label: name };
   const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
 
@@ -1723,9 +1841,18 @@ function openAlbumByName(name) {
 }
 
 function openArtistByName(artistName) {
+  // BACK STACK: push current view before entering artist
+  pushNavCurrent();
+  setNavCurrent({ type: 'artist', artistName: artistName });
+
   activeArtistName = artistName;
 
+  // IMPORTANT: we are already switching views here, but during back-nav we don't want double pushes
+  // showView() will try to push; temporarily disable pushing for this call.
+  const wasBack = __isBackNav;
+  __isBackNav = true;
   showView('artist');
+  __isBackNav = wasBack;
 
   const albums = libraryData.filter(a => a.artistName === artistName);
   if (!albums.length) return;
@@ -2201,9 +2328,9 @@ function npResetDrag() {
 }
 
 function npStartAllowed(e) {
-  // Allow swipe start ANYWHERE in the upper half of the screen
+  // Allow swipe start ANYWHERE in the upper 75% of the screen
   const { y } = npGetXY(e);
-  return y <= (window.innerHeight / 2);
+  return y <= (window.innerHeight * 0.75);
 }
 
 if (nowPlayingOverlay) {
