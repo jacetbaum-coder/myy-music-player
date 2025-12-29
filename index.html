@@ -71,8 +71,20 @@
   text-overflow: ellipsis;
 }
 /* NOW PLAYING overlay: enable on mobile + desktop */
-#now-playing-overlay { display: none; }
+#now-playing-overlay {
+  display: none;
+  transform: translateY(0);
+  transition: transform 220ms ease;
+  will-change: transform;
+}
+
 #now-playing-overlay.hidden { display: none !important; }
+
+/* while dragging, remove transition so it follows finger */
+#now-playing-overlay.np-dragging {
+  transition: none !important;
+}
+
 
 /* Mobile layout for Now Playing */
 @media (max-width: 768px) {
@@ -790,7 +802,7 @@
   </div>
 
   <!-- content -->
-  <div class="h-[calc(100%-64px)] flex flex-col items-center justify-center px-6">
+  <div id="np-sheet" class="h-[calc(100%-64px)] flex flex-col items-center justify-center px-6">
     <div class="w-full max-w-[520px]">
       <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
         <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
@@ -1352,12 +1364,27 @@ function updateNowPlayingUI() {
 function openNowPlaying() {
   if (!currentSong) return;
   updateNowPlayingUI();
+
+  // reset any prior drag state
   nowPlayingOverlay.classList.remove('hidden');
+  nowPlayingOverlay.classList.remove('np-dragging');
+  nowPlayingOverlay.style.transform = 'translateY(0)';
 }
 
 function closeNowPlaying() {
-  nowPlayingOverlay.classList.add('hidden');
+  // animate down, then hide
+  nowPlayingOverlay.classList.remove('np-dragging');
+  nowPlayingOverlay.style.transform = 'translateY(100%)';
+
+  const done = () => {
+    nowPlayingOverlay.classList.add('hidden');
+    nowPlayingOverlay.style.transform = 'translateY(0)';
+    nowPlayingOverlay.removeEventListener('transitionend', done);
+  };
+
+  nowPlayingOverlay.addEventListener('transitionend', done);
 }
+
 
 // close button
 if (npCloseBtn) npCloseBtn.addEventListener('click', closeNowPlaying);
@@ -1375,6 +1402,98 @@ if (nowPlayingOverlay) {
     if (e.target === nowPlayingOverlay) closeNowPlaying();
   });
 }
+
+/* -----------------------
+   SWIPE DOWN TO CLOSE (mobile)
+------------------------ */
+const npSheet = document.getElementById('np-sheet');
+
+let npDragActive = false;
+let npStartY = 0;
+let npStartX = 0;
+let npLastY = 0;
+let npDecided = false;
+let npIsVertical = false;
+
+function npGetXY(e) {
+  if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  return { x: e.clientX, y: e.clientY };
+}
+
+function npResetDrag() {
+  npDragActive = false;
+  npDecided = false;
+  npIsVertical = false;
+  nowPlayingOverlay.classList.remove('np-dragging');
+  nowPlayingOverlay.style.transform = 'translateY(0)';
+}
+
+if (npSheet) {
+  npSheet.addEventListener('pointerdown', (e) => {
+    // only when overlay is open
+    if (nowPlayingOverlay.classList.contains('hidden')) return;
+
+    const { x, y } = npGetXY(e);
+    npDragActive = true;
+    npStartY = y;
+    npStartX = x;
+    npLastY = y;
+    npDecided = false;
+    npIsVertical = false;
+
+    nowPlayingOverlay.classList.add('np-dragging');
+    try { npSheet.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  npSheet.addEventListener('pointermove', (e) => {
+    if (!npDragActive) return;
+
+    const { x, y } = npGetXY(e);
+    const dy = y - npStartY;
+    const dx = x - npStartX;
+
+    // Decide if the gesture is vertical (to avoid fighting horizontal swipes)
+    if (!npDecided) {
+      if (Math.abs(dy) > 8 || Math.abs(dx) > 8) {
+        npDecided = true;
+        npIsVertical = Math.abs(dy) > Math.abs(dx);
+      } else {
+        return;
+      }
+    }
+
+    if (!npIsVertical) return;
+
+    // only drag downward
+    const down = Math.max(0, dy);
+    npLastY = down;
+
+    nowPlayingOverlay.style.transform = `translateY(${down}px)`;
+  });
+
+  npSheet.addEventListener('pointerup', () => {
+    if (!npDragActive) return;
+
+    const threshold = 120; // px
+    const shouldClose = npLastY > threshold;
+
+    if (shouldClose) closeNowPlaying();
+    else npResetDrag();
+
+    npDragActive = false;
+  });
+
+  npSheet.addEventListener('pointercancel', () => {
+    if (!npDragActive) return;
+    npResetDrag();
+  });
+}
+
+/* -----------------------
+   PROGRESS BAR SEEKING
+------------------------ */
+
 
 
 /* -----------------------
