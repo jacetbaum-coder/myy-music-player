@@ -1699,14 +1699,21 @@ function bindSeekBar(barId) {
   const bar = document.getElementById(barId);
   if (!bar) return;
 
+  // Helps pointer/touch devices not treat dragging as scrolling
+  try { bar.style.touchAction = 'none'; } catch (e) {}
+
   let scrubbing = false;
 
-  // tap/click to jump
+  // -----------------------
+  // CLICK / TAP to jump
+  // -----------------------
   bar.addEventListener('click', (e) => {
     seekOnBar(bar, getClientX(e));
   });
 
-  // drag/scrub (mouse + touch)
+  // -----------------------
+  // POINTER EVENTS (works on most browsers)
+  // -----------------------
   bar.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     scrubbing = true;
@@ -1725,6 +1732,29 @@ function bindSeekBar(barId) {
 
   bar.addEventListener('pointercancel', () => {
     scrubbing = false;
+  });
+
+  // -----------------------
+  // MOUSE EVENTS (desktop fallback; fixes “desktop won’t scrub”)
+  // -----------------------
+  bar.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    scrubbing = true;
+    seekOnBar(bar, e.clientX);
+
+    const onMove = (ev) => {
+      if (!scrubbing) return;
+      seekOnBar(bar, ev.clientX);
+    };
+
+    const onUp = () => {
+      scrubbing = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   });
 }
 
