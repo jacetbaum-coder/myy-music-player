@@ -830,7 +830,12 @@ img {
                 <p class="mt-6 text-zinc-400 font-medium tracking-wide">Connecting to Cloud Storage...</p>
             </div>
 
-            <div id="grid-view" class="hidden">
+            <div id="home-view" class="hidden">
+  <!-- Mobile Home is intentionally blank for now -->
+</div>
+
+<div id="grid-view" class="hidden">
+
   <div class="flex items-center justify-between mb-6">
     <h1 id="greeting-text" class="text-3xl font-black">Good evening</h1>
     <div class="flex gap-2">
@@ -944,7 +949,7 @@ img {
     <i class="fas fa-search"></i>
     <span>Search</span>
   </div>
-  <div class="nav-item" id="nav-library" onclick="showView('liked')">
+  <div class="nav-item" id="nav-library" onclick="showView('library')">
     <i class="fas fa-layer-group"></i>
     <span>Library</span>
   </div>
@@ -1558,8 +1563,10 @@ function goBack() {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
-    } else if (prev.type === 'search') {
+        } else if (prev.type === 'search') {
       showView('search');
+    } else if (prev.type === 'library') {
+      showView('library');
     } else if (prev.type === 'liked') {
       showView('liked');
     } else {
@@ -1663,7 +1670,7 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { contextMenu.style.display = 'none'; } catch (e) {}
 
-  ['grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
 
@@ -1672,6 +1679,7 @@ activePlaylistId = null;
 
 // BACK STACK: set new current view
 if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'library') setNavCurrent({ type: 'library' });
 else if (viewType === 'search') setNavCurrent({ type: 'search' });
 else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
@@ -1685,7 +1693,20 @@ else if (viewType === 'playlist') {
 const scrollArea = document.getElementById('main-scroll-area');
   scrollArea.scrollTop = 0;
 
-  if (viewType === 'home') {
+    if (viewType === 'home') {
+    // MOBILE: Home is blank for now
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+    } else {
+      // DESKTOP: keep your existing Home behavior
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+    }
+  }
+
+  if (viewType === 'library') {
+    // MOBILE Library tab now shows what used to be "Home"
     document.getElementById('grid-view').classList.remove('hidden');
     renderGrid(libraryData);
     renderHistory();
@@ -1722,13 +1743,13 @@ const scrollArea = document.getElementById('main-scroll-area');
 
         function updateActiveStates(viewType) {
             // Mobile Nav
-            const navIds = { home: 'nav-home', search: 'nav-search', liked: 'nav-library' };
+                        const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
             Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
             if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
 
             // Desktop Sidebar
-            document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home');
-            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', viewType !== 'home');
+                        document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
+            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
             document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
             document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
             document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
