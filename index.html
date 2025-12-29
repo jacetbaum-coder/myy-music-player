@@ -1059,8 +1059,8 @@ if (volumeContainer) {
          * ---------------------------------------------------------------------
          */
         window.onload = async () => {
-    // 1. Initial UI Setup
-    setGreeting();
+    // 1. Run UI Setup
+    if (typeof setGreeting === 'function') setGreeting();
     renderHistory();
     ensurePlaylistIds();
     renderPlaylists();
@@ -1068,38 +1068,34 @@ if (volumeContainer) {
     checkDockVisibility();
     initResizers();
     initGlobalKeys();
-    
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs', { 
-            signal: controller.signal 
-        });
-        
-        clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            throw new Error(`Cloudflare Error: ${response.status}`);
+    // 2. SAFETY TIMER: If nothing happens in 5 seconds, hide the spinner anyway
+    setTimeout(() => {
+        const loader = document.getElementById('loading');
+        if (loader && !loader.classList.contains('hidden')) {
+            console.warn("Safety timeout: Hiding loader manually.");
+            loader.classList.add('hidden');
+            showView('home');
         }
+    }, 5000);
+    
+    // 3. The Fetch
+    try {
+        const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs');
+        
+        if (!response.ok) throw new Error("Cloudflare rejected the request");
 
-        libraryData = await response.json();
-        console.log("Music loaded!");
+        const data = await response.json();
+        libraryData = data; // Put the songs into the app
+        console.log("Success! Songs found:", libraryData.length);
 
     } catch (error) {
         console.error("Connection failed:", error);
-        // We set libraryData to empty so the app can still open
-        libraryData = []; 
     } finally {
-        // THIS IS THE KEY: Hide the spinner no matter what happened above
-        const loader = document.getElementById('loading');
-        if(loader) loader.classList.add('hidden');
-        
-        // Ensure the grid view is actually shown
-        const gridView = document.getElementById('grid-view');
-        if(gridView) gridView.classList.remove('hidden');
-        
+        // Hide loader and show grid
+        document.getElementById('loading').classList.add('hidden');
         showView('home');
+        renderGrid(); // Force the grid to draw
     }
 };
     
