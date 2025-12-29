@@ -70,6 +70,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* NOW PLAYING overlay: desktop-first. Hide entirely on mobile for now. */
+@media (max-width: 768px) {
+  #now-playing-overlay { display: none !important; }
+}
 
         * {
             box-sizing: border-box;
@@ -697,7 +701,7 @@
   </div>
 
   <!-- Desktop heart stays; mobile will hide it via CSS -->
-  <i id="dock-heart" onclick="toggleLike()" class="far fa-heart ml-2 text-zinc-400 hover:text-white cursor-pointer"></i>
+  <i id="dock-heart" onclick="event.stopPropagation(); toggleLike()" class="far fa-heart ml-2 text-zinc-400 hover:text-white cursor-pointer"></i>
 
   <!-- Mobile-only play/pause -->
   <button id="mobile-play-btn" class="ml-auto hidden" onclick="togglePlay()" aria-label="Play/Pause">
@@ -742,6 +746,59 @@
 
         </div>
     </div>
+<!-- NOW PLAYING OVERLAY (desktop-first) -->
+<div id="now-playing-overlay" class="hidden fixed inset-0 z-[3000] bg-black">
+  <!-- top bar -->
+  <div class="h-16 flex items-center justify-between px-6 border-b border-white/10">
+    <div class="text-xs tracking-[0.35em] text-zinc-400 font-bold">NOW PLAYING</div>
+
+    <button id="np-close"
+            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            aria-label="Close now playing">
+      <i class="fas fa-times text-white"></i>
+    </button>
+  </div>
+
+  <!-- content -->
+  <div class="h-[calc(100%-64px)] flex flex-col items-center justify-center px-6">
+    <div class="w-full max-w-[520px]">
+      <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
+        <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
+      </div>
+
+      <div class="mt-8">
+        <div id="np-title" class="text-4xl font-black tracking-tight">—</div>
+        <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold">—</div>
+      </div>
+
+      <!-- fake progress bar (visual only for now) -->
+      <div class="mt-8">
+        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+          <div id="np-progress-fill" class="h-full w-[15%] bg-white rounded-full"></div>
+        </div>
+        <div class="mt-2 flex justify-between text-xs text-zinc-500 font-semibold">
+          <span id="np-t-curr">0:00</span>
+          <span id="np-t-total">0:00</span>
+        </div>
+      </div>
+
+      <!-- controls (non-functional ok) -->
+      <div class="mt-10 flex items-center justify-center gap-10 text-white">
+        <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+          <i class="fas fa-step-backward text-xl"></i>
+        </button>
+
+        <button class="w-20 h-20 rounded-full bg-white flex items-center justify-center">
+          <i class="fas fa-pause text-black text-2xl"></i>
+        </button>
+
+        <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+          <i class="fas fa-step-forward text-xl"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
     <audio id="audio-player" preload="auto"></audio>
 
@@ -827,6 +884,17 @@ if (volumeContainer) {
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
         const greetingEl = document.getElementById('greeting-text');
+
+        // Click the dock left area to open Now Playing (desktop)
+const dockLeft = document.getElementById('dock-left');
+if (dockLeft) {
+  dockLeft.addEventListener('click', (e) => {
+    // If user clicked interactive controls inside the dock-left, ignore
+    if (e.target.closest('#dock-heart') || e.target.closest('#mobile-play-btn')) return;
+    openNowPlaying();
+  });
+}
+
 
         /**
          * ---------------------------------------------------------------------
@@ -1175,6 +1243,12 @@ if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
             if (!document.getElementById('album-view').classList.contains('hidden')) {
                 const rows = document.querySelectorAll('.track-row');
                 rows.forEach(r => r.classList.remove('active-track'));
+           
+            // If Now Playing is open, keep it synced
+if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
+  updateNowPlayingUI();
+}
+
             }
         }
 
@@ -1193,6 +1267,63 @@ function togglePlay() {
     if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
     if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
   }
+}
+// -----------------------
+// NOW PLAYING OVERLAY (desktop)
+// -----------------------
+const nowPlayingOverlay = document.getElementById('now-playing-overlay');
+const npCloseBtn = document.getElementById('np-close');
+
+function updateNowPlayingUI() {
+  if (!currentSong) return;
+
+  const cover = document.getElementById('np-cover');
+  const title = document.getElementById('np-title');
+  const artist = document.getElementById('np-artist');
+
+  if (cover) cover.src = currentSong.cover || "";
+  if (title) title.textContent = (currentSong.title || "").replace('.mp3', '');
+  if (artist) artist.textContent = currentSong.artist || "";
+
+  // optional: mirror the real player times if available
+  const curr = document.getElementById('np-t-curr');
+  const total = document.getElementById('np-t-total');
+  const fill = document.getElementById('np-progress-fill');
+
+  if (curr) curr.textContent = formatTime(player.currentTime || 0);
+  if (total) total.textContent = Number.isFinite(player.duration) ? formatTime(player.duration) : "0:00";
+
+  if (fill && Number.isFinite(player.duration) && player.duration > 0) {
+    const pct = (player.currentTime / player.duration) * 100;
+    fill.style.width = pct + "%";
+  }
+}
+
+function openNowPlaying() {
+  if (!currentSong) return;
+  updateNowPlayingUI();
+  nowPlayingOverlay.classList.remove('hidden');
+}
+
+function closeNowPlaying() {
+  nowPlayingOverlay.classList.add('hidden');
+}
+
+// close button
+if (npCloseBtn) npCloseBtn.addEventListener('click', closeNowPlaying);
+
+// ESC closes
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !nowPlayingOverlay.classList.contains('hidden')) {
+    closeNowPlaying();
+  }
+});
+
+// clicking the black backdrop closes (but not clicking inside content)
+if (nowPlayingOverlay) {
+  nowPlayingOverlay.addEventListener('click', (e) => {
+    if (e.target === nowPlayingOverlay) closeNowPlaying();
+  });
 }
 
 
@@ -1275,6 +1406,7 @@ if (progressBar) {
 // Keep the fill + time text updated
 player.addEventListener('timeupdate', () => {
     if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+    if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) updateNowPlayingUI();
 
     const pct = (player.currentTime / player.duration) * 100;
     document.getElementById('progress-fill').style.width = pct + "%";
