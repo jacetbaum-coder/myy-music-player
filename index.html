@@ -1585,12 +1585,7 @@ function closeNowPlaying() {
 if (npCloseBtn) npCloseBtn.addEventListener('click', closeNowPlaying);
 
 // ESC closes
-window.addEventListener('keydown', (e) => {
-  if (e.code === "Space" && e.target.tagName !== 'INPUT') {
-    e.preventDefault();
-    togglePlay();
-  }
-});
+// Spacebar handler is bound in initGlobalKeys()
 
 // Re-evaluate marquee on resize (desktop window changes, mobile rotation)
 window.addEventListener('resize', () => {
@@ -1930,16 +1925,43 @@ function checkDockVisibility() {
         }
 
         function initGlobalKeys() {
-            window.addEventListener('keydown', (e) => {
-                if (e.code === "Space" && e.target.tagName !== 'INPUT') {
-                    e.preventDefault();
-                    togglePlay();
-                }
-            });
-            document.addEventListener('click', (e) => { 
-                if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none'; 
-            });
-        }
+  // Bind ONCE even if initGlobalKeys is called again
+  if (!window.__spacebarPlayPauseBound) {
+    window.__spacebarPlayPauseBound = true;
+
+    window.addEventListener('keydown', (e) => {
+      // Support different browser variations
+      const isSpace =
+        e.code === "Space" ||
+        e.key === " " ||
+        e.key === "Spacebar";
+
+      if (!isSpace) return;
+
+      // Don’t hijack space when typing / editing
+      const el = document.activeElement;
+      const tag = (el && el.tagName) ? el.tagName.toUpperCase() : "";
+      const isTypingField =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (el && el.isContentEditable);
+
+      if (isTypingField) return;
+
+      // Don’t trigger if user is using browser/system shortcuts
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+
+      e.preventDefault();
+      togglePlay();
+    }, { passive: false });
+  }
+
+  // Existing: click outside closes the context menu
+  document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none';
+  });
+}
 
         // Context Menu & Playlists
         function handleContextMenu(e, song) {
