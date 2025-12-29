@@ -325,6 +325,26 @@
         .sidebar-hidden { display: none !important; }
         .active-green { color: var(--spotify-green) !important; }
 
+/* Repeat states:
+   - .repeat-all  => green (no dot)
+   - .repeat-one  => green + dot under icon
+*/
+#btn-repeat.repeat-one {
+  position: relative;
+}
+#btn-repeat.repeat-one::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--spotify-green);
+}
+
+
         /* --- CONTEXT MENU --- */
         #context-menu { 
             position: fixed; 
@@ -774,7 +794,7 @@
 </button>
 
                 <i class="fas fa-step-forward hover:text-white cursor-pointer text-xl" onclick="nextSong()"></i>
-                <i id="btn-repeat" onclick="this.classList.toggle('active-green')" class="fas fa-repeat hover:text-white cursor-pointer text-sm"></i>
+                <i id="btn-repeat" onclick="cycleRepeat()" class="fas fa-repeat hover:text-white cursor-pointer text-sm"></i>
             </div>
             <div class="w-full flex items-center gap-3 text-[11px] font-medium text-zinc-500">
                 <span id="t-curr">0:00</span>
@@ -852,6 +872,7 @@
     <i id="np-shuffle-icon" class="fas fa-shuffle text-xl"></i>
   </button>
 
+  <!-- PREV -->
   <button id="np-prev-btn"
           class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="prevSong()"
@@ -859,6 +880,7 @@
     <i class="fas fa-step-backward text-xl"></i>
   </button>
 
+  <!-- PLAY/PAUSE (slightly bigger) -->
   <button id="np-play-btn"
           class="w-20 h-20 rounded-full bg-white flex items-center justify-center"
           onclick="togglePlay()"
@@ -866,11 +888,21 @@
     <i id="np-play-icon" class="fas fa-pause text-black text-2xl"></i>
   </button>
 
+  <!-- NEXT -->
   <button id="np-next-btn"
           class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="nextSong()"
           aria-label="Next">
     <i class="fas fa-step-forward text-xl"></i>
+  </button>
+
+  <!-- REPEAT (mobile) -->
+  <button id="np-repeat-btn"
+          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center relative"
+          onclick="cycleRepeat()"
+          aria-label="Repeat">
+    <i id="np-repeat-icon" class="fas fa-repeat text-xl"></i>
+    <span id="np-repeat-dot" class="hidden absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#1db954]"></span>
   </button>
 
 </div>
@@ -984,6 +1016,7 @@ if (dockLeft) {
          */
         window.onload = async () => {
             setGreeting();
+            syncRepeatUI();
             renderHistory();
             ensurePlaylistIds();
             renderPlaylists();
@@ -2122,8 +2155,58 @@ function isShuffleOn() {
     );
 }
 
-        function isRepeatOn() {
-  return document.getElementById('btn-repeat')?.classList.contains('active-green');
+        // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
+let repeatMode = 'off'; // 'off' | 'all' | 'one'
+
+function syncRepeatUI() {
+  const d = document.getElementById('btn-repeat');
+  const mIcon = document.getElementById('np-repeat-icon');
+  const mDot = document.getElementById('np-repeat-dot');
+
+  // Clear state classes
+  if (d) {
+    d.classList.remove('active-green', 'repeat-one', 'repeat-all');
+  }
+  if (mIcon) {
+    mIcon.classList.remove('active-green', 'repeat-one', 'repeat-all');
+  }
+  if (mDot) {
+    mDot.classList.add('hidden');
+  }
+
+  if (repeatMode === 'off') return;
+
+  // repeat all OR one => green
+  if (d) d.classList.add('active-green');
+  if (mIcon) mIcon.classList.add('active-green');
+
+  if (repeatMode === 'all') {
+    if (d) d.classList.add('repeat-all');
+    if (mIcon) mIcon.classList.add('repeat-all');
+    // no dot
+  }
+
+  if (repeatMode === 'one') {
+    if (d) d.classList.add('repeat-one');
+    if (mIcon) mIcon.classList.add('repeat-one');
+    if (mDot) mDot.classList.remove('hidden');
+  }
+}
+
+function cycleRepeat() {
+  if (repeatMode === 'off') repeatMode = 'all';
+  else if (repeatMode === 'all') repeatMode = 'one';
+  else repeatMode = 'off';
+
+  syncRepeatUI();
+}
+
+function isRepeatAllOn() {
+  return repeatMode === 'all';
+}
+
+function isRepeatOneOn() {
+  return repeatMode === 'one';
 }
 
 function setAllPlayIconsToPlay() {
@@ -2148,13 +2231,22 @@ function nextSong() {
       resetShuffleForQueue();
     }
 
-    // If we've used up all shuffled songs, STOP
+        // If we've used up all shuffled songs:
+    // - Repeat ALL => reshuffle and keep going
+    // - Otherwise => STOP
     if (shufflePos >= shuffleOrder.length) {
-      player.pause();
-      player.currentTime = 0;
-      setAllPlayIconsToPlay();
-      return;
+      if (isRepeatAllOn()) {
+        resetShuffleForQueue();
+        shufflePos = 0;
+        playedStack = [currentIndex];
+      } else {
+        player.pause();
+        player.currentTime = 0;
+        setAllPlayIconsToPlay();
+        return;
+      }
     }
+
 
     // Pick next index
     if (currentIndex === -1) {
@@ -2174,16 +2266,24 @@ function nextSong() {
     if (currentIndex === -1) {
       currentIndex = 0; // start at first song
     } else {
-      // If we're at the last song, STOP (do not loop)
+      // If we're at the last song:
+      // - Repeat ALL => loop back to start
+      // - Otherwise => STOP
       if (currentIndex >= len - 1) {
-        player.pause();
-        player.currentTime = 0;
-        setAllPlayIconsToPlay();
-        return;
+        if (isRepeatAllOn()) {
+          currentIndex = 0;
+        } else {
+          player.pause();
+          player.currentTime = 0;
+          setAllPlayIconsToPlay();
+          return;
+        }
+      } else {
+        currentIndex = currentIndex + 1;
       }
-      currentIndex = currentIndex + 1;
     }
   }
+
 
   const s = currentQueue[currentIndex];
   isAutoNav = true;
@@ -2327,8 +2427,8 @@ function prevSong() {
 
 // Auto-advance when a song ends
 player.addEventListener('ended', () => {
-  // Repeat ONE song if repeat is on
-  if (isRepeatOn()) {
+  // Repeat ONE: loop the same track forever
+  if (isRepeatOneOn()) {
     player.currentTime = 0;
     player.play();
 
@@ -2342,10 +2442,10 @@ player.addEventListener('ended', () => {
     return;
   }
 
-  // Otherwise go to the next song in the current album/playlist queue
+  // Otherwise advance.
+  // Repeat ALL behavior is handled inside nextSong() (it loops instead of stopping).
   nextSong();
 });
-
 
 // Auto-hide dock interval
 
