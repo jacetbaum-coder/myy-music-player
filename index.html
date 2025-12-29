@@ -2318,7 +2318,8 @@ initSwipeBack();
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
-                const response = await fetch('/api/get-songs', { signal: controller.signal }); // This endpoint provides the structure
+                                const response = await fetch('/api/get-songs', { signal: controller.signal }); // This endpoint provides the structure
+
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
