@@ -1068,16 +1068,43 @@ if (volumeContainer) {
             initResizers();
             initGlobalKeys();
             
-            // Simulation of high-volume library fetching
             try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    const response = await fetch('/api/get-songs', { signal: controller.signal });
-    clearTimeout(timeoutId);
+                const controller = new AbortController();
+                // 8 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                // UPDATED: Points to your real Cloudflare Worker URL
+                const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs', { 
+                    signal: controller.signal 
+                });
+                
+                clearTimeout(timeoutId);
 
-    if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-    }
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                libraryData = await response.json();
+                
+                // Hide the loader and show the home grid
+                const loader = document.getElementById('loading');
+                if(loader) loader.classList.add('hidden');
+                
+                showView('home');
+            } catch (error) {
+                console.error("Connection failed:", error);
+                const loader = document.getElementById('loading');
+                if(loader) {
+                    loader.innerHTML = `
+                        <div class="p-8 text-center">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                            <p class="text-red-500 font-bold">Connection Failed</p>
+                            <p class="text-xs text-zinc-500 mt-1">${error.message}</p>
+                            <button onclick="window.location.reload()" class="mt-4 px-4 py-2 bg-zinc-800 rounded-full text-xs">Retry</button>
+                        </div>`;
+                }
+            }
+        };
     
     libraryData = await response.json();
 
@@ -1433,44 +1460,69 @@ matches.sort((a, b) => b._score - a._score);
          * ---------------------------------------------------------------------
          */
         function playSpecificSong(url, title, album, artist, cover) {
-            currentSong = { url, title, album, artist, cover };
+            // 1. Create the song object first so other functions can read it
+            const song = { url, title, album, artist, cover };
+            currentSong = song;
+            
             player.src = url;
-            updateNowPlayingUI(song);
             player.play();
             
+            // 2. Update Dock Visibility and Time for the 1-hour rule
             lastPlayedTime = Date.now();
             localStorage.setItem('lastPlayedTime', lastPlayedTime);
-            
-            // UI Updates
             dock.classList.remove('dock-hidden');
-            document.getElementById('p-cover').src = cover;
-            document.getElementById('p-title').innerText = title.replace('.mp3', '');
-            document.getElementById('p-artist').innerText = artist;
+
+            // 3. Update all UI elements (Dock, Fullscreen, and Right Sidebar)
+            updateNowPlayingUI(song);
+            
+            // 4. Update Play/Pause Icons (Main and Mobile)
             document.getElementById('play-icon').className = "fas fa-pause";
+            const mIcon = document.getElementById('mobile-play-icon');
+            if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
+            
+            // 5. Sidebars & History
+            if (window.innerWidth >= 1024) toggleRightSidebar(true);
+            
+            // Update Right Sidebar specifically
+            const rCover = document.getElementById('right-cover');
+            const rTitle = document.getElementById('right-title');
+            const rArtist = document.getElementById('right-artist');
+            if (rCover) rCover.src = cover;
+            if (rTitle) rTitle.innerText = title.replace('.mp3', '');
+            if (rArtist) rArtist.innerText = artist;
+            
+            updateHeartUI();
+            addToHistory(album, artist, cover);
+            
+            // 6. Refresh current track view list to show active green state
+            if (!document.getElementById('album-view').classList.contains('hidden')) {
+                const rows = document.querySelectorAll('.track-row');
+                rows.forEach(r => r.classList.remove('active-track'));
+                // Note: To make the green state work perfectly, we'd add logic to find the specific row here
+            }
+        }
 
-const mIcon = document.getElementById('mobile-play-icon');
-if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
-function updateNowPlayingUI(song) {
-  if (!song) return;
+        function updateNowPlayingUI(song) {
+            if (!song) return;
 
-  // Dock
-  const cover = document.getElementById('p-cover');
-  const title = document.getElementById('p-title');
-  const artist = document.getElementById('p-artist');
+            // Update Bottom Dock
+            const cover = document.getElementById('p-cover');
+            const title = document.getElementById('p-title');
+            const artist = document.getElementById('p-artist');
 
-  if (cover) cover.src = song.cover || '';
-  if (title) title.textContent = song.title || '';
-  if (artist) artist.textContent = song.artist || '';
+            if (cover) cover.src = song.cover || '';
+            if (title) title.textContent = song.title.replace('.mp3', '') || '';
+            if (artist) artist.textContent = song.artist || '';
 
-  // Fullscreen
-  const npCover = document.getElementById('np-cover');
-  const npTitle = document.getElementById('np-title');
-  const npArtist = document.getElementById('np-artist');
+            // Update Fullscreen Now Playing (Mobile Sheet)
+            const npCover = document.getElementById('np-cover');
+            const npTitle = document.getElementById('np-title');
+            const npArtist = document.getElementById('np-artist');
 
-  if (npCover) npCover.src = song.cover || '';
-  if (npTitle) npTitle.textContent = song.title || '';
-  if (npArtist) npArtist.textContent = song.artist || '';
-}
+            if (npCover) npCover.src = song.cover || '';
+            if (npTitle) npTitle.textContent = song.title.replace('.mp3', '') || '';
+            if (npArtist) npArtist.textContent = song.artist || '';
+        }
 
             
             // Sidebars
