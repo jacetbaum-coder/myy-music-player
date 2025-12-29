@@ -812,23 +812,28 @@
         </div>
       </div>
 
-      <!-- controls (visual only for now) -->
-      <div class="mt-10 flex items-center justify-center gap-10 text-white">
-        <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
-          <i class="fas fa-step-backward text-xl"></i>
-        </button>
+      <!-- controls (play/pause works; skip buttons still visual) -->
+<div class="mt-10 flex items-center justify-center gap-10 text-white">
+  <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+    <i class="fas fa-step-backward text-xl"></i>
+  </button>
 
-        <button class="w-20 h-20 rounded-full bg-white flex items-center justify-center">
-          <i class="fas fa-pause text-black text-2xl"></i>
-        </button>
+  <button id="np-play-btn"
+          class="w-20 h-20 rounded-full bg-white flex items-center justify-center"
+          onclick="togglePlay()"
+          aria-label="Play or pause">
+    <i id="np-play-icon" class="fas fa-pause text-black text-2xl"></i>
+  </button>
 
-        <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
-          <i class="fas fa-step-forward text-xl"></i>
-        </button>
-      </div>
+  <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+    <i class="fas fa-step-forward text-xl"></i>
+  </button>
+</div>
+</div>
     </div>
   </div>
 </div>
+
 
     <audio id="audio-player" preload="auto"></audio>
 
@@ -1289,17 +1294,23 @@ function togglePlay() {
 
   const desktopIcon = document.getElementById('play-icon');
   const mobileIcon = document.getElementById('mobile-play-icon');
+  const npIcon = document.getElementById('np-play-icon');
 
   if (player.paused) {
     player.play();
+
     if (desktopIcon) desktopIcon.className = "fas fa-pause";
     if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
   } else {
     player.pause();
+
     if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
     if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
   }
 }
+
 // -----------------------
 // NOW PLAYING OVERLAY (desktop)
 // -----------------------
