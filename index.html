@@ -945,13 +945,12 @@ img {
   </div>
 
 
-  <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
-  <div id="mobile-recent-section" class="mb-8 md:hidden">
-    <div id="mobile-recent-grid" class="grid grid-cols-2 gap-3"></div>
-  </div>
+    <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
+  <!-- (Removed on mobile Library) -->
 
-    <!-- Library controls (Sort + View as) -->
+        <!-- Library controls (Sort + View as) -->
   <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
+    <!-- Left: Sort dropdown -->
     <div class="relative">
       <button id="library-sort-btn"
               class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-sm"
@@ -960,14 +959,13 @@ img {
         <i class="fas fa-chevron-down text-xs opacity-80"></i>
       </button>
 
-      <div id="library-sort-menu" class="hidden absolute mt-2 w-56 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
+      <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
         <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
 
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/10 text-white" data-sort="Recents" type="button">Recents</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/10 text-white" data-sort="Recently added" type="button">Recently added</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/10 text-white" data-sort="Alphabetical" type="button">Alphabetical</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/10 text-white" data-sort="Creator" type="button">Creator</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/10 text-white" data-sort="Custom order" type="button">Custom order</button>
+        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
+        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
+        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
+        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
 
         <div class="h-px bg-white/10 my-2"></div>
 
@@ -985,8 +983,23 @@ img {
       </div>
     </div>
 
-    <div class="text-xs text-zinc-400 font-bold whitespace-nowrap" id="library-controls-hint"></div>
+    <!-- Right: Mobile Library Search (same fuzzy logic) -->
+    <div class="relative md:hidden flex-1 max-w-[220px]">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15">
+        <i class="fas fa-search text-white/70 text-sm"></i>
+        <input id="library-search-mobile"
+               type="text"
+               class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
+               placeholder="Search in Your Library"
+               autocomplete="off">
+      </div>
+
+      <div id="library-search-results-mobile"
+           class="hidden absolute mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
+      </div>
+    </div>
   </div>
+
 
   <!-- Albums header -->
   <div class="mb-4">
@@ -1651,39 +1664,50 @@ function getLibraryGridData() {
     ? libraryDataOriginal.slice()
     : base.slice();
 
-  if (librarySortMode === 'Recently added') {
+  // Back-compat for older stored values
+  const mode = (function normalize(m) {
+    if (m === 'Recents') return 'Recent';
+    if (m === 'Alphabetical') return 'Alphabetical by album';
+    return m;
+  })(librarySortMode);
+
+  if (mode === 'Recently added') {
     return original;
   }
 
-  if (librarySortMode === 'Alphabetical') {
+  if (mode === 'Alphabetical by album') {
     return base.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
   }
 
-  if (librarySortMode === 'Creator') {
+  if (mode === 'Alphabetical by artist') {
     return base.sort((a, b) => {
-      const aa = String(a.artistName || '');
-      const bb = String(b.artistName || '');
-      const c = aa.localeCompare(bb);
-      if (c !== 0) return c;
+      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
+      if (aa !== 0) return aa;
       return String(a.albumName || '').localeCompare(String(b.albumName || ''));
     });
   }
 
-  if (librarySortMode === 'Recents') {
+  if (mode === 'Creator') {
+    return base.sort((a, b) => {
+      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
+      if (aa !== 0) return aa;
+      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+    });
+  }
+
+  if (mode === 'Recent') {
     const rank = getLibraryRecentsRank();
     return base.sort((a, b) => {
       const ka = `${a.artistName || ''}__${a.albumName || ''}`;
       const kb = `${b.artistName || ''}__${b.albumName || ''}`;
       const ra = rank.has(ka) ? rank.get(ka) : 999999;
       const rb = rank.has(kb) ? rank.get(kb) : 999999;
-      if (ra !== rb) return ra - rb; // smaller index = more recent
+      if (ra !== rb) return ra - rb;
       return String(a.albumName || '').localeCompare(String(b.albumName || ''));
     });
   }
 
-  if (librarySortMode === 'Custom order') {
-    // Minimal "custom": freeze whatever order you currently see the moment you select it
-    // (No drag/drop UI yet.)
+  if (mode === 'Custom order') {
     const stored = JSON.parse(localStorage.getItem('libraryCustomOrder') || 'null');
     if (Array.isArray(stored) && stored.length) {
       const map = new Map(stored.map((name, i) => [name, i]));
@@ -1694,7 +1718,6 @@ function getLibraryGridData() {
         return String(a.albumName || '').localeCompare(String(b.albumName || ''));
       });
     } else {
-      // Save current "Recently added" as the initial custom order
       const names = original.map(a => a.albumName);
       localStorage.setItem('libraryCustomOrder', JSON.stringify(names));
       return original;
@@ -1775,8 +1798,8 @@ function highlightSongInAlbum(songTitle) {
   }, 60);
 }
 
-function renderLibrarySearchResults(items, query) {
-  const box = document.getElementById('library-search-results');
+function renderLibrarySearchResults(items, query, boxId = 'library-search-results') {
+  const box = document.getElementById(boxId);
   if (!box) return;
 
   if (!query.trim()) {
@@ -1898,9 +1921,9 @@ function renderLibrarySearchResults(items, query) {
   });
 }
 
-function handleLibrarySearch(query) {
+function handleLibrarySearch(query, boxId = 'library-search-results') {
   const q = String(query || '').trim();
-  const box = document.getElementById('library-search-results');
+  const box = document.getElementById(boxId);
   if (!box) return;
 
   if (!q) {
@@ -1955,24 +1978,34 @@ function handleLibrarySearch(query) {
   });
 
   items.sort((a, b) => (b._score || 0) - (a._score || 0));
-  renderLibrarySearchResults(items, q);
+  renderLibrarySearchResults(items, q, boxId);
 }
 
 function initLibrarySearchBox() {
-  const input = document.getElementById('library-search');
-  const box = document.getElementById('library-search-results');
-  if (!input || !box) return;
+  const desktopInput = document.getElementById('library-search');
+  const desktopBox = document.getElementById('library-search-results');
 
-  input.addEventListener('input', () => handleLibrarySearch(input.value));
+  const mobileInput = document.getElementById('library-search-mobile');
+  const mobileBox = document.getElementById('library-search-results-mobile');
 
-  // Click outside closes
-  window.addEventListener('click', (e) => {
-    if (!box.classList.contains('hidden')) {
-      const wrap = input.closest('.relative');
-      if (wrap && !wrap.contains(e.target)) box.classList.add('hidden');
-    }
-  });
+  function bind(input, box, boxId) {
+    if (!input || !box) return;
+
+    input.addEventListener('input', () => handleLibrarySearch(input.value, boxId));
+
+    // Click outside closes
+    window.addEventListener('click', (e) => {
+      if (!box.classList.contains('hidden')) {
+        const wrap = input.closest('.relative');
+        if (wrap && !wrap.contains(e.target)) box.classList.add('hidden');
+      }
+    });
+  }
+
+  bind(desktopInput, desktopBox, 'library-search-results');
+  bind(mobileInput, mobileBox, 'library-search-results-mobile');
 }
+
 
 // Patch renderGrid to support Library "List" view (only when you're in Library)
 const __renderGridOriginal = renderGrid;
