@@ -1305,8 +1305,22 @@ checkDockVisibility();
                 // Sort library alphabetically by album
                 libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
                 
-                document.getElementById('loading').classList.add('hidden');
-                showView('home');
+               document.getElementById('loading').classList.add('hidden');
+
+// Initialize in-app history stack BEFORE first navigation
+initAppHistoryOnce();
+
+// Replace the initial browser history entry with in-app state
+history.replaceState(
+  { __reson: true, view: "home", playlistIndex: null },
+  ""
+);
+
+// Navigate to home WITHOUT creating a new history entry
+__navFromPop = true;
+showView('home');
+__navFromPop = false;
+
             } catch (error) {
                 console.error("Fetch error:", error);
                 document.getElementById('loading').innerHTML = `
@@ -1333,10 +1347,74 @@ checkDockVisibility();
          * ---------------------------------------------------------------------
          */
         let activePlaylistId = null;
-        function showView(viewType, playlistIndex = null) {
-        // Always close menus when switching screens
-try { hidePlaylistMenu(); } catch (e) {}
-try { contextMenu.style.display = 'none'; } catch (e) {}
+
+// -----------------------
+// IN-APP HISTORY (makes desktop trackpad swipe / browser back go inside the app)
+// -----------------------
+let __navFromPop = false;
+let __appHistoryReady = false;
+
+function initAppHistoryOnce() {
+  if (__appHistoryReady) return;
+  __appHistoryReady = true;
+
+  // Make sure there is always a state for the current page
+  if (!history.state || !history.state.__reson) {
+    history.replaceState({ __reson: true, view: "home", playlistIndex: null }, "");
+  }
+
+  // When user hits browser back / trackpad swipe back:
+  window.addEventListener("popstate", (e) => {
+    const st = e.state;
+
+    // If it wasn't our app state, let the browser do its normal thing
+    if (!st || !st.__reson) return;
+
+    __navFromPop = true;
+    showView(st.view || "home", (typeof st.playlistIndex === "number") ? st.playlistIndex : null);
+    __navFromPop = false;
+  });
+}
+
+function pushAppState(view, playlistIndex) {
+  if (!__appHistoryReady) initAppHistoryOnce();
+  if (__navFromPop) return; // don't push while responding to back/forward
+
+  const next = {
+    __reson: true,
+    view: view,
+    playlistIndex: (typeof playlistIndex === "number") ? playlistIndex : null
+  };
+
+  // Avoid pushing duplicates
+  const cur = history.state || {};
+  const same =
+    cur.__reson === true &&
+    cur.view === next.view &&
+    (cur.playlistIndex ?? null) === (next.playlistIndex ?? null);
+
+  if (!same) history.pushState(next, "");
+}
+
+function goBackInApp() {
+  // If we have app history entries, go back
+  if (history.state && history.state.__reson) {
+    history.back();
+    return;
+  }
+  // Fallback
+  showView("home");
+}
+
+/**
+ * ---------------------------------------------------------------------
+ * CORE NAVIGATION LOGIC
+ * ---------------------------------------------------------------------
+ */
+function showView(viewType, playlistIndex = null) {
+  // Always close menus when switching screens
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { contextMenu.style.display = 'none'; } catch (e) {}
 
   // Hide all
   ['grid-view', 'album-view', 'search-view'].forEach(id => {
@@ -1350,9 +1428,9 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
   scrollArea.scrollTop = 0;
 
   if (viewType === 'home') {
-  document.getElementById('grid-view').classList.remove('hidden');
-  renderGrid(libraryData);
-  renderHistory(); // <-- add this so the home-recents tiles refresh
+    document.getElementById('grid-view').classList.remove('hidden');
+    renderGrid(libraryData);
+    renderHistory(); // refresh recents tiles
   } else if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
     document.getElementById('global-search').focus();
@@ -1367,28 +1445,31 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
   }
 
   updateActiveStates(viewType);
+
+  // Push in-app history (so trackpad swipe back stays in the app)
+  pushAppState(viewType, playlistIndex);
 }
 
+function updateActiveStates(viewType) {
+  // Mobile Nav
+  const navIds = { home: 'nav-home', search: 'nav-search', liked: 'nav-library' };
+  Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
+  if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
 
-        function updateActiveStates(viewType) {
-            // Mobile Nav
-            const navIds = { home: 'nav-home', search: 'nav-search', liked: 'nav-library' };
-            Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
-            if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
+  // Desktop Sidebar
+  document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home');
+  document.getElementById('side-nav-home').classList.toggle('text-zinc-400', viewType !== 'home');
+  document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
+  document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
+  document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
+}
 
-            // Desktop Sidebar
-            document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home');
-            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', viewType !== 'home');
-            document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
-            document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
-            document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
-        }
-
-        /**
+/**
          * ---------------------------------------------------------------------
          * RENDERERS
          * ---------------------------------------------------------------------
          */
+
 function renderGrid(data) {
   const grid = document.getElementById('album-grid');
 
@@ -2182,7 +2263,90 @@ function checkDockVisibility() {
   });
 }
 
-        // Context Menu & Playlists
+        // -----------------------
+// MOBILE EDGE SWIPE BACK (Album page -> Home)
+// Swipe from LEFT EDGE to the RIGHT
+// -----------------------
+(function initMobileEdgeSwipeBackOnce() {
+  if (window.__edgeSwipeBackBound) return;
+  window.__edgeSwipeBackBound = true;
+
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  let tracking = false;
+  let startX = 0;
+  let startY = 0;
+  let decided = false;
+  let isHorizontal = false;
+
+  function isAlbumViewVisible() {
+    const albumView = document.getElementById('album-view');
+    if (!albumView) return false;
+    return !albumView.classList.contains('hidden');
+  }
+
+  area.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    if (!isAlbumViewVisible()) return;
+    if (!nowPlayingOverlay || !nowPlayingOverlay.classList.contains('hidden')) return; // don't interfere with Now Playing
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+
+    // Only start tracking if swipe begins near the left edge
+    tracking = (startX <= 28);
+    decided = false;
+    isHorizontal = false;
+  }, { passive: true });
+
+  area.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    if (!e.touches || !e.touches[0]) return;
+
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (!decided) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+
+    if (!isHorizontal) {
+      tracking = false;
+      return;
+    }
+
+    // If user is swiping right, prevent the page from “feeling” like a scroll
+    if (dx > 0) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  area.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    // If we ended with a strong swipe to the right, go back
+    // (Use changedTouches so it works reliably)
+    const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+    if (!t) return;
+
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (dx > 90 && Math.abs(dy) < 60) {
+      // Go back in-app (if history exists) otherwise go home
+      goBackInApp();
+    }
+  }, { passive: true });
+})();
+
+// Context Menu & Playlists
+
         function handleContextMenu(e, song) {
             e.preventDefault();
             menuTargetSong = song;
