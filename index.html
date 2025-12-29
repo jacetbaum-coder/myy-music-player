@@ -1020,7 +1020,10 @@ img {
       <i class="fas fa-chevron-down text-white"></i>
     </button>
 
-    <div class="text-xs tracking-[0.35em] text-zinc-400 font-bold">NOW PLAYING</div>
+    <div id="np-context"
+     class="text-xs tracking-[0.35em] text-zinc-400 font-bold uppercase">
+  NOW PLAYING
+</div>
 
     <button id="np-more"
             class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
@@ -1113,7 +1116,12 @@ img {
         let libraryData = [];
         let currentSong = null;
         let currentQueue = [];
-        let currentIndex = -1;
+let currentIndex = -1;
+
+// ---- PLAY CONTEXT (mobile "listening from") ----
+let playContext = null;
+// { type: 'album' | 'playlist' | 'search', label: string }
+
         let menuTargetSong = null;
         let activePlaylistIndex = null;
         
@@ -1540,11 +1548,14 @@ checkDockVisibility();
   }
 
   if (viewType === 'playlist') {
-    document.getElementById('album-view').classList.remove('hidden');
-    const pl = playlists[playlistIndex];
-    activePlaylistId = pl?.id || null;
-    renderCollection(pl.name, pl.songs, true, playlistIndex);
-  }
+  document.getElementById('album-view').classList.remove('hidden');
+  const pl = playlists[playlistIndex];
+  activePlaylistId = pl?.id || null;
+
+  playContext = { type: 'playlist', label: pl.name };
+
+  renderCollection(pl.name, pl.songs, true, playlistIndex);
+}
 
   if (viewType === 'artist') {
     document.getElementById('artist-view').classList.remove('hidden');
@@ -1611,6 +1622,7 @@ function renderGrid(data) {
 }
 
 function openAlbumByName(name) {
+    playContext = { type: 'album', label: name };
   const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
 
@@ -1806,8 +1818,9 @@ matches.sort((a, b) => b._score - a._score);
                 const row = document.createElement('div');
                 row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
                 row.addEventListener('click', () => {
-                    playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
-                });
+  playContext = { type: 'search', label: query };
+  playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+});
 
                 const img = document.createElement('img');
                 img.src = s.cover;
@@ -1989,24 +2002,40 @@ function updateNowPlayingUI() {
   const cover = document.getElementById('np-cover');
   const title = document.getElementById('np-title');
   const artist = document.getElementById('np-artist');
+  const ctx = document.getElementById('np-context');
 
   if (cover) cover.src = currentSong.cover || "";
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
   if (artist) artist.textContent = currentSong.artist || "";
 
-  // optional: mirror the real player times if available
+  // ---- CONTEXT LABEL (mobile) ----
+  if (ctx) {
+    if (!playContext) {
+      ctx.textContent = "NOW PLAYING";
+    } else if (playContext.type === 'album') {
+      ctx.textContent = playContext.label.toUpperCase();
+    } else if (playContext.type === 'playlist') {
+      ctx.textContent = playContext.label.toUpperCase();
+    } else if (playContext.type === 'search') {
+      ctx.textContent = `"${playContext.label}" IN SEARCH`;
+    }
+  }
+
+  // progress sync
   const curr = document.getElementById('np-t-curr');
   const total = document.getElementById('np-t-total');
   const fill = document.getElementById('np-progress-fill');
 
   if (curr) curr.textContent = formatTime(player.currentTime || 0);
-  if (total) total.textContent = Number.isFinite(player.duration) ? formatTime(player.duration) : "0:00";
+  if (total) total.textContent = Number.isFinite(player.duration)
+    ? formatTime(player.duration)
+    : "0:00";
 
   if (fill && Number.isFinite(player.duration) && player.duration > 0) {
-    const pct = (player.currentTime / player.duration) * 100;
-    fill.style.width = pct + "%";
+    fill.style.width = ((player.currentTime / player.duration) * 100) + "%";
   }
 }
+
 
 function openNowPlaying() {
   if (!currentSong) return;
