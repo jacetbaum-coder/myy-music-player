@@ -81,12 +81,11 @@
   transition: transform 220ms ease;
   will-change: transform;
 
-  /* override the Tailwind bg-black with our accent gradient */
+  /* OPAQUE accent -> black gradient (no transparency, so nothing shows through) */
   background: radial-gradient(1200px 900px at 50% 0%,
-      rgba(var(--accent-rgb), 0.65) 0%,
-      rgba(0,0,0,1) 60%) !important;
+      rgb(var(--accent-rgb)) 0%,
+      rgb(0,0,0) 60%) !important;
 }
-
 
 #now-playing-overlay.hidden { display: none !important; }
 
