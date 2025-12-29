@@ -1843,27 +1843,47 @@ function setMarqueeTitle(containerId, rawText) {
 
   // Fallback if markup isn't present
   if (!a || !b) {
-    wrap.textContent = text;
+    // Only change if different (prevents animation resets)
+    if (wrap.dataset.marqueeText !== text) {
+      wrap.textContent = text;
+      wrap.dataset.marqueeText = text;
+    }
     return;
   }
 
-  // Set text
-  a.textContent = text;
-  b.textContent = `   •   ${text}`;
+  // If text is unchanged AND container width unchanged, do nothing
+  const w = wrap.clientWidth || 0;
+  const lastText = wrap.dataset.marqueeText || '';
+  const lastW = Number(wrap.dataset.marqueeW || 0);
 
-  // Decide if marquee is needed (based on the first span width)
-  wrap.classList.remove('is-marquee');
+  if (text === lastText && w === lastW) {
+    return;
+  }
 
-  // Wait for layout so widths are correct
+  // Update stored values
+  wrap.dataset.marqueeText = text;
+  wrap.dataset.marqueeW = String(w);
+
+  // Only set DOM text if it actually changed
+  if (a.textContent !== text) a.textContent = text;
+  const bText = `   •   ${text}`;
+  if (b.textContent !== bText) b.textContent = bText;
+
+  // Decide if marquee is needed (after layout)
   requestAnimationFrame(() => {
-    const needs = a.scrollWidth > wrap.clientWidth + 2;
-    if (needs && text.length > 0) {
+    const needs = (a.scrollWidth > wrap.clientWidth + 2) && text.length > 0;
+
+    const isOn = wrap.classList.contains('is-marquee');
+
+    // Only toggle if state changed (prevents “restart every tick”)
+    if (needs && !isOn) {
       wrap.classList.add('is-marquee');
-    } else {
+    } else if (!needs && isOn) {
       wrap.classList.remove('is-marquee');
     }
   });
 }
+
 
 function checkDockVisibility() {
     const oneHour = 3600000;
