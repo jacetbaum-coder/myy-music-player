@@ -843,6 +843,15 @@
 
       <!-- controls (play/pause + prev/next work) -->
 <div class="mt-10 flex items-center justify-center gap-10 text-white">
+
+  <!-- SHUFFLE (mobile) -->
+  <button id="np-shuffle-btn"
+          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+          onclick="toggleShuffle()"
+          aria-label="Shuffle">
+    <i id="np-shuffle-icon" class="fas fa-shuffle text-xl"></i>
+  </button>
+
   <button id="np-prev-btn"
           class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="prevSong()"
@@ -863,13 +872,12 @@
           aria-label="Next">
     <i class="fas fa-step-forward text-xl"></i>
   </button>
+
 </div>
 </div>
     </div>
   </div>
 </div>
-
-
 
     <audio id="audio-player" preload="auto"></audio>
 
@@ -2086,12 +2094,21 @@ function resetShuffleForQueue() {
     shufflePos = 0;
 }
 function toggleShuffle() {
-    const btn = document.getElementById('btn-shuffle');
-    if (!btn) return;
+    const desktopBtn = document.getElementById('btn-shuffle');
+    const mobileIcon = document.getElementById('np-shuffle-icon');
 
-    btn.classList.toggle('active-green');
+    // Determine current state (check either UI)
+    const currentlyOn =
+        desktopBtn?.classList.contains('active-green') ||
+        mobileIcon?.classList.contains('active-green');
 
-    // If a song is currently selected, reset shuffle order + history
+    const nextState = !currentlyOn;
+
+    // Update BOTH UIs (desktop + mobile)
+    if (desktopBtn) desktopBtn.classList.toggle('active-green', nextState);
+    if (mobileIcon) mobileIcon.classList.toggle('active-green', nextState);
+
+    // If turning shuffle on/off while a queue exists, rebuild shuffle order
     if (currentQueue && currentQueue.length > 0 && currentIndex >= 0) {
         resetShuffleForQueue();
         playedStack = [currentIndex];
@@ -2099,8 +2116,12 @@ function toggleShuffle() {
 }
 
 function isShuffleOn() {
-    return document.getElementById('btn-shuffle')?.classList.contains('active-green');
+    return (
+        document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
+        document.getElementById('np-shuffle-icon')?.classList.contains('active-green')
+    );
 }
+
         function isRepeatOn() {
   return document.getElementById('btn-repeat')?.classList.contains('active-green');
 }
