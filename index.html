@@ -1452,6 +1452,8 @@ if (dockLeft) {
             renderHistory();
             ensurePlaylistIds();
             renderPlaylists();
+try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
+renderPlaylists();
             updateCounts();
             restorePlayerStateIfRecent();
 checkDockVisibility();
@@ -2717,6 +2719,148 @@ function savePlaylists() {
   localStorage.setItem('playlists', JSON.stringify(playlists));
 }
 
+/* -----------------------
+   PLAYLIST AUTO COVERS
+   Rules:
+   - If pl.cover exists => use it (manual cover)
+   - Else if 0 songs => ""
+   - Else if 1-3 songs => first song cover
+   - Else 4+ songs => 2x2 of first 4 covers (stored as dataURL in pl.autoCover)
+------------------------ */
+
+function getSongCoverFromPlaylistSong(s) {
+  return (s && (s.cover || s.coverArt || s.coverUrl)) ? String(s.cover || s.coverArt || s.coverUrl) : "";
+}
+
+function getPlaylistManualCover(pl) {
+  return (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
+}
+
+function getPlaylistAutoCover(pl) {
+  return (pl && pl.autoCover && String(pl.autoCover).trim()) ? String(pl.autoCover).trim() : "";
+}
+
+function getEffectivePlaylistCover(pl) {
+  return getPlaylistManualCover(pl) || getPlaylistAutoCover(pl) || "";
+}
+
+function playlistAutoCoverSignature(pl) {
+  // Signature determines when we need to rebuild the auto cover
+  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+  const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
+
+  if (covers.length === 0) return "none";
+  if (covers.length < 4) return `single:${covers[0]}`;
+  return `grid:${covers.slice(0,4).join('|')}`;
+}
+
+function loadImageForCanvas(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function build2x2CoverDataURL(urls) {
+  // urls length must be 4
+  const size = 512;
+  const cell = size / 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return "";
+
+  // background
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, 0, size, size);
+
+  try {
+    const imgs = await Promise.all(urls.map(u => loadImageForCanvas(u)));
+
+    // draw 4 squares: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
+    const positions = [
+      [0, 0],
+      [cell, 0],
+      [0, cell],
+      [cell, cell],
+    ];
+
+    imgs.forEach((img, i) => {
+      const [x, y] = positions[i];
+
+      // cover-crop to square
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      const side = Math.min(iw, ih);
+      const sx = Math.floor((iw - side) / 2);
+      const sy = Math.floor((ih - side) / 2);
+
+      ctx.drawImage(img, sx, sy, side, side, x, y, cell, cell);
+    });
+
+    // NOTE: this can fail if ANY image host blocks CORS (tainted canvas).
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch (e) {
+    return "";
+  }
+}
+
+async function updatePlaylistAutoCoverById(playlistId) {
+  const idx = playlists.findIndex(p => p.id === playlistId);
+  if (idx === -1) return;
+
+  const pl = playlists[idx];
+
+  // If user has a manual cover, we do NOT overwrite it.
+  if (getPlaylistManualCover(pl)) {
+    pl.autoCoverSig = playlistAutoCoverSignature(pl); // still track sig
+    savePlaylists();
+    return;
+  }
+
+  const sig = playlistAutoCoverSignature(pl);
+  if (pl.autoCoverSig === sig && getPlaylistAutoCover(pl)) {
+    return; // already up to date
+  }
+
+  const songs = Array.isArray(pl.songs) ? pl.songs : [];
+  const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
+
+  if (covers.length === 0) {
+    pl.autoCover = "";
+    pl.autoCoverSig = sig;
+    savePlaylists();
+    return;
+  }
+
+  if (covers.length < 4) {
+    pl.autoCover = covers[0] || "";
+    pl.autoCoverSig = sig;
+    savePlaylists();
+    return;
+  }
+
+  // 4+ => build 2x2 (try)
+  const gridUrl = await build2x2CoverDataURL(covers.slice(0, 4));
+  pl.autoCover = gridUrl || (covers[0] || "");
+  pl.autoCoverSig = sig;
+  savePlaylists();
+}
+
+async function ensureAllPlaylistAutoCovers() {
+  // Run once at startup to fix existing playlists
+  if (!Array.isArray(playlists)) return;
+  for (const pl of playlists) {
+    if (!pl?.id) continue;
+    await updatePlaylistAutoCoverById(pl.id);
+  }
+}
+
 // Menu plumbing
 let playlistMenuTargetId = null;
 
@@ -2999,7 +3143,7 @@ function renderPlaylists() {
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
     div.onclick = () => showView('playlist', i);
 
-    const cover = (pl.cover && String(pl.cover).trim()) ? pl.cover : "";
+    const cover = getEffectivePlaylistCover(pl);
 
     div.innerHTML = `
         <div class="playlist-cover w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center"
@@ -3070,16 +3214,25 @@ function renderPlaylists() {
                 const item = document.createElement('div');
                 item.className = "menu-item";
                 item.innerText = pl.name;
-                item.onclick = () => {
-                    const s = menuTargetSong;
-                    playlists[i].songs.push({
-                        url: s.link || s.url, title: s.name || s.title,
-                        album: s.album, artist: s.artist, cover: s.cover || s.coverArt
-                    });
-                    savePlaylists();
-                    renderPlaylists();
-                    contextMenu.style.display = 'none';
-                };
+               item.onclick = async () => {
+  const s = menuTargetSong;
+
+  playlists[i].songs.push({
+    url: s.link || s.url,
+    title: s.name || s.title,
+    album: s.album,
+    artist: s.artist,
+    cover: s.cover || s.coverArt
+  });
+
+  savePlaylists();
+
+  // NEW: update auto cover right after adding
+  try { await updatePlaylistAutoCoverById(playlists[i].id); } catch (e) {}
+
+  renderPlaylists();
+  contextMenu.style.display = 'none';
+};
                 sub.appendChild(item);
             });
         }
@@ -3338,10 +3491,13 @@ function renderCollection(name, songs, isPlaylist = false) {
 
     // Prefer custom playlist cover when viewing a playlist
   let cover = queue[0]?.cover || '';
+    let cover = queue[0]?.cover || '';
+
   if (isPlaylist && activePlaylistId) {
     const plMatch = playlists.find(p => p.id === activePlaylistId);
-    if (plMatch && plMatch.cover && String(plMatch.cover).trim()) {
-      cover = plMatch.cover;
+    if (plMatch) {
+      // Manual cover wins, else auto cover, else first song cover
+      cover = getEffectivePlaylistCover(plMatch) || cover;
     }
   }
 
