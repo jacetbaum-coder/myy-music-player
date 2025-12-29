@@ -26,7 +26,7 @@
     <style>
 
         /* --- ROOT & CORE RESET --- */
-        :root {
+                :root {
             --spotify-green: #1db954;
             --bg-base: #000000;
             --bg-surface: #121212;
@@ -35,7 +35,11 @@
             --text-sub: #b3b3b3;
             --nav-height: 70px;
             --player-height: 90px;
+
+            /* Album-derived accent color (default: black) */
+            --accent-rgb: 0, 0, 0;
         }
+
 /* Mobile "Recently listened" rectangles (Spotify-ish) */
 .mobile-recent-card {
   display: flex;
@@ -76,7 +80,13 @@
   transform: translateY(0);
   transition: transform 220ms ease;
   will-change: transform;
+
+  /* override the Tailwind bg-black with our accent gradient */
+  background: radial-gradient(1200px 900px at 50% 0%,
+      rgba(var(--accent-rgb), 0.65) 0%,
+      rgba(0,0,0,1) 60%) !important;
 }
+
 
 #now-playing-overlay.hidden { display: none !important; }
 
@@ -116,17 +126,20 @@
   }
 }
 
-
         body { 
-            background: var(--bg-base); 
-            color: var(--text-main); 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-            margin: 0;
-        }
+  /* Spotify-style: colored glow at top fading to black */
+  background: radial-gradient(1200px 900px at 50% 0%,
+      rgba(var(--accent-rgb), 0.55) 0%,
+      rgba(0,0,0,1) 60%);
+  color: var(--text-main); 
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+  height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  margin: 0;
+}
+
 
         /* --- DESKTOP LAYOUT --- */
         .sidebar { 
@@ -153,14 +166,17 @@
         }
 
         .main-view { 
-            flex: 1; 
-            background: linear-gradient(180deg, #222 0%, var(--bg-base) 100%); 
-            overflow-y: auto; 
-            padding: 32px; 
-            position: relative; 
-            scrollbar-width: thin;
-            scrollbar-color: #555 transparent;
-        }
+  flex: 1; 
+  /* subtle accent tint at top -> black */
+  background: linear-gradient(180deg,
+      rgba(var(--accent-rgb), 0.28) 0%,
+      rgba(0,0,0,1) 65%);
+  overflow-y: auto; 
+  padding: 32px; 
+  position: relative; 
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
 
         /* --- INTERACTIVE ELEMENTS --- */
         .resizer { 
@@ -1078,7 +1094,115 @@ localStorage.setItem('playlists', JSON.stringify(playlists));
 
         // Elements
         const player = document.getElementById('audio-player');
-        // -----------------------
+
+/* -----------------------
+   ALBUM COVER -> ACCENT COLOR (Spotify-like)
+------------------------ */
+
+function setAccentRGB(r, g, b) {
+  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+
+  // Optional: update browser theme color (mobile address bar tint)
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    const hex = rgbToHex(r, g, b);
+    meta.setAttribute('content', hex);
+  }
+}
+
+function rgbToHex(r, g, b) {
+  const to = (n) => n.toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+function clamp255(n) {
+  return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+// Picks a “vibrant-ish” average by weighting pixels with higher saturation
+async function extractAccentFromImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous"; // works if your image host sends CORS headers
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve([0, 0, 0]);
+
+        // downsample for speed
+        const size = 32;
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
+
+        const data = ctx.getImageData(0, 0, size, size).data;
+
+        let rSum = 0, gSum = 0, bSum = 0, wSum = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a < 30) continue;
+
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          // saturation weight
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const sat = max === 0 ? 0 : (max - min) / max; // 0..1
+
+          // ignore near-grayscale pixels a bit
+          const w = 0.20 + (sat * 0.80);
+
+          rSum += r * w;
+          gSum += g * w;
+          bSum += b * w;
+          wSum += w;
+        }
+
+        if (wSum <= 0) return resolve([0, 0, 0]);
+
+        let r = rSum / wSum;
+        let g = gSum / wSum;
+        let b = bSum / wSum;
+
+        // Avoid super-dark accents (boost a bit)
+        const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+        if (brightness < 55) {
+          const boost = 55 / Math.max(1, brightness);
+          r *= boost; g *= boost; b *= boost;
+        }
+
+        resolve([clamp255(r), clamp255(g), clamp255(b)]);
+      } catch (e) {
+        resolve([0, 0, 0]);
+      }
+    };
+
+    img.onerror = () => resolve([0, 0, 0]);
+    img.src = url;
+  });
+}
+
+let __lastAccentCover = "";
+async function updateAccentFromCover(coverUrl) {
+  if (!coverUrl) {
+    setAccentRGB(0, 0, 0);
+    return;
+  }
+
+  // prevent pointless re-extracting
+  if (coverUrl === __lastAccentCover) return;
+  __lastAccentCover = coverUrl;
+
+  const [r, g, b] = await extractAccentFromImage(coverUrl);
+  setAccentRGB(r, g, b);
+}
+        
+// -----------------------
 // VOLUME CONTROL
 // -----------------------
 
@@ -1476,8 +1600,11 @@ persistPlayerState(true);
             // UI Updates
             dock.classList.remove('dock-hidden');
             document.getElementById('p-cover').src = cover;
-            setMarqueeTitle('p-title', title.replace('.mp3', ''));
-            document.getElementById('p-artist').innerText = artist;
+updateAccentFromCover(cover);
+
+setMarqueeTitle('p-title', title.replace('.mp3', ''));
+document.getElementById('p-artist').innerText = artist;
+
             document.getElementById('play-icon').className = "fas fa-pause";
 
 const mIcon = document.getElementById('mobile-play-icon');
@@ -1951,8 +2078,11 @@ function restorePlayerStateIfRecent() {
   // Update dock UI
   dock.classList.remove('dock-hidden');
   document.getElementById('p-cover').src = currentSong.cover || "";
-  setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
-  document.getElementById('p-artist').innerText = currentSong.artist || "";
+updateAccentFromCover(currentSong.cover || "");
+
+setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
+document.getElementById('p-artist').innerText = currentSong.artist || "";
+
 
   // Ensure icons show PAUSED state on refresh
   setAllPlayIconsToPlay();
