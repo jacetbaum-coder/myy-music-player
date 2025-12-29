@@ -344,6 +344,78 @@
   background: var(--spotify-green);
 }
 
+/* --- MOBILE NOW PLAYING: make controls look like Spotify (no pill backgrounds) --- */
+@media (max-width: 768px) {
+  /* remove the “button pill” look */
+  #np-shuffle-btn,
+  #np-prev-btn,
+  #np-next-btn,
+  #np-repeat-btn {
+    background: transparent !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 9999px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* icon sizing */
+  #np-shuffle-icon,
+  #np-repeat-icon {
+    font-size: 22px !important;
+  }
+
+  #np-prev-btn i,
+  #np-next-btn i {
+    font-size: 30px !important;
+  }
+
+  /* center play button slightly bigger than the rest */
+  #np-play-btn {
+    width: 76px !important;
+    height: 76px !important;
+    border-radius: 9999px !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #np-play-icon {
+    font-size: 28px !important;
+  }
+
+  /* keep spacing even */
+  #np-controls {
+    width: 100% !important;
+    max-width: 520px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+  }
+
+  /* make the repeat “dot” sit under the icon like Spotify */
+  #np-repeat-btn {
+    position: relative !important;
+  }
+  #np-repeat-dot {
+    bottom: -6px !important;
+  }
+
+  /* small press feedback */
+  #np-shuffle-btn:active,
+  #np-prev-btn:active,
+  #np-next-btn:active,
+  #np-repeat-btn:active,
+  #np-play-btn:active {
+    transform: scale(0.96);
+  }
+}
+
+/* --- CONTEXT MENU --- */
+
 
         /* --- CONTEXT MENU --- */
         #context-menu { 
@@ -862,47 +934,42 @@
       </div>
 
       <!-- controls (play/pause + prev/next work) -->
-<div class="mt-10 flex items-center justify-center gap-10 text-white">
+<div id="np-controls" class="mt-10 text-white">
 
   <!-- SHUFFLE (mobile) -->
   <button id="np-shuffle-btn"
-          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="toggleShuffle()"
           aria-label="Shuffle">
-    <i id="np-shuffle-icon" class="fas fa-shuffle text-xl"></i>
+    <i id="np-shuffle-icon" class="fas fa-shuffle"></i>
   </button>
 
   <!-- PREV -->
   <button id="np-prev-btn"
-          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="prevSong()"
           aria-label="Previous">
-    <i class="fas fa-step-backward text-xl"></i>
+    <i class="fas fa-step-backward"></i>
   </button>
 
   <!-- PLAY/PAUSE (slightly bigger) -->
   <button id="np-play-btn"
-          class="w-20 h-20 rounded-full bg-white flex items-center justify-center"
           onclick="togglePlay()"
           aria-label="Play or pause">
-    <i id="np-play-icon" class="fas fa-pause text-black text-2xl"></i>
+    <i id="np-play-icon" class="fas fa-pause text-black"></i>
   </button>
 
   <!-- NEXT -->
   <button id="np-next-btn"
-          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
           onclick="nextSong()"
           aria-label="Next">
-    <i class="fas fa-step-forward text-xl"></i>
+    <i class="fas fa-step-forward"></i>
   </button>
 
   <!-- REPEAT (mobile) -->
   <button id="np-repeat-btn"
-          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center relative"
           onclick="cycleRepeat()"
           aria-label="Repeat">
-    <i id="np-repeat-icon" class="fas fa-repeat text-xl"></i>
-    <span id="np-repeat-dot" class="hidden absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#1db954]"></span>
+    <i id="np-repeat-icon" class="fas fa-repeat"></i>
+    <span id="np-repeat-dot" class="hidden absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#1db954]"></span>
   </button>
 
 </div>
