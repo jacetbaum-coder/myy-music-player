@@ -2627,7 +2627,6 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
   el.addEventListener('touchmove', cancel, { passive: true });
 }
 
-// Menu buttons + outside click
 // Menu buttons + outside click (run AFTER the page HTML exists)
 window.addEventListener('DOMContentLoaded', () => {
   const pinBtn = document.getElementById('pm-pin');
@@ -2698,7 +2697,6 @@ window.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       if (!playlistMenuTargetId) return;
 
-      // open picker
       fileInput.value = "";
       fileInput.click();
     };
@@ -2737,15 +2735,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Scroll closes the menu
+  // Scroll closes the menu (capture so it closes even when scrolling inside containers)
   window.addEventListener('scroll', hidePlaylistMenu, true);
 });
-
-
-  // Scroll closes the menu
-  window.addEventListener('scroll', hidePlaylistMenu, true);
-});
-
 
         function renderPlaylists() {
             const list = document.getElementById('dynamic-playlists-list');
