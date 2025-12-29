@@ -1158,7 +1158,8 @@ if (dockLeft) {
             ensurePlaylistIds();
             renderPlaylists();
             updateCounts();
-            checkDockVisibility();
+            restorePlayerStateIfRecent();
+checkDockVisibility();
             initResizers();
             initGlobalKeys();
             
@@ -1468,7 +1469,9 @@ matches.sort((a, b) => b._score - a._score);
             player.play();
             
             lastPlayedTime = Date.now();
-            localStorage.setItem('lastPlayedTime', lastPlayedTime);
+localStorage.setItem('lastPlayedTime', lastPlayedTime);
+persistPlayerState(true);
+
             
             // UI Updates
             dock.classList.remove('dock-hidden');
@@ -1512,12 +1515,14 @@ function togglePlay() {
 
   if (player.paused) {
     player.play();
+      persistPlayerState(true);
 
     if (desktopIcon) desktopIcon.className = "fas fa-pause";
     if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
     if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
   } else {
     player.pause();
+      persistPlayerState(false);
 
     if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
     if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
@@ -1816,6 +1821,14 @@ player.addEventListener('timeupdate', () => {
     document.getElementById('progress-fill').style.width = pct + "%";
     document.getElementById('t-curr').innerText = formatTime(player.currentTime);
     document.getElementById('t-total').innerText = formatTime(player.duration);
+      // Light throttled persistence (once every ~5s)
+  const now = Date.now();
+  if (!window.__lastPersistTick) window.__lastPersistTick = 0;
+  if (now - window.__lastPersistTick > 5000) {
+    window.__lastPersistTick = now;
+    persistPlayerState(null);
+  }
+
 });
 
 function formatTime(s) {
@@ -1880,26 +1893,103 @@ function setMarqueeTitle(containerId, rawText) {
 }
 
 
-function checkDockVisibility() {
-    const oneHour = 3600000;
-    const isRecent = (Date.now() - lastPlayedTime < oneHour);
-    if (isRecent || !player.paused) {
-        dock.classList.remove('dock-hidden');
-    } else {
-        dock.classList.add('dock-hidden');
-    }
+function persistPlayerState(isPlayingOverride = null) {
+  // If we have no song, clear saved state
+  if (!currentSong) {
+    localStorage.removeItem('lastSongState');
+    return;
+  }
+
+  const isPlaying = (isPlayingOverride === null) ? !player.paused : !!isPlayingOverride;
+
+  const state = {
+    song: currentSong,                       // {url,title,album,artist,cover}
+    currentTime: player.currentTime || 0,
+    isPlaying: isPlaying,
+    updatedAt: Date.now()
+  };
+
+  localStorage.setItem('lastSongState', JSON.stringify(state));
+
+  // Also keep your existing lastPlayedTime “freshness” timestamp aligned
+  lastPlayedTime = state.updatedAt;
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+}
+
+function restorePlayerStateIfRecent() {
+  const oneHour = 3600000;
+
+  let state = null;
+  try {
+    state = JSON.parse(localStorage.getItem('lastSongState') || "null");
+  } catch (e) {
+    state = null;
+  }
+
+  // If no saved state, hide dock
+  if (!state || !state.song || !state.song.url) {
+    currentSong = null;
+    dock.classList.add('dock-hidden');
+    return;
+  }
+
+  // If older than 1 hour, wipe it and hide dock
+  if ((Date.now() - (state.updatedAt || 0)) >= oneHour) {
+    localStorage.removeItem('lastSongState');
+    currentSong = null;
+    dock.classList.add('dock-hidden');
+    return;
+  }
+
+  // Restore song into memory
+  currentSong = state.song;
+
+  // Restore audio source + time (do NOT autoplay)
+  player.src = currentSong.url;
+  player.currentTime = Number(state.currentTime || 0);
+
+  // Update dock UI
+  dock.classList.remove('dock-hidden');
+  document.getElementById('p-cover').src = currentSong.cover || "";
+  setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
+  document.getElementById('p-artist').innerText = currentSong.artist || "";
+
+  // Ensure icons show PAUSED state on refresh
+  setAllPlayIconsToPlay();
+
+  // Right sidebar metadata (safe)
+  document.getElementById('right-cover').src = currentSong.cover || "";
+  document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', '');
+  document.getElementById('right-artist').innerText = currentSong.artist || "";
+
+  updateHeartUI();
+
+  // Keep lastPlayedTime consistent with restored state
+  lastPlayedTime = state.updatedAt || Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
 }
 
 function checkDockVisibility() {
-    const oneHour = 3600000;
-    const isRecent = (Date.now() - lastPlayedTime < oneHour);
-    if (isRecent || !player.paused) {
-        dock.classList.remove('dock-hidden');
-    } else {
-        dock.classList.add('dock-hidden');
-    }
-}
+  const oneHour = 3600000;
 
+  // If nothing is loaded / no current song => NO dock
+  if (!currentSong) {
+    dock.classList.add('dock-hidden');
+    return;
+  }
+
+  // If playing, always show
+  if (!player.paused) {
+    dock.classList.remove('dock-hidden');
+    return;
+  }
+
+  // If paused: only show if last interaction within 1 hour
+  const isRecent = (Date.now() - lastPlayedTime) < oneHour;
+
+  if (isRecent) dock.classList.remove('dock-hidden');
+  else dock.classList.add('dock-hidden');
+}
 
         function toggleRightSidebar(show) {
             rightSidebar.classList.toggle('sidebar-hidden', !show);
