@@ -939,7 +939,7 @@
     <span class="marquee-text" data-marquee="b" aria-hidden="true"></span>
   </div>
 </div>
-    <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white cursor-pointer"></div>
+    <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white hover:underline cursor-pointer"></div>
   </div>
 
   <!-- Desktop heart stays; mobile will hide it via CSS -->
@@ -1021,7 +1021,7 @@
     <span class="marquee-text" data-marquee="b" aria-hidden="true">—</span>
   </div>
 </div>
-        <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold">—</div>
+        <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold hover:underline cursor-pointer">—</div>
       </div>
 
       <!-- progress -->
@@ -1766,6 +1766,39 @@ if ("mediaSession" in navigator && currentSong) {
 // -----------------------
 const nowPlayingOverlay = document.getElementById('now-playing-overlay');
 const npCloseBtn = document.getElementById('np-close');
+
+function openArtistFromCurrentSong(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (!currentSong || !currentSong.artist) return;
+
+  // Close Now Playing if it’s open so it doesn’t sit on top
+  try {
+    if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
+      closeNowPlaying();
+    }
+  } catch (err) {}
+
+  openArtistByName(currentSong.artist);
+}
+
+// Click artist in the DOCK
+const dockArtistEl = document.getElementById('p-artist');
+if (dockArtistEl) {
+  dockArtistEl.addEventListener('click', openArtistFromCurrentSong);
+  dockArtistEl.addEventListener('pointerdown', (e) => {
+    // don’t trigger dock-left openNowPlaying handler
+    e.stopPropagation();
+  });
+}
+
+// Click artist in NOW PLAYING overlay
+const npArtistEl = document.getElementById('np-artist');
+if (npArtistEl) {
+  npArtistEl.addEventListener('click', openArtistFromCurrentSong);
+}
 
 function updateNowPlayingUI() {
   if (!currentSong) return;
