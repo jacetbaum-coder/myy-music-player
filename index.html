@@ -1567,11 +1567,13 @@ initSwipeBack();
         };
 
         function setGreeting() {
-            const hour = new Date().getHours();
-            if (hour < 12) greetingEl.innerText = "Good morning, Jason";
-            else if (hour < 18) greetingEl.innerText = "Good afternoon, Jason";
-            else greetingEl.innerText = "Good evening, Jason";
-        }
+  if (!greetingEl) return; // prevents crash if the greeting element doesn't exist
+
+  const hour = new Date().getHours();
+  if (hour < 12) greetingEl.innerText = "Good morning, Jason";
+  else if (hour < 18) greetingEl.innerText = "Good afternoon, Jason";
+  else greetingEl.innerText = "Good evening, Jason";
+}
 
         /**
          * ---------------------------------------------------------------------
