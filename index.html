@@ -81,12 +81,15 @@
   transition: transform 220ms ease;
   will-change: transform;
 
+  /* IMPORTANT: make swipe-down responsive on iOS/Android */
+  touch-action: none;              /* stop browser from hijacking the gesture */
+  overscroll-behavior: contain;    /* prevent “rubber band” stealing the drag */
+
   /* OPAQUE accent -> black gradient (no transparency, so nothing shows through) */
   background: radial-gradient(1200px 900px at 50% 0%,
       rgb(var(--accent-rgb)) 0%,
       rgb(0,0,0) 60%) !important;
 }
-
 #now-playing-overlay.hidden { display: none !important; }
 
 /* while dragging, remove transition so it follows finger */
@@ -2291,10 +2294,70 @@ window.addEventListener('resize', () => {
 
 // clicking the black backdrop closes (but not clicking inside content)
 if (nowPlayingOverlay) {
-  nowPlayingOverlay.addEventListener('click', (e) => {
-    if (e.target === nowPlayingOverlay) closeNowPlaying();
-  });
+  nowPlayingOverlay.addEventListener('pointerdown', (e) => {
+    if (nowPlayingOverlay.classList.contains('hidden')) return;
+    if (!npStartAllowed(e)) return;
+
+    // IMPORTANT: stop the browser from treating this as a scroll gesture
+    e.preventDefault();
+
+    const { x, y } = npGetXY(e);
+    npDragActive = true;
+    npStartY = y;
+    npStartX = x;
+    npLastDown = 0;
+    npDecided = false;
+    npIsVertical = false;
+
+    nowPlayingOverlay.classList.add('np-dragging');
+    try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: false });
+
+  nowPlayingOverlay.addEventListener('pointermove', (e) => {
+    if (!npDragActive) return;
+
+    // IMPORTANT: keep owning the gesture while dragging
+    e.preventDefault();
+
+    const { x, y } = npGetXY(e);
+    const dy = y - npStartY;
+    const dx = x - npStartX;
+
+    // Don’t decide until it actually moves (prevents taps closing)
+    if (!npDecided) {
+      if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return; // more sensitive than 10px
+      npDecided = true;
+      npIsVertical = Math.abs(dy) > Math.abs(dx);
+    }
+
+    if (!npIsVertical) return;
+
+    // Only drag downward
+    const down = Math.max(0, dy);
+    npLastDown = down;
+
+    nowPlayingOverlay.style.transform = `translateY(${down}px)`;
+  }, { passive: false });
+
+  nowPlayingOverlay.addEventListener('pointerup', (e) => {
+    if (!npDragActive) return;
+    e.preventDefault();
+
+    const threshold = 110; // more sensitive than 140
+    const shouldClose = npLastDown > threshold;
+
+    if (shouldClose) closeNowPlaying();
+    else npResetDrag();
+
+    npDragActive = false;
+  }, { passive: false });
+
+  nowPlayingOverlay.addEventListener('pointercancel', () => {
+    if (!npDragActive) return;
+    npResetDrag();
+  }, { passive: true });
 }
+
 
 /* -----------------------
    /* -----------------------
