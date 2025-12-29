@@ -661,36 +661,52 @@
     </button>
   </div>
 
-  <div class="track-row track-header">
-    <span>#</span>
-    <span>Title</span>
-    <span class="hidden md:block">Album</span>
-    <span class="hidden md:block">Date Added</span>
-    <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
-  </div>
-
-  <div id="track-list" class="space-y-1"></div>
+<div class="track-row track-header">
+  <span>#</span>
+  <span>Title</span>
+  <span class="hidden md:block">Album</span>
+  <span class="hidden md:block">Date Added</span>
+  <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
 </div>
 
+<div id="track-list" class="space-y-1"></div>
+</div>
 
-    <nav class="mobile-nav">
-        <div class="nav-item active" id="nav-home" onclick="showView('home')">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </div>
-        <div class="nav-item" id="nav-search" onclick="showView('search')">
-            <i class="fas fa-search"></i>
-            <span>Search</span>
-        </div>
-        <div class="nav-item" id="nav-library" onclick="showView('liked')">
-            <i class="fas fa-layer-group"></i>
-            <span>Library</span>
-        </div>
-        <div class="nav-item" id="nav-premium">
-            <i class="fab fa-spotify"></i>
-            <span>Cloud</span>
-        </div>
-    </nav>
+</main>
+
+<!-- RIGHT SIDEBAR (ADDED) -->
+<div id="resizer-right" class="resizer hidden md:block"></div>
+
+<aside id="right-sidebar" class="right-sidebar sidebar-hidden">
+  <div class="space-y-4 p-4">
+    <img id="right-cover" src="" class="w-full aspect-square rounded-xl bg-zinc-800 object-cover" alt="">
+    <div>
+      <div id="right-title" class="text-xl font-black">—</div>
+      <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
+    </div>
+  </div>
+</aside>
+
+</div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
+
+<nav class="mobile-nav">
+  <div class="nav-item active" id="nav-home" onclick="showView('home')">
+    <i class="fas fa-home"></i>
+    <span>Home</span>
+  </div>
+  <div class="nav-item" id="nav-search" onclick="showView('search')">
+    <i class="fas fa-search"></i>
+    <span>Search</span>
+  </div>
+  <div class="nav-item" id="nav-library" onclick="showView('liked')">
+    <i class="fas fa-layer-group"></i>
+    <span>Library</span>
+  </div>
+  <div class="nav-item" id="nav-premium">
+    <i class="fab fa-spotify"></i>
+    <span>Cloud</span>
+  </div>
+</nav>
 
     <div id="main-dock" class="player-bar dock-hidden">
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
