@@ -125,7 +125,13 @@
   }
 }
 
-        body { 
+        html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body { 
   /* Spotify-style: colored glow at top fading to black */
   background: radial-gradient(1200px 900px at 50% 0%,
       rgba(var(--accent-rgb), 0.55) 0%,
@@ -136,9 +142,25 @@
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
+  overflow-x: hidden;
   margin: 0;
 }
 
+/* Prevent any view container from forcing the page wider than the screen */
+#main-scroll-area,
+.main-view,
+#grid-view,
+#album-view,
+#artist-view,
+#search-view {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Images should never overflow their container */
+img {
+  max-width: 100%;
+}
 
         /* --- DESKTOP LAYOUT --- */
         .sidebar { 
