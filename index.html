@@ -3490,8 +3490,7 @@ function renderCollection(name, songs, isPlaylist = false) {
   if (heroPlay) heroPlay.onclick = () => playQueue(queue, 0);
 
     // Prefer custom playlist cover when viewing a playlist
-  let cover = queue[0]?.cover || '';
-    let cover = queue[0]?.cover || '';
+let cover = queue[0]?.cover || '';
 
   if (isPlaylist && activePlaylistId) {
     const plMatch = playlists.find(p => p.id === activePlaylistId);
