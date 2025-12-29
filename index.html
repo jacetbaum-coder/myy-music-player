@@ -875,6 +875,23 @@
 
 <div id="track-list" class="space-y-1"></div>
 </div>
+<div id="artist-view" class="hidden">
+
+  <button onclick="showView('home')"
+          class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
+    <i class="fas fa-arrow-left text-white"></i>
+  </button>
+
+  <!-- ARTIST HERO -->
+  <div id="artist-hero" class="flex items-end gap-6 mb-10"></div>
+
+  <!-- DISCOGRAPHY -->
+  <h2 class="text-2xl font-black mb-4">Albums</h2>
+  <div id="artist-album-grid"
+       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+  </div>
+
+</div>
 
 </main>
 
@@ -1352,13 +1369,11 @@ checkDockVisibility();
          */
         let activePlaylistId = null;
         function showView(viewType, playlistIndex = null) {
-        // Always close menus when switching screens
-try { hidePlaylistMenu(); } catch (e) {}
-try { contextMenu.style.display = 'none'; } catch (e) {}
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { contextMenu.style.display = 'none'; } catch (e) {}
 
-  // Hide all
-  ['grid-view', 'album-view', 'search-view'].forEach(id => {
-    document.getElementById(id).classList.add('hidden');
+  ['grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
   });
 
   activePlaylistIndex = playlistIndex;
@@ -1368,24 +1383,35 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
   scrollArea.scrollTop = 0;
 
   if (viewType === 'home') {
-  document.getElementById('grid-view').classList.remove('hidden');
-  renderGrid(libraryData);
-  renderHistory(); // <-- add this so the home-recents tiles refresh
-  } else if (viewType === 'search') {
+    document.getElementById('grid-view').classList.remove('hidden');
+    renderGrid(libraryData);
+    renderHistory();
+  }
+
+  if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
     document.getElementById('global-search').focus();
-  } else if (viewType === 'liked') {
+  }
+
+  if (viewType === 'liked') {
     document.getElementById('album-view').classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
-  } else if (viewType === 'playlist') {
+  }
+
+  if (viewType === 'playlist') {
     document.getElementById('album-view').classList.remove('hidden');
     const pl = playlists[playlistIndex];
     activePlaylistId = pl?.id || null;
     renderCollection(pl.name, pl.songs, true, playlistIndex);
   }
 
+  if (viewType === 'artist') {
+    document.getElementById('artist-view').classList.remove('hidden');
+  }
+
   updateActiveStates(viewType);
 }
+
 
 
         function updateActiveStates(viewType) {
@@ -1462,7 +1488,11 @@ function openAlbumByName(name) {
       <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
       <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
       <div class="flex items-center gap-2 text-sm font-bold">
-        <span class="hover:underline cursor-pointer">${album.artistName}</span>
+        <span class="hover:underline cursor-pointer"
+      onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
+  ${album.artistName}
+</span>
+
         <span class="text-zinc-400">• ${album.songs.length} songs</span>
       </div>
     </div>
@@ -1502,6 +1532,37 @@ function openAlbumByName(name) {
 
     listEl.appendChild(row);
   });
+}
+function openArtistByName(artistName) {
+  showView('artist');
+
+  const albums = libraryData.filter(a => a.artistName === artistName);
+
+  if (!albums.length) return;
+
+  // HERO
+  document.getElementById('artist-hero').innerHTML = `
+    <div class="flex items-end gap-6">
+      <img src="${albums[0].coverArt}"
+           class="w-48 h-48 rounded-full object-cover shadow-2xl">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest mb-2">Artist</p>
+        <h1 class="text-5xl md:text-7xl font-black">${artistName}</h1>
+      </div>
+    </div>
+  `;
+
+  // ALBUM GRID
+  const grid = document.getElementById('artist-album-grid');
+  grid.innerHTML = albums.map(a => `
+    <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+         onclick="openAlbumByName('${a.albumName.replace(/'/g, "\\'")}')">
+      <img src="${a.coverArt}"
+           class="w-full aspect-square rounded-md mb-3 object-cover">
+      <div class="text-white font-bold truncate">${a.albumName}</div>
+      <div class="text-sm text-zinc-400">${a.year || ''}</div>
+    </div>
+  `).join('');
 }
 
 
