@@ -96,9 +96,26 @@
 
 
         * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- MOBILE: disable copy/select + iOS long-press menus --- */
+@media (max-width: 768px) {
+  html, body {
+    -webkit-touch-callout: none;   /* disables iOS “Save Image / Copy” menu */
+    -webkit-user-select: none;     /* disables selection */
+    user-select: none;
+  }
+
+  /* extra safety for text + images */
+  img, a, button, #now-playing-overlay, #np-sheet {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
 
         body { 
             background: var(--bg-base); 
@@ -1405,17 +1422,17 @@ if (nowPlayingOverlay) {
 
 /* -----------------------
    /* -----------------------
+   /* -----------------------
    SWIPE DOWN TO CLOSE (mobile)
-   - Fix: don't close on taps
-   - Only allow swipe starting near the top (like Spotify)
+   - Swipe from anywhere in the UPPER HALF
+   - No close on tap
 ------------------------ */
 const npSheet = document.getElementById('np-sheet');
-const npTopBar = document.querySelector('#now-playing-overlay .h-16'); // the top bar
 
 let npDragActive = false;
 let npStartY = 0;
 let npStartX = 0;
-let npLastDown = 0;     // <-- IMPORTANT: track DOWN distance, not absolute Y
+let npLastDown = 0;
 let npDecided = false;
 let npIsVertical = false;
 
@@ -1435,49 +1452,36 @@ function npResetDrag() {
 }
 
 function npStartAllowed(e) {
-  // Only allow starting swipe from the top bar OR the top ~90px of the sheet
+  // Allow swipe start ANYWHERE in the upper half of the screen
   const { y } = npGetXY(e);
-
-  if (npTopBar) {
-    const r = npTopBar.getBoundingClientRect();
-    if (y >= r.top && y <= r.bottom) return true;
-  }
-
-  if (npSheet) {
-    const s = npSheet.getBoundingClientRect();
-    if (y >= s.top && y <= s.top + 90) return true;
-  }
-
-  return false;
+  return y <= (window.innerHeight / 2);
 }
 
-if (npSheet) {
-  npSheet.addEventListener('pointerdown', (e) => {
+if (nowPlayingOverlay) {
+  nowPlayingOverlay.addEventListener('pointerdown', (e) => {
     if (nowPlayingOverlay.classList.contains('hidden')) return;
-
-    // Only start if finger begins near the top (prevents accidental closes)
     if (!npStartAllowed(e)) return;
 
     const { x, y } = npGetXY(e);
     npDragActive = true;
     npStartY = y;
     npStartX = x;
-    npLastDown = 0;          // <-- IMPORTANT FIX
+    npLastDown = 0;
     npDecided = false;
     npIsVertical = false;
 
     nowPlayingOverlay.classList.add('np-dragging');
-    try { npSheet.setPointerCapture(e.pointerId); } catch (err) {}
+    try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
   });
 
-  npSheet.addEventListener('pointermove', (e) => {
+  nowPlayingOverlay.addEventListener('pointermove', (e) => {
     if (!npDragActive) return;
 
     const { x, y } = npGetXY(e);
     const dy = y - npStartY;
     const dx = x - npStartX;
 
-    // Don’t decide until the finger actually moves a bit (prevents tap = close)
+    // Don’t decide until it actually moves (prevents taps closing)
     if (!npDecided) {
       if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
       npDecided = true;
@@ -1486,17 +1490,17 @@ if (npSheet) {
 
     if (!npIsVertical) return;
 
-    // only drag downward
+    // Only drag downward
     const down = Math.max(0, dy);
     npLastDown = down;
 
     nowPlayingOverlay.style.transform = `translateY(${down}px)`;
   });
 
-  npSheet.addEventListener('pointerup', () => {
+  nowPlayingOverlay.addEventListener('pointerup', () => {
     if (!npDragActive) return;
 
-    const threshold = 140; // px to dismiss
+    const threshold = 140;
     const shouldClose = npLastDown > threshold;
 
     if (shouldClose) closeNowPlaying();
@@ -1505,11 +1509,16 @@ if (npSheet) {
     npDragActive = false;
   });
 
-  npSheet.addEventListener('pointercancel', () => {
+  nowPlayingOverlay.addEventListener('pointercancel', () => {
     if (!npDragActive) return;
     npResetDrag();
   });
 }
+
+/* -----------------------
+   PROGRESS BAR SEEKING
+------------------------ */
+
 
 
 /* -----------------------
