@@ -1185,6 +1185,24 @@ async function extractAccentFromImage(url) {
     img.src = url;
   });
 }
+// ===== iOS / Lock Screen / Control Center metadata =====
+function updateMediaSessionMetadata() {
+  if (!("mediaSession" in navigator)) return;
+  if (!currentSong) return;
+
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: (currentSong.title || "").replace(".mp3", ""),
+    artist: currentSong.artist || "",
+    album: currentSong.album || "",
+    artwork: [
+      {
+        src: currentSong.cover || "",
+        sizes: "512x512",
+        type: "image/png"
+      }
+    ]
+  });
+}
 
 let __lastAccentCover = "";
 async function updateAccentFromCover(coverUrl) {
@@ -1591,6 +1609,8 @@ matches.sort((a, b) => b._score - a._score);
             player.src = url;
             player.play();
             
+            updateMediaSessionMetadata();
+            
             lastPlayedTime = Date.now();
 localStorage.setItem('lastPlayedTime', lastPlayedTime);
 persistPlayerState(true);
@@ -1641,7 +1661,31 @@ function togglePlay() {
 
   if (player.paused) {
     player.play();
-      persistPlayerState(true);
+      
+      updateMediaSessionMetadata();
+
+persistPlayerState(true);
+
+// ===== iOS / Lock Screen / Control Center metadata =====
+if ("mediaSession" in navigator && currentSong) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: currentSong.title,
+    artist: currentSong.artist,
+    album: currentSong.album || "",
+    artwork: [
+      {
+        src: currentSong.cover,
+        sizes: "512x512",
+        type: "image/png"
+      }
+    ]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => player.play());
+  navigator.mediaSession.setActionHandler("pause", () => player.pause());
+  navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
+  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
+}
 
     if (desktopIcon) desktopIcon.className = "fas fa-pause";
     if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
@@ -2073,6 +2117,8 @@ function restorePlayerStateIfRecent() {
   // Restore audio source + time (do NOT autoplay)
   player.src = currentSong.url;
   player.currentTime = Number(state.currentTime || 0);
+
+    updateMediaSessionMetadata();
 
   // Update dock UI
   dock.classList.remove('dock-hidden');
