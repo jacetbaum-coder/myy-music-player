@@ -70,10 +70,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* NOW PLAYING overlay: desktop-first. Hide entirely on mobile for now. */
+/* NOW PLAYING overlay: enable on mobile + desktop */
+#now-playing-overlay { display: none; }
+#now-playing-overlay.hidden { display: none !important; }
+
+/* Mobile layout for Now Playing */
 @media (max-width: 768px) {
-  #now-playing-overlay { display: none !important; }
+  #now-playing-overlay {
+    display: block;              /* allow it to exist */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
+
 
         * {
             box-sizing: border-box;
@@ -762,16 +770,22 @@
 
         </div>
     </div>
-<!-- NOW PLAYING OVERLAY (desktop-first) -->
+<!-- NOW PLAYING OVERLAY (mobile-style) -->
 <div id="now-playing-overlay" class="hidden fixed inset-0 z-[3000] bg-black">
   <!-- top bar -->
-  <div class="h-16 flex items-center justify-between px-6 border-b border-white/10">
+  <div class="h-16 flex items-center justify-between px-4 border-b border-white/10">
+    <button id="np-close"
+            class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            aria-label="Close now playing">
+      <i class="fas fa-chevron-down text-white"></i>
+    </button>
+
     <div class="text-xs tracking-[0.35em] text-zinc-400 font-bold">NOW PLAYING</div>
 
-    <button id="np-close"
-            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
-            aria-label="Close now playing">
-      <i class="fas fa-times text-white"></i>
+    <button id="np-more"
+            class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            aria-label="More options">
+      <i class="fas fa-ellipsis-h text-white"></i>
     </button>
   </div>
 
@@ -787,10 +801,10 @@
         <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold">—</div>
       </div>
 
-      <!-- fake progress bar (visual only for now) -->
+      <!-- progress -->
       <div class="mt-8">
         <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-          <div id="np-progress-fill" class="h-full w-[15%] bg-white rounded-full"></div>
+          <div id="np-progress-fill" class="h-full w-[0%] bg-white rounded-full"></div>
         </div>
         <div class="mt-2 flex justify-between text-xs text-zinc-500 font-semibold">
           <span id="np-t-curr">0:00</span>
@@ -798,7 +812,7 @@
         </div>
       </div>
 
-      <!-- controls (non-functional ok) -->
+      <!-- controls (visual only for now) -->
       <div class="mt-10 flex items-center justify-center gap-10 text-white">
         <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
           <i class="fas fa-step-backward text-xl"></i>
@@ -901,16 +915,18 @@ if (volumeContainer) {
         const contextMenu = document.getElementById('context-menu');
         const greetingEl = document.getElementById('greeting-text');
 
-        // Click the dock left area to open Now Playing (desktop)
+        // Click/tap the dock left area to open Now Playing (mobile + desktop)
 const dockLeft = document.getElementById('dock-left');
 if (dockLeft) {
-  dockLeft.addEventListener('click', (e) => {
+  const openIfAllowed = (e) => {
     // If user clicked interactive controls inside the dock-left, ignore
     if (e.target.closest('#dock-heart') || e.target.closest('#mobile-play-btn')) return;
     openNowPlaying();
-  });
-}
+  };
 
+  dockLeft.addEventListener('pointerdown', openIfAllowed);
+  dockLeft.addEventListener('click', openIfAllowed);
+}
 
         /**
          * ---------------------------------------------------------------------
