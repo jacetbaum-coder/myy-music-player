@@ -1764,11 +1764,15 @@ const scrollArea = document.getElementById('main-scroll-area');
   }
 
   if (viewType === 'library') {
-    // MOBILE Library tab now shows what used to be "Home"
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
-    renderHistory();
+  document.getElementById('grid-view').classList.remove('hidden');
+
+  renderGrid(libraryData);
+  renderHistory();
+
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
   }
+}
 
   if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
@@ -1820,38 +1824,39 @@ const scrollArea = document.getElementById('main-scroll-area');
          */
 function renderGrid(data) {
   const grid = document.getElementById('album-grid');
+  if (!grid) return;
 
   grid.innerHTML = data.map((album) => {
     const safeName = album.albumName.replace(/'/g, "\\'");
-    const safeArtist = (album.artistName || "").replace(/'/g, "\\'");
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-      <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all duration-300 cursor-pointer group shadow-lg"
-           onclick="openAlbumByName('${safeName}')">
+      <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
+           data-album="${safeName}">
 
-        <div class="relative shadow-2xl mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover transition transform group-hover:scale-105">
-
-          <!-- GREEN PLAY CIRCLE -->
-          <div class="absolute bottom-3 right-3 bg-[#1db954] w-12 h-12 rounded-full flex items-center justify-center
-                      opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition shadow-xl"
-               onclick="event.stopPropagation(); playAlbumByName('${safeName}')">
-            <i class="fas fa-play text-black text-lg ml-1"></i>
-          </div>
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
+          <img src="${cover}" class="w-full h-full object-cover">
         </div>
 
-        <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
+        <div class="font-bold text-white truncate text-base mb-1">
+          ${album.albumName}
+        </div>
 
         <div class="text-sm text-zinc-400 truncate">
-          <span class="cursor-default">
-  ${album.artistName}
-</span>
+          ${album.artistName}
         </div>
       </div>
     `;
   }).join('');
+
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
+  });
 }
+
 
 function openAlbumByName(name) {
   // BACK STACK: push current view before entering album
