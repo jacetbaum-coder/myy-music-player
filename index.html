@@ -750,9 +750,45 @@ img {
     height: 44px;
   }
 
-  /* album hero sizing */
-  #album-hero h1 { font-size: 2rem; }
-  #album-hero img { width: 140px; height: 140px; }
+  /* album hero sizing (mobile Spotify-like) */
+  #album-hero,
+  #artist-hero > div {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
+
+  /* Make hero images smaller and consistent on mobile */
+  #album-hero img,
+  #artist-hero img {
+    width: 170px !important;
+    height: 170px !important;
+    max-width: 100% !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Album/Artist labels */
+  #album-hero p,
+  #artist-hero p {
+    margin-bottom: 6px !important;
+  }
+
+  /* Titles: responsive, no overflow, nice wrap */
+  #album-hero h1,
+  #artist-hero h1 {
+    font-size: clamp(28px, 7.5vw, 44px) !important;
+    line-height: 1.05 !important;
+    margin-bottom: 10px !important;
+    max-width: 100% !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* The “artist • songs” line */
+  #album-hero .text-sm {
+    flex-wrap: wrap !important;
+    row-gap: 6px !important;
+  }
 
   /* prevent iOS auto-zoom */
   .search-input { font-size: 16px; }
