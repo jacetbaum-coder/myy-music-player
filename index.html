@@ -1798,7 +1798,240 @@ function highlightSongInAlbum(songTitle) {
   }, 60);
 }
 
+function renderLibrarySearchResults(items, query, boxId = 'libraryfunction getLibraryRecentSearches() {
+  try {
+    const arr = JSON.parse(localStorage.getItem('libraryRecentSearches') || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLibraryRecentSearches(arr) {
+  localStorage.setItem('libraryRecentSearches', JSON.stringify(arr.slice(0, 8)));
+}
+
+function addLibraryRecentSearch(term) {
+  const t = String(term || '').trim();
+  if (!t) return;
+  const rec = getLibraryRecentSearches().filter(x => String(x || '').toLowerCase() !== t.toLowerCase());
+  rec.unshift(t);
+  saveLibraryRecentSearches(rec);
+}
+
+function removeLibraryRecentSearch(term) {
+  const t = String(term || '').trim().toLowerCase();
+  const rec = getLibraryRecentSearches().filter(x => String(x || '').toLowerCase() !== t);
+  saveLibraryRecentSearches(rec);
+}
+
+function getLibraryInputForBox(boxId) {
+  return document.getElementById(boxId === 'library-search-results-mobile' ? 'library-search-mobile' : 'library-search');
+}
+
+function renderLibraryRecentSearches(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+
+  const rec = getLibraryRecentSearches();
+  if (!rec.length) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+
+  let html = `<div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">Recent searches</div>`;
+
+  rec.forEach(term => {
+    const safe = String(term).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    html += `
+      <div class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/10">
+        <button class="flex-1 text-left min-w-0"
+                type="button"
+                data-recent-pick="1"
+                data-term="${safe}">
+          <div class="text-white text-sm font-bold truncate">${safe}</div>
+        </button>
+        <button class="text-zinc-400 hover:text-white"
+                type="button"
+                aria-label="Remove recent search"
+                data-recent-remove="1"
+                data-term="${safe}">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  box.innerHTML = html;
+  box.classList.remove('hidden');
+
+  box.querySelectorAll('button[data-recent-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.getAttribute('data-term') || '';
+      const input = getLibraryInputForBox(boxId);
+      if (input) {
+        input.value = term;
+        handleLibrarySearch(term, boxId);
+        input.focus();
+      }
+    });
+  });
+
+  box.querySelectorAll('button[data-recent-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.getAttribute('data-term') || '';
+      removeLibraryRecentSearch(term);
+      renderLibraryRecentSearches(boxId);
+    });
+  });
+}
+
 function renderLibrarySearchResults(items, query, boxId = 'library-search-results') {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+
+  const q = String(query || '').trim();
+
+  // ✅ Empty query = show Recent searches (Spotify-ish)
+  if (!q) {
+    renderLibraryRecentSearches(boxId);
+    return;
+  }
+
+  if (!items.length) {
+    box.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${q.replace(/</g,'&lt;')}"</div>`;
+    box.classList.remove('hidden');
+    return;
+  }
+
+  const section = (title) => `<div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">${title}</div>`;
+
+  let html = '';
+  const byType = {
+    song: items.filter(x => x.type === 'song').slice(0, 5),
+    album: items.filter(x => x.type === 'album').slice(0, 5),
+    artist: items.filter(x => x.type === 'artist').slice(0, 5),
+    playlist: items.filter(x => x.type === 'playlist').slice(0, 5),
+  };
+
+  if (byType.song.length) {
+    html += section('Songs');
+    byType.song.forEach(x => {
+      html += `
+        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3"
+                type="button"
+                data-action="song"
+                data-album="${String(x.album).replace(/"/g,'&quot;')}"
+                data-title="${String(x.title).replace(/"/g,'&quot;')}"
+                data-query="${q.replace(/"/g,'&quot;')}">
+          <i class="fas fa-music text-zinc-400"></i>
+          <div class="min-w-0">
+            <div class="text-white text-sm font-bold truncate">${x.title}</div>
+            <div class="text-zinc-400 text-xs truncate">${x.artist} • ${x.album}</div>
+          </div>
+        </button>
+      `;
+    });
+  }
+
+  if (byType.album.length) {
+    html += section('Albums');
+    byType.album.forEach(x => {
+      html += `
+        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3"
+                type="button"
+                data-action="album"
+                data-album="${String(x.album).replace(/"/g,'&quot;')}"
+                data-query="${q.replace(/"/g,'&quot;')}">
+          <i class="fas fa-compact-disc text-zinc-400"></i>
+          <div class="min-w-0">
+            <div class="text-white text-sm font-bold truncate">${x.album}</div>
+            <div class="text-zinc-400 text-xs truncate">${x.artist}</div>
+          </div>
+        </button>
+      `;
+    });
+  }
+
+  if (byType.artist.length) {
+    html += section('Artists');
+    byType.artist.forEach(x => {
+      html += `
+        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3"
+                type="button"
+                data-action="artist"
+                data-artist="${String(x.artist).replace(/"/g,'&quot;')}"
+                data-query="${q.replace(/"/g,'&quot;')}">
+          <i class="fas fa-user text-zinc-400"></i>
+          <div class="min-w-0">
+            <div class="text-white text-sm font-bold truncate">${x.artist}</div>
+            <div class="text-zinc-400 text-xs truncate">${x.count} album${x.count === 1 ? '' : 's'}</div>
+          </div>
+        </button>
+      `;
+    });
+  }
+
+  if (byType.playlist.length) {
+    html += section('Playlists');
+    byType.playlist.forEach(x => {
+      html += `
+        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3"
+                type="button"
+                data-action="playlist"
+                data-playlist-id="${String(x.id)}"
+                data-query="${q.replace(/"/g,'&quot;')}">
+          <i class="fas fa-list-ul text-zinc-400"></i>
+          <div class="min-w-0">
+            <div class="text-white text-sm font-bold truncate">${x.name}</div>
+            <div class="text-zinc-400 text-xs truncate">Playlist</div>
+          </div>
+        </button>
+      `;
+    });
+  }
+
+  box.innerHTML = html;
+  box.classList.remove('hidden');
+
+  // Click handling
+  box.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-action');
+      const q0 = btn.getAttribute('data-query') || '';
+      addLibraryRecentSearch(q0);
+
+      // ✅ close the correct box (mobile OR desktop)
+      box.classList.add('hidden');
+
+      if (action === 'song') {
+        const album = btn.getAttribute('data-album') || '';
+        const title = btn.getAttribute('data-title') || '';
+        openAlbumByName(album);
+        highlightSongInAlbum(title);
+        return;
+      }
+      if (action === 'album') {
+        const album = btn.getAttribute('data-album') || '';
+        openAlbumByName(album);
+        return;
+      }
+      if (action === 'artist') {
+        const artist = btn.getAttribute('data-artist') || '';
+        openArtistByName(artist);
+        return;
+      }
+      if (action === 'playlist') {
+        const id = btn.getAttribute('data-playlist-id') || '';
+        const idx = playlists.findIndex(p => p.id === id);
+        if (idx !== -1) showView('playlist', idx);
+        return;
+      }
+    });
+  });
+}
+search-results') {
   const box = document.getElementById(boxId);
   if (!box) return;
 
@@ -1993,6 +2226,11 @@ function initLibrarySearchBox() {
 
     input.addEventListener('input', () => handleLibrarySearch(input.value, boxId));
 
+    // ✅ show Recent searches when you tap into the box (empty query)
+    input.addEventListener('focus', () => {
+      if (!String(input.value || '').trim()) renderLibraryRecentSearches(boxId);
+    });
+
     // Click outside closes
     window.addEventListener('click', (e) => {
       if (!box.classList.contains('hidden')) {
@@ -2005,6 +2243,7 @@ function initLibrarySearchBox() {
   bind(desktopInput, desktopBox, 'library-search-results');
   bind(mobileInput, mobileBox, 'library-search-results-mobile');
 }
+
 
 
 // Patch renderGrid to support Library "List" view (only when you're in Library)
@@ -2061,7 +2300,13 @@ window.onload = async () => {
             renderPlaylists();
 try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
 renderPlaylists();
+
+            // ✅ Library: enable Sort dropdown + Library search (desktop + mobile)
+            initLibraryControls();
+            initLibrarySearchBox();
+
             updateCounts();
+
             restorePlayerStateIfRecent();
 checkDockVisibility();
             initResizers();
@@ -3725,12 +3970,10 @@ function renderHistory() {
             cover: "" // <-- custom playlist cover (url or dataURL)
         });
         localStorage.setItem('playlists', JSON.stringify(playlists));
-                    renderPlaylists();
-            initLibraryControls();
-            initLibrarySearchBox();
-
+renderPlaylists();
     }
 }
+
 
 // ---------------- PINNED PLAYLISTS ----------------
 function loadPinnedPlaylists() {
