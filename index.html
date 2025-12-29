@@ -34,7 +34,13 @@
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(10px);
 }
-
+/* Emergency Spinner Kill Switch */
+#loading {
+    animation: forceHide 0.5s forwards 6s !important;
+}
+@keyframes forceHide {
+    to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
 .np-sheet{
   position: absolute;
   inset: 0;
@@ -1081,7 +1087,7 @@ if (volumeContainer) {
     
     // 3. The Fetch
     try {
-        const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs');
+        const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs')
         
         if (!response.ok) throw new Error("Cloudflare rejected the request");
 
