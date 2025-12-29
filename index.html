@@ -373,6 +373,37 @@
   background: var(--spotify-green);
 }
 
+/* --- MARQUEE TITLES (Spotify-style scrolling) --- */
+.title-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.title-marquee .marquee-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.title-marquee .marquee-text {
+  display: inline-block;
+}
+
+.title-marquee:not(.is-marquee) [data-marquee="b"] {
+  display: none;
+}
+
+.title-marquee.is-marquee .marquee-inner {
+  will-change: transform;
+  animation: marqueeScroll 12s linear infinite;
+}
+
+@keyframes marqueeScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* --- MOBILE NOW PLAYING: make controls look like Spotify (no pill backgrounds) --- */
 @media (max-width: 768px) {
   /* remove the “button pill” look */
@@ -870,7 +901,12 @@
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
   <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
   <div class="overflow-hidden">
-    <div id="p-title" class="font-bold text-sm text-white truncate hover:underline cursor-pointer"></div>
+    <div id="p-title" class="title-marquee font-semibold text-[13px] text-white cursor-pointer">
+  <div class="marquee-inner">
+    <span class="marquee-text" data-marquee="a"></span>
+    <span class="marquee-text" data-marquee="b" aria-hidden="true"></span>
+  </div>
+</div>
     <div id="p-artist" class="text-xs text-zinc-400 truncate hover:text-white cursor-pointer"></div>
   </div>
 
@@ -947,7 +983,12 @@
       </div>
 
       <div class="mt-8">
-        <div id="np-title" class="text-4xl font-black tracking-tight">—</div>
+        <div id="np-title" class="title-marquee text-3xl md:text-4xl font-black tracking-tight">
+  <div class="marquee-inner">
+    <span class="marquee-text" data-marquee="a">—</span>
+    <span class="marquee-text" data-marquee="b" aria-hidden="true">—</span>
+  </div>
+</div>
         <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold">—</div>
       </div>
 
@@ -1432,7 +1473,7 @@ matches.sort((a, b) => b._score - a._score);
             // UI Updates
             dock.classList.remove('dock-hidden');
             document.getElementById('p-cover').src = cover;
-            document.getElementById('p-title').innerText = title.replace('.mp3', '');
+            setMarqueeTitle('p-title', title.replace('.mp3', ''));
             document.getElementById('p-artist').innerText = artist;
             document.getElementById('play-icon').className = "fas fa-pause";
 
@@ -1498,7 +1539,7 @@ function updateNowPlayingUI() {
   const artist = document.getElementById('np-artist');
 
   if (cover) cover.src = currentSong.cover || "";
-  if (title) title.textContent = (currentSong.title || "").replace('.mp3', '');
+  setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
   if (artist) artist.textContent = currentSong.artist || "";
 
   // optional: mirror the real player times if available
@@ -1545,9 +1586,17 @@ if (npCloseBtn) npCloseBtn.addEventListener('click', closeNowPlaying);
 
 // ESC closes
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !nowPlayingOverlay.classList.contains('hidden')) {
-    closeNowPlaying();
+  if (e.code === "Space" && e.target.tagName !== 'INPUT') {
+    e.preventDefault();
+    togglePlay();
   }
+});
+
+// Re-evaluate marquee on resize (desktop window changes, mobile rotation)
+window.addEventListener('resize', () => {
+  if (!currentSong) return;
+  setMarqueeTitle('p-title', (currentSong.title || '').replace('.mp3', ''));
+  setMarqueeTitle('np-title', (currentSong.title || '').replace('.mp3', ''));
 });
 
 // clicking the black backdrop closes (but not clicking inside content)
@@ -1778,6 +1827,52 @@ function formatTime(s) {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${sec < 10 ? '0' + sec : sec}`;
+}
+
+/* -----------------------
+   MARQUEE HELPERS (Dock + Now Playing title)
+------------------------ */
+function setMarqueeTitle(containerId, rawText) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+
+  const a = wrap.querySelector('[data-marquee="a"]');
+  const b = wrap.querySelector('[data-marquee="b"]');
+
+  const text = (rawText || '').trim();
+
+  // Fallback if markup isn't present
+  if (!a || !b) {
+    wrap.textContent = text;
+    return;
+  }
+
+  // Set text
+  a.textContent = text;
+  b.textContent = `   •   ${text}`;
+
+  // Decide if marquee is needed (based on the first span width)
+  wrap.classList.remove('is-marquee');
+
+  // Wait for layout so widths are correct
+  requestAnimationFrame(() => {
+    const needs = a.scrollWidth > wrap.clientWidth + 2;
+    if (needs && text.length > 0) {
+      wrap.classList.add('is-marquee');
+    } else {
+      wrap.classList.remove('is-marquee');
+    }
+  });
+}
+
+function checkDockVisibility() {
+    const oneHour = 3600000;
+    const isRecent = (Date.now() - lastPlayedTime < oneHour);
+    if (isRecent || !player.paused) {
+        dock.classList.remove('dock-hidden');
+    } else {
+        dock.classList.add('dock-hidden');
+    }
 }
 
 function checkDockVisibility() {
