@@ -389,7 +389,7 @@ img {
         }
 
         /* --- UTILITIES --- */
-        .hidden { display: none !important; }
+        .hidden { display: none; }
         .dock-hidden { transform: translateY(100%); opacity: 0; }
         .sidebar-hidden { display: none !important; }
         .active-green { color: var(--spotify-green) !important; }
@@ -923,7 +923,7 @@ img {
 </div>
 
 <div id="album-view" class="hidden">
-  <button onclick="showView('home')"
+  <button onclick="goBack()"
           class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
     <i class="fas fa-arrow-left text-white"></i>
   </button>
@@ -955,7 +955,7 @@ img {
 </div>
 <div id="artist-view" class="hidden">
 
-  <button onclick="showView('home')"
+  <button onclick="goBack()"
           class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
     <i class="fas fa-arrow-left text-white"></i>
   </button>
@@ -1882,8 +1882,14 @@ function openAlbumByName(name) {
   // Nothing selected yet until user clicks a track or presses play
   currentIndex = -1;
 
-  document.getElementById('grid-view').classList.add('hidden');
-  document.getElementById('album-view').classList.remove('hidden');
+    // Hide ALL main views before showing album-view (fixes “tap does nothing” on mobile Home)
+  document.getElementById('home-view')?.classList.add('hidden');
+  document.getElementById('grid-view')?.classList.add('hidden');
+  document.getElementById('search-view')?.classList.add('hidden');
+  document.getElementById('artist-view')?.classList.add('hidden');
+
+  document.getElementById('album-view')?.classList.remove('hidden');
+
 
   // Hook the big green hero play button to play this album
   const heroPlay = document.getElementById('hero-play-btn');
