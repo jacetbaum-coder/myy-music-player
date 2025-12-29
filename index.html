@@ -1581,43 +1581,80 @@ function initSwipeBack() {
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
+  let tracking = false;
+  let decided = false;
+  let isHorizontal = false;
   let startX = 0;
   let startY = 0;
-  let tracking = false;
+  let lastDx = 0;
 
-  area.addEventListener('pointerdown', (e) => {
+  function canStart(e) {
     // If Now Playing overlay is open, do NOT back-swipe the app
     const np = document.getElementById('now-playing-overlay');
-    if (np && !np.classList.contains('hidden')) return;
+    if (np && !np.classList.contains('hidden')) return false;
 
     // Don’t start swipe-back inside inputs (like search box)
     const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return false;
+
+    // Optional: require the gesture to begin near the left edge (iOS-feel)
+    // You can widen this if you want it to work from anywhere.
+    const x = e.clientX;
+    return x <= (window.innerWidth * 0.35); // left 35% of screen
+  }
+
+  area.addEventListener('pointerdown', (e) => {
+    if (!canStart(e)) return;
 
     tracking = true;
+    decided = false;
+    isHorizontal = false;
+    lastDx = 0;
+
     startX = e.clientX;
     startY = e.clientY;
+
+    // Own the gesture like your Now Playing swipe
+    try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
     if (!tracking) return;
 
-    const dx = e.clientX - startX;   // swipe RIGHT => dx positive
+    const dx = e.clientX - startX; // swipe RIGHT => dx positive
     const dy = e.clientY - startY;
 
-    // Must be mostly horizontal
-    if (Math.abs(dy) > 60) return;
+    // Decide early like your Now Playing swipe (more sensitive)
+    if (!decided) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
 
-    // Trigger on a strong right swipe
-    if (dx > 90) {
+    if (!isHorizontal) return;
+
+    // Prevent scroll/rubber-band from fighting the gesture
+    e.preventDefault();
+
+    // Only count right-swipes
+    lastDx = Math.max(0, dx);
+
+    // Trigger sooner (sensitive)
+    if (lastDx > 75) {
       tracking = false;
       goBack();
     }
+  }, { passive: false });
+
+  area.addEventListener('pointerup', () => {
+    tracking = false;
   }, { passive: true });
 
-  area.addEventListener('pointerup', () => { tracking = false; }, { passive: true });
-  area.addEventListener('pointercancel', () => { tracking = false; }, { passive: true });
+  area.addEventListener('pointercancel', () => {
+    tracking = false;
+  }, { passive: true });
 }
+
 
 function showView(viewType, playlistIndex = null) {
   // BACK STACK: push the current state before switching views
@@ -1728,10 +1765,9 @@ function renderGrid(data) {
         <div class="font-bold text-white truncate text-base mb-1">${album.albumName}</div>
 
         <div class="text-sm text-zinc-400 truncate">
-          <span class="hover:underline cursor-pointer"
-                onclick="event.stopPropagation(); openArtistByName('${safeArtist}')">
-            ${album.artistName}
-          </span>
+          <span class="cursor-default">
+  ${album.artistName}
+</span>
         </div>
       </div>
     `;
@@ -2186,6 +2222,11 @@ function openArtistFromCurrentSong(e) {
     e.stopPropagation();
   }
   if (!currentSong || !currentSong.artist) return;
+
+  // Only allow artist navigation when you are INSIDE the album page
+  const albumView = document.getElementById('album-view');
+  const onAlbumPage = albumView && !albumView.classList.contains('hidden');
+  if (!onAlbumPage) return;
 
   // Close Now Playing if it’s open so it doesn’t sit on top
   try {
