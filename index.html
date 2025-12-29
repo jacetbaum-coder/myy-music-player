@@ -2507,12 +2507,20 @@ function checkDockVisibility() {
 
         // Context Menu & Playlists
         function handleContextMenu(e, song) {
-            e.preventDefault();
-            menuTargetSong = song;
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
-            contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
-        }
+  e.preventDefault();
+
+  menuTargetSong = song;
+
+  // Show / hide "Remove from playlist"
+  const removeOpt = document.getElementById('menu-remove-opt');
+  if (removeOpt) {
+    removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
+  }
+
+  contextMenu.style.display = 'block';
+  contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
+  contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
+}
 
         function addToHistory(album, artist, cover) {
              const playlistMatch = activePlaylistId
@@ -3257,6 +3265,42 @@ function renderPlaylists() {
             updateCounts();
             updateHeartUI();
         }
+        function menuAction(type) {
+  if (!menuTargetSong) return;
+
+  // REMOVE FROM PLAYLIST
+  if (type === 'remove') {
+    if (!activePlaylistId) return;
+
+    const plIndex = playlists.findIndex(p => p.id === activePlaylistId);
+    if (plIndex === -1) return;
+
+    const pl = playlists[plIndex];
+
+    // Remove by URL match
+    pl.songs = pl.songs.filter(s =>
+      (s.url || s.link) !== (menuTargetSong.url || menuTargetSong.link)
+    );
+
+    savePlaylists();
+
+    // Update auto cover after removal
+    updatePlaylistAutoCoverById(pl.id).then(() => {
+      renderPlaylists();
+      showView('playlist', plIndex);
+    });
+
+    contextMenu.style.display = 'none';
+    return;
+  }
+
+  // LIKE / UNLIKE (existing behavior)
+  if (type === 'like') {
+    toggleLike();
+    contextMenu.style.display = 'none';
+  }
+}
+
 // --- Playback navigation (Next/Prev + Shuffle) ---
         // --- Shuffle "no repeats" state ---
 let shuffleOrder = [];
