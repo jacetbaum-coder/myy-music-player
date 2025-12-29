@@ -812,9 +812,12 @@
         </div>
       </div>
 
-      <!-- controls (play/pause works; skip buttons still visual) -->
+      <!-- controls (play/pause + prev/next work) -->
 <div class="mt-10 flex items-center justify-center gap-10 text-white">
-  <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+  <button id="np-prev-btn"
+          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+          onclick="prevSong()"
+          aria-label="Previous">
     <i class="fas fa-step-backward text-xl"></i>
   </button>
 
@@ -825,7 +828,10 @@
     <i id="np-play-icon" class="fas fa-pause text-black text-2xl"></i>
   </button>
 
-  <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+  <button id="np-next-btn"
+          class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+          onclick="nextSong()"
+          aria-label="Next">
     <i class="fas fa-step-forward text-xl"></i>
   </button>
 </div>
@@ -833,6 +839,7 @@
     </div>
   </div>
 </div>
+
 
 
     <audio id="audio-player" preload="auto"></audio>
@@ -1945,61 +1952,73 @@ function isShuffleOn() {
     return document.getElementById('btn-shuffle')?.classList.contains('active-green');
 }
         function isRepeatOn() {
-    return document.getElementById('btn-repeat')?.classList.contains('active-green');
+  return document.getElementById('btn-repeat')?.classList.contains('active-green');
 }
 
+function setAllPlayIconsToPlay() {
+  const desktopIcon = document.getElementById('play-icon');
+  const mobileIcon = document.getElementById('mobile-play-icon');
+  const npIcon = document.getElementById('np-play-icon');
+
+  if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
+  if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+  if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
+}
 
 function nextSong() {
-    if (!currentQueue || currentQueue.length === 0) return;
+  if (!currentQueue || currentQueue.length === 0) return;
 
-    const len = currentQueue.length;
+  const len = currentQueue.length;
 
-    // SHUFFLE ON (no repeats, stop when done)
-    if (isShuffleOn()) {
-        // Build (or rebuild) shuffle list if needed
-        const expectedLen = (currentIndex === -1) ? len : (len - 1);
-        if (!shuffleOrder || shuffleOrder.length !== expectedLen) {
-            resetShuffleForQueue();
-        }
-
-        // If we've used up all shuffled songs, STOP
-        if (shufflePos >= shuffleOrder.length) {
-            player.pause();
-            player.currentTime = 0;
-            document.getElementById('play-icon').className = "fas fa-play ml-1";
-            return;
-        }
-
-        // If nothing is playing yet, start with the first shuffled song.
-        // Otherwise, move to the next shuffled song.
-        if (currentIndex === -1) {
-            currentIndex = shuffleOrder[0];
-            shufflePos = 1;
-        } else {
-            currentIndex = shuffleOrder[shufflePos];
-            shufflePos += 1;
-        }
-    }
-    // SHUFFLE OFF (normal order, stop at end)
-    else {
-        if (currentIndex === -1) {
-            currentIndex = 0; // if nothing is playing yet, start at first song
-        } else {
-            // If we're at the last song, STOP (do not loop)
-            if (currentIndex >= len - 1) {
-                player.pause();
-                player.currentTime = 0;
-                document.getElementById('play-icon').className = "fas fa-play ml-1";
-                return;
-            }
-            currentIndex = currentIndex + 1;
-        }
+  // SHUFFLE ON (no repeats, stop when done)
+  if (isShuffleOn()) {
+    const expectedLen = (currentIndex === -1) ? len : (len - 1);
+    if (!shuffleOrder || shuffleOrder.length !== expectedLen) {
+      resetShuffleForQueue();
     }
 
-    const s = currentQueue[currentIndex];
-    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+    // If we've used up all shuffled songs, STOP
+    if (shufflePos >= shuffleOrder.length) {
+      player.pause();
+      player.currentTime = 0;
+      setAllPlayIconsToPlay();
+      return;
+    }
+
+    // Pick next index
+    if (currentIndex === -1) {
+      currentIndex = shuffleOrder[0];
+      shufflePos = 1;
+    } else {
+      currentIndex = shuffleOrder[shufflePos];
+      shufflePos += 1;
+    }
+
+    // Track history so Prev works in shuffle
+    if (!playedStack.length) playedStack = [];
+    playedStack.push(currentIndex);
+  }
+  // SHUFFLE OFF (normal order, stop at end)
+  else {
+    if (currentIndex === -1) {
+      currentIndex = 0; // start at first song
+    } else {
+      // If we're at the last song, STOP (do not loop)
+      if (currentIndex >= len - 1) {
+        player.pause();
+        player.currentTime = 0;
+        setAllPlayIconsToPlay();
+        return;
+      }
+      currentIndex = currentIndex + 1;
+    }
+  }
+
+  const s = currentQueue[currentIndex];
+  isAutoNav = true;
+  playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+  isAutoNav = false;
 }
-
 
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
@@ -2137,17 +2156,25 @@ function prevSong() {
 
 // Auto-advance when a song ends
 player.addEventListener('ended', () => {
-    // Repeat ONE song if repeat is on
-    if (isRepeatOn()) {
-        player.currentTime = 0;
-        player.play();
-        document.getElementById('play-icon').className = "fas fa-pause";
-        return;
-    }
+  // Repeat ONE song if repeat is on
+  if (isRepeatOn()) {
+    player.currentTime = 0;
+    player.play();
 
-    // Otherwise go to the next song in the current album/playlist queue
-    nextSong();
+    const desktopIcon = document.getElementById('play-icon');
+    const mobileIcon = document.getElementById('mobile-play-icon');
+    const npIcon = document.getElementById('np-play-icon');
+
+    if (desktopIcon) desktopIcon.className = "fas fa-pause";
+    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+    return;
+  }
+
+  // Otherwise go to the next song in the current album/playlist queue
+  nextSong();
 });
+
 
 // Auto-hide dock interval
 
