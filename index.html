@@ -160,6 +160,31 @@
 @media (min-width: 769px) {
   #now-playing { display: none !important; }
 }
+.np-menu {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 8px;
+  width: 220px;
+  z-index: 10000;
+}
+
+.np-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 14px;
+}
+
+.np-menu button:hover {
+  background: rgba(255,255,255,0.1);
+}
 
         /* --- ROOT & CORE RESET --- */
         :root {
@@ -890,7 +915,17 @@
         <div id="np-context" class="np-context">Now playing</div>
       </div>
 
-      <button class="np-icon" aria-label="More options">
+      <button class="np-icon" id="np-more-btn" aria-label="More options">
+  <i class="fas fa-ellipsis-h"></i>
+</button>
+
+<div id="np-menu" class="np-menu hidden">
+  <button onclick="addCurrentToPlaylist()">Add to playlist</button>
+  <button onclick="addToQueue()">Add to queue</button>
+  <button onclick="openQueue()">View queue</button>
+  <button onclick="goToAlbum()">Go to album</button>
+</div>
+
         <i class="fas fa-ellipsis-h"></i>
       </button>
     </div>
@@ -940,6 +975,7 @@
          * GLOBAL APP STATE
          * ---------------------------------------------------------------------
          */
+        let playQueue = [];
         let libraryData = [];
         let currentSong = null;
         let currentQueue = [];
@@ -1402,6 +1438,7 @@ matches.sort((a, b) => b._score - a._score);
         function playSpecificSong(url, title, album, artist, cover) {
             currentSong = { url, title, album, artist, cover };
             player.src = url;
+            updateNowPlayingUI(song);
             player.play();
             
             lastPlayedTime = Date.now();
@@ -1416,6 +1453,27 @@ matches.sort((a, b) => b._score - a._score);
 
 const mIcon = document.getElementById('mobile-play-icon');
 if (mIcon) mIcon.className = "fas fa-pause text-white text-xl";
+function updateNowPlayingUI(song) {
+  if (!song) return;
+
+  // Dock
+  const cover = document.getElementById('p-cover');
+  const title = document.getElementById('p-title');
+  const artist = document.getElementById('p-artist');
+
+  if (cover) cover.src = song.cover || '';
+  if (title) title.textContent = song.title || '';
+  if (artist) artist.textContent = song.artist || '';
+
+  // Fullscreen
+  const npCover = document.getElementById('np-cover');
+  const npTitle = document.getElementById('np-title');
+  const npArtist = document.getElementById('np-artist');
+
+  if (npCover) npCover.src = song.cover || '';
+  if (npTitle) npTitle.textContent = song.title || '';
+  if (npArtist) npArtist.textContent = song.artist || '';
+}
 
             
             // Sidebars
@@ -1485,6 +1543,30 @@ player.addEventListener('loadedmetadata', applyPendingSeek);
 player.addEventListener('durationchange', applyPendingSeek);
 player.addEventListener('canplay', applyPendingSeek);
 
+const npMenu = document.getElementById('np-menu');
+const npMoreBtn = document.getElementById('np-more-btn');
+
+npMoreBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  npMenu.classList.toggle('hidden');
+});
+
+document.addEventListener('click', () => {
+  npMenu.classList.add('hidden');
+});
+
+const npMenu = document.getElementById('np-menu');
+const npMoreBtn = document.getElementById('np-more-btn');
+
+npMoreBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  npMenu.classList.toggle('hidden');
+});
+
+document.addEventListener('click', () => {
+  npMenu.classList.add('hidden');
+});
+        
 function seek(e) {
     seekToClientX(e.clientX);
 }
@@ -2070,8 +2152,7 @@ function isShuffleOn() {
         function isRepeatOn() {
     return document.getElementById('btn-repeat')?.classList.contains('active-green');
 }
-
-
+        
 function nextSong() {
     if (!currentQueue || currentQueue.length === 0) return;
 
@@ -2079,13 +2160,11 @@ function nextSong() {
 
     // SHUFFLE ON (no repeats, stop when done)
     if (isShuffleOn()) {
-        // Build (or rebuild) shuffle list if needed
         const expectedLen = (currentIndex === -1) ? len : (len - 1);
         if (!shuffleOrder || shuffleOrder.length !== expectedLen) {
             resetShuffleForQueue();
         }
 
-        // If we've used up all shuffled songs, STOP
         if (shufflePos >= shuffleOrder.length) {
             player.pause();
             player.currentTime = 0;
@@ -2093,8 +2172,6 @@ function nextSong() {
             return;
         }
 
-        // If nothing is playing yet, start with the first shuffled song.
-        // Otherwise, move to the next shuffled song.
         if (currentIndex === -1) {
             currentIndex = shuffleOrder[0];
             shufflePos = 1;
@@ -2106,9 +2183,8 @@ function nextSong() {
     // SHUFFLE OFF (normal order, stop at end)
     else {
         if (currentIndex === -1) {
-            currentIndex = 0; // if nothing is playing yet, start at first song
+            currentIndex = 0; 
         } else {
-            // If we're at the last song, STOP (do not loop)
             if (currentIndex >= len - 1) {
                 player.pause();
                 player.currentTime = 0;
@@ -2119,10 +2195,15 @@ function nextSong() {
         }
     }
 
+    // This is where the song is "computed"
     const s = currentQueue[currentIndex];
-    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
-}
 
+    // This is where the song is played
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+
+    // ADD THIS HERE:
+    updateNowPlayingUI(s); 
+}
 
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
@@ -2243,9 +2324,30 @@ function prevSong() {
         const s = currentQueue[currentIndex];
         isAutoNav = true;
         playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+        
+        // UPDATE UI HERE
+        updateNowPlayingUI(s);
+
         isAutoNav = false;
         return;
     }
+function addToQueue() {
+  if (!currentSong) return;
+  playQueue.push(currentSong);
+}
+
+function openQueue() {
+  alert(
+    playQueue.length
+      ? playQueue.map(s => s.title).join('\n')
+      : 'Queue is empty'
+  );
+}
+
+function goToAlbum() {
+  if (!currentSong) return;
+  showAlbumView(currentSong.albumIndex);
+}
 
     // Shuffle OFF: go back one, but STOP at the start (no looping)
     if (currentIndex <= 0) return;
@@ -2254,24 +2356,41 @@ function prevSong() {
     const s = currentQueue[currentIndex];
     isAutoNav = true;
     playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+    
+    // UPDATE UI HERE
+    updateNowPlayingUI(s);
+
     isAutoNav = false;
 }
 
-
 // Auto-advance when a song ends
 player.addEventListener('ended', () => {
-    // Repeat ONE song if repeat is on
+    // 1. Repeat ONE song if repeat is on
     if (isRepeatOn()) {
         player.currentTime = 0;
         player.play();
         document.getElementById('play-icon').className = "fas fa-pause";
+
+        const s = currentQueue[currentIndex];
+        updateNowPlayingUI(s); 
         return;
     }
 
-    // Otherwise go to the next song in the current album/playlist queue
+    // 2. Play from manual queue if songs exist
+    if (playQueue && playQueue.length > 0) {
+        const next = playQueue.shift(); // Get the first song in queue
+        
+        // Make sure your playSpecificSong matches your parameter list
+        playSpecificSong(next.url, next.title, next.album, next.artist, next.cover);
+        
+        // This ensures the dock stays visible because a song is actively playing
+        updateNowPlayingUI(next);
+        return;
+    }
+
+    // 3. Otherwise go to the next song in the normal album/playlist
     nextSong();
 });
-
 // Auto-hide dock interval
 
         // Auto-hide dock interval
