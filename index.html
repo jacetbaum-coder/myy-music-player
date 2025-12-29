@@ -1609,7 +1609,7 @@ let librarySortMode = localStorage.getItem('librarySortMode') || 'Recently added
 let libraryViewMode = localStorage.getItem('libraryViewMode') || 'grid';
 
 // Used for "Recently added"
-let libraryDataOriginal = window.libraryDataOriginal || []; // you already set this later after fetch
+libraryDataOriginal = window.libraryDataOriginal || libraryDataOriginal || [];
 
 function setLibrarySortMode(mode) {
   librarySortMode = mode;
