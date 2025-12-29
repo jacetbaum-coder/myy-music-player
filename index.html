@@ -3074,48 +3074,11 @@ function checkDockVisibility() {
           renderHomeRecentlyAdded('desktop-recently-added');
         }
 
-        function renderHistory() {
-
-        function renderHistory() {
-  // Sidebar container (desktop)
-  const sidebarContainer = document.getElementById('history-container');
-
-  // Home container (mobile + also ok on desktop)
-  const homeRecents = document.getElementById('home-recents');
-
-  // --- Render SIDEBAR (existing behavior) ---
-  if (sidebarContainer) {
-    sidebarContainer.innerHTML =
-      '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
-
-    history.forEach(h => {
-      const div = document.createElement('div');
-      div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
-
-      if (h.type === 'playlist' && h.id) {
-        const idx = playlists.findIndex(pl => pl.id === h.id);
-        div.onclick = () => { if (idx !== -1) showView('playlist', idx); };
-        attachPlaylistPressHandlers(div, h.id);
-      } else {
-        div.onclick = () => openAlbumByName(h.album);
-      }
-
-      div.innerHTML = `
-        <img src="${h.cover}" class="w-12 h-12 rounded shadow-md object-cover">
-        <div class="truncate">
-          <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? h.name : h.album}</div>
-          <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : h.artist}</div>
-        </div>`;
-      sidebarContainer.appendChild(div);
-    });
-  }
-function renderMobileRecents() {
+       function renderMobileRecents() {
   const grid = document.getElementById('mobile-recent-grid');
   const section = document.getElementById('mobile-recent-section');
   if (!grid || !section) return;
 
-  // Only show on home screen
-  // (grid-view is hidden in other views anyway, so this is mostly safe)
   const items = Array.isArray(history) ? history.slice(0, 6) : [];
 
   if (items.length === 0) {
@@ -3123,14 +3086,20 @@ function renderMobileRecents() {
     section.classList.add('hidden');
     return;
   }
+
   section.classList.remove('hidden');
 
   grid.innerHTML = items.map(h => {
-    const title = (h.type === 'playlist') ? h.name : h.album;
+    const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
+    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+    const safeId = String(h.id || '');
     return `
-      <div class="mobile-recent-card" data-type="${h.type}" data-id="${h.id || ''}" data-album="${(h.album || '').replace(/"/g,'&quot;')}">
-        <img src="${h.cover}" alt="">
+      <div class="mobile-recent-card"
+           data-type="${h.type}"
+           data-id="${safeId}"
+           data-album="${safeAlbum}">
+        <img src="${h.cover || ''}" alt="">
         <div class="min-w-0">
           <div class="title">${title}</div>
           <div class="sub">${sub}</div>
@@ -3139,7 +3108,6 @@ function renderMobileRecents() {
     `;
   }).join('');
 
-  // click handlers
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
@@ -3155,38 +3123,42 @@ function renderMobileRecents() {
   });
 }
 
-  // --- Render HOME RECENTS (Spotify-like tiles) ---
-  if (homeRecents) {
-    // Only show if we have history and we're on Home view (grid-view visible)
-    const onHome = !document.getElementById('grid-view')?.classList.contains('hidden');
-    const hasHistory = Array.isArray(history) && history.length > 0;
+function renderHistory() {
+  // LEFT SIDEBAR "Recently Listened" (desktop)
+  const sidebarContainer = document.getElementById('history-container');
+  if (sidebarContainer) {
+    sidebarContainer.innerHTML =
+      '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
 
-    homeRecents.classList.toggle('hidden', !(onHome && hasHistory));
-    homeRecents.innerHTML = '';
+    (Array.isArray(history) ? history : []).forEach(h => {
+      const div = document.createElement('div');
+      div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
 
-    if (onHome && hasHistory) {
-      history.slice(0, 6).forEach(h => {
-        const tile = document.createElement('div');
-        tile.className = 'recent-tile';
+      if (h.type === 'playlist' && h.id) {
+        const idx = playlists.findIndex(pl => pl.id === h.id);
+        div.onclick = () => { if (idx !== -1) showView('playlist', idx); };
+        attachPlaylistPressHandlers(div, h.id);
+      } else {
+        div.onclick = () => openAlbumByName(h.album);
+      }
 
-        if (h.type === 'playlist' && h.id) {
-          const idx = playlists.findIndex(pl => pl.id === h.id);
-          tile.onclick = () => { if (idx !== -1) showView('playlist', idx); };
-          attachPlaylistPressHandlers(tile, h.id);
-        } else {
-          tile.onclick = () => openAlbumByName(h.album);
-        }
-
-        tile.innerHTML = `
-          <img src="${h.cover}" alt="">
-          <div class="recent-title">${h.type === 'playlist' ? h.name : h.album}</div>
-        `;
-        homeRecents.appendChild(tile);
-      });
-    }
+      div.innerHTML = `
+        <img src="${h.cover || ''}" class="w-12 h-12 rounded shadow-md object-cover">
+        <div class="truncate">
+          <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? (h.name || 'Playlist') : (h.album || 'Album')}</div>
+          <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : (h.artist || '')}</div>
+        </div>
+      `;
+      sidebarContainer.appendChild(div);
+    });
   }
-}
 
+  // MOBILE mini recents row (inside Library tab grid-view)
+  renderMobileRecents();
+
+  // Keep the Home tiles synced too
+  try { renderHome(); } catch (e) {}
+}
 
         function createNewPlaylist() {
     const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
