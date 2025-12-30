@@ -2899,12 +2899,27 @@ function renderGrid(data) {
   }).join('');
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
-    });
+  // single click: open album
+  card.addEventListener('click', () => {
+    const album = card.getAttribute('data-album');
+    if (album) openAlbumByName(album);
   });
-}
+
+  // desktop: double click = play album
+  card.addEventListener('dblclick', (e) => {
+    if (window.innerWidth <= 768) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const album = card.getAttribute('data-album');
+    if (!album) return;
+
+    openAlbumByName(album);
+    playAlbumByName(album);
+  });
+});
+
 
 
 function openAlbumByName(name) {
