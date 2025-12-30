@@ -878,37 +878,22 @@ img {
 
         <main class="main-view" id="main-scroll-area">
             
-                        <div id="loading" class="h-full w-full flex items-center justify-center">
+                        <div id="loading" class="flex items-center justify-center h-full w-full">
 
-                <!-- MOBILE: show centered logo (like Spotify splash) -->
+                <!-- MOBILE: centered logo (no text) -->
                 <div class="md:hidden flex items-center justify-center h-full w-full">
-                    <img
-                        src="apple-touch-icon.png"
-                        alt="Reson"
-                        class="w-24 h-24 rounded-full"
-                    />
+                    <img src="apple-touch-icon.png" alt="Reson" class="w-24 h-24 rounded-full" />
                 </div>
 
-                <!-- DESKTOP: skeleton placeholders (grey rectangles) -->
-                <div class="hidden md:flex flex-col w-full h-full px-10 py-10">
+                <!-- DESKTOP: skeleton rectangles -->
+                <div class="hidden md:block w-full h-full px-10 py-10">
                     <div class="w-full max-w-5xl mx-auto">
 
-                        <!-- top long pill -->
                         <div class="h-12 w-2/3 bg-zinc-800/60 rounded-full mb-10 animate-pulse"></div>
 
-                        <!-- 2-column list skeleton (8 rows) -->
                         <div class="grid grid-cols-2 gap-x-10 gap-y-6">
                             <div class="flex items-center gap-4 animate-pulse">
                                 <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
                                 <div class="h-4 w-72 bg-zinc-800/60 rounded-full"></div>
                             </div>
                             <div class="flex items-center gap-4 animate-pulse">
@@ -918,11 +903,11 @@ img {
 
                             <div class="flex items-center gap-4 animate-pulse">
                                 <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
+                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
                             </div>
                             <div class="flex items-center gap-4 animate-pulse">
                                 <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
+                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
                             </div>
 
                             <div class="flex items-center gap-4 animate-pulse">
@@ -932,6 +917,15 @@ img {
                             <div class="flex items-center gap-4 animate-pulse">
                                 <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
                                 <div class="h-4 w-80 bg-zinc-800/60 rounded-full"></div>
+                            </div>
+
+                            <div class="flex items-center gap-4 animate-pulse">
+                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
+                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
+                            </div>
+                            <div class="flex items-center gap-4 animate-pulse">
+                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
+                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
                             </div>
                         </div>
 
