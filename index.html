@@ -1469,6 +1469,23 @@ function setAccentRGB(r, g, b) {
   }
 }
 
+        function loadLibraryCache() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLibraryCache(data) {
+  try {
+    localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(Array.isArray(data) ? data : []));
+  } catch (e) {
+    // ignore cache write failures
+  }
+}
+
 function rgbToHex(r, g, b) {
   const to = (n) => n.toString(16).padStart(2, '0');
   return `#${to(r)}${to(g)}${to(b)}`;
@@ -2480,6 +2497,19 @@ if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
                 try { renderHome(); } catch (e) {}
             } catch (error) {
                 console.error("Fetch error:", error);
+                const cachedLibrary = loadLibraryCache();
+
+                if (cachedLibrary.length) {
+                    libraryData = cachedLibrary;
+                    reconcileAlbumCoverOverridesFromLibrary(libraryData);
+                    libraryDataOriginal = libraryData.slice();
+                    libraryData.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
+                    document.getElementById('loading').classList.add('hidden');
+                    showView('home');
+                    try { renderHome(); } catch (e) {}
+                    return;
+                }
+
                 document.getElementById('loading').innerHTML = `
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
                     <p class="text-white font-bold">Cloud Connection Failed</p>
@@ -2954,6 +2984,7 @@ function openAlbumByName(name) {
   setNavCurrent({ type: 'album', albumName: name });
 
   playContext = { type: 'album', label: name };
+    const isPlaylist = false;
   const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
 
@@ -3067,7 +3098,7 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 
 
     // data hooks so we can update the green row without re-rendering
-    row.dataset.url = song.url;
+    row.dataset.url = songUrl;
     row.dataset.index = String(i + 1);
 
     // Desktop-only + playlist-only: album becomes clickable
