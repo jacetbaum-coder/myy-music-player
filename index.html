@@ -3070,7 +3070,13 @@ function openAlbumByName(name) {
     const isCurrent = currentSong && (currentSong.url === songUrl);
     if (isCurrent) row.classList.add('active-track');
 
+      const longPressState = { longPress: false };
+
     row.onclick = () => {
+         if (longPressState.longPress) {
+        longPressState.longPress = false;
+        return;
+      }
       if (!songUrl) return;
       currentIndex = i;
       playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
@@ -3085,7 +3091,14 @@ function openAlbumByName(name) {
         artist: album.artistName,
         cover: cover
       });
-
+attachSongPressHandlers(row, {
+      ...song,
+      url: songUrl,
+      title: songTitle,
+      album: album.albumName,
+      artist: album.artistName,
+      cover: cover
+    }, longPressState);
 
 const titleClass = isCurrent ? 'text-[var(--spotify-green)]' : 'text-white';
 const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
@@ -4133,8 +4146,7 @@ function checkDockVisibility() {
 }
 
         // Context Menu & Playlists
-        function handleContextMenu(e, song) {
-  e.preventDefault();
+        function showContextMenuAt(x, y, song) {
 
   menuTargetSong = song;
 
@@ -4145,8 +4157,45 @@ function checkDockVisibility() {
   }
 
   contextMenu.style.display = 'block';
-  contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
-  contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
+  contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
+  contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+}
+
+        function handleContextMenu(e, song) {
+  e.preventDefault();
+  showContextMenuAt(e.pageX, e.pageY, song);
+}
+
+        function attachSongPressHandlers(row, song, state) {
+  if (!row) return;
+
+  let pressTimer = null;
+
+  row.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const t = e.touches[0];
+    state.longPress = false;
+    pressTimer = setTimeout(() => {
+      state.longPress = true;
+      showContextMenuAt(t.pageX, t.pageY, song);
+    }, 500);
+  }, { passive: true });
+
+  const cancel = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+
+  row.addEventListener('touchend', (e) => {
+    cancel();
+    if (state.longPress) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+
+  row.addEventListener('touchmove', cancel, { passive: true });
+  row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
                function addToHistory(album, artist, cover) {
