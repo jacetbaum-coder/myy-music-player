@@ -92,6 +92,16 @@
 }
 #now-playing-overlay.hidden { display: none !important; }
 
+/* MOBILE: Library Search overlay (Spotify-like) */
+#library-search-overlay {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#library-search-overlay input {
+  caret-color: var(--spotify-green);
+}
+
+
 /* while dragging, remove transition so it follows finger */
 #now-playing-overlay.np-dragging {
   transition: none !important;
@@ -983,7 +993,36 @@ img {
           </div>
         </div>
 
+                <!-- MOBILE: Library Search overlay (Spotify-like) -->
+        <div id="library-search-overlay" class="hidden md:hidden fixed inset-0 bg-black z-[9999]">
+          <!-- top bar -->
+          <div class="px-4 pt-4" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px);">
+            <div class="flex items-center gap-3">
+              <div class="flex-1 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2">
+                <i class="fas fa-search text-white/70"></i>
+                <input id="library-search-overlay-input"
+                       type="text"
+                       inputmode="search"
+                       autocomplete="off"
+                       autocapitalize="none"
+                       spellcheck="false"
+                       placeholder="Search Your Library"
+                       class="w-full bg-transparent outline-none text-white placeholder-white/40 font-bold" />
+              </div>
+              <button id="library-search-overlay-cancel"
+                      type="button"
+                      class="text-white/90 font-extrabold">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- results / recents / empty state -->
+          <div id="library-search-results-overlay" class="mt-2"></div>
+        </div>
+
         <!-- Library controls (Sort + View as) -->
+
         <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
           <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
           <div class="relative">
@@ -1927,7 +1966,9 @@ function removeLibraryRecentSearch(term) {
 
 function getLibraryInputForBox(boxId) {
   return document.getElementById(
-    boxId === 'library-search-results-mobile' ? 'library-search-mobile' : 'library-search'
+    boxId === 'library-search-results-overlay'
+      ? 'library-search-overlay-input'
+      : (boxId === 'library-search-results-mobile' ? 'library-search-mobile' : 'library-search')
   );
 }
 
@@ -1937,6 +1978,20 @@ function renderLibraryRecentSearches(boxId) {
 
   const rec = getLibraryRecentSearches();
   if (!rec.length) {
+    // Overlay wants Spotify-style empty state
+    if (boxId === 'library-search-results-overlay') {
+      box.classList.remove('hidden');
+      box.innerHTML = `
+        <div class="flex flex-col items-center justify-center text-center px-6"
+             style="min-height: calc(100vh - 140px);">
+          <div class="text-white text-3xl font-black mb-2">Find your favorites</div>
+          <div class="text-zinc-400 text-base font-semibold">Search everything you’ve saved, followed, or created.</div>
+        </div>
+      `;
+      return;
+    }
+
+    // Non-overlay behavior stays the same
     box.classList.add('hidden');
     box.innerHTML = '';
     return;
@@ -2101,8 +2156,9 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
     btn.addEventListener('click', () => {
       const action = btn.getAttribute('data-action');
       const q0 = btn.getAttribute('data-query') || '';
-      addLibraryRecentSearch(q0);
+     addLibraryRecentSearch(q0);
 
+      if (boxId === 'library-search-results-overlay') closeLibrarySearchOverlay();
       box.classList.add('hidden');
 
       if (action === 'song') {
@@ -2192,37 +2248,84 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
   items.sort((a, b) => (b._score || 0) - (a._score || 0));
   renderLibrarySearchResults(items, q, boxId);
 }
+function openLibrarySearchOverlay() {
+  // Mobile only
+  if (window.innerWidth > 768) return;
 
+  const overlay = document.getElementById('library-search-overlay');
+  const input = document.getElementById('library-search-overlay-input');
+  const box = document.getElementById('library-search-results-overlay');
+
+  if (!overlay || !input || !box) return;
+
+  overlay.classList.remove('hidden');
+
+  // Prevent background scroll while overlay is open
+  document.body.style.overflow = 'hidden';
+
+  // Show recents / empty state immediately
+  renderLibraryRecentSearches('library-search-results-overlay');
+
+  // Clear + focus for keyboard + blinking caret
+  input.value = '';
+  setTimeout(() => {
+    try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
+  }, 0);
+}
+
+function closeLibrarySearchOverlay() {
+  const overlay = document.getElementById('library-search-overlay');
+  const input = document.getElementById('library-search-overlay-input');
+  const box = document.getElementById('library-search-results-overlay');
+
+  if (overlay) overlay.classList.add('hidden');
+
+  // Restore background scroll
+  document.body.style.overflow = '';
+
+  if (input) input.blur();
+  if (box) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+}
 function initLibrarySearchBox() {
   const desktopInput = document.getElementById('library-search');
   const desktopBox = document.getElementById('library-search-results');
 
-  const mobileInput = document.getElementById('library-search-mobile');
-  const mobileBox = document.getElementById('library-search-results-mobile');
+  const overlayInput = document.getElementById('library-search-overlay-input');
+  const overlayBox = document.getElementById('library-search-results-overlay');
 
   function bind(input, box, boxId) {
     if (!input || !box) return;
 
     input.addEventListener('input', () => handleLibrarySearch(input.value, boxId));
 
-    // ✅ show Recent searches when you tap into the box (empty query)
+    // show Recent searches when you focus with empty query
     input.addEventListener('focus', () => {
       if (!String(input.value || '').trim()) renderLibraryRecentSearches(boxId);
     });
-
-    // Click outside closes
-    window.addEventListener('click', (e) => {
-      if (!box.classList.contains('hidden')) {
-        const wrap = input.closest('.relative');
-        if (wrap && !wrap.contains(e.target)) box.classList.add('hidden');
-      }
-    });
   }
 
+  // Desktop search stays exactly as you had it
   bind(desktopInput, desktopBox, 'library-search-results');
-  bind(mobileInput, mobileBox, 'library-search-results-mobile');
-}
 
+  // Mobile: bind overlay
+  bind(overlayInput, overlayBox, 'library-search-results-overlay');
+
+  // Mobile: magnifying glass opens overlay
+  const openBtn = document.getElementById('library-search-icon-btn');
+  if (openBtn) openBtn.addEventListener('click', openLibrarySearchOverlay);
+
+  // Mobile: Cancel closes overlay
+  const cancelBtn = document.getElementById('library-search-overlay-cancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', closeLibrarySearchOverlay);
+
+  // ESC closes overlay (helpful when testing with a keyboard)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLibrarySearchOverlay();
+  });
+}
 
 
 // Patch renderGrid to support Library "List" view (only when you're in Library)
