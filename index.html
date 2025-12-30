@@ -1340,6 +1340,8 @@ img {
          * ---------------------------------------------------------------------
          */
                 let libraryData = [];
+let libraryDataOriginal = [];
+
 
 /* -----------------------
    TAG-BASED MERGE (NO DUPLICATE ALBUM CARDS)
@@ -2415,6 +2417,8 @@ initSwipeBack();
                     throw new Error(`Request failed with status ${response.status}`);
                 }
                                 libraryData = await response.json();
+libraryDataOriginal = JSON.parse(JSON.stringify(libraryData));
+
 
                 if (!Array.isArray(libraryData)) {
                     throw new Error('Invalid library response');
