@@ -5383,13 +5383,25 @@ if (hero && activePlaylistId) {
     const isCurrent = currentSong && (currentSong.url === song.url);
     if (isCurrent) row.classList.add('active-track');
 
+      const longPressState = { longPress: false };
+      
     row.onclick = () => {
+        if (longPressState.longPress) {
+        longPressState.longPress = false;
+        return;
+      }
+
       currentIndex = i;
       playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
     };
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
+      attachSongPressHandlers(
+      row,
+      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+      longPressState
+    );
 
    row.innerHTML = `
       <span class="text-zinc-400 group-hover:text-white text-center">
