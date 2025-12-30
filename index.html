@@ -932,12 +932,10 @@ img {
                     </div>
                 </div>
 
-            </div>
+                        </div>
 
             <div id="home-view" class="hidden">
 
-
-            <div id="home-view" class="hidden">
 
   <!-- Spotify-like top tabs (not functional yet) -->
   <div class="flex items-center gap-3 mb-5">
@@ -1557,6 +1555,9 @@ function albumKey(artistName, albumName) {
   return `${a} — ${b}`;
 }
 
+// Local fallback image (never breaks)
+const DEFAULT_COVER_FALLBACK = "apple-touch-icon.png";
+
 function loadAlbumCoverOverrides() {
   try {
     const obj = JSON.parse(localStorage.getItem('albumCoverOverrides') || "{}");
@@ -1570,18 +1571,62 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
+function normalizeCoverInput(raw) {
+  let s = String(raw || "").trim();
+  if (!s) return "";
+
+  // Allow data URLs (upload file)
+  if (s.startsWith("data:image/")) return s;
+
+  // Fix protocol-relative URLs
+  if (s.startsWith("//")) s = "https:" + s;
+
+  // Fix "www." pastes
+  if (s.startsWith("www.")) s = "https://" + s;
+
+  // Allow absolute http(s)
+  if (s.startsWith("https://") || s.startsWith("http://")) return s;
+
+  // Allow local/relative paths like "covers/x.png" or "/covers/x.png"
+  if (s.startsWith("/") || s.startsWith("./") || s.startsWith("../")) return s;
+
+  // Allow simple local filenames (e.g., "apple-touch-icon.png")
+  if (/^[a-z0-9_\-]+\.(png|jpg|jpeg|webp|gif)$/i.test(s)) return s;
+
+  // Otherwise reject (prevents junk like "600x600?text=No+Cover+Found")
+  return "";
+}
+
 function getAlbumCover(artistName, albumName, fallbackCover) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-  const v = map[key];
-  return (v && String(v).trim()) ? v : fallbackCover;
+
+  const stored = normalizeCoverInput(map[key]);
+  const fallback = normalizeCoverInput(fallbackCover) || DEFAULT_COVER_FALLBACK;
+
+  // If a bad value is stored, wipe it so it stops breaking loads forever
+  if (map[key] && !stored) {
+    delete map[key];
+    saveAlbumCoverOverrides(map);
+  }
+
+  return stored || fallback;
 }
 
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-  map[key] = String(coverUrlOrDataUrl || "").trim();
+
+  const normalized = normalizeCoverInput(coverUrlOrDataUrl);
+
+  if (!normalized) {
+    alert("That cover link isn't a direct image URL. Paste a direct link ending in .jpg .png .webp, or upload a file.");
+    return false;
+  }
+
+  map[key] = normalized;
   saveAlbumCoverOverrides(map);
+  return true;
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -1590,6 +1635,7 @@ function clearAlbumCoverOverride(artistName, albumName) {
   delete map[key];
   saveAlbumCoverOverrides(map);
 }
+
 
 /* -----------------------
    Keep track of what album/artist view is currently open
