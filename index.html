@@ -951,58 +951,92 @@ img {
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
   <!-- (Removed on mobile Library) -->
 
-        <!-- Library controls (Sort + View as) -->
-  <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
-    <!-- Left: Sort dropdown -->
-    <div class="relative">
-      <button id="library-sort-btn"
-              class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-sm"
-              type="button">
-        <span id="library-sort-label">Recently added</span>
-        <i class="fas fa-chevron-down text-xs opacity-80"></i>
-      </button>
+                <!-- MOBILE: Library header (Spotify-ish) -->
+        <div id="mobile-library-header" class="md:hidden mb-4">
+          <!-- Top row -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- placeholder profile pic -->
+              <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                <i class="fas fa-user text-white/70 text-sm"></i>
+              </div>
+              <div class="text-3xl font-black leading-none">My Library</div>
+            </div>
 
-      <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
-        <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
+            <div class="flex items-center gap-4">
+              <!-- search icon -->
+              <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white">
+                <i class="fas fa-search text-xl"></i>
+              </button>
+              <!-- plus icon (keeps your existing createNewPlaylist behavior) -->
+              <button type="button" class="text-white/90 hover:text-white" onclick="createNewPlaylist()">
+                <i class="fas fa-plus text-xl"></i>
+              </button>
+            </div>
+          </div>
 
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
-        <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
-
-        <div class="h-px bg-white/10 my-2"></div>
-
-        <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">View as</div>
-        <div class="px-3 pb-3 flex items-center gap-2">
-          <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
-                  data-view="grid" type="button">
-            <i class="fas fa-th-large mr-2"></i>Grid
-          </button>
-          <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
-                  data-view="list" type="button">
-            <i class="fas fa-list mr-2"></i>List
-          </button>
+          <!-- Tabs row (visual only, like your Home tabs) -->
+          <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Right: Mobile Library Search (same fuzzy logic) -->
-    <div class="relative md:hidden flex-1 max-w-[220px]">
-      <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15">
-        <i class="fas fa-search text-white/70 text-sm"></i>
-        <input id="library-search-mobile"
-               type="text"
-               class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
-               placeholder="Search in Your Library"
-               autocomplete="off">
-      </div>
+        <!-- Library controls (Sort + View as) -->
+        <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
+          <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
+          <div class="relative">
+            <button id="library-sort-btn"
+                    class="flex items-center gap-2 px-0 py-1 text-white font-extrabold text-sm hover:opacity-90"
+                    type="button">
+              <span id="library-sort-label">Recents</span>
+              <i class="fas fa-chevron-down text-xs opacity-80"></i>
+            </button>
 
-      <div id="library-search-results-mobile"
-           class="hidden absolute mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
-      </div>
-    </div>
-  </div>
+            <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
 
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
+
+              <div class="h-px bg-white/10 my-2"></div>
+
+              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">View as</div>
+              <div class="px-3 pb-3 flex items-center gap-2">
+                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
+                        data-view="grid" type="button">
+                  <i class="fas fa-th-large mr-2"></i>Grid
+                </button>
+                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
+                        data-view="list" type="button">
+                  <i class="fas fa-list mr-2"></i>List
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Mobile Library Search (icon only like Spotify) -->
+          <div class="relative md:hidden">
+            <!-- We keep your SAME input + results IDs so your existing JS still works -->
+            <div id="library-search-popover" class="hidden absolute right-0 mt-2 w-72 max-w-[86vw] rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50 p-3">
+              <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/5">
+                <i class="fas fa-search text-white/70 text-sm"></i>
+                <input id="library-search-mobile"
+                       type="text"
+                       class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
+                       placeholder="Search in Your Library"
+                       autocomplete="off">
+              </div>
+
+              <div id="library-search-results-mobile"
+                   class="hidden mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden">
+              </div>
+            </div>
+          </div>
+        </div>
 
   <!-- Albums header -->
   <div class="mb-4">
@@ -5083,6 +5117,42 @@ player.addEventListener('ended', () => {
 <!-- hidden file input used by album “upload file” -->
 <input id="album-cover-file" type="file" accept="image/*" class="hidden">
 
+<script>
+  // Mobile Library: tap magnifying glass to open/close the existing search input
+  (function bindLibrarySearchIcon() {
+    function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+
+    ready(() => {
+      const btn = document.getElementById('library-search-icon-btn');
+      const pop = document.getElementById('library-search-popover');
+      const input = document.getElementById('library-search-mobile');
+
+      if (!btn || !pop || !input) return;
+
+      // Bind once
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+
+      btn.addEventListener('click', () => {
+        const isOpen = !pop.classList.contains('hidden');
+        if (isOpen) {
+          pop.classList.add('hidden');
+          return;
+        }
+        pop.classList.remove('hidden');
+        setTimeout(() => input.focus(), 0);
+      });
+
+      // Tap outside closes it
+      document.addEventListener('click', (e) => {
+        if (pop.classList.contains('hidden')) return;
+        if (e.target.closest('#library-search-popover')) return;
+        if (e.target.closest('#library-search-icon-btn')) return;
+        pop.classList.add('hidden');
+      });
+    });
+  })();
+</script>
 
 
 </body>
