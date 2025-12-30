@@ -5221,7 +5221,7 @@ if (hero && activePlaylistId) {
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
 
-    row.innerHTML = `
+   row.innerHTML = `
       <span class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
@@ -5235,17 +5235,15 @@ if (hero && activePlaylistId) {
     `;
 
     listEl.appendChild(row);
-});
-}
+  }); // This closes queue.forEach
 
   // ensure current track highlight is correct immediately after rendering
   updateTrackListActiveState();
-}
+} // This closes renderCollection
 
 function updateTrackListActiveState() {
   const listEl = document.getElementById('track-list');
   if (!listEl) return;
-
   const rows = listEl.querySelectorAll('.track-row');
   rows.forEach((row) => {
     const isRowCurrent = !!(currentSong && row.dataset.url === currentSong.url);
