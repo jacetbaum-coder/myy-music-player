@@ -3008,40 +3008,26 @@ function openAlbumByName(name) {
       });
 
 
-        const albumName = song.album || '';
-    const safeAlbumAttr = albumName.replace(/"/g, '&quot;');
+        const albumName = album.albumName || '';
 
-    // Desktop-only + only inside playlists: album becomes clickable
-    const albumCell = (isPlaylist && window.innerWidth > 768)
-      ? `<button type="button"
-                 class="truncate hidden md:block text-left hover:underline text-white/80 hover:text-white"
-                 data-album="${safeAlbumAttr}">${albumName}</button>`
-      : `<span class="truncate hidden md:block">${albumName}</span>`;
+const titleClass = isCurrent ? 'text-[var(--spotify-green)]' : 'text-white';
+const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
 
-    row.innerHTML = `
-      <span class="text-zinc-400 group-hover:text-white text-center">
-        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-      </span>
-      <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
-        <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
-      </div>
-      ${albumCell}
-      <span class="hidden md:block">Just now</span>
-      <span class="hidden md:block text-center">3:20</span>
-    `;
+row.innerHTML = `
+  <span class="text-zinc-400 group-hover:text-white text-center">
+    ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+  </span>
+  <div class="flex flex-col">
+    <div class="${titleClass} font-medium truncate">${song.title.replace('.mp3', '')}</div>
+    <div class="text-xs ${subClass} md:hidden">${song.artist}</div>
+  </div>
+  <span class="truncate hidden md:block ${isCurrent ? 'text-[var(--spotify-green)]' : ''}">${albumName}</span>
+  <span class="hidden md:block">Just now</span>
+  <span class="hidden md:block text-center">3:20</span>
+`;
 
-    // If the album is clickable, clicking it should NOT play the song row
-    const albumBtn = row.querySelector('button[data-album]');
-    if (albumBtn) {
-      albumBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const alb = albumBtn.getAttribute('data-album') || '';
-        if (alb) openAlbumByName(alb);
-      });
-    }
+listEl.appendChild(row);
 
-    listEl.appendChild(row);
   });
 }
 
@@ -5208,7 +5194,7 @@ if (hero && activePlaylistId) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${song.title.replace('.mp3', '')}</div>
         <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
