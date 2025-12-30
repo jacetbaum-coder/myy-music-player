@@ -1798,7 +1798,7 @@ function highlightSongInAlbum(songTitle) {
   }, 60);
 }
 
-function renderLibrarySearchResults(items, query, boxId = 'libraryfunction getLibraryRecentSearches() {
+function getLibraryRecentSearches() {
   try {
     const arr = JSON.parse(localStorage.getItem('libraryRecentSearches') || '[]');
     return Array.isArray(arr) ? arr : [];
@@ -1826,7 +1826,9 @@ function removeLibraryRecentSearch(term) {
 }
 
 function getLibraryInputForBox(boxId) {
-  return document.getElementById(boxId === 'library-search-results-mobile' ? 'library-search-mobile' : 'library-search');
+  return document.getElementById(
+    boxId === 'library-search-results-mobile' ? 'library-search-mobile' : 'library-search'
+  );
 }
 
 function renderLibraryRecentSearches(boxId) {
@@ -1893,7 +1895,7 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
 
   const q = String(query || '').trim();
 
-  // ✅ Empty query = show Recent searches (Spotify-ish)
+  // Empty query = show Recent searches
   if (!q) {
     renderLibraryRecentSearches(boxId);
     return;
@@ -1995,137 +1997,13 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
   box.innerHTML = html;
   box.classList.remove('hidden');
 
-  // Click handling
   box.querySelectorAll('button[data-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.getAttribute('data-action');
       const q0 = btn.getAttribute('data-query') || '';
       addLibraryRecentSearch(q0);
 
-      // ✅ close the correct box (mobile OR desktop)
       box.classList.add('hidden');
-
-      if (action === 'song') {
-        const album = btn.getAttribute('data-album') || '';
-        const title = btn.getAttribute('data-title') || '';
-        openAlbumByName(album);
-        highlightSongInAlbum(title);
-        return;
-      }
-      if (action === 'album') {
-        const album = btn.getAttribute('data-album') || '';
-        openAlbumByName(album);
-        return;
-      }
-      if (action === 'artist') {
-        const artist = btn.getAttribute('data-artist') || '';
-        openArtistByName(artist);
-        return;
-      }
-      if (action === 'playlist') {
-        const id = btn.getAttribute('data-playlist-id') || '';
-        const idx = playlists.findIndex(p => p.id === id);
-        if (idx !== -1) showView('playlist', idx);
-        return;
-      }
-    });
-  });
-}
-search-results') {
-  const box = document.getElementById(boxId);
-  if (!box) return;
-
-  if (!query.trim()) {
-    box.classList.add('hidden');
-    box.innerHTML = '';
-    return;
-  }
-
-  if (!items.length) {
-    box.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${query.replace(/</g,'&lt;')}"</div>`;
-    box.classList.remove('hidden');
-    return;
-  }
-
-  const section = (title) => `<div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">${title}</div>`;
-
-  let html = '';
-  const byType = {
-    song: items.filter(x => x.type === 'song').slice(0, 5),
-    album: items.filter(x => x.type === 'album').slice(0, 5),
-    artist: items.filter(x => x.type === 'artist').slice(0, 5),
-    playlist: items.filter(x => x.type === 'playlist').slice(0, 5),
-  };
-
-  if (byType.song.length) {
-    html += section('Songs');
-    byType.song.forEach(x => {
-      html += `
-        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3" data-action="song" data-album="${String(x.album).replace(/"/g,'&quot;')}" data-title="${String(x.title).replace(/"/g,'&quot;')}">
-          <i class="fas fa-music text-zinc-400"></i>
-          <div class="min-w-0">
-            <div class="text-white text-sm font-bold truncate">${x.title}</div>
-            <div class="text-zinc-400 text-xs truncate">${x.artist} • ${x.album}</div>
-          </div>
-        </button>
-      `;
-    });
-  }
-
-  if (byType.album.length) {
-    html += section('Albums');
-    byType.album.forEach(x => {
-      html += `
-        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3" data-action="album" data-album="${String(x.album).replace(/"/g,'&quot;')}">
-          <i class="fas fa-compact-disc text-zinc-400"></i>
-          <div class="min-w-0">
-            <div class="text-white text-sm font-bold truncate">${x.album}</div>
-            <div class="text-zinc-400 text-xs truncate">${x.artist}</div>
-          </div>
-        </button>
-      `;
-    });
-  }
-
-  if (byType.artist.length) {
-    html += section('Artists');
-    byType.artist.forEach(x => {
-      html += `
-        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3" data-action="artist" data-artist="${String(x.artist).replace(/"/g,'&quot;')}">
-          <i class="fas fa-user text-zinc-400"></i>
-          <div class="min-w-0">
-            <div class="text-white text-sm font-bold truncate">${x.artist}</div>
-            <div class="text-zinc-400 text-xs truncate">${x.count} album${x.count === 1 ? '' : 's'}</div>
-          </div>
-        </button>
-      `;
-    });
-  }
-
-  if (byType.playlist.length) {
-    html += section('Playlists');
-    byType.playlist.forEach(x => {
-      html += `
-        <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3" data-action="playlist" data-playlist-id="${String(x.id)}">
-          <i class="fas fa-list-ul text-zinc-400"></i>
-          <div class="min-w-0">
-            <div class="text-white text-sm font-bold truncate">${x.name}</div>
-            <div class="text-zinc-400 text-xs truncate">Playlist</div>
-          </div>
-        </button>
-      `;
-    });
-  }
-
-  box.innerHTML = html;
-  box.classList.remove('hidden');
-
-  // Click handling
-  box.querySelectorAll('button[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.getAttribute('data-action');
-      const resultsBox = document.getElementById('library-search-results');
-      if (resultsBox) resultsBox.classList.add('hidden');
 
       if (action === 'song') {
         const album = btn.getAttribute('data-album') || '';
@@ -2155,6 +2033,7 @@ search-results') {
 }
 
 function handleLibrarySearch(query, boxId = 'library-search-results') {
+
   const q = String(query || '').trim();
   const box = document.getElementById(boxId);
   if (!box) return;
