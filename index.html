@@ -2581,54 +2581,60 @@ function initSwipeBack() {
   }
 
   area.addEventListener('pointerdown', (e) => {
-    if (!canStart(e)) return;
+  if (!canStart(e)) return;
 
-    const { x, y } = getXY(e);
-    active = true;
-    decided = false;
-    isHorizontal = false;
-    startX = x;
-    startY = y;
-    lastDx = 0;
+  const { x, y } = getXY(e);
+  active = true;
+  decided = false;
+  isHorizontal = false;
+  startX = x;
+  startY = y;
+  lastDx = 0;
 
-    // While dragging horizontally, we temporarily own the gesture
-    area.style.touchAction = 'none';
-
-    area.classList.add('sb-dragging');
-    try { area.setPointerCapture(e.pointerId); } catch (err) {}
-  }, { passive: true });
+  // IMPORTANT: do NOT capture pointer or disable touchAction on pointerdown.
+  // We only do that after we decide it's a horizontal swipe in pointermove.
+}, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
-    if (!active) return;
+  if (!active) return;
 
-    // IMPORTANT: keep owning the gesture while dragging (same idea as Now Playing)
-    e.preventDefault();
+  const { x, y } = getXY(e);
+  const dx = x - startX;
+  const dy = y - startY;
 
-    const { x, y } = getXY(e);
-    const dx = x - startX;
-    const dy = y - startY;
+  // Don’t decide until it actually moves (prevents taps triggering)
+  if (!decided) {
+    if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
+    decided = true;
+    isHorizontal = Math.abs(dx) > Math.abs(dy);
 
-    // Don’t decide until it actually moves (prevents taps triggering)
-    if (!decided) {
-      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
-      decided = true;
-      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    // If it is a horizontal swipe, NOW we take over the gesture
+    if (isHorizontal) {
+      e.preventDefault();
+      area.style.touchAction = 'none';
+      area.classList.add('sb-dragging');
+      try { area.setPointerCapture(e.pointerId); } catch (err) {}
     }
+  }
 
-    if (!isHorizontal) return;
+  if (!isHorizontal) return;
 
-    // Only count right-swipes (iOS back gesture)
-    lastDx = Math.max(0, dx);
+  // Keep owning the gesture while dragging
+  e.preventDefault();
 
-    // Live drag
-    area.style.transition = '';
-    area.style.transform = `translateX(${lastDx}px)`;
+  // Only count right-swipes (iOS back gesture)
+  lastDx = Math.max(0, dx);
 
-    // Subtle opacity shift for a “layer” feel (doesn’t break anything if nothing is behind)
-    const w = Math.max(1, window.innerWidth);
-    const p = Math.min(1, lastDx / (w * 0.6));
-    area.style.opacity = String(1 - (p * OPACITY_DROP));
-  }, { passive: false });
+  // Live drag
+  area.style.transition = '';
+  area.style.transform = `translateX(${lastDx}px)`;
+
+  // Subtle opacity shift for a “layer” feel
+  const w = Math.max(1, window.innerWidth);
+  const p = Math.min(1, lastDx / (w * 0.6));
+  area.style.opacity = String(1 - (p * OPACITY_DROP));
+}, { passive: false });
+
 
   area.addEventListener('pointerup', () => {
     if (!active) return;
