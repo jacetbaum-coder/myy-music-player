@@ -2418,58 +2418,72 @@ checkDockVisibility();
             initGlobalKeys();
 initSwipeBack();
 
-// ✅ Load cover overrides (local fast, then cloud authoritative) BEFORE library renders
-try { await bootstrapCoverOverrides(); } catch (e) {}
+// Simulation of high-volume library fetching
 
-// ✅ Fetch library from cloud
-try {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                                const response = await fetch('/api/get-songs', { signal: controller.signal }); // This endpoint provides the structure
 
-  const response = await fetch('/api/get-songs', { signal: controller.signal });
+                clearTimeout(timeoutId);
 
-  clearTimeout(timeoutId);
-
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  // Accept multiple backend shapes safely
-  if (Array.isArray(data)) {
-    libraryData = data;
-  } else if (data && Array.isArray(data.libraryData)) {
-    libraryData = data.libraryData;
-  } else if (data && Array.isArray(data.albums)) {
-    libraryData = data.albums;
-  } else {
-    throw new Error('Invalid library response');
-  }
-
-  // Keep original order for "Recently added"
-  libraryDataOriginal = libraryData.slice();
-
-  // Sort library alphabetically by album (Library grid)
-  libraryData.sort((a, b) =>
-    (a.albumName || "").localeCompare((b.albumName || ""), undefined, { sensitivity: "base" })
-  );
-
-  document.getElementById('loading').classList.add('hidden');
-  showView('home');
-  try { renderHome(); } catch (e) {}
-
-} catch (error) {
-  console.error("Fetch error:", error);
-  document.getElementById('loading').innerHTML = `
-      <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-      <p class="text-white font-bold">Cloud Connection Failed</p>
-      <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-  `;
-  libraryData = [];
-  document.getElementById('loading').classList.add('hidden');
-  showView('home');
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                                // ✅ Get all cover overrides (cloud source of truth)
+if (path === "/api/get-covers") {
+  const raw = await env.KV.get("albumCoverOverrides");
+  let overrides = {};
+  try { overrides = raw ? JSON.parse(raw) : {}; } catch (e) { overrides = {}; }
+  return json({ overrides });
 }
+
+// ✅ Set/clear a single cover override
+if (path === "/api/set-cover") {
+  if (request.method !== "POST") return text("Method Not Allowed", 405);
+
+  const body = await request.json().catch(() => ({}));
+  const key = String(body.key || "").trim();      // "Artist — Album"
+  const cover = String(body.cover || "").trim();  // "" means delete
+
+  if (!key) return json({ ok: false, error: "Missing key" }, 400);
+
+  const raw = await env.KV.get("albumCoverOverrides");
+  let overrides = {};
+  try { overrides = raw ? JSON.parse(raw) : {}; } catch (e) { overrides = {}; }
+
+  if (!cover) delete overrides[key];
+  else overrides[key] = cover;
+
+  await env.KV.put("albumCoverOverrides", JSON.stringify(overrides));
+  return json({ ok: true });
+}
+
+                    throw new Error('Invalid library response');
+                }
+
+                // Keep original order for "Recently added"
+                libraryDataOriginal = libraryData.slice();
+            
+                // Sort library alphabetically by album (Library grid)
+                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+
+                
+                                document.getElementById('loading').classList.add('hidden');
+                showView('home');
+                try { renderHome(); } catch (e) {}
+            } catch (error) {
+                console.error("Fetch error:", error);
+                document.getElementById('loading').innerHTML = `
+                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                    <p class="text-white font-bold">Cloud Connection Failed</p>
+                    <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+                `;
+                libraryData = [];
+                document.getElementById('loading').classList.add('hidden');
+                showView('home');
+            }
+        };
 
         function setGreeting() {
   if (!greetingEl) return; // prevents crash if the greeting element doesn't exist
@@ -5102,8 +5116,7 @@ player.addEventListener('ended', () => {
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
 
-   }; 
-</script>
+    </script>
     <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
