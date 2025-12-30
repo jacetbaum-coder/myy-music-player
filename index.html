@@ -795,19 +795,7 @@ img {
 }
 
 
-                /* --- Library fullscreen search (mobile) --- */
-        .library-search-input {
-          caret-color: #1DB954; /* green blinking cursor */
-        }
-
-        /* Prevent background scroll when overlay is open */
-        body.lb-search-open {
-          overflow: hidden !important;
-          overscroll-behavior: none;
-        }
-
         /* --- SCROLLBAR --- */
-
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -1031,48 +1019,24 @@ img {
           </div>
 
           <!-- Right: Mobile Library Search (icon only like Spotify) -->
-          <div class="md:hidden">
-            <!-- Fullscreen Search Overlay (Spotify-style) -->
-            <div id="library-search-overlay"
-                 class="hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex flex-col">
-
-              <!-- Top search bar row -->
-              <div class="px-4 pt-4 pb-3">
-                <div class="flex items-center gap-3">
-                  <div class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/10">
-                    <i class="fas fa-search text-white/60 text-sm"></i>
-                    <!-- KEEP THIS ID so your existing search JS still works -->
-                    <input id="library-search-mobile"
-                           type="text"
-                           class="w-full bg-transparent outline-none text-base text-white placeholder-white/40 library-search-input"
-                           placeholder="Search Your Library"
-                           autocomplete="off">
-                  </div>
-
-                  <button id="library-search-cancel-btn"
-                          type="button"
-                          class="text-white font-bold text-base">
-                    Cancel
-                  </button>
-                </div>
+          <div class="relative md:hidden">
+            <!-- We keep your SAME input + results IDs so your existing JS still works -->
+            <div id="library-search-popover" class="hidden absolute right-0 mt-2 w-72 max-w-[86vw] rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50 p-3">
+              <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/5">
+                <i class="fas fa-search text-white/70 text-sm"></i>
+                <input id="library-search-mobile"
+                       type="text"
+                       class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
+                       placeholder="Search in Your Library"
+                       autocomplete="off">
               </div>
 
-              <!-- Scroll area -->
-              <div class="flex-1 overflow-y-auto pb-24">
-                <!-- KEEP THIS ID so your existing results renderer still works -->
-                <div id="library-search-results-mobile" class="hidden"></div>
-
-                <!-- Empty state (only when no recents AND input empty) -->
-                <div id="library-search-empty-mobile"
-                     class="hidden px-6 pt-24 text-center">
-                  <div class="text-3xl font-black text-white">Find your favorites</div>
-                  <div class="mt-3 text-lg font-bold text-white/60">
-                    Search everything you’ve saved, followed, or created.
-                  </div>
-                </div>
+              <div id="library-search-results-mobile"
+                   class="hidden mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden">
               </div>
             </div>
           </div>
+        </div>
 
   <!-- Albums header -->
   <div class="mb-4">
@@ -2541,6 +2505,35 @@ function initSwipeBack() {
     area.addEventListener('transitionend', clear);
   }
 }
+    function showView(viewType, playlistIndex = null) {
+  pushNavCurrent();
+
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { contextMenu.style.display = 'none'; } catch (e) {}
+
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+
+  activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
+
+  if (viewType === 'home') setNavCurrent({ type: 'home' });
+  else if (viewType === 'library') setNavCurrent({ type: 'library' });
+  else if (viewType === 'search') setNavCurrent({ type: 'search' });
+  else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+  else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+  else if (viewType === 'playlist') {
+    const pl = playlists[playlistIndex];
+    setNavCurrent({ type: 'playlist', playlistIndex, playlistId: pl?.id || null });
+  } else {
+    setNavCurrent({ type: viewType || 'home' });
+  }
+
+  const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+}
+
 
   function canStart(e) {
     // Must have something to go back to
@@ -2581,60 +2574,54 @@ function initSwipeBack() {
   }
 
   area.addEventListener('pointerdown', (e) => {
-  if (!canStart(e)) return;
+    if (!canStart(e)) return;
 
-  const { x, y } = getXY(e);
-  active = true;
-  decided = false;
-  isHorizontal = false;
-  startX = x;
-  startY = y;
-  lastDx = 0;
+    const { x, y } = getXY(e);
+    active = true;
+    decided = false;
+    isHorizontal = false;
+    startX = x;
+    startY = y;
+    lastDx = 0;
 
-  // IMPORTANT: do NOT capture pointer or disable touchAction on pointerdown.
-  // We only do that after we decide it's a horizontal swipe in pointermove.
-}, { passive: true });
+    // While dragging horizontally, we temporarily own the gesture
+    area.style.touchAction = 'none';
+
+    area.classList.add('sb-dragging');
+    try { area.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
-  if (!active) return;
+    if (!active) return;
 
-  const { x, y } = getXY(e);
-  const dx = x - startX;
-  const dy = y - startY;
+    // IMPORTANT: keep owning the gesture while dragging (same idea as Now Playing)
+    e.preventDefault();
 
-  // Don’t decide until it actually moves (prevents taps triggering)
-  if (!decided) {
-    if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
-    decided = true;
-    isHorizontal = Math.abs(dx) > Math.abs(dy);
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
 
-    // If it is a horizontal swipe, NOW we take over the gesture
-    if (isHorizontal) {
-      e.preventDefault();
-      area.style.touchAction = 'none';
-      area.classList.add('sb-dragging');
-      try { area.setPointerCapture(e.pointerId); } catch (err) {}
+    // Don’t decide until it actually moves (prevents taps triggering)
+    if (!decided) {
+      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
     }
-  }
 
-  if (!isHorizontal) return;
+    if (!isHorizontal) return;
 
-  // Keep owning the gesture while dragging
-  e.preventDefault();
+    // Only count right-swipes (iOS back gesture)
+    lastDx = Math.max(0, dx);
 
-  // Only count right-swipes (iOS back gesture)
-  lastDx = Math.max(0, dx);
+    // Live drag
+    area.style.transition = '';
+    area.style.transform = `translateX(${lastDx}px)`;
 
-  // Live drag
-  area.style.transition = '';
-  area.style.transform = `translateX(${lastDx}px)`;
-
-  // Subtle opacity shift for a “layer” feel
-  const w = Math.max(1, window.innerWidth);
-  const p = Math.min(1, lastDx / (w * 0.6));
-  area.style.opacity = String(1 - (p * OPACITY_DROP));
-}, { passive: false });
-
+    // Subtle opacity shift for a “layer” feel (doesn’t break anything if nothing is behind)
+    const w = Math.max(1, window.innerWidth);
+    const p = Math.min(1, lastDx / (w * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
+  }, { passive: false });
 
   area.addEventListener('pointerup', () => {
     if (!active) return;
@@ -2693,15 +2680,8 @@ else if (viewType === 'playlist') {
   setNavCurrent({ type: viewType || 'home' });
 }
 
-  // FORCE close mobile library search overlay when changing views
-  const lbOverlay = document.getElementById('library-search-overlay');
-  if (lbOverlay) {
-    lbOverlay.classList.add('hidden');
-    document.body.classList.remove('lb-search-open');
-  }
-
-    const scrollArea = document.getElementById('main-scroll-area');
-  if (scrollArea) scrollArea.scrollTop = 0;
+const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
 
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
@@ -5219,86 +5199,33 @@ player.addEventListener('ended', () => {
 
     ready(() => {
       const btn = document.getElementById('library-search-icon-btn');
-      const overlay = document.getElementById('library-search-overlay');
+      const pop = document.getElementById('library-search-popover');
       const input = document.getElementById('library-search-mobile');
-      const cancel = document.getElementById('library-search-cancel-btn');
-      const box = document.getElementById('library-search-results-mobile');
-      const empty = document.getElementById('library-search-empty-mobile');
 
-      if (!btn || !overlay || !input || !cancel || !box || !empty) return;
+      if (!btn || !pop || !input) return;
 
       // Bind once
       if (btn.dataset.bound === "1") return;
       btn.dataset.bound = "1";
 
-      function showEmptyOrRecents() {
-        const q = String(input.value || '').trim();
-
-        // If user typed anything, your existing renderer will handle results
-        if (q) {
-          empty.classList.add('hidden');
+      btn.addEventListener('click', () => {
+        const isOpen = !pop.classList.contains('hidden');
+        if (isOpen) {
+          pop.classList.add('hidden');
           return;
         }
-
-        // Input is empty: show Recent searches OR the empty state
-        const rec = (typeof getLibraryRecentSearches === "function") ? getLibraryRecentSearches() : [];
-        if (Array.isArray(rec) && rec.length > 0) {
-          if (typeof renderLibraryRecentSearches === "function") {
-            renderLibraryRecentSearches('library-search-results-mobile');
-          }
-          empty.classList.add('hidden');
-        } else {
-          box.classList.add('hidden');
-          empty.classList.remove('hidden');
-        }
-      }
-
-      function openOverlay() {
-        overlay.classList.remove('hidden');
-        document.body.classList.add('lb-search-open');
-
-        // Ensure we start in "empty" mode like Spotify
-        setTimeout(() => {
-          input.focus();
-          try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
-          showEmptyOrRecents();
-        }, 0);
-      }
-
-      function closeOverlay() {
-        overlay.classList.add('hidden');
-        document.body.classList.remove('lb-search-open');
-
-        // Reset like Spotify "Cancel"
-        input.value = '';
-        try { input.blur(); } catch (e) {}
-        box.classList.add('hidden');
-        empty.classList.add('hidden');
-      }
-
-      btn.addEventListener('click', () => {
-        const isOpen = !overlay.classList.contains('hidden');
-        if (isOpen) closeOverlay();
-        else openOverlay();
+        pop.classList.remove('hidden');
+        setTimeout(() => input.focus(), 0);
       });
 
-      cancel.addEventListener('click', () => {
-        closeOverlay();
-      });
-
-      // Keep empty/recents behavior in sync while typing/backspacing
-      input.addEventListener('input', () => {
-        showEmptyOrRecents();
-      });
-
-      // ESC closes (desktop + iPad keyboards)
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
-          closeOverlay();
-        }
+      // Tap outside closes it
+      document.addEventListener('click', (e) => {
+        if (pop.classList.contains('hidden')) return;
+        if (e.target.closest('#library-search-popover')) return;
+        if (e.target.closest('#library-search-icon-btn')) return;
+        pop.classList.add('hidden');
       });
     });
-
   })();
 </script>
 
