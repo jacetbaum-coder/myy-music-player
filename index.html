@@ -2388,6 +2388,8 @@ showView = function(viewType, playlistIndex = null) {
 
 window.onload = async () => {
             setGreeting();
+            syncRepeatUI();
+            renderHistory();
             ensurePlaylistIds();
             renderPlaylists();
 try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
@@ -2897,27 +2899,12 @@ function renderGrid(data) {
   }).join('');
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
-  // single click: open album
-  card.addEventListener('click', () => {
-    const album = card.getAttribute('data-album');
-    if (album) openAlbumByName(album);
+    card.addEventListener('click', () => {
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
   });
-
-  // desktop: double click = play album
-  card.addEventListener('dblclick', (e) => {
-    if (window.innerWidth <= 768) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const album = card.getAttribute('data-album');
-    if (!album) return;
-
-    openAlbumByName(album);
-    playAlbumByName(album);
-  });
-});
-
+}
 
 
 function openAlbumByName(name) {
@@ -4130,38 +4117,36 @@ function checkDockVisibility() {
           return src.slice(-limit).reverse();
         }
 
-        /* --- START OF RENDERHOMERECENTS UPDATE --- */
-function renderHomeRecents(containerId) {
-  const grid = document.getElementById(containerId);
-  if (!grid) return;
-  const items = getHistoryItemsForHome();
-  if (!items.length) {
-    grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
-    return;
-  }
-  grid.innerHTML = items.map(h => {
-    const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
-    const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
-    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
-    const safeId = String(h.id || '').replace(/"/g,'&quot;');
-    const safeArtist = String(h.artist || '').replace(/"/g,'&quot;');
+        function renderHomeRecents(containerId) {
+          const grid = document.getElementById(containerId);
+          if (!grid) return;
 
-    // Desktop only dblclick logic
-    const dblClickAttr = (window.innerWidth > 768) 
-      ? `ondblclick="event.stopPropagation(); playCollectionDirectly('${h.type}', '${safeId}', '${safeAlbum}', '${safeArtist}')"` 
-      : '';
+          const items = getHistoryItemsForHome();
 
-    return `
-      <div class="mobile-recent-card" data-type="${h.type}" data-id="${safeId}" data-album="${safeAlbum}" ${dblClickAttr}>
-        <img src="${h.cover || ''}" alt="">
-        <div class="min-w-0">
-          <div class="title">${title}</div>
-          <div class="sub">${sub}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-/* --- END OF RENDERHOMERECENTS UPDATE --- */
+          if (!items.length) {
+            grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
+            return;
+          }
+
+          grid.innerHTML = items.map(h => {
+            const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
+            const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
+            const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+            const safeId = String(h.id || '').replace(/"/g,'&quot;');
+
+            return `
+              <div class="mobile-recent-card"
+                   data-type="${h.type}"
+                   data-id="${safeId}"
+                   data-album="${safeAlbum}">
+                <img src="${h.cover || ''}" alt="">
+                <div class="min-w-0">
+                  <div class="title">${title}</div>
+                  <div class="sub">${sub}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
 
           [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
             card.addEventListener('click', () => {
@@ -4178,54 +4163,32 @@ function renderHomeRecents(containerId) {
           });
         }
 
-        /* --- START OF RENDERHOMERECENTLYADDED UPDATE --- */
-function renderHomeRecentlyAdded(containerId) {
-  const row = document.getElementById(containerId);
-  if (!row) return;
-  const albums = getRecentlyAddedAlbums(12);
-  if (!albums.length) {
-    row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
-    return;
-  }
-  row.innerHTML = albums.map(a => {
-    const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
-    const safeName = String(a.albumName || '').replace(/'/g, "\\'");
-    const safeArtist = String(a.artistName || '').replace(/'/g, "\\'");
+        function renderHomeRecentlyAdded(containerId) {
+          const row = document.getElementById(containerId);
+          if (!row) return;
 
-    // Desktop only dblclick logic
-    const dblClickAction = (window.innerWidth > 768) 
-  ? `ondblclick="event.stopPropagation(); playCollectionDirectly('album', '', '${safeName}', '${safeArtist}')"` 
-  : '';
+          const albums = getRecentlyAddedAlbums(12);
 
-    return `
-      <div class="min-w-[160px] max-w-[160px] cursor-pointer" onclick="openAlbumByName('${safeName}')" ${dblClickAction}>
-        <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
-          <img src="${cover}" class="w-full h-full object-cover" alt="">
-        </div>
-        <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
-        <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
-      </div>
-    `;
-  }).join('');
-}
-        /* --- HELPER FUNCTION FOR DBLCLICK PLAY --- */
-function playCollectionDirectly(type, id, albumName, artistName) {
-  if (type === 'playlist') {
-    const pl = playlists.find(p => p.id === id);
-    if (pl && pl.songs && pl.songs.length > 0) {
-      const queue = buildQueueFromSongs(pl.songs, { album: pl.name });
-      playQueue(queue, 0);
-    }
-  } else {
-    // It's an album
-    const album = libraryData.find(a => a.albumName === albumName && a.artistName === artistName);
-    if (album && album.songs && album.songs.length > 0) {
-      const queue = buildQueueFromSongs(album.songs, { album: album.albumName });
-      playQueue(queue, 0);
-    }
-  }
-}
-/* --- END OF RENDERHOMERECENTLYADDED UPDATE --- */
+          if (!albums.length) {
+            row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
+            return;
+          }
+
+          row.innerHTML = albums.map(a => {
+            const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
+            const safeName = String(a.albumName || '').replace(/'/g, "\\'");
+            return `
+              <div class="min-w-[160px] max-w-[160px] cursor-pointer"
+                   onclick="openAlbumByName('${safeName}')">
+                <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
+                  <img src="${cover}" class="w-full h-full object-cover" alt="">
+                </div>
+                <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
+                <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
+              </div>
+            `;
+          }).join('');
+        }
 
         function renderHome() {
           // Mobile Home
@@ -5394,7 +5357,7 @@ player.addEventListener('ended', () => {
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
-}
+
     </script>
     <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
