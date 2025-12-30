@@ -3013,8 +3013,6 @@ function openAlbumByName(name) {
       });
 
 
-        const albumName = album.albumName || '';
-
 const titleClass = isCurrent ? 'text-[var(--spotify-green)]' : 'text-white';
 const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
 
@@ -3023,6 +3021,7 @@ if (isCurrent) row.classList.add('is-current');
 
 // Desktop-only: album becomes clickable (mobile stays the same)
 const albumName = song.album || '';
+
 const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 
 const albumCell = (window.innerWidth > 768)
