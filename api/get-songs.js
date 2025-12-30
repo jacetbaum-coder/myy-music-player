@@ -5,9 +5,6 @@ let cachedData = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; 
 
-function makeCoverStorageKey(artistName, albumName) {
-  return `cover-${artistName}-${albumName}`.replace(/\s+/g, '-').toLowerCase();
-}
 
 function makeCoverStorageKey(artistName, albumName) {
   return `cover-${artistName}-${albumName}`.replace(/\s+/g, '-').toLowerCase();
