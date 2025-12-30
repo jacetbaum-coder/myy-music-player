@@ -2257,6 +2257,7 @@ checkDockVisibility();
             initResizers();
             initGlobalKeys();
 initSwipeBack();
+initDesktopSwipeBack();
 
 // Simulation of high-volume library fetching
 
@@ -2395,6 +2396,35 @@ function initSwipeBack() {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     return { x: e.clientX, y: e.clientY };
   }
+    function showView(viewType, playlistIndex = null) {
+  pushNavCurrent();
+
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { contextMenu.style.display = 'none'; } catch (e) {}
+
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+
+  activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
+
+  if (viewType === 'home') setNavCurrent({ type: 'home' });
+  else if (viewType === 'library') setNavCurrent({ type: 'library' });
+  else if (viewType === 'search') setNavCurrent({ type: 'search' });
+  else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+  else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+  else if (viewType === 'playlist') {
+    const pl = playlists[playlistIndex];
+    setNavCurrent({ type: 'playlist', playlistIndex, playlistId: pl?.id || null });
+  } else {
+    setNavCurrent({ type: viewType || 'home' });
+  }
+
+  const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+}
+
 
   function canStart(e) {
     // Must have something to go back to
