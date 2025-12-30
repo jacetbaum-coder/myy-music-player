@@ -795,7 +795,19 @@ img {
 }
 
 
+                /* --- Library fullscreen search (mobile) --- */
+        .library-search-input {
+          caret-color: #1DB954; /* green blinking cursor */
+        }
+
+        /* Prevent background scroll when overlay is open */
+        body.lb-search-open {
+          overflow: hidden !important;
+          overscroll-behavior: none;
+        }
+
         /* --- SCROLLBAR --- */
+
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -1019,24 +1031,48 @@ img {
           </div>
 
           <!-- Right: Mobile Library Search (icon only like Spotify) -->
-          <div class="relative md:hidden">
-            <!-- We keep your SAME input + results IDs so your existing JS still works -->
-            <div id="library-search-popover" class="hidden absolute right-0 mt-2 w-72 max-w-[86vw] rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50 p-3">
-              <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/5">
-                <i class="fas fa-search text-white/70 text-sm"></i>
-                <input id="library-search-mobile"
-                       type="text"
-                       class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
-                       placeholder="Search in Your Library"
-                       autocomplete="off">
+          <div class="md:hidden">
+            <!-- Fullscreen Search Overlay (Spotify-style) -->
+            <div id="library-search-overlay"
+                 class="hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex flex-col">
+
+              <!-- Top search bar row -->
+              <div class="px-4 pt-4 pb-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/10">
+                    <i class="fas fa-search text-white/60 text-sm"></i>
+                    <!-- KEEP THIS ID so your existing search JS still works -->
+                    <input id="library-search-mobile"
+                           type="text"
+                           class="w-full bg-transparent outline-none text-base text-white placeholder-white/40 library-search-input"
+                           placeholder="Search Your Library"
+                           autocomplete="off">
+                  </div>
+
+                  <button id="library-search-cancel-btn"
+                          type="button"
+                          class="text-white font-bold text-base">
+                    Cancel
+                  </button>
+                </div>
               </div>
 
-              <div id="library-search-results-mobile"
-                   class="hidden mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden">
+              <!-- Scroll area -->
+              <div class="flex-1 overflow-y-auto pb-24">
+                <!-- KEEP THIS ID so your existing results renderer still works -->
+                <div id="library-search-results-mobile" class="hidden"></div>
+
+                <!-- Empty state (only when no recents AND input empty) -->
+                <div id="library-search-empty-mobile"
+                     class="hidden px-6 pt-24 text-center">
+                  <div class="text-3xl font-black text-white">Find your favorites</div>
+                  <div class="mt-3 text-lg font-bold text-white/60">
+                    Search everything you’ve saved, followed, or created.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
   <!-- Albums header -->
   <div class="mb-4">
@@ -5199,24 +5235,86 @@ player.addEventListener('ended', () => {
 
     ready(() => {
       const btn = document.getElementById('library-search-icon-btn');
-      const pop = document.getElementById('library-search-popover');
+      const overlay = document.getElementById('library-search-overlay');
       const input = document.getElementById('library-search-mobile');
+      const cancel = document.getElementById('library-search-cancel-btn');
+      const box = document.getElementById('library-search-results-mobile');
+      const empty = document.getElementById('library-search-empty-mobile');
 
-      if (!btn || !pop || !input) return;
+      if (!btn || !overlay || !input || !cancel || !box || !empty) return;
 
       // Bind once
       if (btn.dataset.bound === "1") return;
       btn.dataset.bound = "1";
 
-      btn.addEventListener('click', () => {
-        const isOpen = !pop.classList.contains('hidden');
-        if (isOpen) {
-          pop.classList.add('hidden');
+      function showEmptyOrRecents() {
+        const q = String(input.value || '').trim();
+
+        // If user typed anything, your existing renderer will handle results
+        if (q) {
+          empty.classList.add('hidden');
           return;
         }
-        pop.classList.remove('hidden');
-        setTimeout(() => input.focus(), 0);
+
+        // Input is empty: show Recent searches OR the empty state
+        const rec = (typeof getLibraryRecentSearches === "function") ? getLibraryRecentSearches() : [];
+        if (Array.isArray(rec) && rec.length > 0) {
+          if (typeof renderLibraryRecentSearches === "function") {
+            renderLibraryRecentSearches('library-search-results-mobile');
+          }
+          empty.classList.add('hidden');
+        } else {
+          box.classList.add('hidden');
+          empty.classList.remove('hidden');
+        }
+      }
+
+      function openOverlay() {
+        overlay.classList.remove('hidden');
+        document.body.classList.add('lb-search-open');
+
+        // Ensure we start in "empty" mode like Spotify
+        setTimeout(() => {
+          input.focus();
+          try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+          showEmptyOrRecents();
+        }, 0);
+      }
+
+      function closeOverlay() {
+        overlay.classList.add('hidden');
+        document.body.classList.remove('lb-search-open');
+
+        // Reset like Spotify "Cancel"
+        input.value = '';
+        try { input.blur(); } catch (e) {}
+        box.classList.add('hidden');
+        empty.classList.add('hidden');
+      }
+
+      btn.addEventListener('click', () => {
+        const isOpen = !overlay.classList.contains('hidden');
+        if (isOpen) closeOverlay();
+        else openOverlay();
       });
+
+      cancel.addEventListener('click', () => {
+        closeOverlay();
+      });
+
+      // Keep empty/recents behavior in sync while typing/backspacing
+      input.addEventListener('input', () => {
+        showEmptyOrRecents();
+      });
+
+      // ESC closes (desktop + iPad keyboards)
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+          closeOverlay();
+        }
+      });
+    });
+
 
       // Tap outside closes it
       document.addEventListener('click', (e) => {
