@@ -3034,8 +3034,6 @@ const albumCell = (window.innerWidth > 768)
     row.dataset.url = song.url;
     row.dataset.index = String(i + 1);
 
-    const safeAlbumAttr = String(song.album || '').replace(/"/g, '&quot;');
-
     // Desktop-only + playlist-only: album becomes clickable
     const albumCell = (isPlaylist && window.innerWidth > 768)
       ? `<button type="button"
