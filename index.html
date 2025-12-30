@@ -1804,6 +1804,7 @@ if (volumeContainer) {
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
+        let suppressContextMenuCloseUntil = 0;
         const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
