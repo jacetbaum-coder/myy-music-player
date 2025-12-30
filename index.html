@@ -1425,11 +1425,12 @@ img {
          * GLOBAL APP STATE
          * ---------------------------------------------------------------------
          */
-                let libraryData = [];
-        let libraryDataOriginal = [];
-        let currentSong = null;
-        let currentQueue = [];
+       let libraryData = [];
+let libraryDataOriginal = [];
+let currentSong = null;
+let currentQueue = [];
 let currentIndex = -1;
+const LIBRARY_CACHE_KEY = 'libraryDataCache';
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
 let playContext = null;
@@ -2483,6 +2484,7 @@ if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
                 if (!Array.isArray(libraryData)) {
                     throw new Error('Invalid library response');
                 }
+                saveLibraryCache(libraryData);
                 reconcileAlbumCoverOverridesFromLibrary(libraryData);
 
                 // Keep original order for "Recently added"
@@ -3114,8 +3116,8 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div data-role="title" class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
-        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
+        <div data-role="title" class="text-white font-medium truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist || album.artistName || ''}</div>
       </div>
       ${albumCell}
       <span class="hidden md:block">Just now</span>
@@ -5345,8 +5347,8 @@ if (hero && activePlaylistId) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${song.title.replace('.mp3', '')}</div>
-        <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
+        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${String(song.title || '').replace('.mp3', '')}</div>
+        <div class="text-xs text-zinc-400 md:hidden">${song.artist || ''}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
       <span class="hidden md:block">Just now</span>
