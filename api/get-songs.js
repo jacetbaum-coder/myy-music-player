@@ -5,10 +5,29 @@ let cachedData = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; 
 
+function makeCoverStorageKey(artistName, albumName) {
+  return `cover-${artistName}-${albumName}`.replace(/\s+/g, '-').toLowerCase();
+}
+
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { key, url } = req.body;
-    await kv.set(key, url);
+  const { key, url, artistName, albumName, coverUrl } = req.body || {};
+    const resolvedKey = key || (artistName && albumName ? makeCoverStorageKey(artistName, albumName) : null);
+    const resolvedUrl = url ?? coverUrl ?? "";
+
+    if (!resolvedKey) {
+      return res.status(400).json({ error: 'Missing cover key.' });
+    }
+
+    if (String(resolvedUrl || "").trim()) {
+      await kv.set(resolvedKey, String(resolvedUrl).trim());
+    } else {
+      await kv.del(resolvedKey);
+    }
+
+    cachedData = null;
+    lastFetchTime = 0;
     return res.status(200).json({ success: true });
   }
 
@@ -45,7 +64,7 @@ export default async function handler(req, res) {
         });
 
         const songs = content.data.files.filter(f => f.mimeType.includes('audio'));
-        const storageKey = `cover-${artist.name}-${album.name}`.replace(/\s+/g, '-').toLowerCase();
+        const storageKey = makeCoverStorageKey(artist.name, album.name);
         let coverUrl = await kv.get(storageKey);
 
         if (!coverUrl) {
