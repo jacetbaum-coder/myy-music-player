@@ -3094,7 +3094,7 @@ const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
 if (isCurrent) row.classList.add('is-current');
 
 // Desktop-only: album becomes clickable (mobile stays the same)
-const albumName = song.album || '';
+const albumName = song.album || album.albumName || '';
 
 const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 
@@ -3109,7 +3109,7 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
                  data-role="album"
                  class="truncate hidden md:block text-left text-white/80 hover:text-white hover:underline"
                  data-album="${safeAlbumAttr}">${song.album}</button>`
-      : `<span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>`;
+      : `<span data-role="album" class="truncate hidden md:block text-white/80">${albumName}</span>`;
 
     row.innerHTML = `
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
