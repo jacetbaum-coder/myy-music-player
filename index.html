@@ -878,64 +878,12 @@ img {
 
         <main class="main-view" id="main-scroll-area">
             
-                        <div id="loading" class="flex items-center justify-center h-full w-full">
-
-                <!-- MOBILE: centered logo (no text) -->
-                <div class="md:hidden flex items-center justify-center h-full w-full">
-                    <img src="apple-touch-icon.png" alt="Reson" class="w-24 h-24 rounded-full" />
-                </div>
-
-                <!-- DESKTOP: skeleton rectangles -->
-                <div class="hidden md:block w-full h-full px-10 py-10">
-                    <div class="w-full max-w-5xl mx-auto">
-
-                        <div class="h-12 w-2/3 bg-zinc-800/60 rounded-full mb-10 animate-pulse"></div>
-
-                        <div class="grid grid-cols-2 gap-x-10 gap-y-6">
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-72 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-72 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-64 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-80 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-80 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                            <div class="flex items-center gap-4 animate-pulse">
-                                <div class="w-12 h-12 bg-zinc-800/60 rounded"></div>
-                                <div class="h-4 w-56 bg-zinc-800/60 rounded-full"></div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                        </div>
+            <div id="loading" class="flex flex-col items-center justify-center h-full">
+                <div class="w-12 h-12 border-4 border-zinc-700 border-t-[#1db954] rounded-full animate-spin"></div>
+                <p class="mt-6 text-zinc-400 font-medium tracking-wide">Connecting to Cloud Storage...</p>
+            </div>
 
             <div id="home-view" class="hidden">
-
 
   <!-- Spotify-like top tabs (not functional yet) -->
   <div class="flex items-center gap-3 mb-5">
@@ -1555,9 +1503,6 @@ function albumKey(artistName, albumName) {
   return `${a} — ${b}`;
 }
 
-// Local fallback image (never breaks)
-const DEFAULT_COVER_FALLBACK = "apple-touch-icon.png";
-
 function loadAlbumCoverOverrides() {
   try {
     const obj = JSON.parse(localStorage.getItem('albumCoverOverrides') || "{}");
@@ -1571,62 +1516,18 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
-function normalizeCoverInput(raw) {
-  let s = String(raw || "").trim();
-  if (!s) return "";
-
-  // Allow data URLs (upload file)
-  if (s.startsWith("data:image/")) return s;
-
-  // Fix protocol-relative URLs
-  if (s.startsWith("//")) s = "https:" + s;
-
-  // Fix "www." pastes
-  if (s.startsWith("www.")) s = "https://" + s;
-
-  // Allow absolute http(s)
-  if (s.startsWith("https://") || s.startsWith("http://")) return s;
-
-  // Allow local/relative paths like "covers/x.png" or "/covers/x.png"
-  if (s.startsWith("/") || s.startsWith("./") || s.startsWith("../")) return s;
-
-  // Allow simple local filenames (e.g., "apple-touch-icon.png")
-  if (/^[a-z0-9_\-]+\.(png|jpg|jpeg|webp|gif)$/i.test(s)) return s;
-
-  // Otherwise reject (prevents junk like "600x600?text=No+Cover+Found")
-  return "";
-}
-
 function getAlbumCover(artistName, albumName, fallbackCover) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-
-  const stored = normalizeCoverInput(map[key]);
-  const fallback = normalizeCoverInput(fallbackCover) || DEFAULT_COVER_FALLBACK;
-
-  // If a bad value is stored, wipe it so it stops breaking loads forever
-  if (map[key] && !stored) {
-    delete map[key];
-    saveAlbumCoverOverrides(map);
-  }
-
-  return stored || fallback;
+  const v = map[key];
+  return (v && String(v).trim()) ? v : fallbackCover;
 }
 
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-
-  const normalized = normalizeCoverInput(coverUrlOrDataUrl);
-
-  if (!normalized) {
-    alert("That cover link isn't a direct image URL. Paste a direct link ending in .jpg .png .webp, or upload a file.");
-    return false;
-  }
-
-  map[key] = normalized;
+  map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
-  return true;
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -1635,7 +1536,6 @@ function clearAlbumCoverOverride(artistName, albumName) {
   delete map[key];
   saveAlbumCoverOverrides(map);
 }
-
 
 /* -----------------------
    Keep track of what album/artist view is currently open
