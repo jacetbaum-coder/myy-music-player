@@ -2377,79 +2377,145 @@ function initSwipeBack() {
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
-  let tracking = false;
+  // Default behavior: allow vertical scrolling
+  area.style.touchAction = 'pan-y';
+
+  let active = false;
   let decided = false;
   let isHorizontal = false;
   let startX = 0;
   let startY = 0;
   let lastDx = 0;
 
+  const THRESHOLD_PX = 90;          // commit swipe-back
+  const MOVE_DECIDE_PX = 6;         // like your Now Playing logic (more sensitive than 10px)
+  const OPACITY_DROP = 0.20;        // subtle “peek” feel
+
+  function getXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
   function canStart(e) {
-    // If Now Playing overlay is open, do NOT back-swipe the app
-    const np = document.getElementById('now-playing-overlay');
-    if (np && !np.classList.contains('hidden')) return false;
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
-    // Don’t start swipe-back inside inputs (like search box)
+    // Don’t hijack gestures on form controls / buttons
     const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return false;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+      return false;
+    }
 
-    // Optional: require the gesture to begin near the left edge (iOS-feel)
-    // You can widen this if you want it to work from anywhere.
-    const x = e.clientX;
-    return x <= (window.innerWidth * 0.35); // left 35% of screen
+    // Allow swipe start ANYWHERE in the upper 75% of the screen (same rule as Now Playing)
+    const { y } = getXY(e);
+    return y <= (window.innerHeight * 0.75);
+  }
+
+  function reset(animated = true) {
+    // Restore vertical scroll behavior
+    area.style.touchAction = 'pan-y';
+
+    if (animated) {
+      area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+    } else {
+      area.style.transition = '';
+    }
+
+    area.style.transform = 'translateX(0px)';
+    area.style.opacity = '1';
+    area.classList.remove('sb-dragging');
+
+    if (!animated) return;
+
+    const clear = () => {
+      area.style.transition = '';
+      area.removeEventListener('transitionend', clear);
+    };
+    area.addEventListener('transitionend', clear);
   }
 
   area.addEventListener('pointerdown', (e) => {
     if (!canStart(e)) return;
 
-    tracking = true;
+    const { x, y } = getXY(e);
+    active = true;
     decided = false;
     isHorizontal = false;
+    startX = x;
+    startY = y;
     lastDx = 0;
 
-    startX = e.clientX;
-    startY = e.clientY;
+    // While dragging horizontally, we temporarily own the gesture
+    area.style.touchAction = 'none';
 
-    // Own the gesture like your Now Playing swipe
+    area.classList.add('sb-dragging');
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
-    if (!tracking) return;
+    if (!active) return;
 
-    const dx = e.clientX - startX; // swipe RIGHT => dx positive
-    const dy = e.clientY - startY;
+    // IMPORTANT: keep owning the gesture while dragging (same idea as Now Playing)
+    e.preventDefault();
 
-    // Decide early like your Now Playing swipe (more sensitive)
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
+
+    // Don’t decide until it actually moves (prevents taps triggering)
     if (!decided) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
       decided = true;
       isHorizontal = Math.abs(dx) > Math.abs(dy);
     }
 
     if (!isHorizontal) return;
 
-    // Prevent scroll/rubber-band from fighting the gesture
-    e.preventDefault();
-
-    // Only count right-swipes
+    // Only count right-swipes (iOS back gesture)
     lastDx = Math.max(0, dx);
 
-    // Trigger sooner (sensitive)
-    if (lastDx > 75) {
-      tracking = false;
-      goBack();
-    }
+    // Live drag
+    area.style.transition = '';
+    area.style.transform = `translateX(${lastDx}px)`;
+
+    // Subtle opacity shift for a “layer” feel (doesn’t break anything if nothing is behind)
+    const w = Math.max(1, window.innerWidth);
+    const p = Math.min(1, lastDx / (w * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
   }, { passive: false });
 
   area.addEventListener('pointerup', () => {
-    tracking = false;
+    if (!active) return;
+    active = false;
+
+    // Commit if far enough
+    if (lastDx > THRESHOLD_PX) {
+      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transform = `translateX(${window.innerWidth}px)`;
+
+      const done = () => {
+        area.removeEventListener('transitionend', done);
+        // Instantly reset styles before navigating back (prevents seeing the slide state on the new view)
+        reset(false);
+        goBack();
+      };
+      area.addEventListener('transitionend', done);
+      return;
+    }
+
+    // Otherwise snap back smoothly (cancelable feel)
+    reset(true);
   }, { passive: true });
 
   area.addEventListener('pointercancel', () => {
-    tracking = false;
+    if (!active) return;
+    active = false;
+    reset(true);
   }, { passive: true });
 }
+
+function showView(viewType, playlistIndex = null) {
+
 
 
 function showView(viewType, playlistIndex = null) {
