@@ -801,7 +801,9 @@ img {
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #888; }
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
 </head>
+
 <body>
 
     <div id="context-menu">
@@ -1338,8 +1340,153 @@ img {
          * ---------------------------------------------------------------------
          */
                 let libraryData = [];
-        let libraryDataOriginal = [];
-        let currentSong = null;
+
+/* -----------------------
+   TAG-BASED MERGE (NO DUPLICATE ALBUM CARDS)
+   - reads ID3 tags from each MP3 url (jsmediatags)
+   - groups by Artist+Album
+   - dedupes tracks by Title (case-insensitive)
+   - upgrades album cover if a better one is found
+------------------------ */
+
+function normStr(s) {
+  return String(s || "").trim();
+}
+function normKey(s) {
+  return normStr(s).toLowerCase();
+}
+function cleanTitle(s) {
+  // "Song.mp3" -> "Song"
+  return normStr(s).replace(/\.(mp3|m4a|flac|wav)$/i, "").trim();
+}
+
+// Prefer higher-res art (bigger base64 = usually better); fallback to URL heuristics.
+function coverScore(cover) {
+  if (!cover) return 0;
+  const c = String(cover);
+  if (c.startsWith("data:image/")) return c.length; // base64 length correlates with resolution
+  // If it's a URL, try to prefer "600x600" / "512" / etc.
+  let score = 100;
+  if (/(\b600x600\b|\b640x640\b|\b1024\b)/i.test(c)) score += 300;
+  if (/(\b300x300\b|\b512x512\b)/i.test(c)) score += 200;
+  if (/(\b100x100\b|\b64x64\b)/i.test(c)) score -= 50;
+  return score;
+}
+
+async function readTagsFromUrl(mp3Url) {
+  // Fetch as Blob so jsmediatags can read it.
+  // This requires your Worker to allow CORS for the MP3 endpoint.
+  const res = await fetch(mp3Url, { mode: "cors" });
+  if (!res.ok) throw new Error("Failed to fetch MP3 for tags: " + res.status);
+  const blob = await res.blob();
+
+  return await new Promise((resolve, reject) => {
+    window.jsmediatags.read(blob, {
+      onSuccess: (tag) => resolve(tag?.tags || {}),
+      onError: (err) => reject(err),
+    });
+  });
+}
+
+function pictureToDataUrl(picture) {
+  // jsmediatags picture: { data: [..], format: "image/jpeg" }
+  try {
+    if (!picture || !picture.data || !picture.format) return "";
+    const bytes = new Uint8Array(picture.data);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const b64 = btoa(binary);
+    return `data:${picture.format};base64,${b64}`;
+  } catch {
+    return "";
+  }
+}
+
+async function mergeLibraryUsingTags(apiAlbums) {
+  // apiAlbums is what you fetch from /api/get-songs right now:
+  // [{ artistName, albumName, coverArt, songs:[{name,link}, ...] }, ...]
+  const albumMap = new Map(); // key -> { artistName, albumName, coverArt, songs:[] }
+  const pending = [];
+
+  for (const apiAlbum of (apiAlbums || [])) {
+    for (const s of (apiAlbum.songs || [])) {
+      const mp3Url = s.link;
+      const fallbackTitle = cleanTitle(s.name);
+      const fallbackArtist = normStr(apiAlbum.artistName);
+      const fallbackAlbum = normStr(apiAlbum.albumName);
+      const fallbackCover = apiAlbum.coverArt;
+
+      pending.push((async () => {
+        let tags = {};
+        try {
+          tags = await readTagsFromUrl(mp3Url);
+        } catch (e) {
+          // If tag read fails, fall back to folder-based values.
+          tags = {};
+        }
+
+        const tagArtist = normStr(tags.artist) || fallbackArtist;
+        const tagAlbum  = normStr(tags.album)  || fallbackAlbum;
+        const tagTitle  = cleanTitle(tags.title) || fallbackTitle;
+
+        // Try to extract embedded art (best), else fallback to API coverArt.
+        const embeddedCover = pictureToDataUrl(tags.picture);
+        const bestCover = embeddedCover || fallbackCover || "";
+
+        const key = `${normKey(tagArtist)}|||${normKey(tagAlbum)}`;
+        let entry = albumMap.get(key);
+
+        if (!entry) {
+          entry = {
+            artistName: tagArtist,
+            albumName: tagAlbum,
+            coverArt: bestCover,
+            songs: []
+          };
+          albumMap.set(key, entry);
+        } else {
+          // Upgrade cover if new one scores higher
+          if (coverScore(bestCover) > coverScore(entry.coverArt)) {
+            entry.coverArt = bestCover;
+          }
+        }
+
+        // Deduplicate by Title
+        const titleKey = normKey(tagTitle);
+        const already = entry.songs.some(x => normKey(cleanTitle(x.title || x.name)) === titleKey);
+        if (!already) {
+          entry.songs.push({
+            name: s.name,
+            link: mp3Url,
+            title: tagTitle,
+            artist: tagArtist,
+            album: tagAlbum,
+            cover: entry.coverArt
+          });
+        }
+      })());
+    }
+  }
+
+  // Limit parallelism a bit so you don’t freeze mobile.
+  // Run in batches of 6.
+  const BATCH = 6;
+  for (let i = 0; i < pending.length; i += BATCH) {
+    const slice = pending.slice(i, i + BATCH);
+    await Promise.allSettled(slice);
+  }
+
+  // Convert map -> array
+  const merged = Array.from(albumMap.values());
+
+  // Optional: sort tracks inside each album alphabetically by title
+  merged.forEach(a => a.songs.sort((x, y) => cleanTitle(x.title || x.name).localeCompare(cleanTitle(y.title || y.name))));
+
+  return merged;
+}
+
+let currentSong = null;
+
         let currentQueue = [];
 let currentIndex = -1;
 
@@ -2276,8 +2423,12 @@ initSwipeBack();
                 // Keep original order for "Recently added"
                 libraryDataOriginal = libraryData.slice();
             
-                // Sort library alphabetically by album (Library grid)
-                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+                // Merge playlist downloads + full album downloads into ONE album card (by Artist+Album tags)
+libraryData = await mergeLibraryUsingTags(libraryData);
+
+// Sort library alphabetically by album
+libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+
 
                 
                                 document.getElementById('loading').classList.add('hidden');
