@@ -3030,34 +3030,44 @@ const albumCell = (window.innerWidth > 768)
              data-album="${safeAlbumAttr}">${albumName}</button>`
   : `<span class="truncate hidden md:block">${albumName}</span>`;
 
-row.innerHTML = `
-  <span class="text-zinc-400 group-hover:text-white text-center">
-    ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-  </span>
-  <div class="flex flex-col">
-    <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${song.title.replace('.mp3', '')}</div>
-    <div class="text-xs ${isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400'} md:hidden">${song.artist}</div>
-  </div>
-  ${albumCell}
-  <span class="hidden md:block">Just now</span>
-  <span class="hidden md:block text-center">3:20</span>
-`;
+    // data hooks so we can update the green row without re-rendering
+    row.dataset.url = song.url;
+    row.dataset.index = String(i + 1);
 
-// If the album is clickable, clicking it should NOT trigger the row click (play)
-const albumBtn = row.querySelector('button[data-album]');
-if (albumBtn) {
-  albumBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const alb = albumBtn.getAttribute('data-album') || '';
-    if (alb) openAlbumByName(alb);
-  });
-}
+    const safeAlbumAttr = String(song.album || '').replace(/"/g, '&quot;');
 
-listEl.appendChild(row);
+    // Desktop-only + playlist-only: album becomes clickable
+    const albumCell = (isPlaylist && window.innerWidth > 768)
+      ? `<button type="button"
+                 data-role="album"
+                 class="truncate hidden md:block text-left text-white/80 hover:text-white hover:underline"
+                 data-album="${safeAlbumAttr}">${song.album}</button>`
+      : `<span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>`;
 
+    row.innerHTML = `
+      <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
+        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+      </span>
+      <div class="flex flex-col">
+        <div data-role="title" class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
+        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
+      </div>
+      ${albumCell}
+      <span class="hidden md:block">Just now</span>
+      <span class="hidden md:block text-center">3:20</span>
+    `;
 
-  });
-}
+    // If the album is clickable, clicking it should NOT play the song row
+    const albumBtn = row.querySelector('button[data-album]');
+    if (albumBtn) {
+      albumBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const alb = albumBtn.getAttribute('data-album') || '';
+        if (alb) openAlbumByName(alb);
+      });
+    }
+
+    listEl.appendChild(row);
 
 function openArtistByName(artistName) {
   // BACK STACK: push current view before entering artist
@@ -3353,10 +3363,9 @@ function openArtistByName(artistName) {
   updateHeartUI();
   addToHistory(album, artist, cover);
 
-  // Refresh current track view list to show active green state
-  if (!document.getElementById('album-view').classList.contains('hidden')) {
-    renderCurrentAlbumView();
-  }
+    // Update the existing rows in-place (so the green row updates immediately)
+  updateTrackListActiveState();
+
 
   // If Now Playing is open, keep it synced
   if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
@@ -5231,6 +5240,52 @@ if (hero && activePlaylistId) {
     `;
 
     listEl.appendChild(row);
+    });
+
+  // ensure current track highlight is correct immediately after rendering
+  updateTrackListActiveState();
+}
+
+function updateTrackListActiveState() {
+  const listEl = document.getElementById('track-list');
+  if (!listEl) return;
+
+  const rows = listEl.querySelectorAll('.track-row');
+  rows.forEach((row) => {
+    const isRowCurrent = !!(currentSong && row.dataset.url === currentSong.url);
+
+    // row background + base green
+    row.classList.toggle('active-track', isRowCurrent);
+    row.classList.toggle('is-current', isRowCurrent);
+
+    // left index/icon
+    const idx = row.querySelector('[data-role="index"]');
+    if (idx) {
+      idx.innerHTML = isRowCurrent
+        ? '<i class="fas fa-volume-up text-xs"></i>'
+        : (row.dataset.index || '');
+    }
+
+    // title
+    const titleEl = row.querySelector('[data-role="title"]');
+    if (titleEl) {
+      titleEl.classList.remove('text-white', 'text-[var(--spotify-green)]');
+      titleEl.classList.add(isRowCurrent ? 'text-[var(--spotify-green)]' : 'text-white');
+    }
+
+    // mobile sub (artist)
+    const subEl = row.querySelector('[data-role="sub"]');
+    if (subEl) {
+      subEl.classList.remove('text-zinc-400', 'text-[var(--spotify-green)]/80');
+      subEl.classList.add(isRowCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400');
+    }
+
+    // album cell
+    const albumEl = row.querySelector('[data-role="album"]');
+    if (albumEl) {
+      albumEl.classList.remove('text-white/80', 'text-[var(--spotify-green)]');
+      albumEl.classList.add(isRowCurrent ? 'text-[var(--spotify-green)]' : 'text-white/80');
+    }
   });
 }
 
