@@ -4196,8 +4196,8 @@ function renderHomeRecentlyAdded(containerId) {
 
     // Desktop only dblclick logic
     const dblClickAction = (window.innerWidth > 768) 
-      ? `ondblclick="event.stopPropagation(); playCollectionDirectly('album', '', '${safeName}', '${safeArtist}')"` 
-      : '';
+  ? `ondblclick="event.stopPropagation(); playCollectionDirectly('album', '', '${safeName}', '${safeArtist}')"` 
+  : '';
 
     return `
       <div class="min-w-[160px] max-w-[160px] cursor-pointer" onclick="openAlbumByName('${safeName}')" ${dblClickAction}>
