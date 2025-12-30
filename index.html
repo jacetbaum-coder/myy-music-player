@@ -1604,6 +1604,43 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
+        async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
+  try {
+    await fetch('/api/get-songs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        artistName,
+        albumName,
+        coverUrl: String(coverUrlOrDataUrl || "").trim()
+      })
+    });
+  } catch (e) {
+    console.warn('Failed to sync album cover override:', e);
+  }
+}
+
+function reconcileAlbumCoverOverridesFromLibrary(data) {
+  const map = loadAlbumCoverOverrides();
+  let changed = false;
+
+  (Array.isArray(data) ? data : []).forEach((album) => {
+    const key = albumKey(album.artistName, album.albumName);
+    if (Object.prototype.hasOwnProperty.call(map, key)) {
+      const cover = String(album.coverArt || "").trim();
+      if (!cover) {
+        delete map[key];
+        changed = true;
+      } else if (map[key] !== cover) {
+        map[key] = cover;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) saveAlbumCoverOverrides(map);
+}
+
 function getAlbumCover(artistName, albumName, fallbackCover) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
@@ -1616,6 +1653,7 @@ function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const key = albumKey(artistName, albumName);
   map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
+    syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl);
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -1623,6 +1661,7 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
+    syncAlbumCoverOverride(artistName, albumName, "");
 }
 
 /* -----------------------
@@ -2426,6 +2465,7 @@ if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
                 if (!Array.isArray(libraryData)) {
                     throw new Error('Invalid library response');
                 }
+                reconcileAlbumCoverOverridesFromLibrary(libraryData);
 
                 // Keep original order for "Recently added"
                 libraryDataOriginal = libraryData.slice();
