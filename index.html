@@ -2291,7 +2291,8 @@ checkDockVisibility();
             initResizers();
             initGlobalKeys();
 initSwipeBack();
-initDesktopSwipeBack();
+if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
+
 
 // Simulation of high-volume library fetching
 
@@ -2430,6 +2431,80 @@ function initSwipeBack() {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     return { x: e.clientX, y: e.clientY };
   }
+    function initDesktopSwipeBack() {
+  // Desktop / trackpad only
+  if (window.innerWidth < 1024) return;
+
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  if (area.dataset.desktopSwipeBound === "1") return;
+  area.dataset.desktopSwipeBound = "1";
+
+  let dx = 0;
+  let active = false;
+  let animating = false;
+
+  const THRESHOLD = 120;
+  const OPACITY_DROP = 0.18;
+
+  area.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    if (!Array.isArray(navStack) || navStack.length === 0) return;
+    if (e.deltaX < 0) return;
+
+    e.preventDefault();
+
+    if (!active) {
+      active = true;
+      dx = 0;
+      area.style.transition = '';
+    }
+
+    dx += e.deltaX;
+    dx = Math.max(0, dx);
+
+    area.style.transform = `translateX(${dx}px)`;
+
+    const p = Math.min(1, dx / (window.innerWidth * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
+  }, { passive: false });
+
+  area.addEventListener('mouseleave', finish);
+
+  function finish() {
+    if (!active || animating) return;
+    active = false;
+
+    if (dx > THRESHOLD) {
+      animating = true;
+      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transform = `translateX(${window.innerWidth}px)`;
+
+      const done = () => {
+        area.removeEventListener('transitionend', done);
+        reset();
+        goBack();
+        animating = false;
+      };
+      area.addEventListener('transitionend', done);
+    } else {
+      reset();
+    }
+  }
+
+  function reset() {
+    area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+    area.style.transform = 'translateX(0px)';
+    area.style.opacity = '1';
+
+    const clear = () => {
+      area.style.transition = '';
+      area.removeEventListener('transitionend', clear);
+    };
+    area.addEventListener('transitionend', clear);
+  }
+}
     function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
 
