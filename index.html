@@ -1384,53 +1384,12 @@ img {
 
 
     <script>
-        // --- VERCEL KV SYNC LOGIC ---
-        let albumCoverOverrides = {};
-        let lastSyncTs = 0;
-
-        async function syncCoversFromKV() {
-            try {
-                const res = await fetch('/api/get-covers');
-                const data = await res.json();
-                if (data && data.updatedAt > lastSyncTs) {
-                    albumCoverOverrides = data.overrides || {};
-                    lastSyncTs = data.updatedAt;
-                    // Re-render views to show new covers
-                    if (currentView === 'album' && currentAlbumName) {
-                        openAlbumByName(currentAlbumName);
-                    } else if (currentView === 'home' || currentView === 'library') {
-                        renderLibrary();
-                        renderHome();
-                    }
-                }
-            } catch (e) {
-                console.error("Sync failed", e);
-            }
-        }
-
-        async function saveCoverToKV(artist, album, url) {
-            try {
-                const res = await fetch('/api/set-cover', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ artistName: artist, albumName: album, cover: url })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    lastSyncTs = data.updatedAt;
-                    albumCoverOverrides[`${artist} — ${album}`] = url;
-                }
-            } catch (e) {
-                console.error("Save failed", e);
-            }
-        }
-
-        // Poll for updates every 30 seconds
-        setInterval(syncCoversFromKV, 30000);
-        // Initial sync
-        syncCoversFromKV();
-
-        let libraryData = [];
+        /**
+         * ---------------------------------------------------------------------
+         * GLOBAL APP STATE
+         * ---------------------------------------------------------------------
+         */
+                let libraryData = [];
         let libraryDataOriginal = [];
         let currentSong = null;
         let currentQueue = [];
@@ -1639,29 +1598,25 @@ function normalizeCoverInput(raw) {
 }
 
 function getAlbumCover(artistName, albumName, fallbackCover) {
-  const key = `${artistName} — ${albumName}`;
-  
-  // 1. Check Cloud Sync first (Vercel KV)
-  if (albumCoverOverrides[key]) return albumCoverOverrides[key];
-
-  // 2. Check Local Storage second
   const map = loadAlbumCoverOverrides();
-  const internalKey = albumKey(artistName, albumName);
-  const stored = normalizeCoverInput(map[internalKey]);
-  
+  const key = albumKey(artistName, albumName);
+
+  const stored = normalizeCoverInput(map[key]);
   const fallback = normalizeCoverInput(fallbackCover) || DEFAULT_COVER_FALLBACK;
 
   // If a bad value is stored, wipe it so it stops breaking loads forever
-  if (map[internalKey] && !stored) {
-    delete map[internalKey];
+  if (map[key] && !stored) {
+    delete map[key];
     saveAlbumCoverOverrides(map);
   }
 
   return stored || fallback;
 }
+
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
+
   const normalized = normalizeCoverInput(coverUrlOrDataUrl);
 
   if (!normalized) {
@@ -1671,10 +1626,6 @@ function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
 
   map[key] = normalized;
   saveAlbumCoverOverrides(map);
-  
-  // Also save to Vercel KV for syncing
-  saveCoverToKV(artistName, albumName, normalized);
-  
   return true;
 }
 
@@ -1683,10 +1634,8 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
-  
-  // Also clear from Vercel KV
-  saveCoverToKV(artistName, albumName, "");
 }
+
 
 /* -----------------------
    Keep track of what album/artist view is currently open
