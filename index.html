@@ -2430,6 +2430,7 @@ window.onload = async () => {
             syncRepeatUI();
             renderHistory();
             ensurePlaylistIds();
+    try { await reconcilePinnedPlaylistsFromServer(); } catch (e) {}
             renderPlaylists();
 try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
 renderPlaylists();
@@ -4365,6 +4366,53 @@ function loadPinnedPlaylists() {
 }
 function savePinnedPlaylists(ids) {
   localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
+    syncPinnedPlaylists(ids);
+}
+
+function getPinnedPlaylistNamesFromIds(ids) {
+  const names = [];
+  const idList = Array.isArray(ids) ? ids : [];
+  idList.forEach((id) => {
+    const match = playlists.find(pl => pl.id === id);
+    const name = String(match?.name || "").trim();
+    if (name && !names.includes(name)) {
+      names.push(name);
+    }
+  });
+  return names.slice(0, 4);
+}
+
+async function syncPinnedPlaylists(ids) {
+  try {
+    await fetch('/api/pinned-playlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: getPinnedPlaylistNamesFromIds(ids) })
+    });
+  } catch (e) {
+    console.warn('Failed to sync pinned playlists:', e);
+  }
+}
+
+async function reconcilePinnedPlaylistsFromServer() {
+  try {
+    const response = await fetch('/api/pinned-playlists');
+    if (!response.ok) return;
+    const data = await response.json();
+    const names = Array.isArray(data?.names) ? data.names : [];
+    const ids = [];
+    names.forEach((name) => {
+      const match = playlists.find(pl => String(pl.name || '').trim() === String(name || '').trim());
+      if (match && !ids.includes(match.id)) {
+        ids.push(match.id);
+      }
+    });
+    if (ids.length) {
+      localStorage.setItem('pinnedPlaylists', JSON.stringify(ids.slice(0, 4)));
+    }
+  } catch (e) {
+    console.warn('Failed to load pinned playlists:', e);
+  }
 }
 
 function isPinnedPlaylist(id) {
