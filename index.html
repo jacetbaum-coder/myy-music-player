@@ -1544,8 +1544,9 @@ async function updateAccentFromCover(coverUrl) {
 }
         
 /* -----------------------
-   ALBUM COVER OVERRIDES (desktop feature)
-   - stores custom album covers in localStorage
+   ALBUM COVER OVERRIDES (cloud-synced)
+   - localStorage is only a cache/fallback
+   - cloud is the source of truth (KV)
    - key: "Artist — Album"
 ------------------------ */
 
@@ -1558,7 +1559,15 @@ function albumKey(artistName, albumName) {
 // Local fallback image (never breaks)
 const DEFAULT_COVER_FALLBACK = "apple-touch-icon.png";
 
-function loadAlbumCoverOverrides() {
+// Cloud endpoints (you will add these to your Worker in section B)
+const COVER_API_GET = "/api/get-covers";
+const COVER_API_SET = "/api/set-cover";
+
+// In-memory map used by getAlbumCover() so we do NOT re-parse localStorage on every image
+let __albumCoverOverrides = {};
+let __coversBootstrapped = false;
+
+function loadAlbumCoverOverridesLocal() {
   try {
     const obj = JSON.parse(localStorage.getItem('albumCoverOverrides') || "{}");
     return (obj && typeof obj === 'object') ? obj : {};
@@ -1567,7 +1576,7 @@ function loadAlbumCoverOverrides() {
   }
 }
 
-function saveAlbumCoverOverrides(obj) {
+function saveAlbumCoverOverridesLocal(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
@@ -1597,26 +1606,75 @@ function normalizeCoverInput(raw) {
   return "";
 }
 
+// One-time bootstrap: load local cache immediately so UI never waits,
+// then try cloud and merge/overwrite with cloud values.
+async function bootstrapCoverOverrides() {
+  if (__coversBootstrapped) return;
+  __coversBootstrapped = true;
+
+  // 1) local cache first (instant)
+  __albumCoverOverrides = loadAlbumCoverOverridesLocal();
+
+  // 2) cloud second (authoritative)
+  try {
+    const resp = await fetch(COVER_API_GET, { cache: "no-store" });
+    if (!resp.ok) throw new Error("get-covers failed: " + resp.status);
+
+    const data = await resp.json();
+    const cloudMap = (data && data.overrides && typeof data.overrides === "object") ? data.overrides : {};
+
+    // sanitize cloud values
+    for (const k of Object.keys(cloudMap)) {
+      const v = normalizeCoverInput(cloudMap[k]);
+      if (v) cloudMap[k] = v;
+      else delete cloudMap[k];
+    }
+
+    // cloud wins
+    __albumCoverOverrides = { ...__albumCoverOverrides, ...cloudMap };
+
+    // update local cache to match cloud+local merge
+    saveAlbumCoverOverridesLocal(__albumCoverOverrides);
+  } catch (e) {
+    console.warn("Cover override cloud sync skipped:", e);
+  }
+}
+
+// Cloud write (fire-and-forget; UI should not block)
+function pushCoverOverrideToCloud(key, valueOrEmptyString) {
+  try {
+    fetch(COVER_API_SET, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, cover: valueOrEmptyString || "" })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
 function getAlbumCover(artistName, albumName, fallbackCover) {
-  const map = loadAlbumCoverOverrides();
+  // ensure local cache loaded even if bootstrapCoverOverrides() hasn't run yet
+  if (!__coversBootstrapped) {
+    __coversBootstrapped = true;
+    __albumCoverOverrides = loadAlbumCoverOverridesLocal();
+  }
+
   const key = albumKey(artistName, albumName);
 
-  const stored = normalizeCoverInput(map[key]);
+  const stored = normalizeCoverInput(__albumCoverOverrides[key]);
   const fallback = normalizeCoverInput(fallbackCover) || DEFAULT_COVER_FALLBACK;
 
-  // If a bad value is stored, wipe it so it stops breaking loads forever
-  if (map[key] && !stored) {
-    delete map[key];
-    saveAlbumCoverOverrides(map);
+  // If a bad value exists, wipe it so it stops breaking loads forever
+  if (__albumCoverOverrides[key] && !stored) {
+    delete __albumCoverOverrides[key];
+    saveAlbumCoverOverridesLocal(__albumCoverOverrides);
+    pushCoverOverrideToCloud(key, ""); // also clear the poisoned value in cloud
   }
 
   return stored || fallback;
 }
 
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
-  const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-
   const normalized = normalizeCoverInput(coverUrlOrDataUrl);
 
   if (!normalized) {
@@ -1624,18 +1682,23 @@ function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
     return false;
   }
 
-  map[key] = normalized;
-  saveAlbumCoverOverrides(map);
+  __albumCoverOverrides[key] = normalized;
+  saveAlbumCoverOverridesLocal(__albumCoverOverrides);
+
+  // cloud sync
+  pushCoverOverrideToCloud(key, normalized);
+
   return true;
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
-  const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
-  delete map[key];
-  saveAlbumCoverOverrides(map);
-}
+  delete __albumCoverOverrides[key];
+  saveAlbumCoverOverridesLocal(__albumCoverOverrides);
 
+  // cloud sync delete
+  pushCoverOverrideToCloud(key, "");
+}
 
 /* -----------------------
    Keep track of what album/artist view is currently open
@@ -2367,9 +2430,35 @@ initSwipeBack();
                 if (!response.ok) {
                     throw new Error(`Request failed with status ${response.status}`);
                 }
-                                libraryData = await response.json();
+                                // ✅ Get all cover overrides (cloud source of truth)
+if (path === "/api/get-covers") {
+  const raw = await env.KV.get("albumCoverOverrides");
+  let overrides = {};
+  try { overrides = raw ? JSON.parse(raw) : {}; } catch (e) { overrides = {}; }
+  return json({ overrides });
+}
 
-                if (!Array.isArray(libraryData)) {
+// ✅ Set/clear a single cover override
+if (path === "/api/set-cover") {
+  if (request.method !== "POST") return text("Method Not Allowed", 405);
+
+  const body = await request.json().catch(() => ({}));
+  const key = String(body.key || "").trim();      // "Artist — Album"
+  const cover = String(body.cover || "").trim();  // "" means delete
+
+  if (!key) return json({ ok: false, error: "Missing key" }, 400);
+
+  const raw = await env.KV.get("albumCoverOverrides");
+  let overrides = {};
+  try { overrides = raw ? JSON.parse(raw) : {}; } catch (e) { overrides = {}; }
+
+  if (!cover) delete overrides[key];
+  else overrides[key] = cover;
+
+  await env.KV.put("albumCoverOverrides", JSON.stringify(overrides));
+  return json({ ok: true });
+}
+
                     throw new Error('Invalid library response');
                 }
 
