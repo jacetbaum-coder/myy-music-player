@@ -2674,16 +2674,28 @@ function openAlbumByName(name) {
     const row = document.createElement('div');
     row.className = "track-row group";
 
-    const isCurrent = currentSong && (currentSong.url === song.link);
+        const songUrl = song.url || song.link;
+    const songTitle = song.title || song.name;
+
+    const isCurrent = currentSong && (currentSong.url === songUrl);
     if (isCurrent) row.classList.add('active-track');
 
     row.onclick = () => {
+      if (!songUrl) return;
       currentIndex = i;
-      playSpecificSong(song.link, song.name, album.albumName, album.artistName, cover);
+      playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
     };
 
     row.oncontextmenu = (e) =>
-      handleContextMenu(e, { ...song, album: album.albumName, artist: album.artistName, cover: cover });
+      handleContextMenu(e, {
+        ...song,
+        url: songUrl,
+        title: songTitle,
+        album: album.albumName,
+        artist: album.artistName,
+        cover: cover
+      });
+
 
     row.innerHTML = `
       <span class="text-zinc-400 group-hover:text-white text-center">
