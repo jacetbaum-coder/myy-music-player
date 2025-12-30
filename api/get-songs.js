@@ -52,7 +52,7 @@ export default async function handler(req, res) {
           const searchTerm = encodeURIComponent(`${artist.name} ${album.name}`);
           const itunesRes = await fetch(`https://itunes.apple.com/search?term=${searchTerm}&entity=album&limit=1`);
           const itunesData = await itunesRes.json();
-          coverUrl = itunesData.results?.[0]?.artworkUrl100?.replace('100x100bb', '600x600bb') || '/apple-touch-icon.png';
+          coverUrl = itunesData.results?.[0]?.artworkUrl100.replace('100x100bb', '600x600bb') || 'https://via.placeholder.com/600x600?text=No+Cover+Found';
         }
 
         allAlbums.push({
