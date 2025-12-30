@@ -9,10 +9,13 @@ function makeCoverStorageKey(artistName, albumName) {
   return `cover-${artistName}-${albumName}`.replace(/\s+/g, '-').toLowerCase();
 }
 
+function makeCoverStorageKey(artistName, albumName) {
+  return `cover-${artistName}-${albumName}`.replace(/\s+/g, '-').toLowerCase();
+}
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-  const { key, url, artistName, albumName, coverUrl } = req.body || {};
+    const { key, url, artistName, albumName, coverUrl } = req.body || {};
     const resolvedKey = key || (artistName && albumName ? makeCoverStorageKey(artistName, albumName) : null);
     const resolvedUrl = url ?? coverUrl ?? "";
 
