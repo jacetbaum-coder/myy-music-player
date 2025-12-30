@@ -2716,8 +2716,17 @@ else if (viewType === 'playlist') {
   setNavCurrent({ type: viewType || 'home' });
 }
 
-const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
+  // FORCE close mobile library search overlay when changing views
+  const lbOverlay = document.getElementById('library-search-overlay');
+  if (lbOverlay) {
+    lbOverlay.classList.add('hidden');
+    document.body.classList.remove('lb-search-open');
+  }
+
+  const scrollArea = document.getElementById('main-scroll-area');
+  if (scrollArea) scrollArea.scrollTop = 0;
+
+  if (scrollArea) scrollArea.scrollTop = 0;
 
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
@@ -5315,15 +5324,6 @@ player.addEventListener('ended', () => {
       });
     });
 
-
-      // Tap outside closes it
-      document.addEventListener('click', (e) => {
-        if (pop.classList.contains('hidden')) return;
-        if (e.target.closest('#library-search-popover')) return;
-        if (e.target.closest('#library-search-icon-btn')) return;
-        pop.classList.add('hidden');
-      });
-    });
   })();
 </script>
 
