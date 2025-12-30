@@ -3024,11 +3024,6 @@ const albumName = song.album || '';
 
 const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 
-const albumCell = (window.innerWidth > 768)
-  ? `<button type="button"
-             class="truncate hidden md:block text-left hover:underline text-white/80 hover:text-white"
-             data-album="${safeAlbumAttr}">${albumName}</button>`
-  : `<span class="truncate hidden md:block">${albumName}</span>`;
 
     // data hooks so we can update the green row without re-rendering
     row.dataset.url = song.url;
