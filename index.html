@@ -1017,7 +1017,7 @@ img {
   <!-- (Removed on mobile Library) -->
 
                 <!-- MOBILE: Library header (Spotify-ish) -->
-        <div id="mobile-library-header" class="md:hidden mb-4">
+        <div id="mobile-library-header" class="md:hidden mb-4 pt-3">
           <!-- Top row -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -1025,7 +1025,7 @@ img {
               <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
                 <i class="fas fa-user text-white/70 text-sm"></i>
               </div>
-              <div class="text-3xl font-black leading-none">My Library</div>
+               <div class="text-4xl font-black leading-none">My Library</div>
             </div>
 
             <div class="flex items-center gap-4">
@@ -1077,7 +1077,7 @@ img {
 
         <!-- Library controls (Sort + View as) -->
 
-        <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
+       <div id="library-controls" class="hidden mb-4 mt-3 flex items-center justify-between gap-3">
           <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
           <div class="relative">
             <button id="library-sort-btn"
@@ -1137,7 +1137,7 @@ img {
   </div>
 
   <!-- ONE album grid only -->
-    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+    <div id="album-grid" class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
 
 </div>
 
@@ -2105,7 +2105,7 @@ function renderPlaylistGrid() {
     return;
   }
 
-  grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+  grid.className = 'grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6'; <div class="album-card flex flex-col gap-2"
   grid.innerHTML = items.map(pl => {
     const cover = getEffectivePlaylistCover(pl);
     const safeId = String(pl.id || '').replace(/"/g, '&quot;');
@@ -2113,14 +2113,14 @@ function renderPlaylistGrid() {
     return `
       <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
            data-playlist-id="${safeId}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
+        <div class="relative rounded-lg overflow-hidden aspect-square">
           ${cover
             ? `<img src="${cover}" class="w-full h-full object-cover" alt="">`
             : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
                  <i class="fas fa-music text-zinc-500 text-2xl"></i>
                </div>`}
         </div>
-        <div class="font-bold text-white truncate text-base mb-1">
+        <div class="font-bold text-white truncate text-base">
           ${pl.name || 'Playlist'}
         </div>
         <div class="text-sm text-zinc-400 truncate">
@@ -2154,7 +2154,7 @@ function renderLibraryContent() {
   if (libraryViewMode === 'grid') {
     const grid = document.getElementById('album-grid');
     if (grid) {
-      grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+       grid.className = 'grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
     }
   }
 
@@ -3158,19 +3158,17 @@ function renderGrid(data) {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-      <div class="album-card" onclick="openAlbum('${index}')">
-        <div class="bg-[#181818] p-4 rounded-lg shadow-lg">
-          <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-            <img src="${cover}" class="w-full h-full object-cover">
-          </div>
-          
-          <div class="font-bold text-white truncate text-base mb-1">
-            ${album.albumName}
-          </div>
+       <div class="album-card flex flex-col gap-2" onclick="openAlbum('${index}')">
+        <div class="relative rounded-lg overflow-hidden aspect-square">
+          <img src="${cover}" class="w-full h-full object-cover">
+        </div>
+
+        <div class="font-bold text-white truncate text-base">
+          ${album.albumName}
+        </div>
 
         <div class="text-sm text-zinc-400 truncate">
             ${album.artistName}
-          </div>
         </div>
       </div>
     `;
