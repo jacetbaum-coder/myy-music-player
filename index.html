@@ -2458,7 +2458,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
         Math.round(fuzzyScore(q, albumName) * 0.85),
         Math.round(fuzzyScore(q, artistName) * 0.90)
       );
-      if (score >= 60) {
+      if (score >= 55) {
         items.push({ type: 'song', _score: score, title: songName, album: albumName, artist: artistName });
       }
     });
@@ -2469,7 +2469,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
     const albumName = album.albumName || '';
     const artistName = album.artistName || '';
     const score = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
-    if (score >= 60) items.push({ type: 'album', _score: score, album: albumName, artist: artistName });
+    if (score >= 55) items.push({ type: 'album', _score: score, album: albumName, artist: artistName });
   });
 
   // Artists (unique)
@@ -2481,13 +2481,13 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
   });
   [...artistMap.entries()].forEach(([artist, count]) => {
     const score = fuzzyScore(q, artist);
-    if (score >= 60) items.push({ type: 'artist', _score: score, artist, count });
+    if (score >= 55) items.push({ type: 'artist', _score: score, artist, count });
   });
 
   // Playlists
   (Array.isArray(playlists) ? playlists : []).forEach(pl => {
     const score = fuzzyScore(q, pl.name || '');
-    if (score >= 60) items.push({ type: 'playlist', _score: score, id: pl.id, name: pl.name || 'Playlist' });
+    if (score >= 55) items.push({ type: 'playlist', _score: score, id: pl.id, name: pl.name || 'Playlist' });
   });
 
   items.sort((a, b) => (b._score || 0) - (a._score || 0));
@@ -3474,6 +3474,10 @@ function openArtistByName(artistName) {
 
           const q = raw.trim();
           let matches = [];
+            const songMatches = [];
+          const albumMatches = [];
+          const artistMatches = [];
+          const playlistMatches = [];
 
           // Search across song title, artist, album
           libraryData.forEach(album => {
@@ -3492,7 +3496,7 @@ function openArtistByName(artistName) {
 
               // Threshold: typo-tolerant but avoids junk
               if (score >= 55) {
-                matches.push({
+                songMatches.push({
                   ...song,
                   album: albumName,
                   artist: artistName,
@@ -3501,19 +3505,88 @@ function openArtistByName(artistName) {
                 });
               }
             });
+
+              const albumScore = Math.max(
+              fuzzyScore(q, albumName),
+              Math.round(fuzzyScore(q, artistName) * 0.80)
+            );
+            if (albumScore >= 55) {
+              albumMatches.push({
+                album: albumName,
+                artist: artistName,
+                cover: album.coverArt,
+                _score: albumScore
+              });
+            }
+          });
+            const artistMap = new Map();
+          libraryData.forEach(album => {
+            const artistName = album.artistName || '';
+            if (!artistName) return;
+            if (!artistMap.has(artistName)) {
+              artistMap.set(artistName, {
+                artist: artistName,
+                count: 0,
+                cover: album.coverArt,
+                albumName: album.albumName || ''
+              });
+            }
+            const entry = artistMap.get(artistName);
+            entry.count += 1;
           });
 
-          // Best first
-          matches.sort((a, b) => b._score - a._score);
+          [...artistMap.values()].forEach(entry => {
+            const score = fuzzyScore(q, entry.artist);
+            if (score >= 55) {
+              artistMatches.push({
+                ...entry,
+                _score: score
+              });
+            }
+          });
 
-          if (matches.length === 0) {
+          (Array.isArray(playlists) ? playlists : []).forEach(pl => {
+            const score = fuzzyScore(q, pl.name || '');
+            if (score >= 55) {
+              playlistMatches.push({
+                id: pl.id,
+                name: pl.name || 'Playlist',
+                cover: getEffectivePlaylistCover(pl),
+                _score: score
+              });
+            }
+          });
+
+         // Best first
+          songMatches.sort((a, b) => b._score - a._score);
+          albumMatches.sort((a, b) => b._score - a._score);
+          artistMatches.sort((a, b) => b._score - a._score);
+          playlistMatches.sort((a, b) => b._score - a._score);
+
+          if (
+            songMatches.length === 0
+            && albumMatches.length === 0
+            && artistMatches.length === 0
+            && playlistMatches.length === 0
+          ) {
             results.innerHTML = `<p class="text-zinc-500">No results found for "${q}"</p>`;
             return;
           }
 
           results.innerHTML = '';
 
-          matches.slice(0, 25).forEach((s) => {
+         const addSectionTitle = (title) => {
+            const header = document.createElement('div');
+            header.className = 'px-2 pt-4 pb-2 text-xs font-black text-zinc-500 uppercase tracking-widest';
+            header.textContent = title;
+            results.appendChild(header);
+          };
+
+          if (songMatches.length) {
+            addSectionTitle('Songs');
+          }
+
+          songMatches.slice(0, 25).forEach((s) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
 
@@ -3545,6 +3618,128 @@ function openArtistByName(artistName) {
             info.appendChild(title);
             info.appendChild(meta);
             row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+            
+          if (albumMatches.length) {
+            addSectionTitle('Albums');
+          }
+
+          albumMatches.slice(0, 8).forEach((a) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              openAlbumByName(a.album);
+            });
+
+            const img = document.createElement('img');
+            img.src = getAlbumCover(a.artist, a.album, a.cover);
+            img.className = 'w-12 h-12 rounded object-cover';
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = a.album;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = a.artist;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+
+          if (artistMatches.length) {
+            addSectionTitle('Artists');
+          }
+
+          artistMatches.slice(0, 8).forEach((a) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              openArtistByName(a.artist);
+            });
+
+            const img = document.createElement('img');
+            img.src = getAlbumCover(a.artist, a.albumName, a.cover);
+            img.className = 'w-12 h-12 rounded-full object-cover';
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = a.artist;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = `${a.count} album${a.count === 1 ? '' : 's'}`;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+
+          if (playlistMatches.length) {
+            addSectionTitle('Playlists');
+          }
+
+          playlistMatches.slice(0, 8).forEach((p) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              const idx = playlists.findIndex(pl => pl.id === p.id);
+              if (idx !== -1) showView('playlist', idx);
+            });
+
+            const cover = p.cover;
+            const imgWrap = document.createElement('div');
+            imgWrap.className = 'w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center';
+            if (cover) {
+              const img = document.createElement('img');
+              img.src = cover;
+              img.className = 'w-full h-full object-cover';
+              imgWrap.appendChild(img);
+            } else {
+              const icon = document.createElement('i');
+              icon.className = 'fas fa-music text-zinc-500';
+              imgWrap.appendChild(icon);
+            }
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = p.name;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = 'Playlist';
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(imgWrap);
             row.appendChild(info);
             row.appendChild(icon);
             results.appendChild(row);
