@@ -319,19 +319,17 @@ img {
   position: relative;
   z-index: 1;
 
-  /* This is your track row grid layout (moved onto the foreground) */
+  /* MUST fully cover the green layer when not swiping */
+  width: 100%;
+  background: rgba(18,18,18,0.92);
+  border-radius: 10px;
+
+  /* This is your old track-row grid layout */
   display: grid;
   grid-template-columns: 40px 6fr 4fr 3fr 80px;
   gap: 16px;
   padding: 12px;
   align-items: center;
-
-  /* hides green unless you swipe */
-  background: var(--bg-surface);
-
-  /* match the parent rounding so no green corners leak */
-  border-radius: 10px;
-
   color: var(--text-sub);
   font-size: 14px;
   user-select: none;
@@ -3950,20 +3948,22 @@ function openAlbumByName(name) {
       playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
     };
 
-    row.oncontextmenu = (e) =>
-      handleContextMenu(e, {
-        ...song,
-        url: songUrl,
-        title: songTitle,
-        album: album.albumName,
-        artist: album.artistName,
-        cover: cover
-      });
+   row.oncontextmenu = (e) => {
+  handleContextMenu(e, {
+    ...song,
+    url: songUrl,
+    title: songTitle,
+    album: album.albumName,
+    artist: album.artistName,
+    cover: cover
+  });
+};
+
 attachSongPressHandlers(
-      row,
-      { ...song, name: songTitle, link: songUrl, coverArt: cover },
-      longPressState
-    );
+  row,
+  { ...song, name: songTitle, link: songUrl, coverArt: cover },
+  longPressState
+);
 
 // Desktop “Album” column cell used in the template below
 const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
