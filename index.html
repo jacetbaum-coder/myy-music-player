@@ -2735,10 +2735,45 @@ showView = function(viewType, playlistIndex = null) {
   }
 };
 
+};
+
+// Ensure repeat + UI helpers exist before onload (prevents "syncRepeatUI is not defined")
+window.repeatMode = window.repeatMode || 'off';
+window.syncRepeatUI = window.syncRepeatUI || function syncRepeatUI() {
+  const d = document.getElementById('btn-repeat');
+  const mIcon = document.getElementById('np-repeat-icon');
+  const mDot = document.getElementById('np-repeat-dot');
+
+  // Clear state classes
+  if (d) d.classList.remove('active-green', 'repeat-one', 'repeat-all');
+  if (mIcon) mIcon.classList.remove('active-green', 'repeat-one', 'repeat-all');
+  if (mDot) mDot.classList.add('hidden');
+
+  const mode = window.repeatMode || 'off';
+  if (mode === 'off') return;
+
+  // repeat all OR one => green
+  if (d) d.classList.add('active-green');
+  if (mIcon) mIcon.classList.add('active-green');
+
+  if (mode === 'all') {
+    if (d) d.classList.add('repeat-all');
+    if (mIcon) mIcon.classList.add('repeat-all');
+  }
+
+  if (mode === 'one') {
+    if (d) d.classList.add('repeat-one');
+    if (mIcon) mIcon.classList.add('repeat-one');
+    if (mDot) mDot.classList.remove('hidden');
+  }
+};
+
 window.onload = async () => {
-            setGreeting();
-            syncRepeatUI();
+
+                        setGreeting();
+            window.syncRepeatUI();
             renderHistory();
+
             ensurePlaylistIds();
     try { await reconcilePinnedPlaylistsFromServer(); } catch (e) {}
             renderPlaylists();
