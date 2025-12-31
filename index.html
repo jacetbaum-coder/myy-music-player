@@ -1425,11 +1425,12 @@ img {
          * GLOBAL APP STATE
          * ---------------------------------------------------------------------
          */
-                let libraryData = [];
-        let libraryDataOriginal = [];
-        let currentSong = null;
-        let currentQueue = [];
+       let libraryData = [];
+let libraryDataOriginal = [];
+let currentSong = null;
+let currentQueue = [];
 let currentIndex = -1;
+const LIBRARY_CACHE_KEY = 'libraryDataCache';
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
 let playContext = null;
@@ -1466,6 +1467,23 @@ function setAccentRGB(r, g, b) {
   if (meta) {
     const hex = rgbToHex(r, g, b);
     meta.setAttribute('content', hex);
+  }
+}
+
+        function loadLibraryCache() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLibraryCache(data) {
+  try {
+    localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(Array.isArray(data) ? data : []));
+  } catch (e) {
+    // ignore cache write failures
   }
 }
 
@@ -1604,6 +1622,43 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
+        async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
+  try {
+    await fetch('/api/get-songs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        artistName,
+        albumName,
+        coverUrl: String(coverUrlOrDataUrl || "").trim()
+      })
+    });
+  } catch (e) {
+    console.warn('Failed to sync album cover override:', e);
+  }
+}
+
+function reconcileAlbumCoverOverridesFromLibrary(data) {
+  const map = loadAlbumCoverOverrides();
+  let changed = false;
+
+  (Array.isArray(data) ? data : []).forEach((album) => {
+    const key = albumKey(album.artistName, album.albumName);
+    if (Object.prototype.hasOwnProperty.call(map, key)) {
+      const cover = String(album.coverArt || "").trim();
+      if (!cover) {
+        delete map[key];
+        changed = true;
+      } else if (map[key] !== cover) {
+        map[key] = cover;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) saveAlbumCoverOverrides(map);
+}
+
 function getAlbumCover(artistName, albumName, fallbackCover) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
@@ -1616,6 +1671,7 @@ function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const key = albumKey(artistName, albumName);
   map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
+    syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl);
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -1623,6 +1679,7 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
+    syncAlbumCoverOverride(artistName, albumName, "");
 }
 
 /* -----------------------
@@ -1747,6 +1804,7 @@ if (volumeContainer) {
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
+        let suppressContextMenuCloseUntil = 0;
         const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
@@ -2391,6 +2449,7 @@ window.onload = async () => {
             syncRepeatUI();
             renderHistory();
             ensurePlaylistIds();
+    try { await reconcilePinnedPlaylistsFromServer(); } catch (e) {}
             renderPlaylists();
 try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
 renderPlaylists();
@@ -2426,6 +2485,8 @@ if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
                 if (!Array.isArray(libraryData)) {
                     throw new Error('Invalid library response');
                 }
+                saveLibraryCache(libraryData);
+                reconcileAlbumCoverOverridesFromLibrary(libraryData);
 
                 // Keep original order for "Recently added"
                 libraryDataOriginal = libraryData.slice();
@@ -2439,6 +2500,19 @@ if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
                 try { renderHome(); } catch (e) {}
             } catch (error) {
                 console.error("Fetch error:", error);
+                const cachedLibrary = loadLibraryCache();
+
+                if (cachedLibrary.length) {
+                    libraryData = cachedLibrary;
+                    reconcileAlbumCoverOverridesFromLibrary(libraryData);
+                    libraryDataOriginal = libraryData.slice();
+                    libraryData.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
+                    document.getElementById('loading').classList.add('hidden');
+                    showView('home');
+                    try { renderHome(); } catch (e) {}
+                    return;
+                }
+
                 document.getElementById('loading').innerHTML = `
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
                     <p class="text-white font-bold">Cloud Connection Failed</p>
@@ -2899,27 +2973,12 @@ function renderGrid(data) {
   }).join('');
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
-  // single click: open album
-  card.addEventListener('click', () => {
-    const album = card.getAttribute('data-album');
-    if (album) openAlbumByName(album);
+    card.addEventListener('click', () => {
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
   });
-
-  // desktop: double click = play album
-  card.addEventListener('dblclick', (e) => {
-    if (window.innerWidth <= 768) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const album = card.getAttribute('data-album');
-    if (!album) return;
-
-    openAlbumByName(album);
-    playAlbumByName(album);
-  });
-});
-
+}
 
 
 function openAlbumByName(name) {
@@ -2928,6 +2987,7 @@ function openAlbumByName(name) {
   setNavCurrent({ type: 'album', albumName: name });
 
   playContext = { type: 'album', label: name };
+    const isPlaylist = false;
   const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
 
@@ -3011,7 +3071,13 @@ function openAlbumByName(name) {
     const isCurrent = currentSong && (currentSong.url === songUrl);
     if (isCurrent) row.classList.add('active-track');
 
+      const longPressState = { longPress: false };
+
     row.onclick = () => {
+         if (longPressState.longPress) {
+        longPressState.longPress = false;
+        return;
+      }
       if (!songUrl) return;
       currentIndex = i;
       playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
@@ -3026,7 +3092,14 @@ function openAlbumByName(name) {
         artist: album.artistName,
         cover: cover
       });
-
+attachSongPressHandlers(row, {
+      ...song,
+      url: songUrl,
+      title: songTitle,
+      album: album.albumName,
+      artist: album.artistName,
+      cover: cover
+    }, longPressState);
 
 const titleClass = isCurrent ? 'text-[var(--spotify-green)]' : 'text-white';
 const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
@@ -3035,13 +3108,13 @@ const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
 if (isCurrent) row.classList.add('is-current');
 
 // Desktop-only: album becomes clickable (mobile stays the same)
-const albumName = song.album || '';
+const albumName = song.album || album.albumName || '';
 
 const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 
 
     // data hooks so we can update the green row without re-rendering
-    row.dataset.url = song.url;
+    row.dataset.url = songUrl;
     row.dataset.index = String(i + 1);
 
     // Desktop-only + playlist-only: album becomes clickable
@@ -3050,15 +3123,15 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
                  data-role="album"
                  class="truncate hidden md:block text-left text-white/80 hover:text-white hover:underline"
                  data-album="${safeAlbumAttr}">${song.album}</button>`
-      : `<span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>`;
+      : `<span data-role="album" class="truncate hidden md:block text-white/80">${albumName}</span>`;
 
     row.innerHTML = `
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div data-role="title" class="text-white font-medium truncate">${song.title.replace('.mp3', '')}</div>
-        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
+        <div data-role="title" class="text-white font-medium truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist || album.artistName || ''}</div>
       </div>
       ${albumCell}
       <span class="hidden md:block">Just now</span>
@@ -4074,8 +4147,7 @@ function checkDockVisibility() {
 }
 
         // Context Menu & Playlists
-        function handleContextMenu(e, song) {
-  e.preventDefault();
+        function showContextMenuAt(x, y, song) {
 
   menuTargetSong = song;
 
@@ -4086,8 +4158,45 @@ function checkDockVisibility() {
   }
 
   contextMenu.style.display = 'block';
-  contextMenu.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
-  contextMenu.style.top = Math.min(e.pageY, window.innerHeight - 200) + 'px';
+  contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
+  contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+}
+
+        function handleContextMenu(e, song) {
+  e.preventDefault();
+  showContextMenuAt(e.pageX, e.pageY, song);
+}
+
+        function attachSongPressHandlers(row, song, state) {
+  if (!row) return;
+
+  let pressTimer = null;
+
+  row.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const t = e.touches[0];
+    state.longPress = false;
+    pressTimer = setTimeout(() => {
+      state.longPress = true;
+      showContextMenuAt(t.pageX, t.pageY, song);
+    }, 500);
+  }, { passive: true });
+
+  const cancel = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+
+  row.addEventListener('touchend', (e) => {
+    cancel();
+    if (state.longPress) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+
+  row.addEventListener('touchmove', cancel, { passive: true });
+  row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
                function addToHistory(album, artist, cover) {
@@ -4132,38 +4241,36 @@ function checkDockVisibility() {
           return src.slice(-limit).reverse();
         }
 
-        /* --- START OF RENDERHOMERECENTS UPDATE --- */
-function renderHomeRecents(containerId) {
-  const grid = document.getElementById(containerId);
-  if (!grid) return;
-  const items = getHistoryItemsForHome();
-  if (!items.length) {
-    grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
-    return;
-  }
-  grid.innerHTML = items.map(h => {
-    const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
-    const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
-    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
-    const safeId = String(h.id || '').replace(/"/g,'&quot;');
-    const safeArtist = String(h.artist || '').replace(/"/g,'&quot;');
+        function renderHomeRecents(containerId) {
+          const grid = document.getElementById(containerId);
+          if (!grid) return;
 
-    // Desktop only dblclick logic
-    const dblClickAttr = (window.innerWidth > 768) 
-      ? `ondblclick="event.stopPropagation(); playCollectionDirectly('${h.type}', '${safeId}', '${safeAlbum}', '${safeArtist}')"` 
-      : '';
+          const items = getHistoryItemsForHome();
 
-    return `
-      <div class="mobile-recent-card" data-type="${h.type}" data-id="${safeId}" data-album="${safeAlbum}" ${dblClickAttr}>
-        <img src="${h.cover || ''}" alt="">
-        <div class="min-w-0">
-          <div class="title">${title}</div>
-          <div class="sub">${sub}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-/* --- END OF RENDERHOMERECENTS UPDATE --- */
+          if (!items.length) {
+            grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
+            return;
+          }
+
+          grid.innerHTML = items.map(h => {
+            const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
+            const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
+            const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+            const safeId = String(h.id || '').replace(/"/g,'&quot;');
+
+            return `
+              <div class="mobile-recent-card"
+                   data-type="${h.type}"
+                   data-id="${safeId}"
+                   data-album="${safeAlbum}">
+                <img src="${h.cover || ''}" alt="">
+                <div class="min-w-0">
+                  <div class="title">${title}</div>
+                  <div class="sub">${sub}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
 
           [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
             card.addEventListener('click', () => {
@@ -4180,54 +4287,32 @@ function renderHomeRecents(containerId) {
           });
         }
 
-        /* --- START OF RENDERHOMERECENTLYADDED UPDATE --- */
-function renderHomeRecentlyAdded(containerId) {
-  const row = document.getElementById(containerId);
-  if (!row) return;
-  const albums = getRecentlyAddedAlbums(12);
-  if (!albums.length) {
-    row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
-    return;
-  }
-  row.innerHTML = albums.map(a => {
-    const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
-    const safeName = String(a.albumName || '').replace(/'/g, "\\'");
-    const safeArtist = String(a.artistName || '').replace(/'/g, "\\'");
+        function renderHomeRecentlyAdded(containerId) {
+          const row = document.getElementById(containerId);
+          if (!row) return;
 
-    // Desktop only dblclick logic
-    const dblClickAction = (window.innerWidth > 768) 
-  ? `ondblclick="event.stopPropagation(); playCollectionDirectly('album', '', '${safeName}', '${safeArtist}')"` 
-  : '';
+          const albums = getRecentlyAddedAlbums(12);
 
-    return `
-      <div class="min-w-[160px] max-w-[160px] cursor-pointer" onclick="openAlbumByName('${safeName}')" ${dblClickAction}>
-        <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
-          <img src="${cover}" class="w-full h-full object-cover" alt="">
-        </div>
-        <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
-        <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
-      </div>
-    `;
-  }).join('');
-}
-        /* --- HELPER FUNCTION FOR DBLCLICK PLAY --- */
-function playCollectionDirectly(type, id, albumName, artistName) {
-  if (type === 'playlist') {
-    const pl = playlists.find(p => p.id === id);
-    if (pl && pl.songs && pl.songs.length > 0) {
-      const queue = buildQueueFromSongs(pl.songs, { album: pl.name });
-      playQueue(queue, 0);
-    }
-  } else {
-    // It's an album
-    const album = libraryData.find(a => a.albumName === albumName && a.artistName === artistName);
-    if (album && album.songs && album.songs.length > 0) {
-      const queue = buildQueueFromSongs(album.songs, { album: album.albumName });
-      playQueue(queue, 0);
-    }
-  }
-}
-/* --- END OF RENDERHOMERECENTLYADDED UPDATE --- */
+          if (!albums.length) {
+            row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
+            return;
+          }
+
+          row.innerHTML = albums.map(a => {
+            const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
+            const safeName = String(a.albumName || '').replace(/'/g, "\\'");
+            return `
+              <div class="min-w-[160px] max-w-[160px] cursor-pointer"
+                   onclick="openAlbumByName('${safeName}')">
+                <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
+                  <img src="${cover}" class="w-full h-full object-cover" alt="">
+                </div>
+                <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
+                <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
+              </div>
+            `;
+          }).join('');
+        }
 
         function renderHome() {
           // Mobile Home
@@ -4364,6 +4449,53 @@ function loadPinnedPlaylists() {
 }
 function savePinnedPlaylists(ids) {
   localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
+    syncPinnedPlaylists(ids);
+}
+
+function getPinnedPlaylistNamesFromIds(ids) {
+  const names = [];
+  const idList = Array.isArray(ids) ? ids : [];
+  idList.forEach((id) => {
+    const match = playlists.find(pl => pl.id === id);
+    const name = String(match?.name || "").trim();
+    if (name && !names.includes(name)) {
+      names.push(name);
+    }
+  });
+  return names.slice(0, 4);
+}
+
+async function syncPinnedPlaylists(ids) {
+  try {
+    await fetch('/api/pinned-playlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: getPinnedPlaylistNamesFromIds(ids) })
+    });
+  } catch (e) {
+    console.warn('Failed to sync pinned playlists:', e);
+  }
+}
+
+async function reconcilePinnedPlaylistsFromServer() {
+  try {
+    const response = await fetch('/api/pinned-playlists');
+    if (!response.ok) return;
+    const data = await response.json();
+    const names = Array.isArray(data?.names) ? data.names : [];
+    const ids = [];
+    names.forEach((name) => {
+      const match = playlists.find(pl => String(pl.name || '').trim() === String(name || '').trim());
+      if (match && !ids.includes(match.id)) {
+        ids.push(match.id);
+      }
+    });
+    if (ids.length) {
+      localStorage.setItem('pinnedPlaylists', JSON.stringify(ids.slice(0, 4)));
+    }
+  } catch (e) {
+    console.warn('Failed to load pinned playlists:', e);
+  }
 }
 
 function isPinnedPlaylist(id) {
@@ -5252,21 +5384,33 @@ if (hero && activePlaylistId) {
     const isCurrent = currentSong && (currentSong.url === song.url);
     if (isCurrent) row.classList.add('active-track');
 
+      const longPressState = { longPress: false };
+      
     row.onclick = () => {
+        if (longPressState.longPress) {
+        longPressState.longPress = false;
+        return;
+      }
+
       currentIndex = i;
       playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
     };
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
+      attachSongPressHandlers(
+      row,
+      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+      longPressState
+    );
 
    row.innerHTML = `
       <span class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${song.title.replace('.mp3', '')}</div>
-        <div class="text-xs text-zinc-400 md:hidden">${song.artist}</div>
+        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${String(song.title || '').replace('.mp3', '')}</div>
+        <div class="text-xs text-zinc-400 md:hidden">${song.artist || ''}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
       <span class="hidden md:block">Just now</span>
