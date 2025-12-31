@@ -3178,11 +3178,22 @@ function renderGrid(data) {
         function findAlbumByName(name) {
   const normalized = String(name || '').trim().toLowerCase();
   if (!normalized) return null;
-  return (Array.isArray(libraryData) ? libraryData : []).find(album =>
-    String(album.albumName || '').trim().toLowerCase() === normalized
-  );
-}
 
+  const pools = [
+    Array.isArray(libraryData) ? libraryData : [],
+    Array.isArray(libraryDataOriginal) ? libraryDataOriginal : [],
+    Array.isArray(currentGridData) ? currentGridData : []
+  ];
+
+  for (const pool of pools) {
+    const found = pool.find(album =>
+      String(album.albumName || '').trim().toLowerCase() === normalized
+    );
+    if (found) return found;
+  }
+
+  return null;
+}
 
 function openAlbumByName(name) {
   // BACK STACK: push current view before entering album
