@@ -799,6 +799,26 @@ img {
   #progress-container {
     width: 100%;
   }
+        /* Album hero shared styles */
+  #album-hero .album-hero-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #album-hero .album-hero-artist {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+
+  #album-hero .album-hero-artist img {
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    object-fit: cover;
+  }
+                        
 
   /* move play/pause button to top-right */
   #dock-play-btn {
@@ -837,21 +857,47 @@ img {
     margin-bottom: 6px !important;
   }
 
+     #album-hero .album-hero-info {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 8px !important;
+  }
+
+  #album-hero .album-hero-label {
+    display: none !important;
+  }
+
   /* Titles: responsive, no overflow, nice wrap */
   #album-hero h1,
   #artist-hero h1 {
-    font-size: clamp(28px, 7.5vw, 44px) !important;
-    line-height: 1.05 !important;
-    margin-bottom: 10px !important;
+     font-size: clamp(26px, 7vw, 36px) !important;
+    line-height: 1.1 !important;
+    margin-bottom: 0 !important;
     max-width: 100% !important;
     word-break: break-word !important;
     overflow-wrap: anywhere !important;
   }
 
-  /* The “artist • songs” line */
-  #album-hero .text-sm {
-    flex-wrap: wrap !important;
-    row-gap: 6px !important;
+  #album-hero .album-hero-artist {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+  }
+
+  #album-hero .album-hero-artist img {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9999px !important;
+    object-fit: cover !important;
+  }
+
+  #album-hero .album-hero-meta {
+    font-size: 14px !important;
+    color: var(--text-sub) !important;
   }
 
   /* prevent iOS auto-zoom */
@@ -3081,16 +3127,17 @@ function openAlbumByName(name) {
          data-artist="${album.artistName.replace(/"/g, '&quot;')}"
          data-album="${album.albumName.replace(/"/g, '&quot;')}">
 
-    <div class="flex-1">
-      <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
-      <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
-       <div class="flex items-center gap-2 text-base font-semibold">
+    <div class="flex-1 album-hero-info">
+      <p class="album-hero-label text-xs font-bold uppercase tracking-widest mb-2">Album</p>
+      <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
+      <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
+        <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
         <span class="hover:underline cursor-pointer font-semibold"
               onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
           ${album.artistName}
         </span>
-        <span class="text-zinc-400">• ${album.songs.length} songs</span>
       </div>
+      <div class="album-hero-meta text-sm text-zinc-400">Album • ${album.songs.length} songs</div>
     </div>
   `;
 
