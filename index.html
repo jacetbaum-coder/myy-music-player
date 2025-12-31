@@ -3926,14 +3926,20 @@ function openAlbumByName(name) {
       });
 attachSongPressHandlers(
       row,
-      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+      { ...song, name: songTitle, link: songUrl, coverArt: cover },
       longPressState
     );
 
 // ✅ Swipe left to add to queue (green follows finger)
-attachSwipeAddToQueue(row, song);
+if (typeof attachSwipeAddToQueue === 'function') {
+  attachSwipeAddToQueue(row, { ...song, url: songUrl, title: songTitle, album: album.albumName, artist: album.artistName, cover: cover });
+}
+
+// Desktop “Album” column cell used in the template below
+const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
     row.innerHTML = `
+
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
