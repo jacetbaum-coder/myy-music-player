@@ -104,7 +104,10 @@
 #library-search-overlay input {
   caret-color: var(--spotify-green);
 }
-
+#library-search-overlay.hidden,
+#library-search-popover.hidden {
+  pointer-events: none;
+}
 
 /* while dragging, remove transition so it follows finger */
 #now-playing-overlay.np-dragging {
@@ -2637,7 +2640,7 @@ renderGrid = function(data) {
 
     return `
       <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-           onclick="openAlbumByName('${safeName}')">
+           onclick="openAlbum('${safeName}')">
         <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
           <div class="text-white font-bold truncate">${album.albumName || ''}</div>
@@ -2661,7 +2664,8 @@ showView = function(viewType, playlistIndex = null) {
     renderLibraryContent();
   }
 };
-
+window.showView = showView;
+        
 window.onload = async () => {
             setGreeting();
             syncRepeatUI();
@@ -3152,6 +3156,8 @@ function renderGrid(data) {
     return `
       <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
            data-album="${safeName}">
+           data-album="${safeName}"
+           onclick="openAlbum('${safeName}')">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
           <img src="${cover}" class="w-full h-full object-cover">
@@ -3167,13 +3173,6 @@ function renderGrid(data) {
       </div>
     `;
   }).join('');
-
-  [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
-    });
-  });
 }
 
         function findAlbumByName(name) {
@@ -3357,6 +3356,11 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
     });
 }
 
+        function openAlbum(name) {
+  openAlbumByName(name);
+}
+
+window.openAlbum = openAlbum;
 function openArtistByName(artistName) {
   // BACK STACK: push current view before entering artist
   pushNavCurrent();
@@ -3855,6 +3859,8 @@ function openArtistByName(artistName) {
     updateNowPlayingUI();
   }
 }
+
+window.playSpecificSong = playSpecificSong;
         
 function togglePlay() {
   if (!currentSong) return;
