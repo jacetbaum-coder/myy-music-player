@@ -641,33 +641,27 @@ img {
 }
 
 
-        /* --- MEDIA QUERIES --- */
+                /* --- MEDIA QUERIES --- */
 @media (max-width: 768px) {
   /* hide desktop sidebars/resizers on mobile */
   .sidebar, .resizer, .right-sidebar { display: none !important; }
-    .mobile-nav { display: flex; }
-
-  /* Mobile: lift the dock above the bottom nav (Spotify-style) */
-  .player-bar {
-    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  }
+  .mobile-nav { display: flex; }
 
   .main-view {
     padding: 16px;
     padding-bottom: calc(var(--player-height) + var(--nav-height) + env(safe-area-inset-bottom) + 16px);
   }
 
-
   .track-row {
-     grid-template-columns: 1fr 36px;
+    grid-template-columns: 1fr 36px;
     padding: 18px 4px;
   }
   .track-row span:nth-child(1),
   .track-row span:nth-child(3),
   .track-row span:nth-child(4),
-  .track-row span:nth-child(5) { display: none; 
+  .track-row span:nth-child(5) { display: none; }
 
-.track-row .track-title {
+  .track-row .track-title {
     font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -685,11 +679,10 @@ img {
     font-size: 18px;
   }
 
-
-  /* --- MOBILE MINI PLAYER (Spotify-like) --- */
+  /* --- MOBILE DOCK (Spotify-like) --- */
   .player-bar {
     position: fixed;
-    bottom: var(--nav-height);
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
     left: 10px;
     right: 10px;
 
@@ -698,24 +691,31 @@ img {
     border-radius: 12px;
     border: none;
 
-    display: grid;
-    grid-template-columns: 1fr auto;   /* left info | play button */
-    grid-template-rows: auto auto;     /* row 1: info+play, row 2: progress */
-    gap: 8px;
-
     padding: 10px 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    align-items: center;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-/* MOBILE DOCK: keep only left info + ONE play/pause button */
-@media (max-width: 768px) {
-  /* Hide the desktop middle + right dock columns on mobile */
-  .player-bar > div:nth-child(2),
+
+  /* hide desktop right-side dock column */
   .player-bar > div:nth-child(3) {
     display: none !important;
   }
 
-  /* Show the mobile-only play button */
+  /* left row: cover + title/artist + mobile play button */
+  .player-bar > div:nth-child(1) {
+    width: 100%;
+    gap: 10px;
+  }
+
+  #p-cover {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* mobile-only play button ON */
   #mobile-play-btn {
     display: inline-flex !important;
     width: 44px;
@@ -725,70 +725,22 @@ img {
     justify-content: center;
   }
 
-  /* Hide heart on mobile */
-  #dock-heart {
-    display: none !important;
-  }
-}
-
-  /* hide the entire right-side desktop icons area (3rd column block) */
-  .player-bar > div:nth-child(3) {
-    display: none !important;
-  }
-
-  /* left info block stays on row 1 col 1 */
-  .player-bar > div:nth-child(1) {
-    grid-column: 1 / 2;
-    grid-row: 1 / 2;
-    gap: 10px;
-  }
-
-  /* make cover smaller */
-  #p-cover {
-    width: 44px;
-    height: 44px;
-  }
-
-  /* remove heart on mobile */
+  /* hide heart on mobile */
   #dock-heart {
     display: none !important;
   }
 
-    /* Let the middle column's children become grid items */
-.player-bar > div:nth-child(2) {
-  display: contents;
-}
+  /* middle column: keep ONLY the progress row */
+  .player-bar > div:nth-child(2) {
+    width: 100%;
+  }
 
-/* Controls row becomes ONLY the play/pause button (top-right) */
-.player-bar > div:nth-child(2) > div:first-child {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
+  /* hide shuffle/prev/play/next/repeat row (desktop controls) */
+  .player-bar > div:nth-child(2) > div:first-child {
+    display: none !important;
+  }
 
-/* Hide shuffle/prev/next/repeat icons inside that row */
-.player-bar > div:nth-child(2) > div:first-child > i {
-  display: none !important;
-}
-
-/* Keep the play button visible */
-.player-bar > div:nth-child(2) > div:first-child > #dock-play-btn {
-  display: flex !important;
-}
-
-/* Progress row spans full width on row 2 */
-.player-bar > div:nth-child(2) > div:last-child {
-  grid-column: 1 / 3;
-  grid-row: 2 / 3;
-  display: flex !important;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-}
-
-  /* keep the progress row visible */
+  /* show progress row full width */
   .player-bar > div:nth-child(2) > div:last-child {
     display: flex !important;
     width: 100%;
@@ -805,7 +757,8 @@ img {
   #progress-container {
     width: 100%;
   }
-        /* Album hero shared styles */
+
+  /* Album hero shared styles */
   #album-hero .album-hero-info {
     display: flex;
     flex-direction: column;
@@ -823,17 +776,6 @@ img {
     height: 28px;
     border-radius: 9999px;
     object-fit: cover;
-  }
-                        
-
-  /* move play/pause button to top-right */
-  #dock-play-btn {
-    grid-column: 2 / 3;
-    grid-row: 1 / 2;
-    justify-self: end;
-    align-self: center;
-    width: 44px;
-    height: 44px;
   }
 
   /* album hero sizing (mobile Spotify-like) */
@@ -863,7 +805,7 @@ img {
     margin-bottom: 6px !important;
   }
 
-     #album-hero .album-hero-info {
+  #album-hero .album-hero-info {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -878,7 +820,7 @@ img {
   /* Titles: responsive, no overflow, nice wrap */
   #album-hero h1,
   #artist-hero h1 {
-     font-size: clamp(26px, 7vw, 36px) !important;
+    font-size: clamp(26px, 7vw, 36px) !important;
     line-height: 1.1 !important;
     margin-bottom: 0 !important;
     max-width: 100% !important;
@@ -909,6 +851,7 @@ img {
   /* prevent iOS auto-zoom */
   .search-input { font-size: 16px; }
 }
+
 
 
         /* --- SCROLLBAR --- */
