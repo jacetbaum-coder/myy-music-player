@@ -229,12 +229,13 @@ img {
         }
         .resizer:hover { background: rgba(255,255,255,0.2); }
 
-        .track-row { 
+.track-row { 
     display: grid; 
     grid-template-columns: 40px 6fr 4fr 3fr 80px; 
     gap: 16px; 
     padding: 12px; 
     border-radius: 6px; 
+    position: relative;
     align-items: center; 
     color: var(--text-sub); 
     font-size: 14px; 
@@ -1805,6 +1806,12 @@ if (volumeContainer) {
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
         let suppressContextMenuCloseUntil = 0;
+
+        function closeContextMenu() {
+          contextMenu.style.display = 'none';
+          contextMenu.style.transform = '';
+          contextMenu.style.right = '';
+        }
         const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
@@ -4147,7 +4154,7 @@ function checkDockVisibility() {
 }
 
         // Context Menu & Playlists
-        function showContextMenuAt(x, y, song) {
+        function showContextMenuAt(x, y, song, anchorEl = null) {
 
   menuTargetSong = song;
 
@@ -4157,9 +4164,63 @@ function checkDockVisibility() {
     removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
   }
 
+            const useAnchor = anchorEl && window.innerWidth <= 768;
+  if (useAnchor) {
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = 'auto';
+    contextMenu.style.right = '12px';
+    contextMenu.style.top = '50%';
+    contextMenu.style.transform = 'translateY(-50%)';
+    anchorEl.appendChild(contextMenu);
+  } else {
+    contextMenu.style.position = 'fixed';
+    contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
+    contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+    contextMenu.style.transform = '';
+    contextMenu.style.right = '';
+    document.body.appendChild(contextMenu);
+  }
+
+
   contextMenu.style.display = 'block';
-  contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
-  contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+  suppressContextMenuCloseUntil = Date.now() + 400;
+}
+
+        function handleContextMenu(e, song) {
+  e.preventDefault();
+  showContextMenuAt(e.pageX, e.pageY, song);
+}
+
+        function attachSongPressHandlers(row, song, state) {
+  if (!row) return;
+
+  let pressTimer = null;
+
+  row.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const t = e.touches[0];
+    state.longPress = false;
+    pressTimer = setTimeout(() => {
+      state.longPress = true;
+      showContextMenuAt(t.pageX, t.pageY, song, row);
+    }, 500);
+  }, { passive: true });
+
+  const cancel = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+
+  row.addEventListener('touchend', (e) => {
+    cancel();
+    if (state.longPress) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+
+  row.addEventListener('touchmove', cancel, { passive: true });
+  row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
         function handleContextMenu(e, song) {
