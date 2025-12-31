@@ -6,7 +6,7 @@
 
     <title>Reson</title>
 
-    <!-- App / tabb icon -->
+    <!-- App / tab icon -->
     <link rel="icon" href="favicon.ico">
 
     <!-- iOS Home Screen icon -->
@@ -908,17 +908,17 @@ img {
 
             <div id="home-view" class="hidden">
 
-  <!-- Spotify-like library filters -->
+  <!-- Spotify-like top tabs (not functional yet) -->
   <div class="flex items-center gap-3 mb-5">
     <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
       <i class="fas fa-user text-white/70"></i>
     </div>
 
     <div class="flex gap-2 overflow-x-auto no-scrollbar">
-       <button class="library-filter-btn px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap" data-library-filter="all">All</button>
-      <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="playlists">Playlists</button>
-      <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="albums">Albums</button>
-      <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="podcasts">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
     </div>
   </div>
 
@@ -944,17 +944,17 @@ img {
     <!-- DESKTOP Home header (Spotify-ish) -->
   <div id="desktop-home-header" class="hidden md:block mb-10">
 
-     <!-- Library filters -->
+    <!-- Top tabs (not functional yet) -->
     <div class="flex items-center gap-3 mb-6">
       <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
         <i class="fas fa-user text-white/70"></i>
       </div>
 
       <div class="flex gap-2 overflow-x-auto">
-         <button class="library-filter-btn px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap" data-library-filter="all">All</button>
-        <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="playlists">Playlists</button>
-        <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="albums">Albums</button>
-        <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="podcasts">Podcasts</button>
+        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
       </div>
     </div>
 
@@ -995,12 +995,11 @@ img {
             </div>
           </div>
 
-           <!-- Tabs row (library filters) -->
+          <!-- Tabs row (visual only, like your Home tabs) -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-            <button class="library-filter-btn px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap" data-library-filter="all">All</button>
-            <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="playlists">Playlists</button>
-            <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="albums">Albums</button>
-            <button class="library-filter-btn px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap" data-library-filter="podcasts">Podcasts</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
           </div>
         </div>
 
@@ -1719,7 +1718,7 @@ function refreshAfterAlbumCoverChange(artistName, albumName) {
   const onArtist = !document.getElementById('artist-view')?.classList.contains('hidden');
   const onAlbum = !document.getElementById('album-view')?.classList.contains('hidden');
 
-  if (onHome) renderGrid(getLibraryGridItems());
+  if (onHome) renderGrid(libraryData);
 
   if (onArtist && activeArtistName === artistName) {
     openArtistByName(artistName);
@@ -1842,14 +1841,6 @@ if (dockLeft) {
 // -----------------------
 let librarySortMode = localStorage.getItem('librarySortMode') || 'Recently added';
 let libraryViewMode = localStorage.getItem('libraryViewMode') || 'grid';
-        let libraryFilter = 'all';
-
-const libraryFilterLabels = {
-  all: 'All',
-  playlists: 'Playlists',
-  albums: 'Albums',
-  podcasts: 'Podcasts'
-};
 
 // Used for "Recently added"
 libraryDataOriginal = window.libraryDataOriginal || libraryDataOriginal || [];
@@ -1863,7 +1854,7 @@ function setLibrarySortMode(mode) {
 
   // If you're currently in Library, re-render the grid
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridItems());
+    renderGrid(getLibraryGridData());
   }
 }
 
@@ -1873,36 +1864,8 @@ function setLibraryViewMode(mode) {
 
   // If you're currently in Library, re-render the grid
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridItems());
+    renderGrid(getLibraryGridData());
   }
-}
-
-function updateLibraryFilterButtons() {
-  document.querySelectorAll('.library-filter-btn').forEach(btn => {
-    const filter = btn.getAttribute('data-library-filter') || 'all';
-    const isActive = filter === libraryFilter;
-    btn.classList.toggle('bg-[#1db954]', isActive);
-    btn.classList.toggle('text-black', isActive);
-    btn.classList.toggle('bg-white/10', !isActive);
-    btn.classList.toggle('text-white', !isActive);
-  });
-}
-
-function setLibraryFilter(filter) {
-  const next = libraryFilterLabels[filter] ? filter : 'all';
-  libraryFilter = next;
-  updateLibraryFilterButtons();
-
-  if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridItems());
-  }
-
-  if (navCurrent && navCurrent.type === 'home') {
-    try { renderHome(); } catch (e) {}
-    if (window.innerWidth > 768) {
-      renderGrid(getLibraryGridItems());
-    }
-        }
 }
 
 function getLibraryRecentsRank() {
@@ -1915,7 +1878,7 @@ function getLibraryRecentsRank() {
   return rank;
 }
 
-function getLibraryAlbumData() {
+function getLibraryGridData() {
   const base = Array.isArray(libraryData) ? libraryData.slice() : [];
   const original = Array.isArray(libraryDataOriginal) && libraryDataOriginal.length
     ? libraryDataOriginal.slice()
@@ -1984,108 +1947,6 @@ function getLibraryAlbumData() {
   return original;
 }
 
-function getLibraryGridItems(mode, libraryFilter) {
-  // 1. Fetch and Normalize Data
-  const albums = getLibraryAlbumData().map(album => ({
-    ...album,
-    type: 'album',
-    displayName: album.albumName, // Standardize name for sorting
-    displayCreator: album.artistName
-  }));
-
-  const pinnedIds = loadPinnedPlaylists();
-  const pinnedSet = new Set(pinnedIds);
-  
-  // Note: Ensure 'playlists' is defined or passed in
-  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-  
-  const playlistItems = [...pinnedPlaylists, ...unpinnedPlaylists].map(pl => ({
-    type: 'playlist',
-    id: pl.id,
-    displayName: pl.name || 'Playlist',
-    displayCreator: 'Playlist', // Or the owner's name
-    cover: getEffectivePlaylistCover(pl),
-    isPinned: pinnedSet.has(pl.id)
-  }));
-
-  // 2. Filter base data
-  let base = [];
-  if (libraryFilter === 'playlists') base = playlistItems;
-  else if (libraryFilter === 'albums') base = albums;
-  else if (libraryFilter === 'podcasts') base = [];
-  else base = [...playlistItems, ...albums];
-
-  // 3. Sorting Logic
-  if (mode === 'Alphabetical by album') {
-    return base.sort((a, b) => String(a.displayName || '').localeCompare(String(b.displayName || '')));
-  }
-
-  if (mode === 'Alphabetical by artist' || mode === 'Creator') {
-    return base.sort((a, b) => {
-      const aa = String(a.displayCreator || '').localeCompare(String(b.displayCreator || ''));
-      if (aa !== 0) return aa;
-      return String(a.displayName || '').localeCompare(String(b.displayName || ''));
-    });
-  }
-
-  if (mode === 'Recent') {
-    const rank = getLibraryRecentsRank();
-    return base.sort((a, b) => {
-      // Use IDs for ranking lookups for better accuracy
-      const ra = rank.has(a.id) ? rank.get(a.id) : 999999;
-      const rb = rank.has(b.id) ? rank.get(b.id) : 999999;
-      if (ra !== rb) return ra - rb;
-      return String(a.displayName || '').localeCompare(String(b.displayName || ''));
-    });
-  }
-
-  if (mode === 'Custom order') {
-    const stored = JSON.parse(localStorage.getItem('libraryCustomOrder') || 'null');
-    if (Array.isArray(stored) && stored.length) {
-      const map = new Map(stored.map((id, i) => [id, i]));
-      return base.sort((a, b) => {
-        const ia = map.has(a.id) ? map.get(a.id) : 999999;
-        const ib = map.has(b.id) ? map.get(b.id) : 999999;
-        if (ia !== ib) return ia - ib;
-        return String(a.displayName || '').localeCompare(String(b.displayName || ''));
-      });
-    }
-  }
-
-  return base;
-}
-function getLibraryGridItems() {
-  const albums = getLibraryAlbumData().map(album => ({
-    ...album,
-    type: 'album'
-  }));
-
-  const pinnedIds = loadPinnedPlaylists();
-  const pinnedSet = new Set(pinnedIds);
-  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-
-  const playlistItems = orderedPlaylists.map(pl => ({
-    type: 'playlist',
-    id: pl.id,
-    name: pl.name || 'Playlist',
-    cover: getEffectivePlaylistCover(pl)
-  }));
-
-  if (libraryFilter === 'playlists') return playlistItems;
-  if (libraryFilter === 'albums') return albums;
-  if (libraryFilter === 'podcasts') return [];
-
-  return [...playlistItems, ...albums];
-}
-
-  }
-
-  return original;
-}
-
 function setLibraryControlsVisibility() {
   const controls = document.getElementById('library-controls');
   if (!controls) return;
@@ -2132,17 +1993,6 @@ function initLibraryControls() {
   const label = document.getElementById('library-sort-label');
   if (label) label.textContent = librarySortMode;
 }
-   function initLibraryFilters() {
-  document.querySelectorAll('.library-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const filter = btn.getAttribute('data-library-filter') || 'all';
-      setLibraryFilter(filter);
-    });
-  });
-
-  updateLibraryFilterButtons();
-}
-     
 
 function highlightSongInAlbum(songTitle) {
   const wanted = String(songTitle || '').replace('.mp3', '').trim().toLowerCase();
@@ -2578,77 +2428,20 @@ renderGrid = function(data) {
     const safeName = String(album.albumName || '').replace(/'/g, "\\'");
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
-      const items = Array.isArray(data) ? data : [];
-
-  if (!items.length) {
-    const emptyLabel = libraryFilter === 'playlists'
-      ? 'No playlists yet.'
-      : libraryFilter === 'albums'
-        ? 'No albums yet.'
-        : libraryFilter === 'podcasts'
-          ? 'No podcasts yet.'
-          : 'No items yet.';
-
-    grid.innerHTML = `<div class="text-zinc-500 text-sm">${emptyLabel}</div>`;
-    return;
-  }
-
-  grid.innerHTML = items.map((item) => {
-    if (item.type === 'playlist') {
-      const cover = item.cover || '';
-      const safeId = String(item.id || '').replace(/"/g, '&quot;');
-      const coverMarkup = cover
-        ? `<img src="${cover}" class="w-12 h-12 rounded object-cover" alt="">`
-        : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center">
-             <i class="fas fa-music text-white/70"></i>
-           </div>`;
-
-      return `
-        <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-             data-type="playlist"
-             data-playlist-id="${safeId}">
-          ${coverMarkup}
-          <div class="min-w-0 flex-1">
-            <div class="text-white font-bold truncate">${item.name || 'Playlist'}</div>
-            <div class="text-zinc-400 text-sm truncate">Playlist</div>
-          </div>
-          <i class="fas fa-chevron-right text-zinc-500"></i>
-        </div>
-      `;
-    }
-
-    const safeName = String(item.albumName || '').replace(/'/g, "\\'");
-    const cover = getAlbumCover(item.artistName, item.albumName, item.coverArt);
-
     return `
       <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-           data-type="album"
-           data-album="${safeName}">
-        <img src="${cover}" class="w-12 h-12 rounded object-cover" alt="">
+           onclick="openAlbumByName('${safeName}')">
+        <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
-           <div class="text-white font-bold truncate">${item.albumName || ''}</div>
-          <div class="text-zinc-400 text-sm truncate">${item.artistName || ''}</div>
+          <div class="text-white font-bold truncate">${album.albumName || ''}</div>
+          <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
         </div>
         <i class="fas fa-chevron-right text-zinc-500"></i>
       </div>
     `;
   }).join('');
+};
 
-    [...grid.querySelectorAll('[data-type]')].forEach(row => {
-    row.addEventListener('click', () => {
-      const type = row.getAttribute('data-type');
-      if (type === 'playlist') {
-        const id = row.getAttribute('data-playlist-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-        return;
-      }
-      const album = row.getAttribute('data-album');
-      if (album) openAlbumByName(album);
-    });
-  });
-};    
-    
 const __showViewOriginal = showView;
 showView = function(viewType, playlistIndex = null) {
   __showViewOriginal(viewType, playlistIndex);
@@ -2658,7 +2451,7 @@ showView = function(viewType, playlistIndex = null) {
 
   // If we entered Library, apply sort immediately
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridItems());
+    renderGrid(getLibraryGridData());
   }
 };
 
@@ -2674,7 +2467,6 @@ renderPlaylists();
 
             // ✅ Library: enable Sort dropdown + Library search (desktop + mobile)
             initLibraryControls();
-            initLibraryFilters();
             initLibrarySearchBox();
 
             updateCounts();
@@ -3099,7 +2891,7 @@ const scrollArea = document.getElementById('main-scroll-area');
     } else {
       // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
-      renderGrid(getLibraryGridItems());
+      renderGrid(libraryData);
       renderHistory();
       try { renderHome(); } catch (e) {}
     }
@@ -3108,7 +2900,7 @@ const scrollArea = document.getElementById('main-scroll-area');
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  renderGrid(getLibraryGridItems());
+  renderGrid(getLibraryGridData());
   renderHistory();
 
   if (window.innerWidth <= 768) {
@@ -3171,62 +2963,17 @@ function renderGrid(data) {
   grid.innerHTML = data.map((album) => {
     const safeName = album.albumName.replace(/'/g, "\\'");
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
- if (!data.length) {
-    const emptyLabel = libraryFilter === 'playlists'
-      ? 'No playlists yet.'
-      : libraryFilter === 'albums'
-        ? 'No albums yet.'
-        : libraryFilter === 'podcasts'
-          ? 'No podcasts yet.'
-          : 'No items yet.';
 
-    grid.innerHTML = `<div class="text-zinc-500 text-sm col-span-full">${emptyLabel}</div>`;
-    return;
-  }
-
-  grid.innerHTML = data.map((item) => {
-    if (item.type === 'playlist') {
-      const safeId = String(item.id || '').replace(/"/g, '&quot;');
-      const name = item.name || 'Playlist';
-      const cover = item.cover
-        ? `<img src="${item.cover}" class="w-full h-full object-cover" alt="">`
-        : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
-             <i class="fas fa-music text-white/70 text-2xl"></i>
-           </div>`;
-
-      return `
-        <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
-             data-type="playlist"
-             data-playlist-id="${safeId}">
-
-          <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-            ${cover}
-          </div>
-
-          <div class="font-bold text-white truncate text-base mb-1">
-            ${name}
-          </div>
-
-          <div class="text-sm text-zinc-400 truncate">
-            Playlist
-          </div>
-        </div>
-      `;
-    }
-
-    const safeName = item.albumName.replace(/'/g, "\\'");
-    const cover = getAlbumCover(item.artistName, item.albumName, item.coverArt);
     return `
       <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
-      data-type="album"
            data-album="${safeName}">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover" alt="">
+          <img src="${cover}" class="w-full h-full object-cover">
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
-          $ ${item.albumName}
+          ${album.albumName}
         </div>
 
         <div class="text-sm text-zinc-400 truncate">
@@ -3238,13 +2985,6 @@ function renderGrid(data) {
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
-         const type = card.getAttribute('data-type');
-      if (type === 'playlist') {
-        const id = card.getAttribute('data-playlist-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-        return;
-      }
       const album = card.getAttribute('data-album');
       if (album) openAlbumByName(album);
     });
@@ -4581,22 +4321,8 @@ function checkDockVisibility() {
         // HOME RENDERING (Mobile Home + Desktop Home)
         // -----------------------
 
-     function filterHistoryItemsByLibraryFilter(items) {
-          const normalizeType = (item) => item.type || 'album';
-          if (libraryFilter === 'playlists') {
-            return items.filter(item => normalizeType(item) === 'playlist');
-          }
-          if (libraryFilter === 'albums') {
-            return items.filter(item => normalizeType(item) === 'album');
-          }
-          if (libraryFilter === 'podcasts') {
-            return [];
-          }
-          return items;
-        }
         function getHistoryItemsForHome() {
-           const items = Array.isArray(history) ? history.slice(0, 8) : [];
-          return filterHistoryItemsByLibraryFilter(items);
+          return Array.isArray(history) ? history.slice(0, 8) : [];
         }
 
         function getRecentlyAddedAlbums(limit = 12) {
@@ -4613,16 +4339,10 @@ function checkDockVisibility() {
           if (!grid) return;
 
           const items = getHistoryItemsForHome();
-                      const emptyLabel = libraryFilter === 'playlists'
-            ? 'No playlists yet.'
-            : libraryFilter === 'albums'
-              ? 'No albums yet.'
-              : libraryFilter === 'podcasts'
-                ? 'No podcasts yet.'
-                : 'Play something to see it here.';
 
           if (!items.length) {
-           grid.innerHTML = `<div class="text-zinc-500 text-sm">${emptyLabel}</div>`;
+            grid.innerHTML = `<div class="text-zinc-500 text-sm">Play something to see it here.</div>`;
+            return;
           }
 
           grid.innerHTML = items.map(h => {
@@ -4663,16 +4383,6 @@ function checkDockVisibility() {
         function renderHomeRecentlyAdded(containerId) {
           const row = document.getElementById(containerId);
           if (!row) return;
-
-            if (libraryFilter === 'playlists') {
-            row.innerHTML = `<div class="text-zinc-500 text-sm">No playlists to show here.</div>`;
-            return;
-          }
-
-          if (libraryFilter === 'podcasts') {
-            row.innerHTML = `<div class="text-zinc-500 text-sm">No podcasts yet.</div>`;
-            return;
-          }
 
           const albums = getRecentlyAddedAlbums(12);
 
