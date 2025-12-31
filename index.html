@@ -275,49 +275,72 @@ img {
 
 .track-row.is-current,
 .track-row.active-track {
-    background: transparent;
+  background: transparent;
+  color: var(--spotify-green);
 }
 
 /* -----------------------
-   SWIPE LEFT (Add to queue) — Spotify-ish
+   SWIPE-TO-QUEUE (album track rows)
+   - prevents grey page showing
+   - green reveal follows finger
 ------------------------ */
-.track-row {
-  overflow: hidden;                 /* lets the green underlay reveal cleanly */
-  touch-action: pan-y;              /* allow vertical scroll unless we “take over” horizontally */
+.swipeable-track{
+  position: relative;
+  overflow: hidden;            /* IMPORTANT: stops the grey area */
+  border-radius: 10px;
+  padding: 0 !important;
 }
 
-.track-row .swipe-underlay {
+/* green layer underneath */
+.swipeable-track .swipe-bg{
   position: absolute;
   inset: 0;
+  background: var(--spotify-green);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding-right: 18px;
-  background: #1db954;              /* Spotify green */
-  transform: translateX(100%);      /* hidden by default */
-  will-change: transform;
   pointer-events: none;
 }
 
-.track-row .swipe-underlay .swipe-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 9999px;
-  background: rgba(0,0,0,0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* optional icon/label on the green */
+.swipeable-track .swipe-bg .swipe-ico{
+  color: #0b0b0b;
   font-weight: 900;
-  color: white;
   font-size: 18px;
+  opacity: 0.9;
 }
 
-.track-row .swipe-content {
+/* the content that slides */
+.swipeable-track .swipe-fg{
   position: relative;
   z-index: 1;
+
+  display: grid;
+  grid-template-columns: 40px 6fr 4fr 3fr 80px;
+  gap: 16px;
+  padding: 12px;
+  align-items: center;
+
+  color: var(--text-sub);
+  font-size: 14px;
+  user-select: none;
+
+  transform: translateX(0);
   will-change: transform;
 }
 
+/* keep your hover behavior (desktop) */
+.swipeable-track:hover .swipe-fg{
+  background: rgba(255,255,255,0.1);
+  color: white;
+  cursor: pointer;
+}
+
+/* mobile: don’t let iOS show side “rubber band” */
+html, body{
+  overflow-x: hidden;
+}
 
         .track-header { 
             text-transform: uppercase; 
@@ -3895,9 +3918,10 @@ function openAlbumByName(name) {
 
   album.songs.forEach((song, i) => {
     const row = document.createElement('div');
-    row.className = "track-row group";
+    row.className = "track-row group swipeable-track";
 
         const songUrl = song.url || song.link;
+
     const songTitle = song.title || song.name;
 
     const isCurrent = currentSong && (currentSong.url === songUrl);
@@ -3930,27 +3954,34 @@ attachSongPressHandlers(
       longPressState
     );
 
-// ✅ Swipe left to add to queue (green follows finger)
-if (typeof attachSwipeAddToQueue === 'function') {
-  attachSwipeAddToQueue(row, { ...song, url: songUrl, title: songTitle, album: album.albumName, artist: album.artistName, cover: cover });
-}
-
 // Desktop “Album” column cell used in the template below
 const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
     row.innerHTML = `
-
-      <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
-        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-      </span>
-      <div class="flex flex-col">
-        <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-        <div data-role="sub" class="track-artist md:hidden">${song.artist || album.artistName || ''}</div>
+      <div class="swipe-bg">
+        <span class="swipe-ico">＋</span>
       </div>
-      ${albumCell}
-      <span class="hidden md:block">Just now</span>
-      <span class="track-menu">•••</span>
+
+      <div class="swipe-fg">
+        <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
+          ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+        </span>
+        <div class="flex flex-col">
+          <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+          <div data-role="sub" class="track-artist md:hidden">${song.artist || album.artistName || ''}</div>
+        </div>
+        ${albumCell}
+        <span class="hidden md:block">Just now</span>
+        <span class="track-menu">•••</span>
+      </div>
     `;
+
+// ✅ Swipe left to add to queue (green follows finger)
+if (typeof attachQueueSwipeHandlers === 'function') {
+  attachQueueSwipeHandlers(row, { ...song, url: songUrl, title: songTitle, album: album.albumName, artist: album.artistName, cover: cover }, longPressState);
+}
+
+
 
     // If the album is clickable, clicking it should NOT play the song row
     const albumBtn = row.querySelector('button[data-album]');
@@ -4602,7 +4633,124 @@ function openNowPlaying() {
 }
 
 // --- QUEUE SHEET: swipe down to dismiss (same feel as Now Playing) ---
+/* -----------------------
+   SWIPE LEFT TO ADD TO QUEUE (mobile)
+   - Green reveal follows finger speed
+   - Triggers addSongToQueue(song) past threshold
+------------------------ */
+function attachQueueSwipeHandlers(rowEl, songObj, longPressState) {
+  if (!rowEl || !songObj) return;
+
+  const isMobile = () => window.innerWidth <= 768;
+
+  let active = false;
+  let decided = false;
+  let isHorizontal = false;
+  let startX = 0;
+  let startY = 0;
+  let lastDx = 0;
+
+  const fg = rowEl.querySelector('.swipe-fg');
+  if (!fg) return;
+
+  function getXY(e){
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function reset(animate = true){
+    active = false;
+    decided = false;
+    isHorizontal = false;
+    lastDx = 0;
+
+    rowEl.style.touchAction = 'pan-y';
+
+    if (animate) fg.style.transition = 'transform 160ms ease';
+    fg.style.transform = 'translateX(0)';
+    if (animate) {
+      const done = () => {
+        fg.style.transition = '';
+        fg.removeEventListener('transitionend', done);
+      };
+      fg.addEventListener('transitionend', done);
+    } else {
+      fg.style.transition = '';
+    }
+  }
+
+  rowEl.style.touchAction = 'pan-y';
+
+  rowEl.addEventListener('pointerdown', (e) => {
+    if (!isMobile()) return;
+    if (rowEl.closest('#context-menu') || rowEl.closest('#np-sheet')) return;
+    if (longPressState && longPressState.longPress) return;
+
+    const { x, y } = getXY(e);
+    active = true;
+    decided = false;
+    isHorizontal = false;
+    startX = x;
+    startY = y;
+    lastDx = 0;
+
+    fg.style.transition = '';
+    try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: true });
+
+  rowEl.addEventListener('pointermove', (e) => {
+    if (!active) return;
+    if (!isMobile()) return;
+
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
+
+    if (!decided) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+      if (isHorizontal) rowEl.style.touchAction = 'none';
+    }
+
+    if (!isHorizontal) return;
+
+    const left = Math.min(0, dx);
+    const clamped = Math.max(left, -140);
+    lastDx = clamped;
+
+    e.preventDefault();
+    fg.style.transform = `translateX(${clamped}px)`;
+  }, { passive: false });
+
+  rowEl.addEventListener('pointerup', () => {
+    if (!active) return;
+
+    const triggerThreshold = -95;
+    const shouldTrigger = lastDx <= triggerThreshold;
+
+    if (shouldTrigger) {
+      fg.style.transition = 'transform 120ms ease';
+      fg.style.transform = 'translateX(-140px)';
+      setTimeout(() => {
+        try { addSongToQueue(songObj); } catch (e) {}
+        reset(true);
+      }, 90);
+      return;
+    }
+
+    reset(true);
+  }, { passive: true });
+
+  rowEl.addEventListener('pointercancel', () => {
+    if (!active) return;
+    reset(true);
+  }, { passive: true });
+}
+
 function initQueueSheetSwipe() {
+
   const sheet = document.getElementById('queue-sheet');
   if (!sheet) return;
 
