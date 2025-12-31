@@ -195,17 +195,69 @@ img {
         }
 
         .right-sidebar { 
-    width: 300px; 
-    min-width: 250px; 
-    max-width: 450px; 
-    background: var(--bg-base); 
-    display: flex; 
-    flex-direction: column; 
-    padding: 24px 16px; 
-    flex-shrink: 0; 
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden; /* lets the lyrics area scroll inside */
-}
+            width: 300px; 
+            min-width: 250px; 
+            max-width: 450px; 
+            background: var(--bg-base); 
+            display: flex; 
+            flex-direction: column; 
+            padding: 24px 16px; 
+            flex-shrink: 0; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+
+        /* --- Desktop right panel: Lyrics --- */
+        .lyrics-card{
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 16px;
+          padding: 12px 12px 10px;
+          overflow: hidden;
+        }
+        .lyrics-header{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+        .lyrics-title{
+          font-weight: 800;
+          font-size: 14px;
+          letter-spacing: 0.2px;
+          color: rgba(255,255,255,0.92);
+        }
+        .lyrics-source-link{
+          font-size: 12px;
+          font-weight: 700;
+          color: rgba(255,255,255,0.70);
+          text-decoration: none;
+        }
+        .lyrics-source-link:hover{
+          text-decoration: underline;
+          color: rgba(255,255,255,0.92);
+        }
+        .lyrics-status{
+          font-size: 12px;
+          font-weight: 700;
+          color: rgba(255,255,255,0.60);
+          margin: 0 0 8px 0;
+        }
+        .lyrics-box{
+          margin: 0;
+          white-space: pre-wrap;
+          word-break: break-word;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+          font-size: 14px;
+          line-height: 1.5;
+          color: rgba(255,255,255,0.88);
+          max-height: 46vh;
+          overflow: auto;
+          padding-right: 6px;
+        }
+        .lyrics-box::-webkit-scrollbar{ width: 8px; }
+        .lyrics-box::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.18); border-radius: 8px; }
+
 
 /* Desktop ONLY: never show the right sidebar on mobile */
 @media (max-width: 768px) {
@@ -1729,29 +1781,25 @@ body.qs-lock {
 <!-- RIGHT SIDEBAR (ADDED) -->
 <div id="resizer-right" class="resizer hidden md:block"></div>
 
-<aside id="right-sidebar" class="right-sidebar sidebar-hidden">
-  <div class="p-4 flex flex-col h-full gap-4">
-    <!-- Cover + title -->
-    <div class="space-y-4">
-      <img id="right-cover" src="" class="w-full aspect-square rounded-xl bg-zinc-800 object-cover" alt="">
-      <div>
-        <div id="right-title" class="text-xl font-black">—</div>
-        <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
-      </div>
+<aside id="right-sidebar" class="right-sidebar hidden lg:flex">
+  <div class="space-y-4 p-4">
+    <img id="right-cover" src="" class="w-full aspect-square rounded-xl bg-zinc-800 object-cover" alt="">
+    <div>
+      <div id="right-title" class="text-xl font-black">—</div>
+      <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
     </div>
 
-    <!-- Lyrics card -->
-    <div class="right-lyrics-card rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col min-h-0">
-      <div class="flex items-center justify-between mb-3">
-        <div class="text-sm font-extrabold text-white/90">Lyrics</div>
-        <div id="right-lyrics-status" class="text-xs text-zinc-400">—</div>
+    <!-- Lyrics panel (desktop only) -->
+    <section class="lyrics-card">
+      <div class="lyrics-header">
+        <div class="lyrics-title">Lyrics</div>
+        <a id="right-lyrics-source" class="lyrics-source-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Source</a>
       </div>
-
-      <pre id="right-lyrics" class="right-lyrics-text text-sm text-white/80 whitespace-pre-wrap leading-6 overflow-auto min-h-0"></pre>
-    </div>
+      <div id="right-lyrics-status" class="lyrics-status">Play a song to load lyrics.</div>
+      <pre id="right-lyrics" class="lyrics-box" aria-label="Lyrics"></pre>
+    </section>
   </div>
 </aside>
-
 
 </div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
 
@@ -3323,7 +3371,13 @@ window.onload = async () => {
     }
   };
 
-  safe(setGreeting);
+    safe(setGreeting);
+
+  // Desktop: show the right panel (it stays empty until a song plays)
+  if (window.innerWidth >= 1024) {
+    try { toggleRightSidebar(true); } catch (e) {}
+  }
+
 
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
@@ -4548,10 +4602,11 @@ async function playSpecificSong(url, title, album, artist, cover) {
   }
 
     // Sidebars
-  if (window.innerWidth >= 1024) toggleRightSidebar(true);
-  document.getElementById('right-cover').src = cover;
-  document.getElementById('right-title').innerText = title.replace('.mp3', '');
-  document.getElementById('right-artist').innerText = artist;
+  // Right sidebar (desktop only)
+  const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
+  setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
+  loadRightLyrics(cleanTitle, artist);
+
 
   // Lyrics (desktop right sidebar)
   updateRightLyricsForSong(currentSong);
@@ -5442,8 +5497,89 @@ function checkDockVisibility() {
 }
 
         function toggleRightSidebar(show) {
-            rightSidebar.classList.toggle('sidebar-hidden', !show);
-        }
+  // Desktop-only right panel (Spotify-style). On mobile it stays hidden.
+  if (window.innerWidth < 1024) return;
+  if (!rightSidebar) return;
+  rightSidebar.classList.toggle('sidebar-hidden', !show);
+}
+
+// Keep right panel metadata in sync with the currently playing song
+function setRightSidebarNowPlaying({ title, artist, cover }) {
+  if (window.innerWidth < 1024) return;
+
+  // Ensure panel is visible on desktop
+  toggleRightSidebar(true);
+
+  const rc = document.getElementById('right-cover');
+  const rt = document.getElementById('right-title');
+  const ra = document.getElementById('right-artist');
+
+  if (rc && cover) rc.src = cover;
+  if (rt) rt.innerText = title || '—';
+  if (ra) ra.innerText = artist || '—';
+}
+
+// Lyrics providers:
+// 1) LRCLIB (free, no key) - returns plain or synced lyrics when available
+// 2) Fallback: provide a Genius search link when lyrics aren't available
+async function loadRightLyrics(title, artist) {
+  if (window.innerWidth < 1024) return;
+
+  const box = document.getElementById('right-lyrics');
+  const status = document.getElementById('right-lyrics-status');
+  const source = document.getElementById('right-lyrics-source');
+
+  if (!box || !status || !source) return;
+
+  // Reset UI
+  box.textContent = '';
+  status.textContent = 'Loading lyrics…';
+  source.style.display = 'none';
+  source.href = '#';
+
+  const t = String(title || '').trim();
+  const a = String(artist || '').trim();
+
+  if (!t) {
+    status.textContent = 'Play a song to load lyrics.';
+    return;
+  }
+
+  // Build the Genius search URL for fallback / source link
+  const geniusUrl = 'https://genius.com/search?q=' + encodeURIComponent((a ? (a + ' ') : '') + t);
+
+  try {
+    const url = 'https://lrclib.net/api/get?track_name=' + encodeURIComponent(t) +
+                (a ? ('&artist_name=' + encodeURIComponent(a)) : '');
+    const res = await fetch(url, { method: 'GET' });
+    if (!res.ok) throw new Error('LRCLIB HTTP ' + res.status);
+
+    const data = await res.json();
+    const lyrics = (data && (data.plainLyrics || data.syncedLyrics)) ? String(data.plainLyrics || data.syncedLyrics) : '';
+
+    if (lyrics && lyrics.trim().length) {
+      box.textContent = lyrics.trim();
+      status.textContent = 'Lyrics';
+      source.textContent = 'LRCLIB';
+      source.href = 'https://lrclib.net/';
+      source.style.display = 'inline';
+      return;
+    }
+
+    // No lyrics found
+    status.textContent = 'No lyrics found for this track.';
+    source.textContent = 'Search on Genius';
+    source.href = geniusUrl;
+    source.style.display = 'inline';
+  } catch (err) {
+    console.warn('Lyrics load failed:', err);
+    status.textContent = 'Could not load lyrics (network or CORS).';
+    source.textContent = 'Search on Genius';
+    source.href = geniusUrl;
+    source.style.display = 'inline';
+  }
+}
+
 
         function initResizers() {
             const resizerL = document.getElementById('resizer-left');
