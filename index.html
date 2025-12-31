@@ -779,79 +779,9 @@ img {
     object-fit: cover;
   }
 
-  /* album hero sizing (mobile Spotify-like) */
-  #album-hero,
-  #artist-hero > div {
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 16px !important;
-  }
-
-  #album-hero > div {
-    width: 100%;
-  }
-
-  /* Make hero images bigger and centered on mobile */
-  #album-hero img,
-  #artist-hero img {
-    width: 220px !important;
-    height: 220px !important;
-    max-width: 100% !important;
-    flex-shrink: 0 !important;
-  }
-
-  /* Album/Artist labels */
-  #album-hero p,
-  #artist-hero p {
-    margin-bottom: 6px !important;
-  }
-
-  #album-hero .album-hero-info {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 8px !important;
-  }
-
-  #album-hero .album-hero-label {
-    display: none !important;
-  }
-
-  /* Titles: responsive, no overflow, nice wrap */
-  #album-hero h1,
-  #artist-hero h1 {
-    font-size: clamp(26px, 7vw, 36px) !important;
-    line-height: 1.1 !important;
-    margin-bottom: 0 !important;
-    max-width: 100% !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  #album-hero .album-hero-artist {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    font-size: 16px !important;
-    font-weight: 600 !important;
-  }
-
-  #album-hero .album-hero-artist img {
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 9999px !important;
-    object-fit: cover !important;
-  }
-
-  #album-hero .album-hero-meta {
-    font-size: 14px !important;
-    color: var(--text-sub) !important;
-  }
-
-  /* prevent iOS auto-zoom */
+    /* prevent iOS auto-zoom */
   .search-input { font-size: 16px; }
-}
+
 
 
 
@@ -1161,18 +1091,44 @@ img {
 
   <div id="album-hero" class="flex items-end gap-6 mb-10"></div>
 
-  <div class="flex items-center gap-8 mb-8">
-    <button id="hero-play-btn"
-            class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
-      <i class="fas fa-play text-black text-xl ml-1"></i>
-    </button>
+   <div id="album-controls" class="mb-8">
+    <div class="album-controls-left">
+      <!-- plus (non-functional for now) -->
+      <button id="hero-plus-btn"
+              class="text-2xl text-zinc-300 hover:text-white transition"
+              aria-label="Add">
+        <i class="fas fa-plus"></i>
+      </button>
 
-    <button id="hero-more-btn"
-            class="fas fa-ellipsis-h text-2xl text-zinc-400 hover:text-white cursor-pointer"
-            onclick="openPlaylistPinMenuFromHero(event)"
-            aria-label="Playlist options">
-    </button>
+      <!-- three dots (keep your existing menu behavior) -->
+      <button id="hero-more-btn"
+              class="text-2xl text-zinc-300 hover:text-white transition"
+              onclick="openPlaylistPinMenuFromHero(event)"
+              aria-label="More options">
+        <i class="fas fa-ellipsis-h"></i>
+      </button>
+    </div>
+
+    <div class="album-controls-right">
+      <!-- shuffle (uses your existing shuffle logic) -->
+      <button id="album-shuffle-btn"
+              class="text-xl text-zinc-300 hover:text-white transition"
+              onclick="toggleShuffle()"
+              aria-label="Shuffle">
+        <i id="album-shuffle-icon" class="fas fa-shuffle"></i>
+      </button>
+
+      <!-- play (your existing button, just relocated) -->
+      <button id="hero-play-btn"
+              class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg"
+              aria-label="Play">
+        <i class="fas fa-play text-black text-xl ml-1"></i>
+      </button>
+    </div>
   </div>
+
+<div class="track-row track-header">
+
 
 <div class="track-row track-header">
   <span>#</span>
@@ -5463,17 +5419,20 @@ function resetShuffleForQueue() {
 function toggleShuffle() {
     const desktopBtn = document.getElementById('btn-shuffle');
     const mobileIcon = document.getElementById('np-shuffle-icon');
+    const albumIcon = document.getElementById('album-shuffle-icon');
 
-    // Determine current state (check either UI)
+    // Determine current state (check any UI)
     const currentlyOn =
         desktopBtn?.classList.contains('active-green') ||
-        mobileIcon?.classList.contains('active-green');
+        mobileIcon?.classList.contains('active-green') ||
+        albumIcon?.classList.contains('active-green');
 
     const nextState = !currentlyOn;
 
-    // Update BOTH UIs (desktop + mobile)
+    // Update ALL UIs (desktop + now-playing + album)
     if (desktopBtn) desktopBtn.classList.toggle('active-green', nextState);
     if (mobileIcon) mobileIcon.classList.toggle('active-green', nextState);
+    if (albumIcon) albumIcon.classList.toggle('active-green', nextState);
 
     // If turning shuffle on/off while a queue exists, rebuild shuffle order
     if (currentQueue && currentQueue.length > 0 && currentIndex >= 0) {
