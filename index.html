@@ -245,6 +245,27 @@ img {
 .track-row > * {
     min-width: 0;
 }
+.track-row .track-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+.track-row .track-artist {
+    font-size: 14px;
+    font-weight: 500;
+    color: #b3b3b3;
+    line-height: 1.2;
+    margin-top: 6px;
+}
+.track-row .track-menu {
+    display: none;
+    align-items: center;
+    justify-content: flex-end;
+    color: #b3b3b3;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
 
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
@@ -632,13 +653,32 @@ img {
   }
 
   .track-row {
-    grid-template-columns: 1fr 40px;
-    padding: 14px 8px;
+     grid-template-columns: 1fr 36px;
+    padding: 18px 4px;
   }
   .track-row span:nth-child(1),
   .track-row span:nth-child(3),
   .track-row span:nth-child(4),
-  .track-row span:nth-child(5) { display: none; }
+  .track-row span:nth-child(5) { display: none; 
+
+.track-row .track-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .track-row .track-artist {
+    font-size: 15px;
+    font-weight: 600;
+    color: #b3b3b3;
+    margin-top: 8px;
+  }
+
+  .track-row .track-menu {
+    display: inline-flex;
+    font-size: 18px;
+  }
+
 
   /* --- MOBILE MINI PLAYER (Spotify-like) --- */
   .player-bar {
@@ -774,15 +814,19 @@ img {
   #album-hero,
   #artist-hero > div {
     flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 14px !important;
+    align-items: center !important;
+    gap: 16px !important;
   }
 
-  /* Make hero images smaller and consistent on mobile */
+  #album-hero > div {
+    width: 100%;
+  }
+
+  /* Make hero images bigger and centered on mobile */
   #album-hero img,
   #artist-hero img {
-    width: 170px !important;
-    height: 170px !important;
+    width: 220px !important;
+    height: 220px !important;
     max-width: 100% !important;
     flex-shrink: 0 !important;
   }
@@ -3040,8 +3084,8 @@ function openAlbumByName(name) {
     <div class="flex-1">
       <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
       <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
-      <div class="flex items-center gap-2 text-sm font-bold">
-        <span class="hover:underline cursor-pointer"
+       <div class="flex items-center gap-2 text-base font-semibold">
+        <span class="hover:underline cursor-pointer font-semibold"
               onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
           ${album.artistName}
         </span>
@@ -3141,12 +3185,12 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div data-role="title" class="text-white font-medium truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist || album.artistName || ''}</div>
+        <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+        <div data-role="sub" class="track-artist md:hidden">${song.artist || album.artistName || ''}</div>
       </div>
       ${albumCell}
       <span class="hidden md:block">Just now</span>
-      <span class="hidden md:block text-center">3:20</span>
+      <span class="track-menu">•••</span>
     `;
 
     // If the album is clickable, clicking it should NOT play the song row
@@ -5678,12 +5722,12 @@ if (hero && activePlaylistId) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${String(song.title || '').replace('.mp3', '')}</div>
-        <div class="text-xs text-zinc-400 md:hidden">${song.artist || ''}</div>
+          <div class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${String(song.title || '').replace('.mp3', '')}</div>
+        <div class="track-artist md:hidden">${song.artist || ''}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
       <span class="hidden md:block">Just now</span>
-      <span class="hidden md:block text-center">3:20</span>
+      <span class="track-menu">•••</span>
     `;
 
     listEl.appendChild(row);
