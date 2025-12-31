@@ -1251,7 +1251,15 @@ img {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #888; }
-    </style>
+    /* Lock background scroll when Queue Sheet is open (mobile) */
+body.qs-lock {
+  overflow: hidden !important;
+  height: 100% !important;
+  touch-action: none !important;
+}
+
+</style>
+
 </head>
 <body>
 
@@ -1893,23 +1901,6 @@ img {
     </div>
 
 
-<!-- Queue (mobile) -->
-<div id="queue-backdrop" onclick="closeQueueSheet()"></div>
-
-<div id="queue-sheet" aria-hidden="true">
-  <div id="queue-handle"></div>
-
-  <div id="queue-header">
-    <div id="queue-title-wrap">
-      <div id="queue-title">Queue</div>
-      <div id="queue-subtitle"><span style="opacity:.75">Playing</span> <b>Recent Searches</b></div>
-    </div>
-    <button id="queue-clear" onclick="clearManualQueue()">Clear</button>
-  </div>
-
-  <div id="queue-list"></div>
-</div>
-
 <!-- QUEUE TOAST (mobile) -->
 <div id="queue-toast" class="qt-hidden" role="status" aria-live="polite">
   <div class="qt-inner">
@@ -1978,23 +1969,33 @@ localStorage.setItem('playlists', JSON.stringify(playlists));
    QUEUE SHEET (mobile) — NEW qs-* version
 ------------------------ */
 function openQueueSheet() {
-  const sheet = document.getElementById('queue-sheet');
   const backdrop = document.getElementById('queue-sheet-backdrop');
+  const sheet = document.getElementById('queue-sheet');
 
-  if (backdrop) backdrop.classList.remove('qs-hidden');
-  if (sheet) sheet.classList.remove('qs-hidden');
+  if (!backdrop || !sheet) return;
 
-  // Optional: refresh list if you have a renderer (won’t crash if you don’t)
+  // Make sure queue content is up to date if you have a renderer
   try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+  try { if (typeof renderQueue === 'function') renderQueue(); } catch (e) {}
+
+  backdrop.classList.remove('qs-hidden');
+  sheet.classList.remove('qs-hidden');
+
+  // Lock background scroll like Now Playing
+  document.body.classList.add('qs-lock');
 }
 
 function closeQueueSheet() {
-  const sheet = document.getElementById('queue-sheet');
   const backdrop = document.getElementById('queue-sheet-backdrop');
+  const sheet = document.getElementById('queue-sheet');
 
-  if (sheet) sheet.classList.add('qs-hidden');
   if (backdrop) backdrop.classList.add('qs-hidden');
+  if (sheet) sheet.classList.add('qs-hidden');
+
+  // Unlock background scroll
+  document.body.classList.remove('qs-lock');
 }
+
 
 // Bind buttons safely after DOM exists
 window.addEventListener('DOMContentLoaded', () => {
@@ -3045,6 +3046,23 @@ showView = function(viewType, playlistIndex = null) {
 
 window.onload = async () => {
             setGreeting();
+
+  // Queue sheet bindings (mobile)
+  const qtOpen = document.getElementById('queue-toast-open');
+  const qsBackdrop = document.getElementById('queue-sheet-backdrop');
+
+  if (qtOpen) {
+    qtOpen.addEventListener('click', () => {
+      openQueueSheet();
+    }, { passive: true });
+  }
+
+  if (qsBackdrop) {
+    qsBackdrop.addEventListener('click', () => {
+      closeQueueSheet();
+    }, { passive: true });
+  }
+
             syncRepeatUI();
             renderHistory();
             ensurePlaylistIds();
