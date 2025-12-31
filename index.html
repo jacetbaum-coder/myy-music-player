@@ -683,6 +683,51 @@ img {
   font-size: 16px;
   border-radius: 12px;
 }
+/* ===== QUEUE TOAST (mobile) ===== */
+#queue-toast{
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+  z-index: 2800;
+
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+#queue-toast.qt-show{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#queue-toast .qt-inner{
+  background: rgba(255,255,255,0.92);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 16px 28px rgba(0,0,0,0.35);
+}
+
+#queue-toast .qt-title{
+  font-weight: 900;
+  color: #111;
+}
+
+#queue-toast .qt-open{
+  font-weight: 900;
+  color: var(--spotify-green);
+  background: transparent;
+  border: none;
+  padding: 10px 10px;
+  border-radius: 12px;
+}
+#queue-toast .qt-open:active{ transform: scale(0.98); }
+
 
 /* --- MOBILE QUEUE SHEET (Spotify-like) --- */
 #queue-backdrop{
@@ -1831,9 +1876,32 @@ img {
   <div id="queue-list"></div>
 </div>
 
+<!-- QUEUE TOAST (mobile) -->
+<div id="queue-toast" class="qt-hidden" role="status" aria-live="polite">
+  <div class="qt-inner">
+    <div class="qt-title">Added to Queue</div>
+    <button id="queue-toast-open" class="qt-open">Open</button>
+  </div>
+</div>
+
+<!-- QUEUE SHEET (mobile) -->
+<div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden"></div>
+
+<div id="queue-sheet" class="qs qs-hidden" role="dialog" aria-modal="true" aria-label="Queue">
+  <div class="qs-handle"></div>
+
+  <div class="qs-head">
+    <div>
+      <div class="qs-title">Queue</div>
+      <div class="qs-sub" id="queue-playing-line">Playing</div>
+    </div>
+    <button id="queue-clear" class="qs-clear">Clear</button>
+  </div>
+
+  <div class="qs-list" id="queue-list"></div>
+</div>
+
 <audio id="audio-player" preload="auto"></audio>
-
-
 
 
     <script>
@@ -5879,36 +5947,35 @@ function renderPlaylists() {
       showView('playlist', plIndex);
     });
 
-     closeContextMenu();
+    closeContextMenu();
     return;
   }
 
-    // LIKE / UNLIKE (existing behavior)
+  // LIKE / UNLIKE
   if (type === 'like') {
     toggleLike();
     closeContextMenu();
     return;
   }
 
-    // ADD TO QUEUE
+  // ADD TO QUEUE
   if (type === 'queue_add') {
     addToManualQueue(menuTargetSong);
     closeContextMenu();
+    showQueueToast();
     return;
   }
 
-
-    // GO TO QUEUE
+  // GO TO QUEUE
   if (type === 'queue_go') {
     closeContextMenu();
     openQueueSheet();
     return;
   }
-
-
 }
 
 // --- Playback navigation (Next/Prev + Shuffle) ---
+
         // --- Shuffle "no repeats" state ---
 let shuffleOrder = [];
 let shufflePos = 0;
