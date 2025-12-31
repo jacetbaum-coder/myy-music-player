@@ -1708,8 +1708,19 @@ function getAlbumCover(artistName, albumName, fallbackCover) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
   const v = map[key];
-  return (v && String(v).trim()) ? v : fallbackCover;
+
+  // Prefer override if present
+  let url = (v && String(v).trim()) ? String(v).trim() : (fallbackCover || "");
+
+  // Fix bad placeholder value that has no domain (comes from data, not code)
+  // "600x600?text=No+Cover+Found" -> "https://via.placeholder.com/600x600?text=No+Cover+Found"
+  if (typeof url === "string" && url.startsWith("600x600?")) {
+    url = "https://via.placeholder.com/" + url;
+  }
+
+  return url;
 }
+
 
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
@@ -3229,11 +3240,22 @@ function openAlbumByName(name) {
   // Nothing selected yet until user clicks a track or presses play
   currentIndex = -1;
 
-     // Hide ALL main views before showing album-view
+    // Hide ALL main views before showing album-view (fixes “tap does nothing” on mobile Home)
   document.getElementById('home-view')?.classList.add('hidden');
   document.getElementById('grid-view')?.classList.add('hidden');
   document.getElementById('search-view')?.classList.add('hidden');
   document.getElementById('artist-view')?.classList.add('hidden');
+
+  const albumViewEl = document.getElementById('album-view');
+  if (!albumViewEl) {
+    console.error("openAlbumByName(): missing #album-view in the HTML");
+    return;
+  }
+  albumViewEl.classList.remove('hidden');
+
+  const scrollArea = document.getElementById('main-scroll-area');
+  if (scrollArea) scrollArea.scrollTop = 0;
+
 
   const av = document.getElementById('album-view');
   if (av) {
@@ -3247,7 +3269,13 @@ function openAlbumByName(name) {
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) heroPlay.onclick = () => playAlbumByName(name);
 
-  document.getElementById('album-hero').innerHTML = `
+    const albumHeroEl = document.getElementById('album-hero');
+  if (!albumHeroEl) {
+    console.error("openAlbumByName(): missing #album-hero in the HTML");
+    return;
+  }
+  albumHeroEl.innerHTML = `
+`
     <img id="album-hero-cover"
          src="${cover}"
          class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover"
@@ -3286,8 +3314,13 @@ function openAlbumByName(name) {
     });
   }
 
-  const listEl = document.getElementById('track-list');
+    const listEl = document.getElementById('track-list');
+  if (!listEl) {
+    console.error("openAlbumByName(): missing #track-list in the HTML");
+    return;
+  }
   listEl.innerHTML = '';
+
 
   albumSongs.forEach((song, i) => {
     const row = document.createElement('div');
