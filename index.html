@@ -555,47 +555,176 @@ img {
   }
 }
 
-/* --- CONTEXT MENU --- */
+       /* --- CONTEXT MENU --- */
 
+/* Backdrop for mobile bottom sheet */
+#context-menu-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 1999;
+  display: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
 
-        /* --- CONTEXT MENU --- */
-        #context-menu { 
-            position: fixed; 
-            background: var(--bg-elevated); 
-            border-radius: 8px; 
-            padding: 6px; 
-            min-width: 220px; 
-            box-shadow: 0 16px 24px rgba(0,0,0,0.5); 
-            z-index: 2000; 
-            display: none; 
-            animation: fadeIn 0.15s ease-out;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        
-        .menu-item { 
-            padding: 12px 16px; 
-            font-size: 14px; 
-            color: #eaeaea; 
-            cursor: pointer; 
-            border-radius: 4px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            position: relative; 
-        }
-        .menu-item:hover { background: #3e3e3e; }
-        .submenu { 
-            position: absolute; 
-            left: 100%; 
-            top: 0; 
-            background: var(--bg-elevated); 
-            border-radius: 8px; 
-            padding: 6px; 
-            min-width: 200px; 
-            display: none; 
-            box-shadow: 12px 0 24px rgba(0,0,0,0.5); 
-        }
-        .menu-item:hover > .submenu { display: block; }
+/* Mobile: Spotify-like bottom sheet */
+#context-menu{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 680px;
+
+  background: rgba(30,30,30,0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+
+  border-radius: 18px 18px 0 0;
+  padding: 10px 12px 18px;
+  z-index: 2000;
+
+  display: none;
+  transform: translateY(100%);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+#context-menu .cm-handle{
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+  margin: 6px auto 10px;
+}
+
+#context-menu .cm-song{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px 10px;
+}
+
+#context-menu #cm-cover{
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+#context-menu .cm-song-meta{
+  min-width: 0;
+  flex: 1;
+}
+
+#context-menu #cm-title{
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#context-menu #cm-artist{
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#context-menu .cm-divider{
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+  margin: 8px 6px;
+}
+
+/* Menu rows inside the sheet */
+#context-menu .menu-item{
+  padding: 16px 14px;
+  font-size: 18px;
+  color: #f0f0f0;
+  cursor: pointer;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+#context-menu .menu-item:active{
+  transform: scale(0.99);
+}
+
+#context-menu .menu-item:hover{
+  background: rgba(255,255,255,0.06);
+}
+
+#context-menu .submenu{
+  display: none;
+  margin: 6px 6px 0;
+  padding: 6px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 14px;
+}
+
+#context-menu .submenu.open{
+  display: block;
+}
+
+#context-menu .submenu .menu-item{
+  padding: 14px 12px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+/* Desktop: keep the old popover behavior */
+@media (min-width: 769px){
+  #context-menu-backdrop{ display:none !important; }
+
+  #context-menu{
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    padding: 6px;
+    min-width: 220px;
+    box-shadow: 0 16px 24px rgba(0,0,0,0.5);
+    transform: none !important;
+    transition: none !important;
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+  #context-menu .menu-item{
+    padding: 12px 16px;
+    font-size: 14px;
+    border-radius: 4px;
+  }
+
+  #context-menu .submenu{
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 220px;
+    margin: 0;
+    padding: 6px;
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    display: none;
+    box-shadow: 0 16px 24px rgba(0,0,0,0.5);
+  }
+
+  #context-menu .menu-item:hover .submenu{
+    display: block;
+  }
+}
+
 
         /* --- HOME (Spotify-like mobile recents tiles) --- */
 .home-recents {
@@ -853,22 +982,45 @@ img {
 </head>
 <body>
 
-    <div id="context-menu">
-        <div class="menu-item" onclick="menuAction('like')">
-            Add to Liked Songs <i class="far fa-heart"></i>
-        </div>
-        <div class="menu-item">
-            Add to Playlist <i class="fas fa-chevron-right text-xs"></i>
-            <div id="playlist-submenu" class="submenu">
-                <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">
-                    <b>+ New Playlist</b>
-                </div>
-            </div>
-        </div>
-        <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
-            Remove from this playlist <i class="fas fa-minus-circle"></i>
-        </div>
+    <div id="context-menu-backdrop"></div>
+
+<div id="context-menu" role="dialog" aria-modal="true">
+  <div class="cm-handle"></div>
+
+  <div class="cm-song">
+    <img id="cm-cover" src="" alt="Cover">
+    <div class="cm-song-meta">
+      <div id="cm-title">Song</div>
+      <div id="cm-artist">Artist</div>
     </div>
+  </div>
+
+  <div class="cm-divider"></div>
+
+  <div class="menu-item" onclick="togglePlaylistSubmenu(event)">
+    Add to playlist
+    <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+  </div>
+
+  <div id="playlist-submenu" class="submenu">
+    <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">
+      <b>+ New Playlist</b>
+    </div>
+  </div>
+
+  <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
+    Remove from this playlist
+  </div>
+
+  <div class="menu-item" onclick="menuAction('queue_add')">
+    Add to queue
+  </div>
+
+  <div class="menu-item" onclick="menuAction('queue_go')">
+    Go to queue
+  </div>
+</div>
+
 
     <div class="flex flex-1 overflow-hidden">
         
@@ -1855,20 +2007,51 @@ if (volumeContainer) {
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
-         let suppressContextMenuCloseUntil = 0;
+const contextMenuBackdrop = document.getElementById('context-menu-backdrop');
+let suppressContextMenuCloseUntil = 0;
         let contextMenuAnchor = null;
         let contextMenuScrollHandler = null;
 
-        function closeContextMenu() {
-          contextMenu.style.display = 'none';
-          contextMenu.style.transform = '';
-          contextMenu.style.right = '';
-          contextMenuAnchor = null;
-          if (contextMenuScrollHandler) {
-            window.removeEventListener('scroll', contextMenuScrollHandler, true);
-            contextMenuScrollHandler = null;
-          }
-        }
+       function closeContextMenu() {
+  // Mobile: animate down then hide
+  if (window.innerWidth <= 768) {
+    if (contextMenuBackdrop) {
+      contextMenuBackdrop.style.opacity = '0';
+    }
+
+    // slide down
+    contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    contextMenu.style.transform = 'translateY(100%)';
+
+    setTimeout(() => {
+      contextMenu.style.display = 'none';
+      contextMenu.style.right = '';
+      contextMenuAnchor = null;
+
+      if (contextMenuBackdrop) {
+        contextMenuBackdrop.style.display = 'none';
+      }
+
+      if (contextMenuScrollHandler) {
+        window.removeEventListener('scroll', contextMenuScrollHandler, true);
+        contextMenuScrollHandler = null;
+      }
+    }, 220);
+
+    return;
+  }
+
+  // Desktop: old behavior
+  contextMenu.style.display = 'none';
+  contextMenu.style.transform = '';
+  contextMenu.style.right = '';
+  contextMenuAnchor = null;
+  if (contextMenuScrollHandler) {
+    window.removeEventListener('scroll', contextMenuScrollHandler, true);
+    contextMenuScrollHandler = null;
+  }
+}
+
         const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
@@ -4423,13 +4606,53 @@ function checkDockVisibility() {
         function showContextMenuAt(x, y, song, anchorEl = null) {
   menuTargetSong = song;
 
+  // Fill the sheet header with the pressed song
+  try {
+    const tEl = document.getElementById('cm-title');
+    const aEl = document.getElementById('cm-artist');
+    const cEl = document.getElementById('cm-cover');
+
+    if (tEl) tEl.textContent = (song && (song.title || song.name)) ? (song.title || song.name) : 'Song';
+    if (aEl) aEl.textContent = (song && song.artist) ? song.artist : 'Artist';
+    if (cEl) cEl.src = (song && (song.cover || song.coverUrl || song.art || song.image)) ? (song.cover || song.coverUrl || song.art || song.image) : (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
+  } catch (err) {}
+
   // Show / hide "Remove from playlist"
   const removeOpt = document.getElementById('menu-remove-opt');
   if (removeOpt) {
     removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
   }
 
-            const useAnchor = anchorEl && window.innerWidth <= 768;
+  // Mobile: bottom sheet (ignore x/y)
+  if (window.innerWidth <= 768) {
+    // close submenu by default
+    const sub = document.getElementById('playlist-submenu');
+    if (sub) sub.classList.remove('open');
+
+    if (contextMenuBackdrop) {
+      contextMenuBackdrop.style.display = 'block';
+      contextMenuBackdrop.style.opacity = '0';
+    }
+
+    contextMenu.style.display = 'block';
+    contextMenu.style.transition = 'none';
+    contextMenu.style.transform = 'translateY(100%)';
+
+    // animate up on next frame (same feel as your dock / now-playing)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (contextMenuBackdrop) contextMenuBackdrop.style.opacity = '1';
+        contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        contextMenu.style.transform = 'translateY(0)';
+      });
+    });
+
+    suppressContextMenuCloseUntil = Date.now() + 400;
+    return;
+  }
+
+  // Desktop: existing anchored popover behavior
+  const useAnchor = anchorEl && window.innerWidth <= 768;
   if (useAnchor) {
     contextMenu.style.position = 'fixed';
     contextMenu.style.transform = '';
@@ -4453,12 +4676,12 @@ function checkDockVisibility() {
       window.removeEventListener('scroll', contextMenuScrollHandler, true);
       contextMenuScrollHandler = null;
     }
-    document.body.appendChild(contextMenu);
   }
 
   contextMenu.style.display = 'block';
   suppressContextMenuCloseUntil = Date.now() + 400;
 }
+
 
         function handleContextMenu(e, song) {
   e.preventDefault();
@@ -4497,10 +4720,21 @@ function checkDockVisibility() {
   row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
-        function handleContextMenu(e, song) {
+        function togglePlaylistSubmenu(e){
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const sub = document.getElementById('playlist-submenu');
+  if (!sub) return;
+  sub.classList.toggle('open');
+}
+
+function handleContextMenu(e, song) {
   e.preventDefault();
   showContextMenuAt(e.pageX, e.pageY, song);
 }
+
 
         function attachSongPressHandlers(row, song, state) {
   if (!row) return;
@@ -5434,11 +5668,25 @@ function renderPlaylists() {
     return;
   }
 
-  // LIKE / UNLIKE (existing behavior)
+    // LIKE / UNLIKE (existing behavior)
   if (type === 'like') {
     toggleLike();
     closeContextMenu();
+    return;
   }
+
+  // ADD TO QUEUE (placeholder)
+  if (type === 'queue_add') {
+    closeContextMenu();
+    return;
+  }
+
+  // GO TO QUEUE (placeholder)
+  if (type === 'queue_go') {
+    closeContextMenu();
+    return;
+  }
+
 }
 
 // --- Playback navigation (Next/Prev + Shuffle) ---
