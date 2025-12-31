@@ -289,6 +289,9 @@ img {
   overflow: hidden;            /* IMPORTANT: stops the grey area */
   border-radius: 10px;
   padding: 0 !important;
+
+  /* CRITICAL: override .track-row grid so swipe layers fill full width */
+  display: block;
 }
 
 /* green layer underneath */
@@ -316,13 +319,14 @@ img {
   position: relative;
   z-index: 1;
 
+  /* This is your track row grid layout (moved onto the foreground) */
   display: grid;
   grid-template-columns: 40px 6fr 4fr 3fr 80px;
   gap: 16px;
   padding: 12px;
   align-items: center;
 
-  /* IMPORTANT: hides the green layer unless you swipe */
+  /* hides green unless you swipe */
   background: var(--bg-surface);
 
   /* match the parent rounding so no green corners leak */
@@ -347,6 +351,7 @@ img {
 html, body{
   overflow-x: hidden;
 }
+
 
         .track-header { 
             text-transform: uppercase; 
@@ -3960,16 +3965,7 @@ attachSongPressHandlers(
       longPressState
     );
 
-// ✅ Swipe left to add to queue (green follows finger)
-if (typeof attachSwipeAddToQueue === 'function') {
-  attachSwipeAddToQueue(row, {
-    ...song,
-    url: songUrl,
-    title: songTitle,
-    album: album.albumName,
-    artist: album.artistName,
-    cover: cover
-  });
+// ✅ Swipe left to add to queue (handled by attachQueueSwipeHandlers below)
 }
 
 
