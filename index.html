@@ -3368,12 +3368,41 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
 }
 
         function openAlbum(index) {
-  const idx = Number(index);
-  const album = Number.isFinite(idx) ? currentGridData[idx] : null;
-  if (album && album.albumName) {
-    openAlbumByName(album.albumName);
-  }
+  const data =
+    Array.isArray(currentGridData) && currentGridData.length
+      ? currentGridData
+      : Array.isArray(libraryDataOriginal) && libraryDataOriginal.length
+      ? libraryDataOriginal
+      : libraryData;
+
+  const album = data[index];
+  if (!album) return;
+
+  showView('album');
+
+  const albumTitle = document.getElementById('album-title');
+  const albumArtist = document.getElementById('album-artist');
+  const albumCover = document.getElementById('album-cover');
+  const trackList = document.getElementById('album-track-list');
+
+  albumTitle.textContent = album.albumName;
+  albumArtist.textContent = album.artistName;
+  albumCover.src = album.coverArt || '';
+  trackList.innerHTML = '';
+
+  album.songs.forEach((song, i) => {
+    const li = document.createElement('li');
+    li.className = 'track-row';
+    li.innerHTML = `
+      <span class="track-number">${i + 1}</span>
+      <span class="track-title">${song.title}</span>
+      <span class="track-duration">${song.duration || ''}</span>
+    `;
+    li.onclick = () => playSpecificSong(album, i);
+    trackList.appendChild(li);
+  });
 }
+
 
 function openArtistByName(artistName) {
 
