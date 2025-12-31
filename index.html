@@ -278,6 +278,47 @@ img {
     background: transparent;
 }
 
+/* -----------------------
+   SWIPE LEFT (Add to queue) — Spotify-ish
+------------------------ */
+.track-row {
+  overflow: hidden;                 /* lets the green underlay reveal cleanly */
+  touch-action: pan-y;              /* allow vertical scroll unless we “take over” horizontally */
+}
+
+.track-row .swipe-underlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 18px;
+  background: #1db954;              /* Spotify green */
+  transform: translateX(100%);      /* hidden by default */
+  will-change: transform;
+  pointer-events: none;
+}
+
+.track-row .swipe-underlay .swipe-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  background: rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: white;
+  font-size: 18px;
+}
+
+.track-row .swipe-content {
+  position: relative;
+  z-index: 1;
+  will-change: transform;
+}
+
+
         .track-header { 
             text-transform: uppercase; 
             font-size: 11px; 
@@ -2036,13 +2077,171 @@ function addSongToQueue(songObj) {
     }
   } catch (e) {}
 
-  try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
+try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
+}
+
+
+/* -----------------------
+   SWIPE LEFT ON TRACK ROW => Add to queue
+   - green follows finger
+   - fast swipe = fast animation
+   - prevents “page shaking” by only preventing default once horizontal is chosen
+------------------------ */
+function attachSwipeAddToQueue(rowEl, songObj) {
+  if (!rowEl || rowEl.__swipeQueueBound) return;
+  rowEl.__swipeQueueBound = true;
+
+  // Build DOM: underlay (green) + content wrapper (moves with finger)
+  const underlay = document.createElement('div');
+  underlay.className = 'swipe-underlay';
+  underlay.innerHTML = `<div class="swipe-icon">≡</div>`; // simple icon; you can change later
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+
+  // Move existing children into content wrapper
+  while (rowEl.firstChild) content.appendChild(rowEl.firstChild);
+
+  rowEl.appendChild(underlay);
+  rowEl.appendChild(content);
+
+  // State
+  const MOVE_DECIDE_PX = 10;
+  const REVEAL_MAX = 140;    // how far row can slide
+  const TRIGGER_PX = 90;     // how far to trigger "add to queue"
+
+  let active = false;
+  let decided = false;
+  let isHorizontal = false;
+  let startX = 0;
+  let startY = 0;
+  let lastDx = 0;
+  let consumedClick = false;
+
+  function getXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function setDrag(dx) {
+    // clamp to left only
+    const clamped = Math.max(-REVEAL_MAX, Math.min(0, dx));
+    lastDx = clamped;
+
+    // row slides left
+    content.style.transform = `translateX(${clamped}px)`;
+
+    // underlay reveals from the right (match the distance)
+    const pct = Math.min(1, Math.max(0, (-clamped) / REVEAL_MAX));
+    underlay.style.transform = `translateX(${(1 - pct) * 100}%)`;
+  }
+
+  function snapBack() {
+    content.style.transition = 'transform 140ms ease';
+    underlay.style.transition = 'transform 140ms ease';
+    setDrag(0);
+    setTimeout(() => {
+      content.style.transition = '';
+      underlay.style.transition = '';
+    }, 160);
+  }
+
+  function snapAddThenBack() {
+    // quick “commit” feel, then return
+    content.style.transition = 'transform 90ms ease';
+    underlay.style.transition = 'transform 90ms ease';
+    setDrag(-REVEAL_MAX);
+    setTimeout(() => {
+      content.style.transition = 'transform 160ms ease';
+      underlay.style.transition = 'transform 160ms ease';
+      setDrag(0);
+      setTimeout(() => {
+        content.style.transition = '';
+        underlay.style.transition = '';
+      }, 180);
+    }, 95);
+  }
+
+  // Prevent accidental “play song” click after swipe
+  rowEl.addEventListener('click', (e) => {
+    if (!consumedClick) return;
+    e.preventDefault();
+    e.stopPropagation();
+    consumedClick = false;
+  }, true);
+
+  rowEl.addEventListener('pointerdown', (e) => {
+    // don’t start if it’s already hidden or disabled
+    active = true;
+    decided = false;
+    isHorizontal = false;
+
+    const { x, y } = getXY(e);
+    startX = x;
+    startY = y;
+    lastDx = 0;
+
+    try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: true });
+
+  rowEl.addEventListener('pointermove', (e) => {
+    if (!active) return;
+
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
+
+    if (!decided) {
+      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+
+    if (!isHorizontal) return;
+
+    // we own the gesture now — stop page from “shaking”
+    e.preventDefault();
+
+    // only respond to LEFT swipes
+    if (dx >= 0) {
+      setDrag(0);
+      return;
+    }
+
+    setDrag(dx);
+  }, { passive: false });
+
+  rowEl.addEventListener('pointerup', () => {
+    if (!active) return;
+    active = false;
+
+    if (isHorizontal) {
+      // consume click so it doesn't open/play
+      consumedClick = true;
+
+      if (Math.abs(lastDx) >= TRIGGER_PX) {
+        // Add to queue + toast (your existing function already does the toast)
+        try { addSongToQueue(songObj); } catch (e) {}
+        snapAddThenBack();
+      } else {
+        snapBack();
+      }
+    }
+  }, { passive: true });
+
+  rowEl.addEventListener('pointercancel', () => {
+    if (!active) return;
+    active = false;
+    snapBack();
+  }, { passive: true });
 }
 
 
 /* -----------------------
    ALBUM COVER -> ACCENT COLOR (Spotify-like)
 ------------------------ */
+
 
 function setAccentRGB(r, g, b) {
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
@@ -3725,38 +3924,14 @@ function openAlbumByName(name) {
         artist: album.artistName,
         cover: cover
       });
-attachSongPressHandlers(row, {
-      ...song,
-      url: songUrl,
-      title: songTitle,
-      album: album.albumName,
-      artist: album.artistName,
-      cover: cover
-    }, longPressState);
+attachSongPressHandlers(
+      row,
+      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+      longPressState
+    );
 
-const titleClass = isCurrent ? 'text-[var(--spotify-green)]' : 'text-white';
-const subClass = isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400';
-
-// Make the currently playing row look active
-if (isCurrent) row.classList.add('is-current');
-
-// Desktop-only: album becomes clickable (mobile stays the same)
-const albumName = song.album || album.albumName || '';
-
-const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
-
-
-    // data hooks so we can update the green row without re-rendering
-    row.dataset.url = songUrl;
-    row.dataset.index = String(i + 1);
-
-    // Desktop-only + playlist-only: album becomes clickable
-    const albumCell = (isPlaylist && window.innerWidth > 768)
-      ? `<button type="button"
-                 data-role="album"
-                 class="truncate hidden md:block text-left text-white/80 hover:text-white hover:underline"
-                 data-album="${safeAlbumAttr}">${song.album}</button>`
-      : `<span data-role="album" class="truncate hidden md:block text-white/80">${albumName}</span>`;
+// ✅ Swipe left to add to queue (green follows finger)
+attachSwipeAddToQueue(row, song);
 
     row.innerHTML = `
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
