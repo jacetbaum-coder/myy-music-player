@@ -2665,7 +2665,31 @@ function initLibrarySearchBox() {
 
 
 // Patch renderGrid to support Library "List" view (only when you're in Library)
-const __renderGridOriginal = renderGrid;
+
+// If renderGrid doesn't exist yet (or was renamed), make a safe fallback
+const __renderGridOriginal = (typeof renderGrid === 'function')
+  ? renderGrid
+  : function fallbackRenderGrid(data) {
+      const grid = document.getElementById('album-grid');
+      if (!grid) return;
+
+      // basic "grid" fallback so Library still renders
+      grid.className = 'grid grid-cols-2 md:grid-cols-4 gap-4';
+      grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
+        const safeName = String(album.albumName || '').replace(/'/g, "\\'");
+        const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+
+        return `
+          <div class="bg-[#181818] p-4 rounded-xl hover:bg-[#242424] cursor-pointer"
+               onclick="openAlbumByName('${safeName}')">
+            <img src="${cover}" class="w-full aspect-square object-cover rounded-lg mb-3">
+            <div class="text-white font-bold truncate">${album.albumName || ''}</div>
+            <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
 renderGrid = function(data) {
   const isLibrary = (navCurrent && navCurrent.type === 'library');
 
@@ -2696,6 +2720,7 @@ renderGrid = function(data) {
     `;
   }).join('');
 };
+
 
 const __showViewOriginal = showView;
 showView = function(viewType, playlistIndex = null) {
