@@ -104,10 +104,11 @@
 #library-search-overlay input {
   caret-color: var(--spotify-green);
 }
-#library-search-overlay.hidden,
-#library-search-popover.hidden {
-  pointer-events: none;
+#library-search-overlay.hidden, #library-search-popover.hidden {
+  pointer-events: none !important;
+  display: none !important;
 }
+
 
 /* while dragging, remove transition so it follows finger */
 #now-playing-overlay.np-dragging {
@@ -1462,9 +1463,7 @@ img {
 
 
     <script>
-        window.openAlbum = openAlbum;
-window.showView = showView;
-window.playSpecificSong = playSpecificSong;
+        
         /**
          * ---------------------------------------------------------------------
          * GLOBAL APP STATE
@@ -3157,9 +3156,9 @@ function renderGrid(data) {
   grid.innerHTML = currentGridData.map((album, index) => {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
-    return `
-       <div class="album-card flex flex-col gap-2" onclick="openAlbum('${index}')">
-        <div class="relative rounded-lg overflow-hidden aspect-square">
+           return `
+        <div class="album-card group cursor-pointer" onclick="openAlbum('${index}')">
+         <div class="relative rounded-lg overflow-hidden aspect-square">
           <img src="${cover}" class="w-full h-full object-cover">
         </div>
 
@@ -3364,8 +3363,8 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
   }
 }
 
-window.openAlbum = openAlbum;
 function openArtistByName(artistName) {
+
   // BACK STACK: push current view before entering artist
   pushNavCurrent();
   setNavCurrent({ type: 'artist', artistName: artistName });
@@ -3863,8 +3862,6 @@ function openArtistByName(artistName) {
     updateNowPlayingUI();
   }
 }
-
-window.playSpecificSong = playSpecificSong;
         
 function togglePlay() {
   if (!currentSong) return;
@@ -6023,9 +6020,16 @@ player.addEventListener('ended', () => {
 // Auto-hide dock interval
 
         // Auto-hide dock interval
-        setInterval(checkDockVisibility, 30000);
+                setInterval(checkDockVisibility, 30000);
+
+        // MOVE THESE TO THE BOTTOM (functions now exist)
+        window.openAlbum = openAlbum;
+        window.showView = showView;
+        window.playSpecificSong = playSpecificSong;
+        window.openAlbumByName = openAlbumByName;
 
     </script>
+
     <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
