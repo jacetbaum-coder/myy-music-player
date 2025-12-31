@@ -684,6 +684,165 @@ img {
   border-radius: 12px;
 }
 
+/* --- MOBILE QUEUE SHEET (Spotify-like) --- */
+#queue-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  z-index: 2600;
+}
+
+#queue-sheet{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(78vh, 640px);
+  background: #2b2b2b;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  transform: translateY(100%);
+  transition: transform 260ms ease;
+  z-index: 2700;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#queue-backdrop.q-open{
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#queue-sheet.q-open{
+  transform: translateY(0);
+}
+
+#queue-handle{
+  width: 46px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.35);
+  margin: 10px auto 8px;
+  flex: 0 0 auto;
+}
+
+#queue-header{
+  padding: 0 18px 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+#queue-title-wrap{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#queue-title{
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #fff;
+}
+
+#queue-subtitle{
+  font-size: 16px;
+  color: rgba(255,255,255,0.70);
+}
+
+#queue-clear{
+  font-size: 18px;
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+#queue-clear:active{ transform: scale(0.98); }
+
+#queue-list{
+  padding: 6px 10px 16px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.queue-row{
+  display: grid;
+  grid-template-columns: 54px 1fr 46px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.queue-row:active{ background: rgba(255,255,255,0.06); }
+
+.queue-cover{
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #111;
+}
+
+.queue-main{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.queue-song{
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-artist{
+  font-size: 18px;
+  color: rgba(255,255,255,0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-row.current .queue-song{
+  color: var(--spotify-green);
+}
+
+.queue-hamburger{
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.75);
+  font-size: 22px;
+  border-radius: 12px;
+  touch-action: none;
+}
+
+.queue-hamburger:active{ background: rgba(255,255,255,0.08); }
+
+.queue-row.dragging{
+  opacity: 0.85;
+  outline: 2px solid rgba(255,255,255,0.20);
+  background: rgba(255,255,255,0.06);
+}
+
 /* Desktop: keep the old popover behavior */
 @media (min-width: 769px){
   #context-menu-backdrop{ display:none !important; }
@@ -1638,7 +1797,43 @@ img {
       </div>
     </div>
 
-    <audio id="audio-player" preload="auto"></audio>
+    <!-- Queue (mobile) -->
+<div id="queue-backdrop" onclick="closeQueueSheet()"></div>
+
+<div id="queue-sheet" aria-hidden="true">
+  <div id="queue-handle"></div>
+
+  <div id="queue-header">
+    <div id="queue-title-wrap">
+      <div id="queue-title">Queue</div>
+      <div id="queue-subtitle"><span style="opacity:.75">Playing</span> <b>Recent Searches</b></div>
+    </div>
+    <button id="queue-clear" onclick="clearManualQueue()">Clear</button>
+  </div>
+
+  <div id="queue-list"></div>
+</div>
+
+<!-- Queue (mobile) -->
+<div id="queue-backdrop" onclick="closeQueueSheet()"></div>
+
+<div id="queue-sheet" aria-hidden="true">
+  <div id="queue-handle"></div>
+
+  <div id="queue-header">
+    <div id="queue-title-wrap">
+      <div id="queue-title">Queue</div>
+      <div id="queue-subtitle"><span style="opacity:.75">Playing</span> <b>Recent Searches</b></div>
+    </div>
+    <button id="queue-clear" onclick="clearManualQueue()">Clear</button>
+  </div>
+
+  <div id="queue-list"></div>
+</div>
+
+<audio id="audio-player" preload="auto"></audio>
+
+
 
 
     <script>
@@ -5695,17 +5890,21 @@ function renderPlaylists() {
     return;
   }
 
-  // ADD TO QUEUE (placeholder)
+    // ADD TO QUEUE
   if (type === 'queue_add') {
+    addToManualQueue(menuTargetSong);
     closeContextMenu();
     return;
   }
 
-  // GO TO QUEUE (placeholder)
+
+    // GO TO QUEUE
   if (type === 'queue_go') {
     closeContextMenu();
+    openQueueSheet();
     return;
   }
+
 
 }
 
