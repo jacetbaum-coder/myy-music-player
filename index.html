@@ -1992,16 +1992,21 @@ let manualQueue = (() => {
 })();
 
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
+const makeId = () => {
+  try {
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch (e) {}
+  return 'pl_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+};
+
 playlists = playlists.map(pl => ({
   ...pl,
-  id: pl.id || crypto.randomUUID()
+  id: pl.id || makeId()
 }));
 localStorage.setItem('playlists', JSON.stringify(playlists));
 
 let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
-
-        let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
         // Elements
 const player = document.getElementById('audio-player');
@@ -2033,14 +2038,6 @@ function addSongToQueue(songObj) {
     if (bd) bd.style.display = 'none';
   } catch (e) {}
 }
-
-/* -----------------------
-   ALBUM COVER -> ACCENT COLOR (Spotify-like)
------------------------- */
-
-   ALBUM COVER -> ACCENT COLOR (Spotify-like)
------------------------- */
-
 
 /* -----------------------
    ALBUM COVER -> ACCENT COLOR (Spotify-like)
@@ -3076,101 +3073,87 @@ showView = function(viewType, playlistIndex = null) {
 };
 
 window.onload = async () => {
-            setGreeting();
+  // Never let one missing helper break app startup
+  const safe = (fn, ...args) => {
+    try {
+      if (typeof fn === 'function') return fn(...args);
+    } catch (e) {
+      console.warn('Startup helper failed:', e);
+    }
+  };
 
-  // Queue sheet bindings (mobile)
-  const qtOpen = document.getElementById('queue-toast-open');
-  const qsBackdrop = document.getElementById('queue-sheet-backdrop');
+  safe(setGreeting);
 
-  if (qtOpen) {
-    qtOpen.addEventListener('click', () => {
-      openQueueSheet();
-    }, { passive: true });
+  // These helpers are optional (they exist in some versions of your file but not all)
+  safe(window.syncRepeatUI);
+  safe(window.renderHistory);
+
+  // You already upgrade playlist IDs elsewhere; do NOT hard-require ensurePlaylistIds()
+  // safe(window.ensurePlaylistIds);
+
+  safe(window.renderPlaylists);
+
+  // Auto covers helper exists in some versions; keep it optional
+  try { if (typeof ensureAllPlaylistAutoCovers === 'function') await ensureAllPlaylistAutoCovers(); } catch (e) {}
+
+  safe(window.renderPlaylists);
+
+  // Library controls/search helpers (optional safety)
+  safe(window.initLibraryControls);
+  safe(window.initLibrarySearchBox);
+
+  safe(window.updateCounts);
+
+  safe(window.restorePlayerStateIfRecent);
+  safe(window.checkDockVisibility);
+
+  safe(window.initResizers);
+  safe(window.initGlobalKeys);
+
+  // Swipe-back helper (optional)
+  safe(window.initSwipeBack);
+
+  // Fetch library
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch('/api/get-songs', { signal: controller.signal });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+
+    libraryData = await response.json();
+    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+
+    // Keep original order for "Recently added"
+    libraryDataOriginal = libraryData.slice();
+
+    // Sort library alphabetically by album (Library grid)
+    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+
+    document.getElementById('loading')?.classList.add('hidden');
+    safe(window.showView, 'home');
+    safe(window.renderHome);
+  } catch (error) {
+    console.error("Fetch error:", error);
+
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.innerHTML = `
+        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+        <p class="text-white font-bold">Cloud Connection Failed</p>
+        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+      `;
+      loading.classList.add('hidden');
+    }
+
+    libraryData = [];
+    safe(window.showView, 'home');
   }
+};
 
-  if (qsBackdrop) {
-    qsBackdrop.addEventListener('click', () => {
-      closeQueueSheet();
-    }, { passive: true });
-  }
-
-            syncRepeatUI();
-            renderHistory();
-            ensurePlaylistIds();
-    try { await reconcilePinnedPlaylistsFromServer(); } catch (e) {}
-            renderPlaylists();
-try { await ensureAllPlaylistAutoCovers(); } catch (e) {}
-renderPlaylists();
-
-            // ✅ Library: enable Sort dropdown + Library search (desktop + mobile)
-            initLibraryControls();
-            initLibrarySearchBox();
-
-            updateCounts();
-
-            restorePlayerStateIfRecent();
-checkDockVisibility();
-            initResizers();
-            initGlobalKeys();
-initSwipeBack();
-if (typeof initDesktopSwipeBack === "function") initDesktopSwipeBack();
-
-
-// Simulation of high-volume library fetching
-
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
-                                const response = await fetch('/api/get-songs', { signal: controller.signal }); // This endpoint provides the structure
-
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
-                }
-                                libraryData = await response.json();
-
-                if (!Array.isArray(libraryData)) {
-                    throw new Error('Invalid library response');
-                }
-                saveLibraryCache(libraryData);
-                reconcileAlbumCoverOverridesFromLibrary(libraryData);
-
-                // Keep original order for "Recently added"
-                libraryDataOriginal = libraryData.slice();
-            
-                // Sort library alphabetically by album (Library grid)
-                libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
-
-                
-                                document.getElementById('loading').classList.add('hidden');
-                showView('home');
-                try { renderHome(); } catch (e) {}
-            } catch (error) {
-                console.error("Fetch error:", error);
-                const cachedLibrary = loadLibraryCache();
-
-                if (cachedLibrary.length) {
-                    libraryData = cachedLibrary;
-                    reconcileAlbumCoverOverridesFromLibrary(libraryData);
-                    libraryDataOriginal = libraryData.slice();
-                    libraryData.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
-                    document.getElementById('loading').classList.add('hidden');
-                    showView('home');
-                    try { renderHome(); } catch (e) {}
-                    return;
-                }
-
-                document.getElementById('loading').innerHTML = `
-                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-                    <p class="text-white font-bold">Cloud Connection Failed</p>
-                    <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-                `;
-                libraryData = [];
-                document.getElementById('loading').classList.add('hidden');
-                showView('home');
-            }
-        };
 
         function setGreeting() {
   if (!greetingEl) return; // prevents crash if the greeting element doesn't exist
