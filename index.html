@@ -3199,9 +3199,10 @@ function openAlbumByName(name) {
   activeAlbumArtist = album.artistName;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+    const albumSongs = Array.isArray(album.songs) ? album.songs : [];
 
   // Build the queue for next/prev (use overridden cover)
-  currentQueue = buildQueueFromSongs(album.songs, {
+  currentQueue = buildQueueFromSongs(albumSongs, {
     album: album.albumName,
     artist: album.artistName,
     cover: cover
@@ -3265,7 +3266,7 @@ function openAlbumByName(name) {
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
-  album.songs.forEach((song, i) => {
+  albumSongs.forEach((song, i) => {
     const row = document.createElement('div');
     row.className = "track-row group";
 
@@ -5795,7 +5796,8 @@ function normalizeSong(song, fallback = {}) {
 }
 
 function buildQueueFromSongs(songs, fallback) {
-  return songs.map((song) => normalizeSong(song, fallback)).filter(Boolean);
+  const list = Array.isArray(songs) ? songs : [];
+  return list.map((song) => normalizeSong(song, fallback)).filter(Boolean);
 }
 
 function playQueue(queue, startIndex = 0) {
