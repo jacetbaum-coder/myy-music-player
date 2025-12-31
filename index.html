@@ -1984,79 +1984,77 @@ function getLibraryAlbumData() {
   return original;
 }
 
-function getLibraryGridItems() {
+function getLibraryGridItems(mode, libraryFilter) {
+  // 1. Fetch and Normalize Data
   const albums = getLibraryAlbumData().map(album => ({
     ...album,
-    type: 'album'
+    type: 'album',
+    displayName: album.albumName, // Standardize name for sorting
+    displayCreator: album.artistName
   }));
 
   const pinnedIds = loadPinnedPlaylists();
   const pinnedSet = new Set(pinnedIds);
+  
+  // Note: Ensure 'playlists' is defined or passed in
   const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
   const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-
-  const playlistItems = orderedPlaylists.map(pl => ({
+  
+  const playlistItems = [...pinnedPlaylists, ...unpinnedPlaylists].map(pl => ({
     type: 'playlist',
     id: pl.id,
-    name: pl.name || 'Playlist',
-    cover: getEffectivePlaylistCover(pl)
+    displayName: pl.name || 'Playlist',
+    displayCreator: 'Playlist', // Or the owner's name
+    cover: getEffectivePlaylistCover(pl),
+    isPinned: pinnedSet.has(pl.id)
   }));
 
-  if (libraryFilter === 'playlists') return playlistItems;
-  if (libraryFilter === 'albums') return albums;
-  if (libraryFilter === 'podcasts') return [];
+  // 2. Filter base data
+  let base = [];
+  if (libraryFilter === 'playlists') base = playlistItems;
+  else if (libraryFilter === 'albums') base = albums;
+  else if (libraryFilter === 'podcasts') base = [];
+  else base = [...playlistItems, ...albums];
 
-  return [...playlistItems, ...albums];
-}
-
+  // 3. Sorting Logic
   if (mode === 'Alphabetical by album') {
-    return base.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
+    return base.sort((a, b) => String(a.displayName || '').localeCompare(String(b.displayName || '')));
   }
 
-  if (mode === 'Alphabetical by artist') {
+  if (mode === 'Alphabetical by artist' || mode === 'Creator') {
     return base.sort((a, b) => {
-      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
+      const aa = String(a.displayCreator || '').localeCompare(String(b.displayCreator || ''));
       if (aa !== 0) return aa;
-      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
-    });
-  }
-
-  if (mode === 'Creator') {
-    return base.sort((a, b) => {
-      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
-      if (aa !== 0) return aa;
-      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+      return String(a.displayName || '').localeCompare(String(b.displayName || ''));
     });
   }
 
   if (mode === 'Recent') {
     const rank = getLibraryRecentsRank();
     return base.sort((a, b) => {
-      const ka = `${a.artistName || ''}__${a.albumName || ''}`;
-      const kb = `${b.artistName || ''}__${b.albumName || ''}`;
-      const ra = rank.has(ka) ? rank.get(ka) : 999999;
-      const rb = rank.has(kb) ? rank.get(kb) : 999999;
+      // Use IDs for ranking lookups for better accuracy
+      const ra = rank.has(a.id) ? rank.get(a.id) : 999999;
+      const rb = rank.has(b.id) ? rank.get(b.id) : 999999;
       if (ra !== rb) return ra - rb;
-      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+      return String(a.displayName || '').localeCompare(String(b.displayName || ''));
     });
   }
 
   if (mode === 'Custom order') {
     const stored = JSON.parse(localStorage.getItem('libraryCustomOrder') || 'null');
     if (Array.isArray(stored) && stored.length) {
-      const map = new Map(stored.map((name, i) => [name, i]));
+      const map = new Map(stored.map((id, i) => [id, i]));
       return base.sort((a, b) => {
-        const ia = map.has(a.albumName) ? map.get(a.albumName) : 999999;
-        const ib = map.has(b.albumName) ? map.get(b.albumName) : 999999;
+        const ia = map.has(a.id) ? map.get(a.id) : 999999;
+        const ib = map.has(b.id) ? map.get(b.id) : 999999;
         if (ia !== ib) return ia - ib;
-        return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+        return String(a.displayName || '').localeCompare(String(b.displayName || ''));
       });
-    } else {
-      const names = original.map(a => a.albumName);
-      localStorage.setItem('libraryCustomOrder', JSON.stringify(names));
-      return original;
     }
+  }
+
+  return base;
+}
 function getLibraryGridItems() {
   const albums = getLibraryAlbumData().map(album => ({
     ...album,
