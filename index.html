@@ -744,6 +744,20 @@ img {
 .qs-hidden{
   display: none !important;
 }
+/* open state */
+#queue-sheet.qs.qs-open{
+  transform: translateY(0);
+}
+
+/* while dragging, follow finger (no easing) */
+#queue-sheet.qs.qs-dragging{
+  transition: none !important;
+}
+
+/* lock page behind the sheet (prevents weird 2-finger scrolling) */
+body.qs-lock{
+  overflow: hidden !important;
+}
 
 /* Sheet container */
 #queue-sheet.qs{
@@ -762,7 +776,17 @@ img {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  /* --- IMPORTANT: same feel as Now Playing --- */
+  transform: translateY(100%);
+  transition: transform 220ms ease;
+  will-change: transform;
+
+  /* let our JS own the swipe gesture */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
+
 
 /* Handle */
 #queue-sheet .qs-handle{
@@ -1910,7 +1934,7 @@ body.qs-lock {
 </div>
 
 <!-- QUEUE SHEET (mobile) -->
-<div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden"></div>
+<div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden" onclick="closeQueueSheet()">
 
 <div id="queue-sheet" class="qs qs-hidden" role="dialog" aria-modal="true" aria-label="Queue">
   <div class="qs-handle"></div>
@@ -1971,30 +1995,52 @@ localStorage.setItem('playlists', JSON.stringify(playlists));
 function openQueueSheet() {
   const backdrop = document.getElementById('queue-sheet-backdrop');
   const sheet = document.getElementById('queue-sheet');
-
   if (!backdrop || !sheet) return;
 
-  // Make sure queue content is up to date if you have a renderer
+  // Render the queue rows before showing (if you have a renderer)
   try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
-  try { if (typeof renderQueue === 'function') renderQueue(); } catch (e) {}
 
+  // show
   backdrop.classList.remove('qs-hidden');
   sheet.classList.remove('qs-hidden');
 
-  // Lock background scroll like Now Playing
+  // lock behind scroll
   document.body.classList.add('qs-lock');
+
+  // start from bottom, then animate up
+  sheet.classList.remove('qs-dragging');
+  sheet.classList.remove('qs-open');
+  sheet.style.transform = 'translateY(100%)';
+
+  requestAnimationFrame(() => {
+    sheet.classList.add('qs-open');
+    sheet.style.transform = 'translateY(0)';
+  });
 }
+
 
 function closeQueueSheet() {
   const backdrop = document.getElementById('queue-sheet-backdrop');
   const sheet = document.getElementById('queue-sheet');
+  if (!backdrop || !sheet) return;
 
-  if (backdrop) backdrop.classList.add('qs-hidden');
-  if (sheet) sheet.classList.add('qs-hidden');
+  sheet.classList.remove('qs-dragging');
+  sheet.classList.remove('qs-open');
+  sheet.style.transform = 'translateY(100%)';
 
-  // Unlock background scroll
-  document.body.classList.remove('qs-lock');
+  const done = () => {
+    sheet.classList.add('qs-hidden');
+    backdrop.classList.add('qs-hidden');
+    document.body.classList.remove('qs-lock');
+
+    // reset
+    sheet.style.transform = 'translateY(0)';
+    sheet.removeEventListener('transitionend', done);
+  };
+
+  sheet.addEventListener('transitionend', done);
 }
+
 
 
 // Bind buttons safely after DOM exists
@@ -4405,6 +4451,100 @@ function openNowPlaying() {
   });
 }
 
+// --- QUEUE SHEET: swipe down to dismiss (same feel as Now Playing) ---
+function initQueueSheetSwipe() {
+  const sheet = document.getElementById('queue-sheet');
+  if (!sheet) return;
+
+  let qsDragActive = false;
+  let qsStartY = 0;
+  let qsStartX = 0;
+  let qsLastDown = 0;
+  let qsDecided = false;
+  let qsIsVertical = false;
+
+  function qsGetXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function qsResetDrag() {
+    sheet.classList.remove('qs-dragging');
+    sheet.style.transform = 'translateY(0)';
+    qsLastDown = 0;
+  }
+
+  function qsCanStart(e) {
+    // only if sheet is open
+    if (sheet.classList.contains('qs-hidden')) return false;
+
+    // if finger starts inside the scroll list AND the list is scrolled, don't hijack
+    const list = sheet.querySelector('.qs-list') || sheet.querySelector('#queue-list');
+    if (list && list.contains(e.target) && list.scrollTop > 0) return false;
+
+    return true;
+  }
+
+  sheet.addEventListener('pointerdown', (e) => {
+    if (!qsCanStart(e)) return;
+
+    const { x, y } = qsGetXY(e);
+    qsDragActive = true;
+    qsStartY = y;
+    qsStartX = x;
+    qsLastDown = 0;
+    qsDecided = false;
+    qsIsVertical = false;
+
+    sheet.classList.add('qs-dragging');
+    try { sheet.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  sheet.addEventListener('pointermove', (e) => {
+    if (!qsDragActive) return;
+
+    const { x, y } = qsGetXY(e);
+    const dy = y - qsStartY;
+    const dx = x - qsStartX;
+
+    // don’t decide until it actually moves
+    if (!qsDecided) {
+      if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
+      qsDecided = true;
+      qsIsVertical = Math.abs(dy) > Math.abs(dx);
+    }
+
+    if (!qsIsVertical) return;
+
+    // only drag downward
+    const down = Math.max(0, dy);
+    qsLastDown = down;
+
+    sheet.style.transform = `translateY(${down}px)`;
+  });
+
+  sheet.addEventListener('pointerup', () => {
+    if (!qsDragActive) return;
+
+    const threshold = 140;
+    const shouldClose = qsLastDown > threshold;
+
+    if (shouldClose) closeQueueSheet();
+    else qsResetDrag();
+
+    qsDragActive = false;
+  });
+
+  sheet.addEventListener('pointercancel', () => {
+    if (!qsDragActive) return;
+    qsResetDrag();
+    qsDragActive = false;
+  });
+}
+
+// run once
+initQueueSheetSwipe();
 
 function closeNowPlaying() {
   // animate down, then hide
