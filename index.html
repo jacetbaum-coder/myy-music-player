@@ -195,16 +195,27 @@ img {
         }
 
         .right-sidebar { 
-            width: 300px; 
-            min-width: 250px; 
-            max-width: 450px; 
-            background: var(--bg-base); 
-            display: flex; 
-            flex-direction: column; 
-            padding: 24px 16px; 
-            flex-shrink: 0; 
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-        }
+    width: 300px; 
+    min-width: 250px; 
+    max-width: 450px; 
+    background: var(--bg-base); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 24px 16px; 
+    flex-shrink: 0; 
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden; /* lets the lyrics area scroll inside */
+}
+
+/* Desktop ONLY: never show the right sidebar on mobile */
+@media (max-width: 768px) {
+  #right-sidebar { display: none !important; }
+  #resizer-right { display: none !important; }
+}
+
+/* Make sure the lyrics card can shrink + scroll properly */
+.right-lyrics-card { min-height: 0; }
+.right-lyrics-text { min-height: 0; }
 
         .main-view { 
   flex: 1; 
@@ -1719,14 +1730,28 @@ body.qs-lock {
 <div id="resizer-right" class="resizer hidden md:block"></div>
 
 <aside id="right-sidebar" class="right-sidebar sidebar-hidden">
-  <div class="space-y-4 p-4">
-    <img id="right-cover" src="" class="w-full aspect-square rounded-xl bg-zinc-800 object-cover" alt="">
-    <div>
-      <div id="right-title" class="text-xl font-black">—</div>
-      <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
+  <div class="p-4 flex flex-col h-full gap-4">
+    <!-- Cover + title -->
+    <div class="space-y-4">
+      <img id="right-cover" src="" class="w-full aspect-square rounded-xl bg-zinc-800 object-cover" alt="">
+      <div>
+        <div id="right-title" class="text-xl font-black">—</div>
+        <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
+      </div>
+    </div>
+
+    <!-- Lyrics card -->
+    <div class="right-lyrics-card rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col min-h-0">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-extrabold text-white/90">Lyrics</div>
+        <div id="right-lyrics-status" class="text-xs text-zinc-400">—</div>
+      </div>
+
+      <pre id="right-lyrics" class="right-lyrics-text text-sm text-white/80 whitespace-pre-wrap leading-6 overflow-auto min-h-0"></pre>
     </div>
   </div>
 </aside>
+
 
 </div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
 
@@ -4393,7 +4418,85 @@ function openArtistByName(artistName) {
          * ---------------------------------------------------------------------
          */
 
-        async function playSpecificSong(url, title, album, artist, cover) {
+        // -----------------------
+// LYRICS (DESKTOP RIGHT SIDEBAR)
+// -----------------------
+const __lyricsCache = new Map(); // key = "artist||title" -> lyrics string
+
+function __cleanTitleForLyrics(rawTitle) {
+  const t = String(rawTitle || "")
+    .replace(/\.mp3$/i, "")
+    .replace(/\s*\[[^\]]*\]\s*/g, " ")   // [Remastered], etc
+    .replace(/\s*\([^)]*\)\s*/g, " ")   // (feat...), (remaster...)
+    .replace(/\s*-\s*.*$/g, " ")        // "Song - Live" -> "Song"
+    .replace(/\s+/g, " ")
+    .trim();
+  return t;
+}
+
+async function fetchLyricsOVH(artist, title) {
+  const a = String(artist || "").trim();
+  const t = __cleanTitleForLyrics(title);
+
+  if (!a || !t) return null;
+
+  const cacheKey = `${a}||${t}`;
+  if (__lyricsCache.has(cacheKey)) return __lyricsCache.get(cacheKey);
+
+  // Public, no-key endpoint
+  const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      __lyricsCache.set(cacheKey, null);
+      return null;
+    }
+    const data = await res.json();
+    const lyrics = (data && typeof data.lyrics === "string") ? data.lyrics.trim() : "";
+    const finalLyrics = lyrics ? lyrics : null;
+    __lyricsCache.set(cacheKey, finalLyrics);
+    return finalLyrics;
+  } catch (e) {
+    __lyricsCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+async function updateRightLyricsForSong(songObj) {
+  // Desktop only (your sidebar is desktop-only anyway, but keep it safe)
+  if (window.innerWidth <= 768) return;
+
+  const statusEl = document.getElementById("right-lyrics-status");
+  const lyricsEl = document.getElementById("right-lyrics");
+
+  if (!statusEl || !lyricsEl) return;
+
+  if (!songObj) {
+    statusEl.innerText = "—";
+    lyricsEl.textContent = "";
+    return;
+  }
+
+  statusEl.innerText = "Loading…";
+  lyricsEl.textContent = "";
+
+  const artist = songObj.artist || "";
+  const title = songObj.title || "";
+
+  const lyrics = await fetchLyricsOVH(artist, title);
+
+  if (lyrics) {
+    statusEl.innerText = "Found";
+    lyricsEl.textContent = lyrics;
+  } else {
+    statusEl.innerText = "Not found";
+    lyricsEl.textContent = "No lyrics found for this track.";
+  }
+}
+
+async function playSpecificSong(url, title, album, artist, cover) {
+
   currentSong = { url, title, album, artist, cover };
 
   // Reset audio cleanly first (helps iOS)
@@ -4444,13 +4547,17 @@ function openArtistByName(artistName) {
     if (npIcon) npIcon.className = "fas fa-play text-white text-2xl";
   }
 
-  // Sidebars
+    // Sidebars
   if (window.innerWidth >= 1024) toggleRightSidebar(true);
   document.getElementById('right-cover').src = cover;
   document.getElementById('right-title').innerText = title.replace('.mp3', '');
   document.getElementById('right-artist').innerText = artist;
 
+  // Lyrics (desktop right sidebar)
+  updateRightLyricsForSong(currentSong);
+
   updateHeartUI();
+
   addToHistory(album, artist, cover);
 
     // Update the existing rows in-place (so the green row updates immediately)
@@ -5296,12 +5403,16 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
   // Ensure icons show PAUSED state on refresh
   setAllPlayIconsToPlay();
 
-  // Right sidebar metadata (safe)
+    // Right sidebar metadata (safe)
   document.getElementById('right-cover').src = currentSong.cover || "";
   document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', '');
   document.getElementById('right-artist').innerText = currentSong.artist || "";
 
+  // Lyrics (desktop right sidebar)
+  updateRightLyricsForSong(currentSong);
+
   updateHeartUI();
+
 
   // Keep lastPlayedTime consistent with restored state
   lastPlayedTime = state.updatedAt || Date.now();
