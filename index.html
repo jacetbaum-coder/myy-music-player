@@ -645,12 +645,18 @@ img {
 @media (max-width: 768px) {
   /* hide desktop sidebars/resizers on mobile */
   .sidebar, .resizer, .right-sidebar { display: none !important; }
-  .mobile-nav { display: flex; }
+    .mobile-nav { display: flex; }
+
+  /* Mobile: lift the dock above the bottom nav (Spotify-style) */
+  .player-bar {
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  }
 
   .main-view {
     padding: 16px;
-    padding-bottom: 160px; /* Space for dock + nav */
+    padding-bottom: calc(var(--player-height) + var(--nav-height) + env(safe-area-inset-bottom) + 16px);
   }
+
 
   .track-row {
      grid-template-columns: 1fr 36px;
