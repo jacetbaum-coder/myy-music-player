@@ -1979,6 +1979,86 @@ function getLibraryAlbumData() {
       localStorage.setItem('libraryCustomOrder', JSON.stringify(names));
       return original;
     }
+  }
+
+  return original;
+}
+
+function getLibraryGridItems() {
+  const albums = getLibraryAlbumData().map(album => ({
+    ...album,
+    type: 'album'
+  }));
+
+  const pinnedIds = loadPinnedPlaylists();
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+
+  const playlistItems = orderedPlaylists.map(pl => ({
+    type: 'playlist',
+    id: pl.id,
+    name: pl.name || 'Playlist',
+    cover: getEffectivePlaylistCover(pl)
+  }));
+
+  if (libraryFilter === 'playlists') return playlistItems;
+  if (libraryFilter === 'albums') return albums;
+  if (libraryFilter === 'podcasts') return [];
+
+  return [...playlistItems, ...albums];
+}
+
+  }
+
+  if (mode === 'Alphabetical by album') {
+    return base.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
+  }
+
+  if (mode === 'Alphabetical by artist') {
+    return base.sort((a, b) => {
+      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
+      if (aa !== 0) return aa;
+      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+    });
+  }
+
+  if (mode === 'Creator') {
+    return base.sort((a, b) => {
+      const aa = String(a.artistName || '').localeCompare(String(b.artistName || ''));
+      if (aa !== 0) return aa;
+      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+    });
+  }
+
+  if (mode === 'Recent') {
+    const rank = getLibraryRecentsRank();
+    return base.sort((a, b) => {
+      const ka = `${a.artistName || ''}__${a.albumName || ''}`;
+      const kb = `${b.artistName || ''}__${b.albumName || ''}`;
+      const ra = rank.has(ka) ? rank.get(ka) : 999999;
+      const rb = rank.has(kb) ? rank.get(kb) : 999999;
+      if (ra !== rb) return ra - rb;
+      return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+    });
+  }
+
+  if (mode === 'Custom order') {
+    const stored = JSON.parse(localStorage.getItem('libraryCustomOrder') || 'null');
+    if (Array.isArray(stored) && stored.length) {
+      const map = new Map(stored.map((name, i) => [name, i]));
+      return base.sort((a, b) => {
+        const ia = map.has(a.albumName) ? map.get(a.albumName) : 999999;
+        const ib = map.has(b.albumName) ? map.get(b.albumName) : 999999;
+        if (ia !== ib) return ia - ib;
+        return String(a.albumName || '').localeCompare(String(b.albumName || ''));
+      });
+    } else {
+      const names = original.map(a => a.albumName);
+      localStorage.setItem('libraryCustomOrder', JSON.stringify(names));
+      return original;
+    }
 function getLibraryGridItems() {
   const albums = getLibraryAlbumData().map(album => ({
     ...album,
