@@ -2033,7 +2033,9 @@ let manualQueue = (() => {
 })();
 
         function persistManualQueue() {
-  persistManualQueue();
+ try {
+    localStorage.setItem('manualQueue', JSON.stringify(manualQueue));
+  } catch (e) {}
 }
 
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
@@ -6628,7 +6630,6 @@ function setAllPlayIconsToPlay() {
 }
 
 function nextSong() {
-  if (!currentQueue || currentQueue.length === 0) return;
 
     const manualSong = takeNextManualQueueSong();
   if (manualSong) {
@@ -6638,7 +6639,8 @@ function nextSong() {
     return;
   }
 
-
+  if (!currentQueue || currentQueue.length === 0) return;
+    
   const len = currentQueue.length;
 
   // SHUFFLE ON (no repeats, stop when done)
