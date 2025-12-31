@@ -3373,12 +3373,6 @@ window.onload = async () => {
 
     safe(setGreeting);
 
-  // Desktop: show the right panel (it stays empty until a song plays)
-  if (window.innerWidth >= 1024) {
-    try { toggleRightSidebar(true); } catch (e) {}
-  }
-
-
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
   safe(window.renderHistory);
@@ -4601,11 +4595,13 @@ async function playSpecificSong(url, title, album, artist, cover) {
     if (npIcon) npIcon.className = "fas fa-play text-white text-2xl";
   }
 
-    // Sidebars
-  // Right sidebar (desktop only)
+    // Sidebars (desktop only, only when a song is playing)
+if (window.innerWidth >= 1024) {
   const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
+  toggleRightSidebar(true);
   setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
   loadRightLyrics(cleanTitle, artist);
+}
 
 
   // Lyrics (desktop right sidebar)
@@ -5425,6 +5421,7 @@ function restorePlayerStateIfRecent() {
   // If no saved state, hide dock
   if (!state || !state.song || !state.song.url) {
     currentSong = null;
+      toggleRightSidebar(false);
     dock.classList.add('dock-hidden');
     return;
   }
@@ -5433,6 +5430,7 @@ function restorePlayerStateIfRecent() {
   if ((Date.now() - (state.updatedAt || 0)) >= oneHour) {
     localStorage.removeItem('lastSongState');
     currentSong = null;
+      toggleRightSidebar(false);
     dock.classList.add('dock-hidden');
     return;
   }
@@ -5496,12 +5494,17 @@ function checkDockVisibility() {
   else dock.classList.add('dock-hidden');
 }
 
-        function toggleRightSidebar(show) {
-  // Desktop-only right panel (Spotify-style). On mobile it stays hidden.
+       function toggleRightSidebar(show) {
   if (window.innerWidth < 1024) return;
   if (!rightSidebar) return;
-  rightSidebar.classList.toggle('sidebar-hidden', !show);
+
+  if (show) {
+    rightSidebar.classList.remove('sidebar-hidden');
+  } else {
+    rightSidebar.classList.add('sidebar-hidden');
+  }
 }
+
 
 // Keep right panel metadata in sync with the currently playing song
 function setRightSidebarNowPlaying({ title, artist, cover }) {
