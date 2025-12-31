@@ -252,13 +252,10 @@ img {
             cursor: pointer; 
         }
 
-.track-row.is-current {
-            background: rgba(30, 215, 96, 0.14);
-        }
-
-        .track-row.active-track {
-            color: var(--spotify-green);
-        }
+.track-row.is-current,
+.track-row.active-track {
+    background: transparent;
+}
 
         .track-header { 
             text-transform: uppercase; 
@@ -1805,12 +1802,19 @@ if (volumeContainer) {
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
         const contextMenu = document.getElementById('context-menu');
-        let suppressContextMenuCloseUntil = 0;
+         let suppressContextMenuCloseUntil = 0;
+        let contextMenuAnchor = null;
+        let contextMenuScrollHandler = null;
 
         function closeContextMenu() {
           contextMenu.style.display = 'none';
           contextMenu.style.transform = '';
           contextMenu.style.right = '';
+          contextMenuAnchor = null;
+          if (contextMenuScrollHandler) {
+            window.removeEventListener('scroll', contextMenuScrollHandler, true);
+            contextMenuScrollHandler = null;
+          }
         }
         const greetingEl = document.getElementById('greeting-text');
 
@@ -2705,7 +2709,7 @@ function initSwipeBack() {
   pushNavCurrent();
 
   try { hidePlaylistMenu(); } catch (e) {}
-  try { contextMenu.style.display = 'none'; } catch (e) {}
+  try { closeContextMenu(); } catch (e) {}
 
   ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
@@ -2854,7 +2858,7 @@ function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
 
   try { hidePlaylistMenu(); } catch (e) {}
-  try { contextMenu.style.display = 'none'; } catch (e) {}
+  try { closeContextMenu(); } catch (e) {}
 
     ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
@@ -3058,7 +3062,7 @@ function openAlbumByName(name) {
 
       // close other menus
       try { hidePlaylistMenu(); } catch (err) {}
-      try { contextMenu.style.display = 'none'; } catch (err) {}
+      try { closeContextMenu(); } catch (err) {}
       try { hideAlbumCoverMenu(); } catch (err) {}
 
       showAlbumCoverMenuAt(e.clientX, e.clientY, album.artistName, album.albumName);
@@ -4149,13 +4153,32 @@ function checkDockVisibility() {
 
   // Existing: click outside closes the context menu
   document.addEventListener('click', (e) => {
-    if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none';
-  });
+    if (window.innerWidth <= 768) return;
+    if (Date.now() < suppressContextMenuCloseUntil) return;
+    if (!contextMenu.contains(e.target)) closeContextMenu();
+        });
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    if (Date.now() < suppressContextMenuCloseUntil) return;
+    if (!contextMenu.contains(e.target)) closeContextMenu();
+  }, { passive: true });
+}
+        // Context Menu & Playlists
+        function positionContextMenuForAnchor(anchorEl) {
+  if (!anchorEl) return;
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = contextMenu.offsetWidth || 230;
+  const menuHeight = contextMenu.offsetHeight || 160;
+
+  const left = Math.max(12, Math.min(rect.right - menuWidth - 12, window.innerWidth - menuWidth - 12));
+  const top = Math.max(12, Math.min(rect.top + rect.height / 2 - menuHeight / 2, window.innerHeight - menuHeight - 12));
+
+  contextMenu.style.left = `${left}px`;
+  contextMenu.style.top = `${top}px`;
 }
 
-        // Context Menu & Playlists
         function showContextMenuAt(x, y, song, anchorEl = null) {
-
   menuTargetSong = song;
 
   // Show / hide "Remove from playlist"
@@ -4166,21 +4189,30 @@ function checkDockVisibility() {
 
             const useAnchor = anchorEl && window.innerWidth <= 768;
   if (useAnchor) {
-    contextMenu.style.position = 'absolute';
-    contextMenu.style.left = 'auto';
-    contextMenu.style.right = '12px';
-    contextMenu.style.top = '50%';
-    contextMenu.style.transform = 'translateY(-50%)';
-    anchorEl.appendChild(contextMenu);
+    contextMenu.style.position = 'fixed';
+    contextMenu.style.transform = '';
+    contextMenu.style.right = '';
+    contextMenuAnchor = anchorEl;
+    positionContextMenuForAnchor(anchorEl);
+    if (!contextMenuScrollHandler) {
+      contextMenuScrollHandler = () => {
+        if (contextMenuAnchor) positionContextMenuForAnchor(contextMenuAnchor);
+      };
+      window.addEventListener('scroll', contextMenuScrollHandler, true);
+    }
   } else {
     contextMenu.style.position = 'fixed';
     contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
     contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
     contextMenu.style.transform = '';
     contextMenu.style.right = '';
+    contextMenuAnchor = null;
+    if (contextMenuScrollHandler) {
+      window.removeEventListener('scroll', contextMenuScrollHandler, true);
+      contextMenuScrollHandler = null;
+    }
     document.body.appendChild(contextMenu);
   }
-
 
   contextMenu.style.display = 'block';
   suppressContextMenuCloseUntil = Date.now() + 400;
@@ -5056,7 +5088,7 @@ function renderPlaylists() {
 
         holdTimer = setTimeout(() => {
           try { hidePlaylistMenu(); } catch (err) {}
-          try { contextMenu.style.display = 'none'; } catch (err) {}
+           try { closeContextMenu(); } catch (err) {}
 
           showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
         }, 450);
@@ -5076,7 +5108,7 @@ function renderPlaylists() {
         e.preventDefault();
         e.stopPropagation();
         try { hidePlaylistMenu(); } catch (err) {}
-        try { contextMenu.style.display = 'none'; } catch (err) {}
+        try { closeContextMenu(); } catch (err) {}
         showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
       });
     }
@@ -5105,7 +5137,7 @@ function renderPlaylists() {
   try { await updatePlaylistAutoCoverById(playlists[i].id); } catch (e) {}
 
   renderPlaylists();
-  contextMenu.style.display = 'none';
+  closeContextMenu();
 };
                 sub.appendChild(item);
             });
@@ -5156,14 +5188,14 @@ function renderPlaylists() {
       showView('playlist', plIndex);
     });
 
-    contextMenu.style.display = 'none';
+     closeContextMenu();
     return;
   }
 
   // LIKE / UNLIKE (existing behavior)
   if (type === 'like') {
     toggleLike();
-    contextMenu.style.display = 'none';
+    closeContextMenu();
   }
 }
 
