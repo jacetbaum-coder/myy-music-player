@@ -3200,9 +3200,17 @@ function openAlbumByName(name) {
   pushNavCurrent();
   setNavCurrent({ type: 'album', albumName: name });
 
+  // Ensure any overlays can’t block the view
+  try {
+    document.getElementById('library-search-overlay')?.classList.add('hidden');
+    document.getElementById('library-search-popover')?.classList.add('hidden');
+  } catch (e) {}
+
   playContext = { type: 'album', label: name };
-    const isPlaylist = false;
+  const isPlaylist = false;
+
   const album = findAlbumByName(name);
+
   if (!album) return;
 
   activeAlbumName = album.albumName;
@@ -3221,14 +3229,19 @@ function openAlbumByName(name) {
   // Nothing selected yet until user clicks a track or presses play
   currentIndex = -1;
 
-    // Hide ALL main views before showing album-view (fixes “tap does nothing” on mobile Home)
+     // Hide ALL main views before showing album-view
   document.getElementById('home-view')?.classList.add('hidden');
   document.getElementById('grid-view')?.classList.add('hidden');
   document.getElementById('search-view')?.classList.add('hidden');
   document.getElementById('artist-view')?.classList.add('hidden');
 
-  document.getElementById('album-view')?.classList.remove('hidden');
-
+  const av = document.getElementById('album-view');
+  if (av) {
+    av.classList.remove('hidden');
+    av.scrollIntoView({ block: 'start' });
+  } else {
+    console.error('album-view element is missing in the DOM');
+  }
 
   // Hook the big green hero play button to play this album
   const heroPlay = document.getElementById('hero-play-btn');
