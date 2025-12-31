@@ -2914,35 +2914,6 @@ function initSwipeBack() {
     area.addEventListener('transitionend', clear);
   }
 }
-    function showView(viewType, playlistIndex = null) {
-  pushNavCurrent();
-
-  try { hidePlaylistMenu(); } catch (e) {}
-  try { closeContextMenu(); } catch (e) {}
-
-  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-
-  activePlaylistIndex = playlistIndex;
-  activePlaylistId = null;
-
-  if (viewType === 'home') setNavCurrent({ type: 'home' });
-  else if (viewType === 'library') setNavCurrent({ type: 'library' });
-  else if (viewType === 'search') setNavCurrent({ type: 'search' });
-  else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-  else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-  else if (viewType === 'playlist') {
-    const pl = playlists[playlistIndex];
-    setNavCurrent({ type: 'playlist', playlistIndex, playlistId: pl?.id || null });
-  } else {
-    setNavCurrent({ type: viewType || 'home' });
-  }
-
-  const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
-}
-
 
   function canStart(e) {
     // Must have something to go back to
@@ -3130,11 +3101,16 @@ const scrollArea = document.getElementById('main-scroll-area');
   if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
   const pl = playlists[playlistIndex];
+      if (!pl) {
+    renderCollection('Playlist', [], true);
+    updateActiveStates(viewType);
+    return;
+  }
   activePlaylistId = pl?.id || null;
 
   playContext = { type: 'playlist', label: pl.name };
 
-  renderCollection(pl.name, pl.songs, true, playlistIndex);
+  renderCollection(pl.name, Array.isArray(pl.songs) ? pl.songs : [], true, playlistIndex);
 }
 
   if (viewType === 'artist') {
@@ -3200,6 +3176,14 @@ function renderGrid(data) {
   });
 }
 
+        function findAlbumByName(name) {
+  const normalized = String(name || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return (Array.isArray(libraryData) ? libraryData : []).find(album =>
+    String(album.albumName || '').trim().toLowerCase() === normalized
+  );
+}
+
 
 function openAlbumByName(name) {
   // BACK STACK: push current view before entering album
@@ -3208,7 +3192,7 @@ function openAlbumByName(name) {
 
   playContext = { type: 'album', label: name };
     const isPlaylist = false;
-  const album = libraryData.find(a => a.albumName === name);
+  const album = findAlbumByName(name);
   if (!album) return;
 
   activeAlbumName = album.albumName;
@@ -5965,7 +5949,7 @@ function updateTrackListActiveState() {
 }
 
 function playAlbumByName(name) {
-  const album = libraryData.find(a => a.albumName === name);
+  const album = findAlbumByName(name);
   if (!album) return;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
