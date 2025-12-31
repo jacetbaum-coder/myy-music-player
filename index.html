@@ -2665,31 +2665,7 @@ function initLibrarySearchBox() {
 
 
 // Patch renderGrid to support Library "List" view (only when you're in Library)
-
-// If renderGrid doesn't exist yet (or was renamed), make a safe fallback
-const __renderGridOriginal = (typeof renderGrid === 'function')
-  ? renderGrid
-  : function fallbackRenderGrid(data) {
-      const grid = document.getElementById('album-grid');
-      if (!grid) return;
-
-      // basic "grid" fallback so Library still renders
-      grid.className = 'grid grid-cols-2 md:grid-cols-4 gap-4';
-      grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
-        const safeName = String(album.albumName || '').replace(/'/g, "\\'");
-        const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
-
-        return `
-          <div class="bg-[#181818] p-4 rounded-xl hover:bg-[#242424] cursor-pointer"
-               onclick="openAlbumByName('${safeName}')">
-            <img src="${cover}" class="w-full aspect-square object-cover rounded-lg mb-3">
-            <div class="text-white font-bold truncate">${album.albumName || ''}</div>
-            <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
-          </div>
-        `;
-      }).join('');
-    };
-
+const __renderGridOriginal = renderGrid;
 renderGrid = function(data) {
   const isLibrary = (navCurrent && navCurrent.type === 'library');
 
@@ -2721,7 +2697,6 @@ renderGrid = function(data) {
   }).join('');
 };
 
-
 const __showViewOriginal = showView;
 showView = function(viewType, playlistIndex = null) {
   __showViewOriginal(viewType, playlistIndex);
@@ -2735,43 +2710,10 @@ showView = function(viewType, playlistIndex = null) {
   }
 };
 
-// Ensure repeat + UI helpers exist before onload (prevents "syncRepeatUI is not defined")
-window.repeatMode = window.repeatMode || 'off';
-window.syncRepeatUI = window.syncRepeatUI || function syncRepeatUI() {
-  const d = document.getElementById('btn-repeat');
-  const mIcon = document.getElementById('np-repeat-icon');
-  const mDot = document.getElementById('np-repeat-dot');
-
-  // Clear state classes
-  if (d) d.classList.remove('active-green', 'repeat-one', 'repeat-all');
-  if (mIcon) mIcon.classList.remove('active-green', 'repeat-one', 'repeat-all');
-  if (mDot) mDot.classList.add('hidden');
-
-  const mode = window.repeatMode || 'off';
-  if (mode === 'off') return;
-
-  // repeat all OR one => green
-  if (d) d.classList.add('active-green');
-  if (mIcon) mIcon.classList.add('active-green');
-
-  if (mode === 'all') {
-    if (d) d.classList.add('repeat-all');
-    if (mIcon) mIcon.classList.add('repeat-all');
-  }
-
-  if (mode === 'one') {
-    if (d) d.classList.add('repeat-one');
-    if (mIcon) mIcon.classList.add('repeat-one');
-    if (mDot) mDot.classList.remove('hidden');
-  }
-};
-
 window.onload = async () => {
-
-                        setGreeting();
-            window.syncRepeatUI();
+            setGreeting();
+            syncRepeatUI();
             renderHistory();
-
             ensurePlaylistIds();
     try { await reconcilePinnedPlaylistsFromServer(); } catch (e) {}
             renderPlaylists();
@@ -2926,100 +2868,98 @@ function initSwipeBack() {
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
-  let tracking = false;
+  // Default behavior: allow vertical scrolling
+  area.style.touchAction = 'pan-y';
+
+  let active = false;
   let decided = false;
   let isHorizontal = false;
   let startX = 0;
   let startY = 0;
   let lastDx = 0;
 
-  function canStart(e) {
-    // Must have something to go back to
-    if (!Array.isArray(navStack) || navStack.length === 0) return false;
+  const THRESHOLD_PX = 90;          // commit swipe-back
+  const MOVE_DECIDE_PX = 6;         // like your Now Playing logic (more sensitive than 10px)
+  const OPACITY_DROP = 0.20;        // subtle “peek” feel
 
-    // If Now Playing overlay is open, do NOT back-swipe the app
-    const np = document.getElementById('now-playing-overlay');
-    if (np && !np.classList.contains('hidden')) return false;
-
-    // Don’t hijack gestures on form controls / buttons
-    const t = e.target;
-    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
-      return false;
-    }
-
-    // Start from the left ~45% (a bit easier than 35%)
-    const x = e.clientX;
-    return x <= (window.innerWidth * 0.45);
+  function getXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
   }
+    function initDesktopSwipeBack() {
+  // Desktop / trackpad only
+  if (window.innerWidth < 1024) return;
 
-  function resetTouchAction() {
-    try { area.style.touchAction = 'pan-y'; } catch (e) {}
-  }
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
 
-  area.addEventListener('pointerdown', (e) => {
-    if (!canStart(e)) return;
+  if (area.dataset.desktopSwipeBound === "1") return;
+  area.dataset.desktopSwipeBound = "1";
 
-    tracking = true;
-    decided = false;
-    isHorizontal = false;
-    lastDx = 0;
+  let dx = 0;
+  let active = false;
+  let animating = false;
 
-    startX = e.clientX;
-    startY = e.clientY;
+  const THRESHOLD = 120;
+  const OPACITY_DROP = 0.18;
 
-    // Own the gesture (prevents that “page jiggle” feeling)
-    try { area.style.touchAction = 'none'; } catch (e) {}
-    try { area.setPointerCapture(e.pointerId); } catch (err) {}
-  }, { passive: true });
+  area.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    if (!Array.isArray(navStack) || navStack.length === 0) return;
+    if (e.deltaX < 0) return;
 
-  area.addEventListener('pointermove', (e) => {
-    if (!tracking) return;
-
-    const dx = e.clientX - startX; // swipe RIGHT => dx positive
-    const dy = e.clientY - startY;
-
-    // Decide early (more sensitive)
-    if (!decided) {
-      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-      decided = true;
-      isHorizontal = Math.abs(dx) > Math.abs(dy);
-    }
-
-    if (!isHorizontal) {
-      // If it’s actually vertical, give scroll back immediately
-      tracking = false;
-      resetTouchAction();
-      return;
-    }
-
-    // Prevent scroll/rubber-band from fighting the gesture
     e.preventDefault();
 
-    // Only count right-swipes
-    lastDx = Math.max(0, dx);
-
-    // Trigger sooner (more sensitive)
-    if (lastDx > 55) {
-      tracking = false;
-      resetTouchAction();
-      goBack();
+    if (!active) {
+      active = true;
+      dx = 0;
+      area.style.transition = '';
     }
+
+    dx += e.deltaX;
+    dx = Math.max(0, dx);
+
+    area.style.transform = `translateX(${dx}px)`;
+
+    const p = Math.min(1, dx / (window.innerWidth * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
   }, { passive: false });
 
-  area.addEventListener('pointerup', () => {
-    tracking = false;
-    resetTouchAction();
-  }, { passive: true });
+  area.addEventListener('mouseleave', finish);
 
-  area.addEventListener('pointercancel', () => {
-    tracking = false;
-    resetTouchAction();
-  }, { passive: true });
+  function finish() {
+    if (!active || animating) return;
+    active = false;
+
+    if (dx > THRESHOLD) {
+      animating = true;
+      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transform = `translateX(${window.innerWidth}px)`;
+
+      const done = () => {
+        area.removeEventListener('transitionend', done);
+        reset();
+        goBack();
+        animating = false;
+      };
+      area.addEventListener('transitionend', done);
+    } else {
+      reset();
+    }
+  }
+
+  function reset() {
+    area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+    area.style.transform = 'translateX(0px)';
+    area.style.opacity = '1';
+
+    const clear = () => {
+      area.style.transition = '';
+      area.removeEventListener('transitionend', clear);
+    };
+    area.addEventListener('transitionend', clear);
+  }
 }
-
-function showView(viewType, playlistIndex = null) {
-
-
     function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
 
@@ -3166,6 +3106,7 @@ function showView(viewType, playlistIndex = null) {
     active = false;
     reset(true);
   }, { passive: true });
+}
 
 function showView(viewType, playlistIndex = null) {
   // BACK STACK: push the current state before switching views
@@ -5833,8 +5774,7 @@ function isShuffleOn() {
 }
 
         // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
-var repeatMode = 'off'; // 'off' | 'all' | 'one'
-
+let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
 function syncRepeatUI() {
   const d = document.getElementById('btn-repeat');
@@ -6207,7 +6147,6 @@ player.addEventListener('ended', () => {
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
 
-}
     </script>
     <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
