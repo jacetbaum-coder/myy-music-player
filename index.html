@@ -2875,31 +2875,27 @@ function initSwipeBack() {
   let startY = 0;
   let lastDx = 0;
 
-  // Tunables (more sensitive + less “jiggle”)
-  const EDGE_PCT = 0.55;     // allow start from left 55% (more forgiving)
-  const DECIDE_PX = 4;       // decide earlier (was ~6)
-  const TRIGGER_PX = 55;     // go back sooner (was 75)
-
-  function resetGesture() {
-    tracking = false;
-    decided = false;
-    isHorizontal = false;
-    lastDx = 0;
-    try { area.style.touchAction = ''; } catch (e) {}
-  }
-
   function canStart(e) {
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
+
     // If Now Playing overlay is open, do NOT back-swipe the app
     const np = document.getElementById('now-playing-overlay');
     if (np && !np.classList.contains('hidden')) return false;
 
-    // Don’t start swipe-back inside inputs (like search box)
+    // Don’t hijack gestures on form controls / buttons
     const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return false;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+      return false;
+    }
 
-    // Must begin near the left side (iOS feel), but more forgiving
+    // Start from the left ~45% (a bit easier than 35%)
     const x = e.clientX;
-    return x <= (window.innerWidth * EDGE_PCT);
+    return x <= (window.innerWidth * 0.45);
+  }
+
+  function resetTouchAction() {
+    try { area.style.touchAction = 'pan-y'; } catch (e) {}
   }
 
   area.addEventListener('pointerdown', (e) => {
@@ -2913,9 +2909,8 @@ function initSwipeBack() {
     startX = e.clientX;
     startY = e.clientY;
 
-    // Default: allow vertical scroll until we confirm it’s a horizontal back swipe
-    try { area.style.touchAction = 'pan-y'; } catch (err) {}
-
+    // Own the gesture (prevents that “page jiggle” feeling)
+    try { area.style.touchAction = 'none'; } catch (e) {}
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
@@ -2925,19 +2920,19 @@ function initSwipeBack() {
     const dx = e.clientX - startX; // swipe RIGHT => dx positive
     const dy = e.clientY - startY;
 
-    // Decide earlier so the browser doesn’t “jiggle” the page
+    // Decide early (more sensitive)
     if (!decided) {
-      if (Math.abs(dx) < DECIDE_PX && Math.abs(dy) < DECIDE_PX) return;
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
       decided = true;
       isHorizontal = Math.abs(dx) > Math.abs(dy);
-
-      // Once we commit to horizontal, fully own the gesture (no scroll/rubber-band)
-      if (isHorizontal) {
-        try { area.style.touchAction = 'none'; } catch (err) {}
-      }
     }
 
-    if (!isHorizontal) return;
+    if (!isHorizontal) {
+      // If it’s actually vertical, give scroll back immediately
+      tracking = false;
+      resetTouchAction();
+      return;
+    }
 
     // Prevent scroll/rubber-band from fighting the gesture
     e.preventDefault();
@@ -2946,20 +2941,26 @@ function initSwipeBack() {
     lastDx = Math.max(0, dx);
 
     // Trigger sooner (more sensitive)
-    if (lastDx > TRIGGER_PX) {
-      resetGesture();
+    if (lastDx > 55) {
+      tracking = false;
+      resetTouchAction();
       goBack();
     }
   }, { passive: false });
 
   area.addEventListener('pointerup', () => {
-    resetGesture();
+    tracking = false;
+    resetTouchAction();
   }, { passive: true });
 
   area.addEventListener('pointercancel', () => {
-    resetGesture();
+    tracking = false;
+    resetTouchAction();
   }, { passive: true });
 }
+
+function showView(viewType, playlistIndex = null) {
+
 
     function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
@@ -5774,7 +5775,8 @@ function isShuffleOn() {
 }
 
         // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
-let repeatMode = 'off'; // 'off' | 'all' | 'one'
+var repeatMode = 'off'; // 'off' | 'all' | 'one'
+
 
 function syncRepeatUI() {
   const d = document.getElementById('btn-repeat');
