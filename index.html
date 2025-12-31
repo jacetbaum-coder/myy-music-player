@@ -922,10 +922,11 @@ img {
   }
 
     /* Album hero (MOBILE) — override desktop row layout */
-  #album-hero {
+    #album-hero {
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 16px !important;
+    gap: 10px !important;          /* was 16px */
+    margin-bottom: 10px !important; /* kills the big empty space before controls */
   }
 
   /* bigger cover, but centered like Spotify */
@@ -944,9 +945,10 @@ img {
     width: 100% !important;
   }
 
-  #album-hero .album-hero-title {
-    margin-bottom: 10px !important;
+    #album-hero .album-hero-title {
+    margin-bottom: 4px !important; /* was 10px */
   }
+
 
   #album-hero .album-hero-artist {
     display: flex;
@@ -963,9 +965,16 @@ img {
   }
 
   /* Album controls (MOBILE): match Spotify row feel */
-  #album-controls {
-    margin-top: -2px;
+    #album-controls {
+    margin-top: 2px !important;
+    margin-bottom: 6px !important; /* brings tracklist up */
   }
+
+  #track-list {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
 
   /* nudge play a bit higher/right-side feels closer to Spotify */
   #hero-play-btn {
@@ -3864,7 +3873,8 @@ function openArtistByName(artistName) {
   if (started) {
     if (desktopIcon) desktopIcon.className = "fas fa-pause";
     if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-white text-2xl";
+    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+
   } else {
     if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
     if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
