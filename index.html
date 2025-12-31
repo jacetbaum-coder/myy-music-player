@@ -3389,7 +3389,10 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
       : libraryData;
 
   const album = data[index];
-  if (!album) return;
+  if (!album) {
+    console.error('openAlbum: album not found for index', index);
+    return;
+  }
 
   showView('album');
 
@@ -3397,6 +3400,16 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
   const albumArtist = document.getElementById('album-artist');
   const albumCover = document.getElementById('album-cover');
   const trackList = document.getElementById('album-track-list');
+
+  if (!albumTitle || !albumArtist || !albumCover || !trackList) {
+    console.error('Album DOM elements missing:', {
+      albumTitle,
+      albumArtist,
+      albumCover,
+      trackList
+    });
+    return;
+  }
 
   albumTitle.textContent = album.albumName;
   albumArtist.textContent = album.artistName;
@@ -3415,6 +3428,7 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
     trackList.appendChild(li);
   });
 }
+
 
 
 function openArtistByName(artistName) {
