@@ -2017,21 +2017,15 @@ const player = document.getElementById('audio-player');
 function addSongToQueue(songObj) {
   if (!songObj) return;
 
-  // If you already have normalizeSong(), use it; otherwise store the object directly.
   const song = (typeof normalizeSong === 'function') ? normalizeSong(songObj) : songObj;
   if (!song) return;
 
-  // append => first-added is at top, next goes below
   manualQueue.push(song);
 
   try { localStorage.setItem('manualQueue', JSON.stringify(manualQueue)); } catch (e) {}
 
-  // Update queue UI if it's open
-  if (typeof renderQueueSheet === 'function') {
-    try { renderQueueSheet(); } catch (e) {}
-  }
+  try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
 
-  // CLOSE the context menu using your real close function (this also handles mobile animation)
   try {
     if (typeof closeContextMenu === 'function') closeContextMenu();
     else {
@@ -2042,21 +2036,9 @@ function addSongToQueue(songObj) {
     }
   } catch (e) {}
 
-  // Show the “Added to Queue” toast with Open
-  try {
-    if (typeof showQueueToast === 'function') showQueueToast();
-  } catch (e) {}
+  try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
 }
 
-
-  // close the song context menu (your menu IDs exist in your file)
-  try {
-    const cm = document.getElementById('context-menu');
-    const bd = document.getElementById('context-menu-backdrop');
-    if (cm) cm.style.display = 'none';
-    if (bd) bd.style.display = 'none';
-  } catch (e) {}
-}
 
 /* -----------------------
    ALBUM COVER -> ACCENT COLOR (Spotify-like)
