@@ -641,7 +641,25 @@ img {
 }
 
 
-                /* --- MEDIA QUERIES --- */
+                /* -----------------------
+   ALBUM HEADER CONTROLS (all sizes)
+------------------------ */
+#album-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+#album-controls .album-controls-left,
+#album-controls .album-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* --- MEDIA QUERIES --- */
+
 @media (max-width: 768px) {
   /* hide desktop sidebars/resizers on mobile */
   .sidebar, .resizer, .right-sidebar { display: none !important; }
@@ -687,7 +705,12 @@ img {
     right: 10px;
 
     height: auto;
-        background: linear-gradient(180deg, rgb(var(--accent-rgb)) 0%, rgb(0,0,0) 100%);
+        background: linear-gradient(
+          180deg,
+          rgba(var(--accent-rgb, 0, 0, 0), 0.55) 0%,
+          rgba(0, 0, 0, 0.88) 100%
+        );
+
 
     border-radius: 12px;
     border: none;
@@ -759,10 +782,31 @@ img {
     width: 100%;
   }
 
-  /* Album hero shared styles */
+    /* Album hero (MOBILE) — override desktop row layout */
+  #album-hero {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+
+  /* bigger cover, but centered like Spotify */
+  #album-hero-cover {
+    width: 240px !important;
+    height: 240px !important;
+    align-self: center !important;
+  }
+
+  /* left-align the text block */
   #album-hero .album-hero-info {
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+  }
+
+  #album-hero .album-hero-title {
+    margin-bottom: 10px !important;
   }
 
   #album-hero .album-hero-artist {
@@ -779,8 +823,23 @@ img {
     object-fit: cover;
   }
 
-    /* prevent iOS auto-zoom */
+  /* Album controls (MOBILE): match Spotify row feel */
+  #album-controls {
+    margin-top: -2px;
+  }
+
+  /* nudge play a bit higher/right-side feels closer to Spotify */
+  #hero-play-btn {
+    margin-top: -6px;
+  }
+
+  #album-shuffle-btn {
+    margin-top: -6px;
+  }
+
+  /* prevent iOS auto-zoom */
   .search-input { font-size: 16px; }
+
 
 
 
