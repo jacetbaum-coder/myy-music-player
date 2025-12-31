@@ -2010,8 +2010,6 @@ function getLibraryGridItems() {
   return [...playlistItems, ...albums];
 }
 
-  }
-
   if (mode === 'Alphabetical by album') {
     return base.sort((a, b) => String(a.albumName || '').localeCompare(String(b.albumName || '')));
   }
