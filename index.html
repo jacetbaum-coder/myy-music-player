@@ -2868,98 +2868,99 @@ function initSwipeBack() {
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
-  // Default behavior: allow vertical scrolling
-  area.style.touchAction = 'pan-y';
-
-  let active = false;
+  let tracking = false;
   let decided = false;
   let isHorizontal = false;
   let startX = 0;
   let startY = 0;
   let lastDx = 0;
 
-  const THRESHOLD_PX = 90;          // commit swipe-back
-  const MOVE_DECIDE_PX = 6;         // like your Now Playing logic (more sensitive than 10px)
-  const OPACITY_DROP = 0.20;        // subtle “peek” feel
+  // Tunables (more sensitive + less “jiggle”)
+  const EDGE_PCT = 0.55;     // allow start from left 55% (more forgiving)
+  const DECIDE_PX = 4;       // decide earlier (was ~6)
+  const TRIGGER_PX = 55;     // go back sooner (was 75)
 
-  function getXY(e) {
-    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    return { x: e.clientX, y: e.clientY };
+  function resetGesture() {
+    tracking = false;
+    decided = false;
+    isHorizontal = false;
+    lastDx = 0;
+    try { area.style.touchAction = ''; } catch (e) {}
   }
-    function initDesktopSwipeBack() {
-  // Desktop / trackpad only
-  if (window.innerWidth < 1024) return;
 
-  const area = document.getElementById('main-scroll-area');
-  if (!area) return;
+  function canStart(e) {
+    // If Now Playing overlay is open, do NOT back-swipe the app
+    const np = document.getElementById('now-playing-overlay');
+    if (np && !np.classList.contains('hidden')) return false;
 
-  if (area.dataset.desktopSwipeBound === "1") return;
-  area.dataset.desktopSwipeBound = "1";
+    // Don’t start swipe-back inside inputs (like search box)
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return false;
 
-  let dx = 0;
-  let active = false;
-  let animating = false;
+    // Must begin near the left side (iOS feel), but more forgiving
+    const x = e.clientX;
+    return x <= (window.innerWidth * EDGE_PCT);
+  }
 
-  const THRESHOLD = 120;
-  const OPACITY_DROP = 0.18;
+  area.addEventListener('pointerdown', (e) => {
+    if (!canStart(e)) return;
 
-  area.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-    if (!Array.isArray(navStack) || navStack.length === 0) return;
-    if (e.deltaX < 0) return;
+    tracking = true;
+    decided = false;
+    isHorizontal = false;
+    lastDx = 0;
 
+    startX = e.clientX;
+    startY = e.clientY;
+
+    // Default: allow vertical scroll until we confirm it’s a horizontal back swipe
+    try { area.style.touchAction = 'pan-y'; } catch (err) {}
+
+    try { area.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: true });
+
+  area.addEventListener('pointermove', (e) => {
+    if (!tracking) return;
+
+    const dx = e.clientX - startX; // swipe RIGHT => dx positive
+    const dy = e.clientY - startY;
+
+    // Decide earlier so the browser doesn’t “jiggle” the page
+    if (!decided) {
+      if (Math.abs(dx) < DECIDE_PX && Math.abs(dy) < DECIDE_PX) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+
+      // Once we commit to horizontal, fully own the gesture (no scroll/rubber-band)
+      if (isHorizontal) {
+        try { area.style.touchAction = 'none'; } catch (err) {}
+      }
+    }
+
+    if (!isHorizontal) return;
+
+    // Prevent scroll/rubber-band from fighting the gesture
     e.preventDefault();
 
-    if (!active) {
-      active = true;
-      dx = 0;
-      area.style.transition = '';
+    // Only count right-swipes
+    lastDx = Math.max(0, dx);
+
+    // Trigger sooner (more sensitive)
+    if (lastDx > TRIGGER_PX) {
+      resetGesture();
+      goBack();
     }
-
-    dx += e.deltaX;
-    dx = Math.max(0, dx);
-
-    area.style.transform = `translateX(${dx}px)`;
-
-    const p = Math.min(1, dx / (window.innerWidth * 0.6));
-    area.style.opacity = String(1 - (p * OPACITY_DROP));
   }, { passive: false });
 
-  area.addEventListener('mouseleave', finish);
+  area.addEventListener('pointerup', () => {
+    resetGesture();
+  }, { passive: true });
 
-  function finish() {
-    if (!active || animating) return;
-    active = false;
-
-    if (dx > THRESHOLD) {
-      animating = true;
-      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
-      area.style.transform = `translateX(${window.innerWidth}px)`;
-
-      const done = () => {
-        area.removeEventListener('transitionend', done);
-        reset();
-        goBack();
-        animating = false;
-      };
-      area.addEventListener('transitionend', done);
-    } else {
-      reset();
-    }
-  }
-
-  function reset() {
-    area.style.transition = 'transform 220ms ease, opacity 220ms ease';
-    area.style.transform = 'translateX(0px)';
-    area.style.opacity = '1';
-
-    const clear = () => {
-      area.style.transition = '';
-      area.removeEventListener('transitionend', clear);
-    };
-    area.addEventListener('transitionend', clear);
-  }
+  area.addEventListener('pointercancel', () => {
+    resetGesture();
+  }, { passive: true });
 }
+
     function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
 
