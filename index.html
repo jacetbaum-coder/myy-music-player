@@ -1462,6 +1462,9 @@ img {
 
 
     <script>
+        window.openAlbum = openAlbum;
+window.showView = showView;
+window.playSpecificSong = playSpecificSong;
         /**
          * ---------------------------------------------------------------------
          * GLOBAL APP STATE
@@ -1469,6 +1472,7 @@ img {
          */
        let libraryData = [];
 let libraryDataOriginal = [];
+let currentGridData = [];
 let currentSong = null;
 let currentQueue = [];
 let currentIndex = -1;
@@ -2623,6 +2627,7 @@ function initLibrarySearchBox() {
 const __renderGridOriginal = renderGrid;
 renderGrid = function(data) {
   const isLibrary = (navCurrent && navCurrent.type === 'library');
+    currentGridData = Array.isArray(data) ? data : [];
 
   // If not library, keep your existing behavior
   if (!isLibrary || libraryViewMode === 'grid') {
@@ -2634,13 +2639,12 @@ renderGrid = function(data) {
   if (!grid) return;
 
   grid.className = 'space-y-2'; // list
-  grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
-    const safeName = String(album.albumName || '').replace(/'/g, "\\'");
+  grid.innerHTML = currentGridData.map((album, index) => {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
       <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-           onclick="openAlbum('${safeName}')">
+           onclick="openAlbum('${index}')">
         <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
           <div class="text-white font-bold truncate">${album.albumName || ''}</div>
@@ -3149,26 +3153,24 @@ function renderGrid(data) {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  grid.innerHTML = data.map((album) => {
-    const safeName = album.albumName.replace(/'/g, "\\'");
+  currentGridData = Array.isArray(data) ? data : [];
+  grid.innerHTML = currentGridData.map((album, index) => {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-      <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
-           data-album="${safeName}">
-           data-album="${safeName}"
-           onclick="openAlbum('${safeName}')">
-
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover">
-        </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${album.albumName}
-        </div>
+      <div class="album-card" onclick="openAlbum('${index}')">
+        <div class="bg-[#181818] p-4 rounded-lg shadow-lg">
+          <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
+            <img src="${cover}" class="w-full h-full object-cover">
+          </div>
+          
+          <div class="font-bold text-white truncate text-base mb-1">
+            ${album.albumName}
+          </div>
 
         <div class="text-sm text-zinc-400 truncate">
-          ${album.artistName}
+            ${album.artistName}
+          </div>
         </div>
       </div>
     `;
@@ -3356,8 +3358,12 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
     });
 }
 
-        function openAlbum(name) {
-  openAlbumByName(name);
+        function openAlbum(index) {
+  const idx = Number(index);
+  const album = Number.isFinite(idx) ? currentGridData[idx] : null;
+  if (album && album.albumName) {
+    openAlbumByName(album.albumName);
+  }
 }
 
 window.openAlbum = openAlbum;
@@ -3874,7 +3880,9 @@ function togglePlay() {
       
       updateMediaSessionMetadata();
 
-persistPlayerState(true);
+lastPlayedTime = Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+      
 
 // ===== iOS / Lock Screen / Control Center metadata =====
 if ("mediaSession" in navigator && currentSong) {
@@ -4471,22 +4479,10 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 function checkDockVisibility() {
   const oneHour = 3600000;
 
-  // If nothing is loaded / no current song => NO dock
-  if (!currentSong) {
-    dock.classList.add('dock-hidden');
-    return;
-  }
-
-  // If playing, always show
-  if (!player.paused) {
-    dock.classList.remove('dock-hidden');
-    return;
-  }
-
-  // If paused: only show if last interaction within 1 hour
+  const isPlaying = !!currentSong && !player.paused;
   const isRecent = (Date.now() - lastPlayedTime) < oneHour;
 
-  if (isRecent) dock.classList.remove('dock-hidden');
+  if (isPlaying || isRecent) dock.classList.remove('dock-hidden');
   else dock.classList.add('dock-hidden');
 }
 
