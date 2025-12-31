@@ -104,6 +104,10 @@
 #library-search-overlay input {
   caret-color: var(--spotify-green);
 }
+#library-search-overlay.hidden, #library-search-popover.hidden {
+  pointer-events: none !important;
+  display: none !important;
+}
 
 
 /* while dragging, remove transition so it follows finger */
@@ -245,7 +249,27 @@ img {
 .track-row > * {
     min-width: 0;
 }
-
+.track-row .track-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+.track-row .track-artist {
+    font-size: 14px;
+    font-weight: 500;
+    color: #b3b3b3;
+    line-height: 1.2;
+    margin-top: 6px;
+}
+.track-row .track-menu {
+    display: none;
+    align-items: center;
+    justify-content: flex-end;
+    color: #b3b3b3;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
             color: white; 
@@ -632,13 +656,32 @@ img {
   }
 
   .track-row {
-    grid-template-columns: 1fr 40px;
-    padding: 14px 8px;
+    grid-template-columns: 1fr 36px;
+    padding: 18px 4px;
   }
   .track-row span:nth-child(1),
   .track-row span:nth-child(3),
   .track-row span:nth-child(4),
   .track-row span:nth-child(5) { display: none; }
+
+    .track-row .track-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .track-row .track-artist {
+    font-size: 15px;
+    font-weight: 600;
+    color: #b3b3b3;
+    margin-top: 8px;
+  }
+
+  .track-row .track-menu {
+    display: inline-flex;
+    font-size: 18px;
+  }
+
 
   /* --- MOBILE MINI PLAYER (Spotify-like) --- */
   .player-bar {
@@ -774,15 +817,19 @@ img {
   #album-hero,
   #artist-hero > div {
     flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 14px !important;
+    align-items: center !important;
+    gap: 16px !important;
   }
 
-  /* Make hero images smaller and consistent on mobile */
+  #album-hero > div {
+    width: 100%;
+  }
+
+  /* Make hero images bigger and centered on mobile */
   #album-hero img,
   #artist-hero img {
-    width: 170px !important;
-    height: 170px !important;
+    width: 220px !important;
+    height: 220px !important;
     max-width: 100% !important;
     flex-shrink: 0 !important;
   }
@@ -971,7 +1018,7 @@ img {
   <!-- (Removed on mobile Library) -->
 
                 <!-- MOBILE: Library header (Spotify-ish) -->
-        <div id="mobile-library-header" class="md:hidden mb-4">
+        <div id="mobile-library-header" class="md:hidden mb-4 pt-3">
           <!-- Top row -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -979,7 +1026,7 @@ img {
               <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
                 <i class="fas fa-user text-white/70 text-sm"></i>
               </div>
-              <div class="text-3xl font-black leading-none">My Library</div>
+               <div class="text-4xl font-black leading-none">My Library</div>
             </div>
 
             <div class="flex items-center gap-4">
@@ -1031,7 +1078,7 @@ img {
 
         <!-- Library controls (Sort + View as) -->
 
-        <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
+       <div id="library-controls" class="hidden mb-4 mt-3 flex items-center justify-between gap-3">
           <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
           <div class="relative">
             <button id="library-sort-btn"
@@ -1091,7 +1138,7 @@ img {
   </div>
 
   <!-- ONE album grid only -->
-    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+    <div id="album-grid" class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
 
 </div>
 
@@ -1416,6 +1463,7 @@ img {
 
 
     <script>
+        
         /**
          * ---------------------------------------------------------------------
          * GLOBAL APP STATE
@@ -1423,6 +1471,7 @@ img {
          */
        let libraryData = [];
 let libraryDataOriginal = [];
+let currentGridData = [];
 let currentSong = null;
 let currentQueue = [];
 let currentIndex = -1;
@@ -2055,7 +2104,8 @@ function renderPlaylistGrid() {
     return;
   }
 
-  grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+    grid.className = 'grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+
   grid.innerHTML = items.map(pl => {
     const cover = getEffectivePlaylistCover(pl);
     const safeId = String(pl.id || '').replace(/"/g, '&quot;');
@@ -2063,14 +2113,14 @@ function renderPlaylistGrid() {
     return `
       <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
            data-playlist-id="${safeId}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
+        <div class="relative rounded-lg overflow-hidden aspect-square">
           ${cover
             ? `<img src="${cover}" class="w-full h-full object-cover" alt="">`
             : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
                  <i class="fas fa-music text-zinc-500 text-2xl"></i>
                </div>`}
         </div>
-        <div class="font-bold text-white truncate text-base mb-1">
+        <div class="font-bold text-white truncate text-base">
           ${pl.name || 'Playlist'}
         </div>
         <div class="text-sm text-zinc-400 truncate">
@@ -2104,7 +2154,7 @@ function renderLibraryContent() {
   if (libraryViewMode === 'grid') {
     const grid = document.getElementById('album-grid');
     if (grid) {
-      grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+       grid.className = 'grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
     }
   }
 
@@ -2458,7 +2508,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
         Math.round(fuzzyScore(q, albumName) * 0.85),
         Math.round(fuzzyScore(q, artistName) * 0.90)
       );
-      if (score >= 60) {
+      if (score >= 55) {
         items.push({ type: 'song', _score: score, title: songName, album: albumName, artist: artistName });
       }
     });
@@ -2469,7 +2519,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
     const albumName = album.albumName || '';
     const artistName = album.artistName || '';
     const score = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
-    if (score >= 60) items.push({ type: 'album', _score: score, album: albumName, artist: artistName });
+    if (score >= 55) items.push({ type: 'album', _score: score, album: albumName, artist: artistName });
   });
 
   // Artists (unique)
@@ -2481,13 +2531,13 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
   });
   [...artistMap.entries()].forEach(([artist, count]) => {
     const score = fuzzyScore(q, artist);
-    if (score >= 60) items.push({ type: 'artist', _score: score, artist, count });
+    if (score >= 55) items.push({ type: 'artist', _score: score, artist, count });
   });
 
   // Playlists
   (Array.isArray(playlists) ? playlists : []).forEach(pl => {
     const score = fuzzyScore(q, pl.name || '');
-    if (score >= 60) items.push({ type: 'playlist', _score: score, id: pl.id, name: pl.name || 'Playlist' });
+    if (score >= 55) items.push({ type: 'playlist', _score: score, id: pl.id, name: pl.name || 'Playlist' });
   });
 
   items.sort((a, b) => (b._score || 0) - (a._score || 0));
@@ -2577,6 +2627,7 @@ function initLibrarySearchBox() {
 const __renderGridOriginal = renderGrid;
 renderGrid = function(data) {
   const isLibrary = (navCurrent && navCurrent.type === 'library');
+    currentGridData = Array.isArray(data) ? data : [];
 
   // If not library, keep your existing behavior
   if (!isLibrary || libraryViewMode === 'grid') {
@@ -2588,13 +2639,12 @@ renderGrid = function(data) {
   if (!grid) return;
 
   grid.className = 'space-y-2'; // list
-  grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
-    const safeName = String(album.albumName || '').replace(/'/g, "\\'");
+  grid.innerHTML = currentGridData.map((album, index) => {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
       <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-           onclick="openAlbumByName('${safeName}')">
+           onclick="openAlbum('${index}')">
         <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
           <div class="text-white font-bold truncate">${album.albumName || ''}</div>
@@ -2618,7 +2668,8 @@ showView = function(viewType, playlistIndex = null) {
     renderLibraryContent();
   }
 };
-
+window.showView = showView;
+        
 window.onload = async () => {
             setGreeting();
             syncRepeatUI();
@@ -2871,35 +2922,6 @@ function initSwipeBack() {
     area.addEventListener('transitionend', clear);
   }
 }
-    function showView(viewType, playlistIndex = null) {
-  pushNavCurrent();
-
-  try { hidePlaylistMenu(); } catch (e) {}
-  try { closeContextMenu(); } catch (e) {}
-
-  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-
-  activePlaylistIndex = playlistIndex;
-  activePlaylistId = null;
-
-  if (viewType === 'home') setNavCurrent({ type: 'home' });
-  else if (viewType === 'library') setNavCurrent({ type: 'library' });
-  else if (viewType === 'search') setNavCurrent({ type: 'search' });
-  else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-  else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-  else if (viewType === 'playlist') {
-    const pl = playlists[playlistIndex];
-    setNavCurrent({ type: 'playlist', playlistIndex, playlistId: pl?.id || null });
-  } else {
-    setNavCurrent({ type: viewType || 'home' });
-  }
-
-  const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
-}
-
 
   function canStart(e) {
     // Must have something to go back to
@@ -3087,11 +3109,16 @@ const scrollArea = document.getElementById('main-scroll-area');
   if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
   const pl = playlists[playlistIndex];
+      if (!pl) {
+    renderCollection('Playlist', [], true);
+    updateActiveStates(viewType);
+    return;
+  }
   activePlaylistId = pl?.id || null;
 
   playContext = { type: 'playlist', label: pl.name };
 
-  renderCollection(pl.name, pl.songs, true, playlistIndex);
+  renderCollection(pl.name, Array.isArray(pl.songs) ? pl.songs : [], true, playlistIndex);
 }
 
   if (viewType === 'artist') {
@@ -3126,55 +3153,74 @@ function renderGrid(data) {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  grid.innerHTML = data.map((album) => {
-    const safeName = album.albumName.replace(/'/g, "\\'");
+  currentGridData = Array.isArray(data) ? data : [];
+  grid.innerHTML = currentGridData.map((album, index) => {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
-    return `
-      <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
-           data-album="${safeName}">
-
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
+           return `
+        <div class="album-card group cursor-pointer" onclick="openAlbum('${index}')">
+         <div class="relative rounded-lg overflow-hidden aspect-square">
           <img src="${cover}" class="w-full h-full object-cover">
         </div>
 
-        <div class="font-bold text-white truncate text-base mb-1">
+        <div class="font-bold text-white truncate text-base">
           ${album.albumName}
         </div>
 
         <div class="text-sm text-zinc-400 truncate">
-          ${album.artistName}
+            ${album.artistName}
         </div>
       </div>
     `;
   }).join('');
-
-  [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
-    });
-  });
 }
 
+        function findAlbumByName(name) {
+  const normalized = String(name || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const pools = [
+    Array.isArray(libraryData) ? libraryData : [],
+    Array.isArray(libraryDataOriginal) ? libraryDataOriginal : [],
+    Array.isArray(currentGridData) ? currentGridData : []
+  ];
+
+  for (const pool of pools) {
+    const found = pool.find(album =>
+      String(album.albumName || '').trim().toLowerCase() === normalized
+    );
+    if (found) return found;
+  }
+
+  return null;
+}
 
 function openAlbumByName(name) {
   // BACK STACK: push current view before entering album
   pushNavCurrent();
   setNavCurrent({ type: 'album', albumName: name });
 
+  // Ensure any overlays can’t block the view
+  try {
+    document.getElementById('library-search-overlay')?.classList.add('hidden');
+    document.getElementById('library-search-popover')?.classList.add('hidden');
+  } catch (e) {}
+
   playContext = { type: 'album', label: name };
-    const isPlaylist = false;
-  const album = libraryData.find(a => a.albumName === name);
+  const isPlaylist = false;
+
+  const album = findAlbumByName(name);
+
   if (!album) return;
 
   activeAlbumName = album.albumName;
   activeAlbumArtist = album.artistName;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+    const albumSongs = Array.isArray(album.songs) ? album.songs : [];
 
   // Build the queue for next/prev (use overridden cover)
-  currentQueue = buildQueueFromSongs(album.songs, {
+  currentQueue = buildQueueFromSongs(albumSongs, {
     album: album.albumName,
     artist: album.artistName,
     cover: cover
@@ -3183,14 +3229,19 @@ function openAlbumByName(name) {
   // Nothing selected yet until user clicks a track or presses play
   currentIndex = -1;
 
-    // Hide ALL main views before showing album-view (fixes “tap does nothing” on mobile Home)
+     // Hide ALL main views before showing album-view
   document.getElementById('home-view')?.classList.add('hidden');
   document.getElementById('grid-view')?.classList.add('hidden');
   document.getElementById('search-view')?.classList.add('hidden');
   document.getElementById('artist-view')?.classList.add('hidden');
 
-  document.getElementById('album-view')?.classList.remove('hidden');
-
+  const av = document.getElementById('album-view');
+  if (av) {
+    av.classList.remove('hidden');
+    av.scrollIntoView({ block: 'start' });
+  } else {
+    console.error('album-view element is missing in the DOM');
+  }
 
   // Hook the big green hero play button to play this album
   const heroPlay = document.getElementById('hero-play-btn');
@@ -3206,8 +3257,8 @@ function openAlbumByName(name) {
     <div class="flex-1">
       <p class="text-xs font-bold uppercase tracking-widest mb-2">Album</p>
       <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
-      <div class="flex items-center gap-2 text-sm font-bold">
-        <span class="hover:underline cursor-pointer"
+      <div class="flex items-center gap-2 text-base font-semibold">
+        <span class="hover:underline cursor-pointer font-semibold"
               onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
           ${album.artistName}
         </span>
@@ -3238,7 +3289,7 @@ function openAlbumByName(name) {
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
-  album.songs.forEach((song, i) => {
+  albumSongs.forEach((song, i) => {
     const row = document.createElement('div');
     row.className = "track-row group";
 
@@ -3307,12 +3358,12 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div data-role="title" class="text-white font-medium truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-        <div data-role="sub" class="text-xs text-zinc-400 md:hidden">${song.artist || album.artistName || ''}</div>
+        <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+        <div data-role="sub" class="track-artist md:hidden">${song.artist || album.artistName || ''}</div>
       </div>
       ${albumCell}
       <span class="hidden md:block">Just now</span>
-      <span class="hidden md:block text-center">3:20</span>
+      <span class="track-menu">•••</span>
     `;
 
     // If the album is clickable, clicking it should NOT play the song row
@@ -3329,7 +3380,59 @@ const safeAlbumAttr = String(albumName).replace(/"/g, '&quot;');
     });
 }
 
+        function openAlbum(index) {
+  const data =
+    Array.isArray(currentGridData) && currentGridData.length
+      ? currentGridData
+      : Array.isArray(libraryDataOriginal) && libraryDataOriginal.length
+      ? libraryDataOriginal
+      : libraryData;
+
+  const album = data[index];
+  if (!album) {
+    console.error('openAlbum: album not found for index', index);
+    return;
+  }
+
+  showView('album');
+
+  const albumTitle = document.getElementById('album-title');
+  const albumArtist = document.getElementById('album-artist');
+  const albumCover = document.getElementById('album-cover');
+  const trackList = document.getElementById('album-track-list');
+
+  if (!albumTitle || !albumArtist || !albumCover || !trackList) {
+    console.error('Album DOM elements missing:', {
+      albumTitle,
+      albumArtist,
+      albumCover,
+      trackList
+    });
+    return;
+  }
+
+  albumTitle.textContent = album.albumName;
+  albumArtist.textContent = album.artistName;
+  albumCover.src = album.coverArt || '';
+  trackList.innerHTML = '';
+
+  album.songs.forEach((song, i) => {
+    const li = document.createElement('li');
+    li.className = 'track-row';
+    li.innerHTML = `
+      <span class="track-number">${i + 1}</span>
+      <span class="track-title">${song.title}</span>
+      <span class="track-duration">${song.duration || ''}</span>
+    `;
+    li.onclick = () => playSpecificSong(album, i);
+    trackList.appendChild(li);
+  });
+}
+
+
+
 function openArtistByName(artistName) {
+
   // BACK STACK: push current view before entering artist
   pushNavCurrent();
   setNavCurrent({ type: 'artist', artistName: artistName });
@@ -3474,6 +3577,10 @@ function openArtistByName(artistName) {
 
           const q = raw.trim();
           let matches = [];
+            const songMatches = [];
+          const albumMatches = [];
+          const artistMatches = [];
+          const playlistMatches = [];
 
           // Search across song title, artist, album
           libraryData.forEach(album => {
@@ -3492,7 +3599,7 @@ function openArtistByName(artistName) {
 
               // Threshold: typo-tolerant but avoids junk
               if (score >= 55) {
-                matches.push({
+                songMatches.push({
                   ...song,
                   album: albumName,
                   artist: artistName,
@@ -3501,19 +3608,88 @@ function openArtistByName(artistName) {
                 });
               }
             });
+
+              const albumScore = Math.max(
+              fuzzyScore(q, albumName),
+              Math.round(fuzzyScore(q, artistName) * 0.80)
+            );
+            if (albumScore >= 55) {
+              albumMatches.push({
+                album: albumName,
+                artist: artistName,
+                cover: album.coverArt,
+                _score: albumScore
+              });
+            }
+          });
+            const artistMap = new Map();
+          libraryData.forEach(album => {
+            const artistName = album.artistName || '';
+            if (!artistName) return;
+            if (!artistMap.has(artistName)) {
+              artistMap.set(artistName, {
+                artist: artistName,
+                count: 0,
+                cover: album.coverArt,
+                albumName: album.albumName || ''
+              });
+            }
+            const entry = artistMap.get(artistName);
+            entry.count += 1;
           });
 
-          // Best first
-          matches.sort((a, b) => b._score - a._score);
+          [...artistMap.values()].forEach(entry => {
+            const score = fuzzyScore(q, entry.artist);
+            if (score >= 55) {
+              artistMatches.push({
+                ...entry,
+                _score: score
+              });
+            }
+          });
 
-          if (matches.length === 0) {
+          (Array.isArray(playlists) ? playlists : []).forEach(pl => {
+            const score = fuzzyScore(q, pl.name || '');
+            if (score >= 55) {
+              playlistMatches.push({
+                id: pl.id,
+                name: pl.name || 'Playlist',
+                cover: getEffectivePlaylistCover(pl),
+                _score: score
+              });
+            }
+          });
+
+         // Best first
+          songMatches.sort((a, b) => b._score - a._score);
+          albumMatches.sort((a, b) => b._score - a._score);
+          artistMatches.sort((a, b) => b._score - a._score);
+          playlistMatches.sort((a, b) => b._score - a._score);
+
+          if (
+            songMatches.length === 0
+            && albumMatches.length === 0
+            && artistMatches.length === 0
+            && playlistMatches.length === 0
+          ) {
             results.innerHTML = `<p class="text-zinc-500">No results found for "${q}"</p>`;
             return;
           }
 
           results.innerHTML = '';
 
-          matches.slice(0, 25).forEach((s) => {
+         const addSectionTitle = (title) => {
+            const header = document.createElement('div');
+            header.className = 'px-2 pt-4 pb-2 text-xs font-black text-zinc-500 uppercase tracking-widest';
+            header.textContent = title;
+            results.appendChild(header);
+          };
+
+          if (songMatches.length) {
+            addSectionTitle('Songs');
+          }
+
+          songMatches.slice(0, 25).forEach((s) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
 
@@ -3545,6 +3721,128 @@ function openArtistByName(artistName) {
             info.appendChild(title);
             info.appendChild(meta);
             row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+            
+          if (albumMatches.length) {
+            addSectionTitle('Albums');
+          }
+
+          albumMatches.slice(0, 8).forEach((a) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              openAlbumByName(a.album);
+            });
+
+            const img = document.createElement('img');
+            img.src = getAlbumCover(a.artist, a.album, a.cover);
+            img.className = 'w-12 h-12 rounded object-cover';
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = a.album;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = a.artist;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+
+          if (artistMatches.length) {
+            addSectionTitle('Artists');
+          }
+
+          artistMatches.slice(0, 8).forEach((a) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              openArtistByName(a.artist);
+            });
+
+            const img = document.createElement('img');
+            img.src = getAlbumCover(a.artist, a.albumName, a.cover);
+            img.className = 'w-12 h-12 rounded-full object-cover';
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = a.artist;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = `${a.count} album${a.count === 1 ? '' : 's'}`;
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          });
+
+          if (playlistMatches.length) {
+            addSectionTitle('Playlists');
+          }
+
+          playlistMatches.slice(0, 8).forEach((p) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.addEventListener('click', () => {
+              const idx = playlists.findIndex(pl => pl.id === p.id);
+              if (idx !== -1) showView('playlist', idx);
+            });
+
+            const cover = p.cover;
+            const imgWrap = document.createElement('div');
+            imgWrap.className = 'w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center';
+            if (cover) {
+              const img = document.createElement('img');
+              img.src = cover;
+              img.className = 'w-full h-full object-cover';
+              imgWrap.appendChild(img);
+            } else {
+              const icon = document.createElement('i');
+              icon.className = 'fas fa-music text-zinc-500';
+              imgWrap.appendChild(icon);
+            }
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
+
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = p.name;
+
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = 'Playlist';
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-chevron-right opacity-0 group-hover:opacity-100 text-zinc-400';
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(imgWrap);
             row.appendChild(info);
             row.appendChild(icon);
             results.appendChild(row);
@@ -3645,7 +3943,9 @@ function togglePlay() {
       
       updateMediaSessionMetadata();
 
-persistPlayerState(true);
+lastPlayedTime = Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+      
 
 // ===== iOS / Lock Screen / Control Center metadata =====
 if ("mediaSession" in navigator && currentSong) {
@@ -4242,22 +4542,10 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 function checkDockVisibility() {
   const oneHour = 3600000;
 
-  // If nothing is loaded / no current song => NO dock
-  if (!currentSong) {
-    dock.classList.add('dock-hidden');
-    return;
-  }
-
-  // If playing, always show
-  if (!player.paused) {
-    dock.classList.remove('dock-hidden');
-    return;
-  }
-
-  // If paused: only show if last interaction within 1 hour
+  const isPlaying = !!currentSong && !player.paused;
   const isRecent = (Date.now() - lastPlayedTime) < oneHour;
 
-  if (isRecent) dock.classList.remove('dock-hidden');
+  if (isPlaying || isRecent) dock.classList.remove('dock-hidden');
   else dock.classList.add('dock-hidden');
 }
 
@@ -5573,7 +5861,8 @@ function normalizeSong(song, fallback = {}) {
 }
 
 function buildQueueFromSongs(songs, fallback) {
-  return songs.map((song) => normalizeSong(song, fallback)).filter(Boolean);
+  const list = Array.isArray(songs) ? songs : [];
+  return list.map((song) => normalizeSong(song, fallback)).filter(Boolean);
 }
 
 function playQueue(queue, startIndex = 0) {
@@ -5668,12 +5957,13 @@ if (hero && activePlaylistId) {
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
       <div class="flex flex-col">
-        <div class="${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} font-medium truncate">${String(song.title || '').replace('.mp3', '')}</div>
-        <div class="text-xs text-zinc-400 md:hidden">${song.artist || ''}</div>
+        <div class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${String(song.title || '').replace('.mp3', '')}</div>
+        <div class="track-artist md:hidden">${song.artist || ''}</div>
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
       <span class="hidden md:block">Just now</span>
       <span class="hidden md:block text-center">3:20</span>
+      <span class="track-menu">•••</span>
     `;
 
     listEl.appendChild(row);
@@ -5726,7 +6016,7 @@ function updateTrackListActiveState() {
 }
 
 function playAlbumByName(name) {
-  const album = libraryData.find(a => a.albumName === name);
+  const album = findAlbumByName(name);
   if (!album) return;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
@@ -5798,9 +6088,16 @@ player.addEventListener('ended', () => {
 // Auto-hide dock interval
 
         // Auto-hide dock interval
-        setInterval(checkDockVisibility, 30000);
+                setInterval(checkDockVisibility, 30000);
+
+        // MOVE THESE TO THE BOTTOM (functions now exist)
+        window.openAlbum = openAlbum;
+        window.showView = showView;
+        window.playSpecificSong = playSpecificSong;
+        window.openAlbumByName = openAlbumByName;
 
     </script>
+
     <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
