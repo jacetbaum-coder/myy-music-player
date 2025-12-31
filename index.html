@@ -2032,6 +2032,10 @@ let manualQueue = (() => {
   }
 })();
 
+        function persistManualQueue() {
+  persistManualQueue();
+}
+
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
 const makeId = () => {
   try {
@@ -2080,6 +2084,16 @@ function addSongToQueue(songObj) {
 try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
 }
 
+        function takeNextManualQueueSong() {
+  while (Array.isArray(manualQueue) && manualQueue.length) {
+    const next = manualQueue.shift();
+    persistManualQueue();
+    try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+    const song = (typeof normalizeSong === 'function') ? normalizeSong(next) : next;
+    if (song && song.url) return song;
+  }
+  return null;
+}
 
 /* -----------------------
    SWIPE LEFT ON TRACK ROW => Add to queue
@@ -6469,14 +6483,6 @@ function renderPlaylists() {
     return;
   }
 
-  // ADD TO QUEUE
-  if (type === 'queue_add') {
-    addToManualQueue(menuTargetSong);
-    closeContextMenu();
-    showQueueToast();
-    return;
-  }
-
   // ADD TO QUEUE (close menu + toast)
   if (type === 'queue_add' || type === 'add_to_queue' || type === 'add_queue') {
     try { addSongToQueue(menuTargetSong); } catch (e) {}
@@ -6623,6 +6629,15 @@ function setAllPlayIconsToPlay() {
 
 function nextSong() {
   if (!currentQueue || currentQueue.length === 0) return;
+
+    const manualSong = takeNextManualQueueSong();
+  if (manualSong) {
+    isAutoNav = true;
+    playSpecificSong(manualSong.url, manualSong.title, manualSong.album, manualSong.artist, manualSong.cover);
+    isAutoNav = false;
+    return;
+  }
+
 
   const len = currentQueue.length;
 
