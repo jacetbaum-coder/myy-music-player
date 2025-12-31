@@ -1934,7 +1934,7 @@ body.qs-lock {
 </div>
 
 <!-- QUEUE SHEET (mobile) -->
-<div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden" onclick="closeQueueSheet()">
+<div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden" onclick="closeQueueSheet()"></div>
 
 <div id="queue-sheet" class="qs qs-hidden" role="dialog" aria-modal="true" aria-label="Queue">
   <div class="qs-handle"></div>
@@ -1977,82 +1977,67 @@ let playContext = null;
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
-        // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
+
+/* -----------------------
+   MANUAL QUEUE (Add to queue)
+   First added stays at top
+------------------------ */
+let manualQueue = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem('manualQueue') || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    return [];
+  }
+})();
+
+// --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
 playlists = playlists.map(pl => ({
   ...pl,
   id: pl.id || crypto.randomUUID()
 }));
 localStorage.setItem('playlists', JSON.stringify(playlists));
 
+let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
+
+
         let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
         // Elements
-        const player = document.getElementById('audio-player');
+const player = document.getElementById('audio-player');
 
 /* -----------------------
-   QUEUE SHEET (mobile) — NEW qs-* version
+   MANUAL QUEUE: add + render
 ------------------------ */
-function openQueueSheet() {
-  const backdrop = document.getElementById('queue-sheet-backdrop');
-  const sheet = document.getElementById('queue-sheet');
-  if (!backdrop || !sheet) return;
+function addSongToQueue(songObj) {
+  if (!songObj) return;
 
-  // Render the queue rows before showing (if you have a renderer)
-  try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+  // If you already have normalizeSong(), use it; otherwise store the object directly.
+  const song = (typeof normalizeSong === 'function') ? normalizeSong(songObj) : songObj;
+  if (!song) return;
 
-  // show
-  backdrop.classList.remove('qs-hidden');
-  sheet.classList.remove('qs-hidden');
+  // append => first-added is at top, next goes below
+  manualQueue.push(song);
 
-  // lock behind scroll
-  document.body.classList.add('qs-lock');
+  try { localStorage.setItem('manualQueue', JSON.stringify(manualQueue)); } catch (e) {}
 
-  // start from bottom, then animate up
-  sheet.classList.remove('qs-dragging');
-  sheet.classList.remove('qs-open');
-  sheet.style.transform = 'translateY(100%)';
+  if (typeof renderQueueSheet === 'function') {
+    try { renderQueueSheet(); } catch (e) {}
+  }
 
-  requestAnimationFrame(() => {
-    sheet.classList.add('qs-open');
-    sheet.style.transform = 'translateY(0)';
-  });
+  // close the song context menu (your menu IDs exist in your file)
+  try {
+    const cm = document.getElementById('context-menu');
+    const bd = document.getElementById('context-menu-backdrop');
+    if (cm) cm.style.display = 'none';
+    if (bd) bd.style.display = 'none';
+  } catch (e) {}
 }
-
-
-function closeQueueSheet() {
-  const backdrop = document.getElementById('queue-sheet-backdrop');
-  const sheet = document.getElementById('queue-sheet');
-  if (!backdrop || !sheet) return;
-
-  sheet.classList.remove('qs-dragging');
-  sheet.classList.remove('qs-open');
-  sheet.style.transform = 'translateY(100%)';
-
-  const done = () => {
-    sheet.classList.add('qs-hidden');
-    backdrop.classList.add('qs-hidden');
-    document.body.classList.remove('qs-lock');
-
-    // reset
-    sheet.style.transform = 'translateY(0)';
-    sheet.removeEventListener('transitionend', done);
-  };
-
-  sheet.addEventListener('transitionend', done);
-}
-
-
-
-// Bind buttons safely after DOM exists
-window.addEventListener('DOMContentLoaded', () => {
-  const openBtn = document.getElementById('queue-toast-open');
-  if (openBtn) openBtn.addEventListener('click', openQueueSheet);
-
-  const backdrop = document.getElementById('queue-sheet-backdrop');
-  if (backdrop) backdrop.addEventListener('click', closeQueueSheet);
-});
 
 /* -----------------------
+   ALBUM COVER -> ACCENT COLOR (Spotify-like)
+------------------------ */
+
    ALBUM COVER -> ACCENT COLOR (Spotify-like)
 ------------------------ */
 
