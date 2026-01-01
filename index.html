@@ -5591,9 +5591,17 @@ function seekOnBar(barEl, clientX) {
   if (!barEl) return;
 
   const rect = barEl.getBoundingClientRect();
-  const pct = (clientX - rect.left) / rect.width;
+
+  // rect.width can be 0 in some layouts/zoom states; avoid NaN -> currentTime=0
+  const width = rect.width || barEl.clientWidth || 0;
+  if (!Number.isFinite(width) || width <= 0) return;
+
+  const x = clientX - rect.left;
+  const pct = x / width;
+  if (!Number.isFinite(pct)) return;
+
   const clamped = Math.max(0, Math.min(1, pct));
-    const duration = getSeekDuration();
+  const duration = getSeekDuration();
 
   // If duration isn't ready yet, store and apply later
   if (!duration) {
@@ -5602,9 +5610,12 @@ function seekOnBar(barEl, clientX) {
     return;
   }
 
-  player.currentTime = clamped * duration;
-}
+  const target = clamped * duration;
+  if (!Number.isFinite(target)) return;
 
+  player.currentTime = target;
+}
+        
 function applyPendingSeek() {
   if (pendingSeekPct == null) return;
 const duration = getSeekDuration();
