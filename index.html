@@ -313,7 +313,7 @@ img {
   white-space: pre-wrap;
   font-weight: 900;
   font-size: 44px;
-  line-height: 1.15;
+  line-height: 1.28;
   letter-spacing: -0.02em;
   color: rgba(255,255,255,0.9);
 }
@@ -5723,9 +5723,8 @@ function toggleCenterLyrics() {
 
 async function loadCenterLyrics(trackTitle, artistName) {
   const titleEl = document.getElementById('lyrics-overlay-title');
-const subEl   = document.getElementById('lyrics-overlay-sub');
-const bodyEl  = document.getElementById('lyrics-overlay-body');
-
+  const subEl   = document.getElementById('lyrics-overlay-sub');
+  const bodyEl  = document.getElementById('lyrics-overlay-body');
 
   const cleanTitle  = String(trackTitle || '').replace('.mp3','').trim();
   const cleanArtist = String(artistName || '').trim();
@@ -5733,6 +5732,27 @@ const bodyEl  = document.getElementById('lyrics-overlay-body');
   if (titleEl) titleEl.textContent = cleanTitle || 'Lyrics';
   if (subEl)   subEl.textContent = cleanArtist || '';
   if (bodyEl)  bodyEl.textContent = 'Loading lyrics…';
+
+  // -----------------------
+  // localStorage cache (persists across refresh)
+  // key is stable per (artist + title)
+  // -----------------------
+  const cacheKey = (() => {
+    const a = cleanArtist.toLowerCase().trim();
+    const t = cleanTitle.toLowerCase().trim();
+    return `lyricsCache:v1:${a}||${t}`;
+  })();
+
+  // Try cache first
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached && cached.trim().length) {
+      if (bodyEl) bodyEl.textContent = cached;
+      return;
+    }
+  } catch (e) {
+    // ignore cache failures
+  }
 
   try {
     const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
@@ -5749,11 +5769,23 @@ const bodyEl  = document.getElementById('lyrics-overlay-body');
 
     // If synced lyrics, strip timestamps for the big Spotify-like look
     const cleaned = String(text).replace(/\[[0-9:.]+\]\s*/g, '').trim();
-    if (bodyEl) bodyEl.textContent = cleaned || 'No lyrics found for this track.';
+    const finalText = cleaned || 'No lyrics found for this track.';
+
+    if (bodyEl) bodyEl.textContent = finalText;
+
+    // Save into cache (so refresh won’t re-fetch)
+    try {
+      if (finalText && finalText.trim().length) {
+        localStorage.setItem(cacheKey, finalText);
+      }
+    } catch (e) {
+      // ignore storage full / blocked
+    }
   } catch (e) {
     if (bodyEl) bodyEl.textContent = 'Lyrics not available right now.';
   }
 }
+
 
 function updateCenterLyricsForSong(songObj) {
   if (!isCenterLyricsOpen) return;
