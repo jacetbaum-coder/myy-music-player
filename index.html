@@ -3789,12 +3789,13 @@ window.onload = async () => {
 
 
   safe(window.restorePlayerStateIfRecent);
-  safe(window.checkDockVisibility);
+    safe(window.checkDockVisibility);
 
-// ✅ Run dock auto-hide check every 30 seconds (only once)
-try { setInterval(checkDockVisibility, 30000); } catch (e) {}
+  // Auto-hide dock interval (run once)
+  try { setInterval(checkDockVisibility, 30000); } catch (e) {}
 
-safe(window.initResizers);
+  safe(window.initResizers);
+
 
   safe(window.initGlobalKeys);
 
@@ -8170,10 +8171,10 @@ player.addEventListener('ended', async () => {
 });
 
 
-// Auto-hide dock interval (moved out of the ended handler by replacing the whole block above)
-
+</script>
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
+
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
 
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
