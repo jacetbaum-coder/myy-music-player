@@ -297,6 +297,46 @@ body.queue-mode #right-bio-card{ display:none; }
 body.queue-mode #right-lyrics-card{ display:none; }
 body.queue-mode #right-queue-card{ display:block; }
 
+/* Desktop Queue: match Spotify density (pic 2) */
+body.queue-mode #right-queue-list{
+  padding: 6px 0 !important;
+  white-space: normal !important;
+  font-size: 13px !important;
+}
+
+body.queue-mode #right-queue-list .queue-row{
+  padding: 6px 10px !important;     /* tighter rows */
+  border-radius: 10px !important;
+  gap: 10px !important;
+}
+
+body.queue-mode #right-queue-list .queue-cover{
+  width: 44px !important;           /* smaller cover */
+  height: 44px !important;
+  border-radius: 8px !important;
+}
+
+/* SAME TEXT SIZE for both lines (your request) */
+body.queue-mode #right-queue-list .queue-song{
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+}
+
+body.queue-mode #right-queue-list .queue-artist{
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  opacity: 0.75 !important;
+  line-height: 1.15 !important;
+  margin-top: 2px !important;
+}
+
+body.queue-mode #right-queue-list .queue-hamburger{
+  font-size: 16px !important;
+  opacity: 0.6 !important;
+}
+
+
 
 
 
@@ -6010,7 +6050,7 @@ function renderRightQueue() {
     const cover = (s.cover || s.coverUrl || s.art || s.image || '').toString();
 
     return `
-      <div class="queue-row" data-rqi="${idx}" style="padding:10px 8px;border-radius:10px;">
+            <div class="queue-row" data-rqi="${idx}">
         <img class="queue-cover" src="${cover}" onerror="this.style.visibility='hidden'" />
         <div class="queue-main">
           <div class="queue-song">${title.replace(/</g,'&lt;')}</div>
