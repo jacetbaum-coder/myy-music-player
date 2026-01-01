@@ -3789,14 +3789,9 @@ window.onload = async () => {
 
 
   safe(window.restorePlayerStateIfRecent);
-    safe(window.checkDockVisibility);
-
-  // Auto-hide dock interval (run once)
-  try { setInterval(checkDockVisibility, 30000); } catch (e) {}
+  safe(window.checkDockVisibility);
 
   safe(window.initResizers);
-
-
   safe(window.initGlobalKeys);
 
   // Swipe-back helper (optional)
@@ -7628,11 +7623,10 @@ const cover = getEffectivePlaylistCover(pl);
   renderPlaylists();
   closeContextMenu();
 };
-                                sub.appendChild(item);
+                sub.appendChild(item);
             });
         }
 
-}
         function updateCounts() {
             const el = document.getElementById('count-liked');
             if (el) el.innerText = `${likedSongs.length} songs`;
@@ -8121,14 +8115,11 @@ function prevSong() {
 
 
 // Auto-advance when a song ends
-player.addEventListener('ended', async () => {
+player.addEventListener('ended', () => {
   // Repeat ONE: loop the same track forever
   if (isRepeatOneOn()) {
-    try { player.currentTime = 0; } catch (e) {}
-    try {
-      const p = player.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch (e) {}
+    player.currentTime = 0;
+    player.play();
 
     const desktopIcon = document.getElementById('play-icon');
     const mobileIcon = document.getElementById('mobile-play-icon');
@@ -8140,42 +8131,24 @@ player.addEventListener('ended', async () => {
     return;
   }
 
-  // Sleep timer: stop at end of track
+    // Otherwise advance.
+  // Repeat ALL behavior is handled inside nextSong() (it loops instead of stopping).
   if (sleepTimerEndOfTrack) {
     sleepTimerEndOfTrack = false;
-    try { npUpdateSleepTimerUI(); } catch (e) {}
+    npUpdateSleepTimerUI();
     return;
   }
-
-  // ✅ Manual Queue FIRST: play next queued song immediately
-  try {
-    const qSong = (typeof takeNextManualQueueSong === 'function') ? takeNextManualQueueSong() : null;
-
-    if (qSong && qSong.url) {
-      isAutoNav = true;
-      playSpecificSong(
-        qSong.url,
-        qSong.title || qSong.name || '',
-        qSong.album || '',
-        qSong.artist || '',
-        qSong.cover || qSong.coverUrl || ''
-      );
-      isAutoNav = false;
-      return;
-    }
-  } catch (e) {
-    // If queue logic fails for any reason, fall back to normal nextSong()
-  }
-
-  // Otherwise advance normally (album/playlist order)
   nextSong();
 });
 
+// Auto-hide dock interval
 
-</script>
+        // Auto-hide dock interval
+        setInterval(checkDockVisibility, 30000);
+
+    </script>
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
-
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
 
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
