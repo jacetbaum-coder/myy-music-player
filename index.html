@@ -323,7 +323,51 @@ img {
   .lyrics-center-body { font-size: 30px; }
 }
 
-.main-view { 
+/* When lyrics mode is ON, make lyrics replace the whole middle column */
+body.lyrics-mode #grid-view {
+  position: relative;
+}
+
+/* Hide everything in the middle view except the lyrics panel */
+body.lyrics-mode #grid-view > :not(#lyrics-center-view) {
+  display: none !important;
+}
+
+/* Make the lyrics panel fill the entire middle view */
+body.lyrics-mode #lyrics-center-view {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border-radius: 0;
+  background: rgba(var(--accent-rgb), 0.38);
+}
+
+/* Center the big lyrics text like Spotify */
+body.lyrics-mode #lyrics-center-view .lyrics-center-inner {
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 64px 64px 90px;
+}
+
+body.lyrics-mode #lyrics-center-view .lyrics-center-body {
+  font-size: 56px;
+  line-height: 1.12;
+}
+
+@media (max-width: 900px) {
+  body.lyrics-mode #lyrics-center-view .lyrics-center-inner {
+    padding: 36px 22px 90px;
+  }
+  body.lyrics-mode #lyrics-center-view .lyrics-center-body {
+    font-size: 36px;
+  }
+}
+
+        .main-view { 
+
 
   flex: 1; 
   /* subtle accent tint at top -> black */
@@ -5594,16 +5638,20 @@ function setCenterLyricsOpen(open) {
   isCenterLyricsOpen = !!open;
 
   const panel = document.getElementById('lyrics-center-view');
-  const grid  = document.getElementById('album-grid');
   const btn   = document.getElementById('dock-lyrics-btn');
 
+  // show/hide panel
   if (panel) panel.classList.toggle('hidden', !isCenterLyricsOpen);
-  if (grid)  grid.classList.toggle('hidden', isCenterLyricsOpen);
 
-    if (btn) {
+  // THIS makes it take over the entire middle screen
+  document.body.classList.toggle('lyrics-mode', isCenterLyricsOpen);
+
+  // mic active state (green when open)
+  if (btn) {
     btn.classList.toggle('text-[var(--spotify-green)]', isCenterLyricsOpen);
   }
 
+  // load lyrics immediately if opening
   if (isCenterLyricsOpen) {
     if (currentSong && (currentSong.title || currentSong.artist || currentSong.name)) {
       updateCenterLyricsForSong(currentSong);
@@ -5617,6 +5665,7 @@ function setCenterLyricsOpen(open) {
     }
   }
 }
+
 
 function toggleCenterLyrics() {
   setCenterLyricsOpen(!isCenterLyricsOpen);
