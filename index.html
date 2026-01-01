@@ -323,10 +323,8 @@ img {
   .lyrics-center-body { font-size: 30px; }
 }
 
-.main-view {
+.main-view { 
 
-
-        .main-view { 
   flex: 1; 
   /* subtle accent tint at top -> black */
   background: linear-gradient(180deg,
@@ -1943,8 +1941,9 @@ body.qs-lock {
         <div class="flex justify-end gap-5 items-center">
   <!-- NEW: Lyrics toggle (microphone) -->
   <i id="dock-lyrics-btn"
-     class="fas fa-microphone hover:text-white cursor-pointer text-sm"
+     class="fas fa-microphone text-zinc-400 hover:text-white cursor-pointer text-sm"
      title="Lyrics"></i>
+
 
   <i id="dock-menu-btn" class="fas fa-bars hover:text-white cursor-pointer text-sm"></i>
 
@@ -5601,9 +5600,8 @@ function setCenterLyricsOpen(open) {
   if (panel) panel.classList.toggle('hidden', !isCenterLyricsOpen);
   if (grid)  grid.classList.toggle('hidden', isCenterLyricsOpen);
 
-  if (btn) {
+    if (btn) {
     btn.classList.toggle('text-[var(--spotify-green)]', isCenterLyricsOpen);
-    btn.classList.toggle('text-white', isCenterLyricsOpen);
   }
 
   if (isCenterLyricsOpen) {
