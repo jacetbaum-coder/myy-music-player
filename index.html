@@ -3791,7 +3791,11 @@ window.onload = async () => {
   safe(window.restorePlayerStateIfRecent);
   safe(window.checkDockVisibility);
 
-  safe(window.initResizers);
+// ✅ Run dock auto-hide check every 30 seconds (only once)
+try { setInterval(checkDockVisibility, 30000); } catch (e) {}
+
+safe(window.initResizers);
+
   safe(window.initGlobalKeys);
 
   // Swipe-back helper (optional)
@@ -8115,11 +8119,14 @@ function prevSong() {
 
 
 // Auto-advance when a song ends
-player.addEventListener('ended', () => {
+player.addEventListener('ended', async () => {
   // Repeat ONE: loop the same track forever
   if (isRepeatOneOn()) {
-    player.currentTime = 0;
-    player.play();
+    try { player.currentTime = 0; } catch (e) {}
+    try {
+      const p = player.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {}
 
     const desktopIcon = document.getElementById('play-icon');
     const mobileIcon = document.getElementById('mobile-play-icon');
@@ -8131,22 +8138,40 @@ player.addEventListener('ended', () => {
     return;
   }
 
-    // Otherwise advance.
-  // Repeat ALL behavior is handled inside nextSong() (it loops instead of stopping).
+  // Sleep timer: stop at end of track
   if (sleepTimerEndOfTrack) {
     sleepTimerEndOfTrack = false;
-    npUpdateSleepTimerUI();
+    try { npUpdateSleepTimerUI(); } catch (e) {}
     return;
   }
+
+  // ✅ Manual Queue FIRST: play next queued song immediately
+  try {
+    const qSong = (typeof takeNextManualQueueSong === 'function') ? takeNextManualQueueSong() : null;
+
+    if (qSong && qSong.url) {
+      isAutoNav = true;
+      playSpecificSong(
+        qSong.url,
+        qSong.title || qSong.name || '',
+        qSong.album || '',
+        qSong.artist || '',
+        qSong.cover || qSong.coverUrl || ''
+      );
+      isAutoNav = false;
+      return;
+    }
+  } catch (e) {
+    // If queue logic fails for any reason, fall back to normal nextSong()
+  }
+
+  // Otherwise advance normally (album/playlist order)
   nextSong();
 });
 
-// Auto-hide dock interval
 
-        // Auto-hide dock interval
-        setInterval(checkDockVisibility, 30000);
+// Auto-hide dock interval (moved out of the ended handler by replacing the whole block above)
 
-    </script>
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
