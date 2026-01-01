@@ -257,7 +257,26 @@ img {
 }
 
         .lyrics-box::-webkit-scrollbar{ width: 8px; }
-        .lyrics-box::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.18); border-radius: 8px; }
+                .lyrics-box::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.18); border-radius: 8px; }
+        /* Increase line spacing for lyrics */
+#right-lyrics{
+  line-height: 2.05;
+}
+
+
+/* About the artist: collapsed vs expanded */
+#right-bio.right-bio-collapsed{
+  max-height: 120px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);
+          mask-image: linear-gradient(to bottom, black 70%, transparent);
+}
+#right-bio.right-bio-expanded{
+  max-height: 46vh;
+  overflow: auto;
+  -webkit-mask-image: none;
+          mask-image: none;
+}
 
 
 /* Desktop ONLY: never show the right sidebar on mobile */
@@ -1954,27 +1973,16 @@ body.qs-lock {
       <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
     </div>
 
-        <!-- About the artist (desktop only) -->
-    <section id="right-bio-card" class="lyrics-card" style="cursor:pointer;">
+            <!-- About the artist (desktop only) -->
+    <section id="right-bio-card" class="lyrics-card right-bio-card" role="button" tabindex="0" aria-label="About the artist (click to expand)">
       <div class="lyrics-header">
         <div class="lyrics-title">About the artist</div>
-        <div id="right-bio-toggle" class="lyrics-source-link" style="display:inline-block;">Expand</div>
+        <a id="right-bio-source" class="lyrics-source-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Wikipedia</a>
       </div>
       <div id="right-bio-status" class="lyrics-status">Play a song to load artist info.</div>
       <div id="right-bio" class="lyrics-box right-bio-collapsed" aria-label="About the artist"></div>
     </section>
 
-        <!-- Lyrics panel (desktop only) -->
-
-    <!-- About the artist (desktop only) -->
-    <section id="right-bio-card" class="lyrics-card" style="cursor:pointer;">
-      <div class="lyrics-header">
-        <div class="lyrics-title">About the artist</div>
-        <span id="right-bio-toggle" class="lyrics-source-link" style="display:inline-block;">Expand</span>
-      </div>
-      <div id="right-bio-status" class="lyrics-status">Play a song to load artist info.</div>
-      <div id="right-bio" class="lyrics-box right-bio-collapsed" aria-label="About the artist"></div>
-    </section>
 
     <section class="lyrics-card">
 
@@ -4793,7 +4801,9 @@ if (window.innerWidth >= 1024) {
   const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
   toggleRightSidebar(true);
   setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
-  loadRightLyrics(cleanTitle, artist);
+    loadRightLyrics(cleanTitle, artist);
+  loadRightBio(artist);
+
 }
 
 
@@ -5994,6 +6004,147 @@ async function loadRightLyrics(title, artist) {
   }
 }
 
+// ----------------------------
+// RIGHT SIDEBAR: ARTIST BIO (Wikipedia) + cache + click-to-expand
+// ----------------------------
+(function bindRightBioExpandOnce(){
+  if (window.__rightBioExpandBound) return;
+  window.__rightBioExpandBound = true;
+
+  function toggleBioExpand(){
+    const bio = document.getElementById('right-bio');
+    if (!bio) return;
+    bio.classList.toggle('right-bio-expanded');
+    bio.classList.toggle('right-bio-collapsed');
+  }
+
+  document.addEventListener('click', (e) => {
+    const card = document.getElementById('right-bio-card');
+    if (!card) return;
+    if (card.contains(e.target)) toggleBioExpand();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const card = document.getElementById('right-bio-card');
+    if (!card) return;
+    if (document.activeElement !== card) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    toggleBioExpand();
+  });
+})();
+
+async function loadRightBio(artistName){
+  if (window.innerWidth < 1024) return;
+
+  const status = document.getElementById('right-bio-status');
+  const bio = document.getElementById('right-bio');
+  const src = document.getElementById('right-bio-source');
+
+  if (!status || !bio || !src) return;
+
+  // Always reset to collapsed when loading a new artist
+  bio.classList.remove('right-bio-expanded');
+  bio.classList.add('right-bio-collapsed');
+
+  const artist = String(artistName || '').trim();
+  if (!artist) {
+    status.textContent = 'Play a song to load artist info.';
+    bio.textContent = '';
+    src.style.display = 'none';
+    src.href = '#';
+    return;
+  }
+
+  // Cache key (stable)
+  const aKey = artist.toLowerCase().replace(/\s+/g,' ').trim();
+  const key = 'artistBio:v1:' + aKey;
+
+  const NOW = Date.now();
+  const TTL_FOUND = 1000 * 60 * 60 * 24 * 30; // 30 days
+  const TTL_NOTFOUND = 1000 * 60 * 60 * 12;   // 12 hours
+
+  function readCache(){
+    try{
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.savedAt) return null;
+      const ttl = obj.notFound ? TTL_NOTFOUND : TTL_FOUND;
+      if ((NOW - obj.savedAt) > ttl) return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+
+  function writeCache(obj){
+    try{
+      localStorage.setItem(key, JSON.stringify({ ...obj, savedAt: Date.now() }));
+    }catch(e){}
+  }
+
+  const cached = readCache();
+  if (cached){
+    if (cached.notFound){
+      status.textContent = 'No artist info found.';
+      bio.textContent = '';
+      src.textContent = 'Wikipedia';
+      src.href = 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(artist);
+      src.style.display = 'inline';
+      return;
+    }
+    status.textContent = 'About the artist';
+    bio.textContent = (cached.bio || '').trim();
+    src.textContent = 'Wikipedia';
+    src.href = cached.sourceHref || ('https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(artist));
+    src.style.display = 'inline';
+    return;
+  }
+
+  // Fetch Wikipedia summary
+  status.textContent = 'Loading artist info…';
+  bio.textContent = '';
+  src.style.display = 'none';
+  src.href = '#';
+
+  try{
+    const url = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(artist);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Wiki HTTP ' + res.status);
+    const data = await res.json();
+
+    const extract = (data && data.extract) ? String(data.extract).trim() : '';
+    const wikiPage = (data && data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page)
+      ? String(data.content_urls.desktop.page)
+      : ('https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(artist));
+
+    if (!extract || (data && data.type === 'disambiguation')){
+      status.textContent = 'No artist info found.';
+      bio.textContent = '';
+      src.textContent = 'Wikipedia';
+      src.href = wikiPage;
+      src.style.display = 'inline';
+      writeCache({ notFound: true, sourceHref: wikiPage });
+      return;
+    }
+
+    status.textContent = 'About the artist';
+    bio.textContent = extract;
+    src.textContent = 'Wikipedia';
+    src.href = wikiPage;
+    src.style.display = 'inline';
+
+    writeCache({ notFound: false, bio: extract, sourceHref: wikiPage });
+  }catch(err){
+    console.warn('Bio load failed:', err);
+    status.textContent = 'Could not load artist info.';
+    bio.textContent = '';
+    src.textContent = 'Wikipedia';
+    src.href = 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(artist);
+    src.style.display = 'inline';
+  }
+}
+
+function initResizers() {
 
         function initResizers() {
             const resizerL = document.getElementById('resizer-left');
