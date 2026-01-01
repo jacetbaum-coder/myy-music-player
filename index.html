@@ -5571,6 +5571,16 @@ if (nowPlayingOverlay) {
 let pendingSeekPct = null;
 let pendingSeekBarId = null; // "progress-container" or "np-progress-container"
 
+function getSeekDuration() {
+  if (Number.isFinite(player.duration) && player.duration > 0) return player.duration;
+  if (player.seekable && player.seekable.length) {
+    const end = player.seekable.end(player.seekable.length - 1);
+    if (Number.isFinite(end) && end > 0) return end;
+  }
+  return null;
+}
+
+
 function getClientX(e) {
   if (e.touches && e.touches[0]) return e.touches[0].clientX;
   if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
@@ -5583,22 +5593,24 @@ function seekOnBar(barEl, clientX) {
   const rect = barEl.getBoundingClientRect();
   const pct = (clientX - rect.left) / rect.width;
   const clamped = Math.max(0, Math.min(1, pct));
+    const duration = getSeekDuration();
 
   // If duration isn't ready yet, store and apply later
-  if (!Number.isFinite(player.duration) || player.duration <= 0) {
+  if (!duration) {
     pendingSeekPct = clamped;
     pendingSeekBarId = barEl.id || null;
     return;
   }
 
-  player.currentTime = clamped * player.duration;
+  player.currentTime = clamped * duration;
 }
 
 function applyPendingSeek() {
   if (pendingSeekPct == null) return;
-  if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+const duration = getSeekDuration();
+  if (!duration) return;
 
-  player.currentTime = pendingSeekPct * player.duration;
+  player.currentTime = pendingSeekPct * duration;
   pendingSeekPct = null;
   pendingSeekBarId = null;
 }
