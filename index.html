@@ -4817,26 +4817,46 @@ function openArtistByName(artistName) {
 const __lyricsCache = new Map(); // key = "artist||title" -> lyrics string
 
 function __cleanTitleForLyrics(rawTitle) {
+  // Cleans *song titles* without breaking "Artist - Song" patterns.
   const t = String(rawTitle || "")
     .replace(/\.mp3$/i, "")
     .replace(/\s*\[[^\]]*\]\s*/g, " ")   // [Remastered], etc
     .replace(/\s*\([^)]*\)\s*/g, " ")   // (feat...), (remaster...)
-    .replace(/\s*-\s*.*$/g, " ")        // "Song - Live" -> "Song"
+    // Only strip dash-suffixes that are clearly versions, not the actual title
+    .replace(/\s*-\s*(live|remaster(?:ed)?|acoustic|demo|radio edit|edit|version|mix|mono|stereo|instrumental)\b.*$/i, " ")
     .replace(/\s+/g, " ")
     .trim();
   return t;
 }
 
+
 async function fetchLyricsOVH(artist, title) {
   const a = String(artist || "").trim();
-  const t = __cleanTitleForLyrics(title);
+  let rawTitle = String(title || "").trim();
 
-  if (!a || !t) return null;
+  if (!a || !rawTitle) return null;
+
+  // If title is "Artist - Song", strip the artist prefix
+  // Handles hyphen "-" and en dash "–"
+  const aLower = a.toLowerCase();
+  const splitOn = rawTitle.includes(" – ") ? " – " : (rawTitle.includes(" - ") ? " - " : null);
+
+  if (splitOn) {
+    const parts = rawTitle.split(splitOn);
+    if (parts.length >= 2) {
+      const left = String(parts[0] || "").trim().toLowerCase();
+      if (left === aLower) {
+        rawTitle = parts.slice(1).join(splitOn).trim();
+      }
+    }
+  }
+
+  const t = __cleanTitleForLyrics(rawTitle);
+  if (!t) return null;
 
   const cacheKey = `${a}||${t}`;
   if (__lyricsCache.has(cacheKey)) return __lyricsCache.get(cacheKey);
 
-  // Public, no-key endpoint
   const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
 
   try {
@@ -4945,8 +4965,9 @@ if (window.innerWidth >= 1024) {
   const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
   toggleRightSidebar(true);
   setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
-    loadRightLyrics(cleanTitle, artist);
+      loadRightLyrics(artist, cleanTitle);
   loadRightBio(artist);
+
 
 }
 
