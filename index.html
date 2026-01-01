@@ -323,37 +323,37 @@ img {
   .lyrics-center-body { font-size: 30px; }
 }
 
-/* When lyrics mode is ON, make lyrics replace the whole middle column */
-body.lyrics-mode #grid-view {
-  position: relative;
+/* -----------------------
+   CENTER LYRICS — Full middle takeover (Spotify-ish)
+   Uses #lyrics-center-overlay as a real overlay inside #main-scroll-area
+------------------------ */
+
+/* remove main padding so the panel can fill the entire middle column */
+body.lyrics-mode #main-scroll-area {
+  padding: 0 !important;
 }
 
-/* Hide everything in the middle view except the lyrics panel */
-body.lyrics-mode #grid-view > :not(#lyrics-center-view) {
+/* Hide everything inside the middle column EXCEPT the overlay */
+body.lyrics-mode #main-scroll-area > :not(#lyrics-center-overlay) {
   display: none !important;
 }
 
-/* Make the lyrics panel fill the entire middle view */
-body.lyrics-mode #lyrics-center-view {
+/* Make the overlay fill the entire middle column */
+body.lyrics-mode #lyrics-center-overlay {
   position: absolute;
   inset: 0;
   margin: 0;
   border-radius: 0;
   background: rgba(var(--accent-rgb), 0.38);
+  z-index: 50;
 }
 
-/* -----------------------
-   CENTER LYRICS — Full middle takeover (Spotify-ish)
------------------------- */
-
-/* When lyrics mode is ON:
-   - remove main padding so the panel can fill the entire middle column
-   - hide everything in #grid-view except #lyrics-center-view
-   - make #lyrics-center-view fill the whole middle area
-*/
-body.lyrics-mode #main-scroll-area {
-  padding: 0 !important;
+/* Make sure the overlay content can scroll if lyrics are long */
+body.lyrics-mode #lyrics-center-overlay .lyrics-center-inner {
+  height: 100%;
+  overflow: auto;
 }
+
 
 body.lyrics-mode #grid-view {
   position: relative;
@@ -1620,6 +1620,21 @@ body.qs-lock {
         <div id="resizer-left" class="resizer hidden md:block"></div>
 
         <main class="main-view" id="main-scroll-area">
+
+  <!-- CENTER LYRICS OVERLAY (Dock mic) -->
+  <div id="lyrics-center-overlay" class="lyrics-center hidden" aria-hidden="true">
+    <div class="lyrics-center-inner">
+      <div class="lyrics-center-top">
+        <div>
+          <div id="lyrics-overlay-title" class="lyrics-center-title">Lyrics</div>
+          <div id="lyrics-overlay-sub" class="lyrics-center-sub">—</div>
+        </div>
+      </div>
+
+      <div id="lyrics-overlay-body" class="lyrics-center-body">Play a song to load lyrics.</div>
+    </div>
+  </div>
+
             
                         <div id="loading" class="flex flex-col items-center justify-center h-full">
                 <img
@@ -5671,8 +5686,9 @@ let isCenterLyricsOpen = false;
 function setCenterLyricsOpen(open) {
   isCenterLyricsOpen = !!open;
 
-  const panel = document.getElementById('lyrics-center-view');
-  const btn   = document.getElementById('dock-lyrics-btn');
+  const panel = document.getElementById('lyrics-center-overlay');
+const btn   = document.getElementById('dock-lyrics-btn');
+
 
   // show/hide panel
   if (panel) panel.classList.toggle('hidden', !isCenterLyricsOpen);
@@ -5690,12 +5706,12 @@ function setCenterLyricsOpen(open) {
     if (currentSong && (currentSong.title || currentSong.artist || currentSong.name)) {
       updateCenterLyricsForSong(currentSong);
     } else {
-      const body = document.getElementById('lyrics-center-body');
-      const title = document.getElementById('lyrics-center-title');
-      const sub = document.getElementById('lyrics-center-sub');
-      if (title) title.textContent = 'Lyrics';
-      if (sub) sub.textContent = 'Play a song to load lyrics.';
-      if (body) body.textContent = 'Play a song to load lyrics.';
+      const body = document.getElementById('lyrics-overlay-body');
+const title = document.getElementById('lyrics-overlay-title');
+const sub = document.getElementById('lyrics-overlay-sub');
+if (title) title.textContent = 'Lyrics';
+if (sub) sub.textContent = 'Play a song to load lyrics.';
+if (body) body.textContent = 'Play a song to load lyrics.';
     }
   }
 }
@@ -5706,9 +5722,10 @@ function toggleCenterLyrics() {
 }
 
 async function loadCenterLyrics(trackTitle, artistName) {
-  const titleEl = document.getElementById('lyrics-center-title');
-  const subEl   = document.getElementById('lyrics-center-sub');
-  const bodyEl  = document.getElementById('lyrics-center-body');
+  const titleEl = document.getElementById('lyrics-overlay-title');
+const subEl   = document.getElementById('lyrics-overlay-sub');
+const bodyEl  = document.getElementById('lyrics-overlay-body');
+
 
   const cleanTitle  = String(trackTitle || '').replace('.mp3','').trim();
   const cleanArtist = String(artistName || '').trim();
