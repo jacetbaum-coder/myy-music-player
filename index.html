@@ -2504,7 +2504,7 @@ function addSongToQueue(songObj) {
 try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
 }
 
-        function takeNextManualQueueSong() {
+function takeNextManualQueueSong() {
   while (Array.isArray(manualQueue) && manualQueue.length) {
     const next = manualQueue.shift();
     persistManualQueue();
@@ -8065,9 +8065,13 @@ player.addEventListener('ended', () => {
 
     // Otherwise advance.
   // Repeat ALL behavior is handled inside nextSong() (it loops instead of stopping).
-  if (sleepTimerEndOfTrack) {
+  const shouldStopAtEnd =
+    typeof sleepTimerEndOfTrack !== 'undefined' && sleepTimerEndOfTrack;
+  if (shouldStopAtEnd) {
     sleepTimerEndOfTrack = false;
-    npUpdateSleepTimerUI();
+    if (typeof npUpdateSleepTimerUI === 'function') {
+      npUpdateSleepTimerUI();
+    }
     return;
   }
   nextSong();
