@@ -289,6 +289,15 @@ body.lyrics-mode #right-bio{
           mask-image: none;
 }
 
+/* -----------------------
+   DESKTOP RIGHT QUEUE MODE
+   (dock three-lines button)
+------------------------ */
+body.queue-mode #right-bio-card{ display:none; }
+body.queue-mode #right-lyrics-card{ display:none; }
+body.queue-mode #right-queue-card{ display:block; }
+
+
 
 
 /* Desktop ONLY: never show the right sidebar on mobile */
@@ -2019,7 +2028,7 @@ body.qs-lock {
     </section>
 
 
-        <section id="right-lyrics-card" class="lyrics-card">
+                <section id="right-lyrics-card" class="lyrics-card">
 
       <div class="lyrics-header">
         <div class="lyrics-title">Lyrics</div>
@@ -2028,8 +2037,22 @@ body.qs-lock {
       <div id="right-lyrics-status" class="lyrics-status">Play a song to load lyrics.</div>
       <pre id="right-lyrics" class="lyrics-box" aria-label="Lyrics"></pre>
     </section>
+
+    <!-- Queue (desktop right sidebar) -->
+    <section id="right-queue-card" class="lyrics-card hidden">
+      <div class="lyrics-header" style="justify-content: space-between;">
+        <div class="lyrics-title">Queue</div
+        <button id="right-queue-clear"
+                style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
+          Clear
+        </button>
+      </div>
+      <div id="right-queue-status" class="lyrics-status">Nothing queued.</div>
+      <div id="right-queue-list" class="lyrics-box" style="padding-right:0; max-height: 46vh;"></div>
+    </section>
   </div>
 </aside>
+
 
 </div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
 
@@ -2380,10 +2403,12 @@ function addSongToQueue(songObj) {
 
   try { localStorage.setItem('manualQueue', JSON.stringify(manualQueue)); } catch (e) {}
 
-  try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+   try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+  try { if (document.body.classList.contains('queue-mode') && typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
 
   try {
     if (typeof closeContextMenu === 'function') closeContextMenu();
+
     else {
       const cm = document.getElementById('context-menu');
       const bd = document.getElementById('context-menu-backdrop');
@@ -2399,9 +2424,9 @@ try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
   while (Array.isArray(manualQueue) && manualQueue.length) {
     const next = manualQueue.shift();
     persistManualQueue();
-    try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+        try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+    try { if (document.body.classList.contains('queue-mode') && typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
     const song = (typeof normalizeSong === 'function') ? normalizeSong(next) : next;
-    if (song && song.url) return song;
   }
   return null;
 }
@@ -5775,7 +5800,11 @@ function setCenterLyricsOpen(open) {
   // Right panel behavior while mic is on:
   // - hide lyrics card
   // - force bio to be in expanded mode so it can fill space
-  if (rightLyricsCard) rightLyricsCard.classList.toggle('hidden', isCenterLyricsOpen);
+    if (rightLyricsCard) {
+    const shouldHide = isCenterLyricsOpen || document.body.classList.contains('queue-mode');
+    rightLyricsCard.classList.toggle('hidden', shouldHide);
+  }
+
   if (rightBio) {
     if (isCenterLyricsOpen) {
       // remember prior state so we can restore it
@@ -5906,13 +5935,134 @@ function updateCenterLyricsForSong(songObj) {
   } else {
     bind();
   }
+})(); 
+
+/* -----------------------
+   DESKTOP RIGHT SIDEBAR QUEUE
+   (uses existing manualQueue)
+------------------------ */
+let isRightQueueOpen = false;
+
+function renderRightQueue() {
+  if (window.innerWidth < 1024) return;
+
+  const list = document.getElementById('right-queue-list');
+  const status = document.getElementById('right-queue-status');
+  if (!list || !status) return;
+
+  const q = Array.isArray(manualQueue) ? manualQueue : [];
+
+  if (!q.length) {
+    status.textContent = 'Nothing queued.';
+    list.innerHTML = `<div style="padding:4px 0;color:rgba(255,255,255,0.65);font-size:14px;">Queue is empty</div>`;
+    return;
+  }
+
+  status.textContent = 'Next in queue';
+
+  list.innerHTML = q.map((s, idx) => {
+    const title = (s.title || s.name || 'Song').toString();
+    const artist = (s.artist || 'Artist').toString();
+    const cover = (s.cover || s.coverUrl || s.art || s.image || '').toString();
+
+    return `
+      <div class="queue-row" data-rqi="${idx}" style="padding:10px 8px;border-radius:10px;">
+        <img class="queue-cover" src="${cover}" onerror="this.style.visibility='hidden'" />
+        <div class="queue-main">
+          <div class="queue-song">${title.replace(/</g,'&lt;')}</div>
+          <div class="queue-artist">${artist.replace(/</g,'&lt;')}</div>
+        </div>
+        <div class="queue-hamburger">≡</div>
+      </div>
+    `;
+  }).join('');
+
+  // click to play
+  list.querySelectorAll('.queue-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const i = parseInt(row.getAttribute('data-rqi') || '-1', 10);
+      const s = manualQueue[i];
+      if (!s) return;
+
+      if (typeof playSpecificSong === 'function' && (s.link || s.url)) {
+        playSpecificSong(s.link || s.url, s.title || s.name, s.album || '', s.artist || '', s.cover || s.coverUrl || '');
+      } else if (typeof playSong === 'function') {
+        playSong(s);
+      }
+    }, { passive: true });
+  });
+}
+
+function setRightQueueOpen(open) {
+  if (window.innerWidth < 1024) return;
+
+  isRightQueueOpen = !!open;
+  document.body.classList.toggle('queue-mode', isRightQueueOpen);
+
+  const qCard = document.getElementById('right-queue-card');
+  const bioCard = document.getElementById('right-bio-card');
+  const lyrCard = document.getElementById('right-lyrics-card');
+
+  if (qCard) qCard.classList.toggle('hidden', !isRightQueueOpen);
+  if (bioCard) bioCard.classList.toggle('hidden', isRightQueueOpen);
+  if (lyrCard) lyrCard.classList.toggle('hidden', isRightQueueOpen || isCenterLyricsOpen);
+
+  if (isRightQueueOpen) {
+    toggleRightSidebar(true);
+    renderRightQueue();
+  }
+}
+
+function toggleRightQueue() {
+  setRightQueueOpen(!isRightQueueOpen);
+}
+
+// Clear button (right queue)
+(function bindRightQueueClear(){
+  const btn = document.getElementById('right-queue-clear');
+  if (!btn || btn.__rqClearBound) return;
+  btn.__rqClearBound = true;
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    manualQueue = [];
+    try { localStorage.setItem('manualQueue', JSON.stringify(manualQueue)); } catch (e) {}
+    try { renderQueueSheet(); } catch (e) {}
+    try { renderRightQueue(); } catch (e) {}
+  }, { passive: false });
+})();
+
+// Dock three-lines button:
+// - mobile: open the existing bottom sheet
+// - desktop: toggle right sidebar queue view
+(function bindDockQueueButton(){
+  function bind() {
+    const btn = document.getElementById('dock-menu-btn');
+    if (!btn || btn.__dockQueueBound) return;
+    btn.__dockQueueBound = true;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (window.innerWidth < 1024) {
+        if (typeof openQueueSheet === 'function') openQueueSheet();
+        return;
+      }
+      toggleRightQueue();
+    }, { passive: false });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
 })();
 
 // Keep right panel metadata in sync with the currently playing song
 
-
-
-// Keep right panel metadata in sync with the currently playing song
 function setRightSidebarNowPlaying({ title, artist, cover }) {
   if (window.innerWidth < 1024) return;
 
