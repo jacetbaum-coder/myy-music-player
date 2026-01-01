@@ -243,18 +243,19 @@ img {
           color: rgba(255,255,255,0.60);
           margin: 0 0 8px 0;
         }
-        .lyrics-box{
-          margin: 0;
-          white-space: pre-wrap;
-          word-break: break-word;
-          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-          font-size: 14px;
-          line-height: 1.5;
-          color: rgba(255,255,255,0.88);
-          max-height: 46vh;
-          overflow: auto;
-          padding-right: 6px;
-        }
+       .lyrics-box{
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-size: 14px;
+  line-height: 1.8;          /* ✅ more spacing */
+  color: rgba(255,255,255,0.88);
+  max-height: 46vh;
+  overflow: auto;
+  padding-right: 6px;
+}
+
         .lyrics-box::-webkit-scrollbar{ width: 8px; }
         .lyrics-box::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.18); border-radius: 8px; }
 
@@ -1953,8 +1954,30 @@ body.qs-lock {
       <div id="right-artist" class="text-sm text-zinc-400 font-semibold">—</div>
     </div>
 
-    <!-- Lyrics panel (desktop only) -->
+        <!-- About the artist (desktop only) -->
+    <section id="right-bio-card" class="lyrics-card" style="cursor:pointer;">
+      <div class="lyrics-header">
+        <div class="lyrics-title">About the artist</div>
+        <div id="right-bio-toggle" class="lyrics-source-link" style="display:inline-block;">Expand</div>
+      </div>
+      <div id="right-bio-status" class="lyrics-status">Play a song to load artist info.</div>
+      <div id="right-bio" class="lyrics-box right-bio-collapsed" aria-label="About the artist"></div>
+    </section>
+
+        <!-- Lyrics panel (desktop only) -->
+
+    <!-- About the artist (desktop only) -->
+    <section id="right-bio-card" class="lyrics-card" style="cursor:pointer;">
+      <div class="lyrics-header">
+        <div class="lyrics-title">About the artist</div>
+        <span id="right-bio-toggle" class="lyrics-source-link" style="display:inline-block;">Expand</span>
+      </div>
+      <div id="right-bio-status" class="lyrics-status">Play a song to load artist info.</div>
+      <div id="right-bio" class="lyrics-box right-bio-collapsed" aria-label="About the artist"></div>
+    </section>
+
     <section class="lyrics-card">
+
       <div class="lyrics-header">
         <div class="lyrics-title">Lyrics</div>
         <a id="right-lyrics-source" class="lyrics-source-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Source</a>
@@ -5867,21 +5890,89 @@ async function loadRightLyrics(title, artist) {
   // Build the Genius search URL for fallback / source link
   const geniusUrl = 'https://genius.com/search?q=' + encodeURIComponent((a ? (a + ' ') : '') + t);
 
+  // ----------------------------
+  // ✅ LocalStorage cache helpers
+  // ----------------------------
+  const key = 'lyricsCache:v1:' + (a || 'unknown') + '||' + t;
+
+  const NOW = Date.now();
+  const TTL_FOUND = 1000 * 60 * 60 * 24 * 30;   // 30 days
+  const TTL_NOTFOUND = 1000 * 60 * 60 * 6;      // 6 hours
+
+  function readCache() {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.savedAt) return null;
+
+      const ttl = obj.notFound ? TTL_NOTFOUND : TTL_FOUND;
+      if ((NOW - obj.savedAt) > ttl) return null;
+
+      return obj;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeCache(obj) {
+    try {
+      localStorage.setItem(key, JSON.stringify({ ...obj, savedAt: Date.now() }));
+    } catch (e) {}
+  }
+
+  // ✅ Use cached lyrics immediately (no network)
+  const cached = readCache();
+  if (cached) {
+    if (cached.notFound) {
+      status.textContent = 'No lyrics found for this track.';
+      source.textContent = 'Search on Genius';
+      source.href = geniusUrl;
+      source.style.display = 'inline';
+      return;
+    }
+
+    box.textContent = (cached.lyrics || '').trim();
+    status.textContent = 'Lyrics';
+    source.textContent = cached.sourceLabel || 'LRCLIB';
+    source.href = cached.sourceHref || 'https://lrclib.net/';
+    source.style.display = 'inline';
+    return;
+  }
+
+  // ----------------------------
+  // ✅ Fetch from LRCLIB if needed
+  // ----------------------------
   try {
-    const url = 'https://lrclib.net/api/get?track_name=' + encodeURIComponent(t) +
-                (a ? ('&artist_name=' + encodeURIComponent(a)) : '');
+    const url =
+      'https://lrclib.net/api/get?track_name=' + encodeURIComponent(t) +
+      (a ? ('&artist_name=' + encodeURIComponent(a)) : '');
+
     const res = await fetch(url, { method: 'GET' });
     if (!res.ok) throw new Error('LRCLIB HTTP ' + res.status);
 
     const data = await res.json();
-    const lyrics = (data && (data.plainLyrics || data.syncedLyrics)) ? String(data.plainLyrics || data.syncedLyrics) : '';
+    const lyrics = (data && (data.plainLyrics || data.syncedLyrics))
+      ? String(data.plainLyrics || data.syncedLyrics)
+      : '';
 
     if (lyrics && lyrics.trim().length) {
-      box.textContent = lyrics.trim();
+      const finalLyrics = lyrics.trim();
+
+      box.textContent = finalLyrics;
       status.textContent = 'Lyrics';
       source.textContent = 'LRCLIB';
       source.href = 'https://lrclib.net/';
       source.style.display = 'inline';
+
+      // ✅ save success
+      writeCache({
+        notFound: false,
+        lyrics: finalLyrics,
+        sourceLabel: 'LRCLIB',
+        sourceHref: 'https://lrclib.net/'
+      });
+
       return;
     }
 
@@ -5890,6 +5981,10 @@ async function loadRightLyrics(title, artist) {
     source.textContent = 'Search on Genius';
     source.href = geniusUrl;
     source.style.display = 'inline';
+
+    // ✅ save notFound (short TTL)
+    writeCache({ notFound: true });
+
   } catch (err) {
     console.warn('Lyrics load failed:', err);
     status.textContent = 'Could not load lyrics (network or CORS).';
