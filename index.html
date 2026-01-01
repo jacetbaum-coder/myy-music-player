@@ -5597,21 +5597,24 @@ function bindSeekBar(barId) {
   // -----------------------
   // CLICK / TAP to jump
   // -----------------------
-  bar.addEventListener('click', (e) => {
+    bar.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     seekOnBar(bar, getClientX(e));
+    try { player.play(); } catch (err) {}
   });
 
-  // -----------------------
-  // POINTER EVENTS (works on most browsers)
-  // -----------------------
-  bar.addEventListener('pointerdown', (e) => {
+    bar.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     scrubbing = true;
     seekOnBar(bar, getClientX(e));
+    try { player.play(); } catch (err) {}
     try { bar.setPointerCapture(e.pointerId); } catch (err) {}
   });
 
   bar.addEventListener('pointermove', (e) => {
+
     if (!scrubbing) return;
     seekOnBar(bar, getClientX(e));
   });
@@ -5627,10 +5630,12 @@ function bindSeekBar(barId) {
   // -----------------------
   // MOUSE EVENTS (desktop fallback; fixes “desktop won’t scrub”)
   // -----------------------
-  bar.addEventListener('mousedown', (e) => {
+    bar.addEventListener('mousedown', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     scrubbing = true;
     seekOnBar(bar, e.clientX);
+    try { player.play(); } catch (err) {}
 
     const onMove = (ev) => {
       if (!scrubbing) return;
@@ -5646,6 +5651,7 @@ function bindSeekBar(barId) {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   });
+
 }
 
 // Bind BOTH progress bars
