@@ -269,6 +269,63 @@ img {
 .right-lyrics-card { min-height: 0; }
 .right-lyrics-text { min-height: 0; }
 
+/* -----------------------
+   CENTER LYRICS (Dock mic)
+------------------------ */
+.lyrics-center.hidden { display: none; }
+
+.lyrics-center {
+  margin-top: 24px;
+  border-radius: 22px;
+  background: rgba(var(--accent-rgb), 0.32);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+
+.lyrics-center-inner {
+  padding: 34px 34px 40px;
+  min-height: 420px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.lyrics-center-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.lyrics-center-title {
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.lyrics-center-sub {
+  margin-top: 4px;
+  color: rgba(255,255,255,0.78);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lyrics-center-body {
+  white-space: pre-wrap;
+  font-weight: 900;
+  font-size: 44px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: rgba(255,255,255,0.9);
+}
+
+@media (max-width: 768px) {
+  .lyrics-center-inner { padding: 22px 18px 26px; }
+  .lyrics-center-body { font-size: 30px; }
+}
+
+.main-view {
+
+
         .main-view { 
   flex: 1; 
   /* subtle accent tint at top -> black */
@@ -1683,6 +1740,22 @@ body.qs-lock {
   </div>
 
   <!-- ONE album grid only -->
+    <!-- CENTER LYRICS (toggle from dock mic) -->
+<div id="lyrics-center-view" class="lyrics-center hidden">
+  <div class="lyrics-center-inner">
+    <div class="lyrics-center-top">
+      <div class="lyrics-center-meta">
+        <div id="lyrics-center-title" class="lyrics-center-title">Lyrics</div>
+        <div id="lyrics-center-sub" class="lyrics-center-sub">Tap the mic again to close</div>
+      </div>
+    </div>
+
+    <div id="lyrics-center-body" class="lyrics-center-body">
+      Play a song to load lyrics.
+    </div>
+  </div>
+</div>
+
     <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
 
 </div>
@@ -1868,16 +1941,21 @@ body.qs-lock {
         </div>
 
         <div class="flex justify-end gap-5 items-center">
-            <i class="fas fa-list-ul text-zinc-400 hover:text-white cursor-pointer text-sm"></i>
-            <i class="fas fa-desktop text-zinc-400 hover:text-white cursor-pointer text-sm" onclick="toggleRightSidebar(true)"></i>
-            <div class="flex items-center gap-2 group">
-    <i id="volume-icon" class="fas fa-volume-up text-zinc-400 text-sm"></i>
-    <div id="volume-container"
-         class="w-24 h-1 bg-zinc-600 rounded-full overflow-hidden cursor-pointer">
-        <div id="volume-fill"
-             class="bg-white h-full w-2/3 group-hover:bg-[#1db954]"></div>
+  <!-- NEW: Lyrics toggle (microphone) -->
+  <i id="dock-lyrics-btn"
+     class="fas fa-microphone hover:text-white cursor-pointer text-sm"
+     title="Lyrics"></i>
+
+  <i id="dock-menu-btn" class="fas fa-bars hover:text-white cursor-pointer text-sm"></i>
+
+  <div class="hidden md:flex items-center gap-2 text-zinc-400">
+    <i id="volume-icon" class="fas fa-volume-up text-sm"></i>
+    <div id="volume-container" class="w-24 h-1 bg-zinc-600 rounded-full cursor-pointer relative">
+      <div id="volume-fill" class="h-full bg-white rounded-full w-[66%]"></div>
     </div>
+  </div>
 </div>
+
 
         </div>
     </div>
@@ -4606,6 +4684,8 @@ if (window.innerWidth >= 1024) {
 
   // Lyrics (desktop right sidebar)
   updateRightLyricsForSong(currentSong);
+  updateCenterLyricsForSong(currentSong);
+
 
   updateHeartUI();
 
@@ -5463,6 +5543,7 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 
   // Lyrics (desktop right sidebar)
   updateRightLyricsForSong(currentSong);
+  updateCenterLyricsForSong(currentSong);
 
   updateHeartUI();
 
@@ -5504,6 +5585,111 @@ function checkDockVisibility() {
     rightSidebar.classList.add('sidebar-hidden');
   }
 }
+
+/* -----------------------
+   CENTER LYRICS (Dock mic)
+------------------------ */
+let isCenterLyricsOpen = false;
+
+function setCenterLyricsOpen(open) {
+  isCenterLyricsOpen = !!open;
+
+  const panel = document.getElementById('lyrics-center-view');
+  const grid  = document.getElementById('album-grid');
+  const btn   = document.getElementById('dock-lyrics-btn');
+
+  if (panel) panel.classList.toggle('hidden', !isCenterLyricsOpen);
+  if (grid)  grid.classList.toggle('hidden', isCenterLyricsOpen);
+
+  if (btn) {
+    btn.classList.toggle('text-[var(--spotify-green)]', isCenterLyricsOpen);
+    btn.classList.toggle('text-white', isCenterLyricsOpen);
+  }
+
+  if (isCenterLyricsOpen) {
+    if (currentSong && (currentSong.title || currentSong.artist || currentSong.name)) {
+      updateCenterLyricsForSong(currentSong);
+    } else {
+      const body = document.getElementById('lyrics-center-body');
+      const title = document.getElementById('lyrics-center-title');
+      const sub = document.getElementById('lyrics-center-sub');
+      if (title) title.textContent = 'Lyrics';
+      if (sub) sub.textContent = 'Play a song to load lyrics.';
+      if (body) body.textContent = 'Play a song to load lyrics.';
+    }
+  }
+}
+
+function toggleCenterLyrics() {
+  setCenterLyricsOpen(!isCenterLyricsOpen);
+}
+
+async function loadCenterLyrics(trackTitle, artistName) {
+  const titleEl = document.getElementById('lyrics-center-title');
+  const subEl   = document.getElementById('lyrics-center-sub');
+  const bodyEl  = document.getElementById('lyrics-center-body');
+
+  const cleanTitle  = String(trackTitle || '').replace('.mp3','').trim();
+  const cleanArtist = String(artistName || '').trim();
+
+  if (titleEl) titleEl.textContent = cleanTitle || 'Lyrics';
+  if (subEl)   subEl.textContent = cleanArtist || '';
+  if (bodyEl)  bodyEl.textContent = 'Loading lyrics…';
+
+  try {
+    const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('LRCLIB not ok');
+
+    const data = await res.json();
+    const text = (data && (data.plainLyrics || data.syncedLyrics)) ? (data.plainLyrics || data.syncedLyrics) : '';
+
+    if (!text) {
+      if (bodyEl) bodyEl.textContent = 'No lyrics found for this track.';
+      return;
+    }
+
+    // If synced lyrics, strip timestamps for the big Spotify-like look
+    const cleaned = String(text).replace(/\[[0-9:.]+\]\s*/g, '').trim();
+    if (bodyEl) bodyEl.textContent = cleaned || 'No lyrics found for this track.';
+  } catch (e) {
+    if (bodyEl) bodyEl.textContent = 'Lyrics not available right now.';
+  }
+}
+
+function updateCenterLyricsForSong(songObj) {
+  if (!isCenterLyricsOpen) return;
+  if (!songObj) return;
+
+  const t = (songObj.title || songObj.name || '').replace('.mp3','');
+  const a = (songObj.artist || songObj.artistName || '');
+
+  loadCenterLyrics(t, a);
+}
+
+// Bind dock mic button (safe even if called early)
+(function bindDockLyricsButton(){
+  function bind() {
+    const btn = document.getElementById('dock-lyrics-btn');
+    if (!btn || btn.__lyricsBound) return;
+    btn.__lyricsBound = true;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleCenterLyrics();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+})();
+
+// Keep right panel metadata in sync with the currently playing song
+
 
 
 // Keep right panel metadata in sync with the currently playing song
