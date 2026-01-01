@@ -2507,20 +2507,13 @@ try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (e) {}
         function takeNextManualQueueSong() {
   while (Array.isArray(manualQueue) && manualQueue.length) {
     const next = manualQueue.shift();
-
-    // save + refresh UI
     persistManualQueue();
-    try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
-
-    // normalize into { url, title, album, artist, cover }
+        try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+    try { if (document.body.classList.contains('queue-mode') && typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
     const song = (typeof normalizeSong === 'function') ? normalizeSong(next) : next;
-
-    // ✅ THIS was the missing part in your version:
-    if (song && song.url) return song;
   }
   return null;
 }
-
 
 /* -----------------------
    SWIPE LEFT ON TRACK ROW => Add to queue
