@@ -1172,15 +1172,59 @@ body.qs-lock{
 }
 
 .queue-row{
-  display: grid;
-  grid-template-columns: 54px 1fr 46px;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  user-select: none;
-  touch-action: pan-y;
+  gap: 10px;
+
+  padding: 6px 6px;          /* ↓ smaller row height */
+  border-radius: 8px;
+
+  cursor: pointer;
 }
+
+.queue-row:hover{
+  background: rgba(255,255,255,0.06);
+}
+
+.queue-cover{
+  width: 40px;               /* ↓ smaller cover */
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.queue-main{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.queue-song{
+  font-size: 14px;           /* ↓ smaller title */
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-artist{
+  font-size: 12px;           /* ↓ smaller artist */
+  opacity: 0.75;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-hamburger{
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 16px;           /* ↓ smaller icon */
+}
+
 
 .queue-row:active{ background: rgba(255,255,255,0.06); }
 
