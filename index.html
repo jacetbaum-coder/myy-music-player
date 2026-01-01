@@ -342,6 +342,37 @@ body.lyrics-mode #lyrics-center-view {
   background: rgba(var(--accent-rgb), 0.38);
 }
 
+/* -----------------------
+   CENTER LYRICS — Full middle takeover (Spotify-ish)
+------------------------ */
+
+/* When lyrics mode is ON:
+   - remove main padding so the panel can fill the entire middle column
+   - hide everything in #grid-view except #lyrics-center-view
+   - make #lyrics-center-view fill the whole middle area
+*/
+body.lyrics-mode #main-scroll-area {
+  padding: 0 !important;
+}
+
+body.lyrics-mode #grid-view {
+  position: relative;
+  /* fill the available middle height; dock sits on top of bottom area */
+  min-height: calc(100vh - 92px);
+}
+
+body.lyrics-mode #grid-view > :not(#lyrics-center-view) {
+  display: none !important;
+}
+
+body.lyrics-mode #lyrics-center-view {
+  display: block;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
 /* Center the big lyrics text like Spotify */
 body.lyrics-mode #lyrics-center-view .lyrics-center-inner {
   height: 100%;
@@ -349,7 +380,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-inner {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 64px 64px 90px;
+
+  /* big “karaoke” feel */
+  padding: 64px 64px 110px;
 }
 
 body.lyrics-mode #lyrics-center-view .lyrics-center-body {
@@ -359,12 +392,13 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 @media (max-width: 900px) {
   body.lyrics-mode #lyrics-center-view .lyrics-center-inner {
-    padding: 36px 22px 90px;
+    padding: 36px 22px 110px;
   }
   body.lyrics-mode #lyrics-center-view .lyrics-center-body {
     font-size: 36px;
   }
 }
+
 
         .main-view { 
 
