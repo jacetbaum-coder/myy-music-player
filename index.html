@@ -278,6 +278,18 @@ img {
           mask-image: none;
 }
 
+/* When CENTER lyrics is open (mic mode), hide right lyrics + let bio take that space */
+body.lyrics-mode #right-lyrics-card{
+  display: none;
+}
+body.lyrics-mode #right-bio{
+  max-height: 76vh;   /* bigger so it takes over the freed space */
+  overflow: auto;
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+
+
 
 /* Desktop ONLY: never show the right sidebar on mobile */
 @media (max-width: 768px) {
@@ -1984,7 +1996,7 @@ body.qs-lock {
     </section>
 
 
-    <section class="lyrics-card">
+        <section id="right-lyrics-card" class="lyrics-card">
 
       <div class="lyrics-header">
         <div class="lyrics-title">Lyrics</div>
@@ -5720,18 +5732,40 @@ function setCenterLyricsOpen(open) {
   isCenterLyricsOpen = !!open;
 
   const panel = document.getElementById('lyrics-center-overlay');
-const btn   = document.getElementById('dock-lyrics-btn');
+  const btn   = document.getElementById('dock-lyrics-btn');
 
+  // Right sidebar pieces (desktop)
+  const rightLyricsCard = document.getElementById('right-lyrics-card');
+  const rightBio = document.getElementById('right-bio');
 
-  // show/hide panel
+  // show/hide center panel
   if (panel) panel.classList.toggle('hidden', !isCenterLyricsOpen);
 
-  // THIS makes it take over the entire middle screen
+  // take over the entire middle screen
   document.body.classList.toggle('lyrics-mode', isCenterLyricsOpen);
 
   // mic active state (green when open)
   if (btn) {
     btn.classList.toggle('text-[var(--spotify-green)]', isCenterLyricsOpen);
+  }
+
+  // Right panel behavior while mic is on:
+  // - hide lyrics card
+  // - force bio to be in expanded mode so it can fill space
+  if (rightLyricsCard) rightLyricsCard.classList.toggle('hidden', isCenterLyricsOpen);
+  if (rightBio) {
+    if (isCenterLyricsOpen) {
+      // remember prior state so we can restore it
+      rightBio.dataset.prevBioState = rightBio.classList.contains('right-bio-expanded') ? 'expanded' : 'collapsed';
+      rightBio.classList.remove('right-bio-collapsed');
+      rightBio.classList.add('right-bio-expanded');
+    } else {
+      // restore prior state
+      const prev = rightBio.dataset.prevBioState || 'collapsed';
+      rightBio.classList.remove('right-bio-collapsed', 'right-bio-expanded');
+      rightBio.classList.add(prev === 'expanded' ? 'right-bio-expanded' : 'right-bio-collapsed');
+      delete rightBio.dataset.prevBioState;
+    }
   }
 
   // load lyrics immediately if opening
@@ -5740,11 +5774,11 @@ const btn   = document.getElementById('dock-lyrics-btn');
       updateCenterLyricsForSong(currentSong);
     } else {
       const body = document.getElementById('lyrics-overlay-body');
-const title = document.getElementById('lyrics-overlay-title');
-const sub = document.getElementById('lyrics-overlay-sub');
-if (title) title.textContent = 'Lyrics';
-if (sub) sub.textContent = 'Play a song to load lyrics.';
-if (body) body.textContent = 'Play a song to load lyrics.';
+      const title = document.getElementById('lyrics-overlay-title');
+      const sub = document.getElementById('lyrics-overlay-sub');
+      if (title) title.textContent = 'Lyrics';
+      if (sub) sub.textContent = 'Play a song to load lyrics.';
+      if (body) body.textContent = 'Play a song to load lyrics.';
     }
   }
 }
