@@ -3687,10 +3687,9 @@ renderGrid = function(data) {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-       <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-            onclick="openAlbumByName('${safeName}')"
-            ondblclick="openAlbumByName('${safeName}'); playAlbumByName('${safeName}')">
-         <img src="${cover}" class="w-12 h-12 rounded object-cover">
+      <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
+           onclick="openAlbumByName('${safeName}')">
+        <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
           <div class="text-white font-bold truncate">${album.albumName || ''}</div>
           <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
@@ -3742,51 +3741,9 @@ window.onload = async () => {
 
   // Library controls/search helpers (optional safety)
   safe(window.initLibraryControls);
-    safe(window.initLibrarySearchBox);
-
-  // ✅ Double-click "Liked Songs" in left sidebar => open + play from top
-  try {
-    // Try common IDs first
-    let likedEl =
-      document.getElementById('side-nav-liked') ||
-      document.getElementById('liked-songs') ||
-      document.getElementById('nav-liked') ||
-      document.getElementById('likedSongs');
-
-    // Fallback: find the sidebar row whose text includes "Liked Songs"
-    if (!likedEl) {
-      const candidates = Array.from(document.querySelectorAll('aside *'));
-      likedEl = candidates.find(el => (el.textContent || '').trim() === 'Liked Songs');
-      if (!likedEl) likedEl = candidates.find(el => (el.textContent || '').includes('Liked Songs'));
-      if (likedEl) likedEl = likedEl.closest('button, a, div') || likedEl;
-    }
-
-    if (likedEl && !likedEl.__dblLikedBound) {
-      likedEl.__dblLikedBound = true;
-
-      likedEl.addEventListener('dblclick', () => {
-        showView('liked');
-
-        // let the view build currentQueue, then play from top
-        setTimeout(() => {
-          try {
-            if (typeof playQueue === 'function' && Array.isArray(currentQueue) && currentQueue.length) {
-              playQueue(currentQueue, 0);
-            } else if (Array.isArray(currentQueue) && currentQueue.length) {
-              // fallback: play first song directly if playQueue doesn't exist
-              const s = currentQueue[0];
-              if (s && s.url && typeof playSpecificSong === 'function') {
-                playSpecificSong(s.url, s.title || s.name || '', s.album || '', s.artist || '', s.cover || s.coverUrl || '');
-              }
-            }
-          } catch (e) {}
-        }, 0);
-      });
-    }
-  } catch (e) {}
+  safe(window.initLibrarySearchBox);
 
   safe(window.updateCounts);
-
 
   safe(window.restorePlayerStateIfRecent);
   safe(window.checkDockVisibility);
@@ -4288,19 +4245,13 @@ function renderGrid(data) {
   }).join('');
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
-  card.addEventListener('click', () => {
-    const album = card.getAttribute('data-album');
-    if (album) openAlbumByName(album);
+    card.addEventListener('click', () => {
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
   });
+}
 
-  // ✅ Double-click => open album + play from top
-  card.addEventListener('dblclick', () => {
-    const album = card.getAttribute('data-album');
-    if (!album) return;
-    openAlbumByName(album);
-    playAlbumByName(album);
-  });
-});
 
 function openAlbumByName(name) {
   // BACK STACK: push current view before entering album
@@ -7520,20 +7471,7 @@ function renderPlaylists() {
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
     div.onclick = () => showView('playlist', i);
 
-// ✅ Double-click => open playlist + play from top
-div.ondblclick = () => {
-  showView('playlist', i);
-  // showView builds currentQueue; wait one tick then play it
-  setTimeout(() => {
-    try {
-      if (typeof playQueue === 'function' && Array.isArray(currentQueue) && currentQueue.length) {
-        playQueue(currentQueue, 0);
-      }
-    } catch (e) {}
-  }, 0);
-};
-
-const cover = getEffectivePlaylistCover(pl);
+    const cover = getEffectivePlaylistCover(pl);
 
     div.innerHTML = `
         <div class="playlist-cover w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center"
