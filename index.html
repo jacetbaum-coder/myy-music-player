@@ -4661,13 +4661,27 @@ const scrollArea = document.getElementById('main-scroll-area');
 
   if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
-  const pl = playlists[playlistIndex];
-  activePlaylistId = pl?.id || null;
 
+  // ✅ Prefer cloud playlists if present (same mapping as renderPlaylists)
+  const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
+    ? window.cloudPlaylists.map(p => ({
+        id: p.playlist_id,
+        name: p.name,
+        songs: [] // items come in a later step
+      }))
+    : playlists;
+
+  // First try the UI list (cloud), then fall back to local playlists
+  let pl = uiPlaylists[playlistIndex];
+  if (!pl) pl = playlists[playlistIndex];
+  if (!pl) return;
+
+  activePlaylistId = pl?.id || null;
   playContext = { type: 'playlist', label: pl.name };
 
   renderCollection(pl.name, pl.songs, true, playlistIndex);
 }
+
 
   if (viewType === 'artist') {
     document.getElementById('artist-view').classList.remove('hidden');
