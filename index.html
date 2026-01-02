@@ -4082,19 +4082,30 @@ window.onload = async () => {
 
   // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
   window.cloudPlaylists = [];
-  window.loadPlaylistsFromCloud = async function () {
-    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-    if (!uid) return [];
+  
+  // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
+  window.loadPlaylistItemsFromCloud = async function (playlistId) {
+    if (!playlistId) return [];
 
-    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid));
+    const res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(playlistId)
+    );
     const data = await res.json();
 
-    if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
-      window.cloudPlaylists = data.playlists;
-      return data.playlists;
+    if (res.ok && data && data.ok && Array.isArray(data.items)) {
+      // Map DB track rows -> the song objects your UI expects
+      return data.items.map(it => ({
+        key: it.r2_key || it.track_id,
+        url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
+        title: it.title || it.r2_key || it.track_id,
+        name: it.title || it.r2_key || it.track_id,
+        artist: it.artist || "",
+        album: it.album || "",
+        cover: "",
+        coverArt: ""
+      }));
     }
 
-    window.cloudPlaylists = [];
     return [];
   };
 
