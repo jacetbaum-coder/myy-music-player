@@ -481,20 +481,23 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 
-        .main-view { 
-
-
+               .main-view { 
   flex: 1; 
   /* subtle accent tint at top -> black */
   background: linear-gradient(180deg,
       rgba(var(--accent-rgb), 0.28) 0%,
       rgba(0,0,0,1) 65%);
-  overflow-y: auto; 
+
+  /* ✅ IMPORTANT: prevent any horizontal “peek” during swipe/back gestures */
+  overflow-x: hidden;
+  overflow-y: auto;
+
   padding: 32px; 
   position: relative; 
   scrollbar-width: thin;
   scrollbar-color: #555 transparent;
 }
+
 
         /* --- INTERACTIVE ELEMENTS --- */
         .resizer { 
@@ -4294,9 +4297,16 @@ function initSwipeBack() {
     return y <= (window.innerHeight * 0.75);
   }
 
-  function reset(animated = true) {
+   function reset(animated = true) {
     // Restore vertical scroll behavior
     area.style.touchAction = 'pan-y';
+
+    // ✅ Always keep x clipped after any drag
+    area.style.overflowX = 'hidden';
+    area.style.overflowY = 'auto';
+
+    // ✅ Stop “painting” outside during transforms
+    area.style.willChange = '';
 
     if (animated) {
       area.style.transition = 'transform 220ms ease, opacity 220ms ease';
@@ -4317,7 +4327,8 @@ function initSwipeBack() {
     area.addEventListener('transitionend', clear);
   }
 
-  area.addEventListener('pointerdown', (e) => {
+
+    area.addEventListener('pointerdown', (e) => {
     if (!canStart(e)) return;
 
     const { x, y } = getXY(e);
@@ -4330,6 +4341,10 @@ function initSwipeBack() {
 
     // While dragging horizontally, we temporarily own the gesture
     area.style.touchAction = 'none';
+
+    // ✅ HARD CLIP while transformed so nothing can “peek” from the left
+    area.style.overflow = 'hidden';
+    area.style.willChange = 'transform, opacity';
 
     area.classList.add('sb-dragging');
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
