@@ -5510,7 +5510,7 @@ function renderQueueSheet() {
     const cover = (s.cover || s.coverUrl || s.art || s.image || '').toString();
 
     return `
-      <div class="queue-row" data-qi="${idx}">
+      <div class="queue-row" data-mq-index="${idx}">
         <img class="queue-cover" src="${cover}" onerror="this.style.visibility='hidden'" />
         <div class="queue-main">
           <div class="queue-song">${title.replace(/</g,'&lt;')}</div>
@@ -5521,10 +5521,13 @@ function renderQueueSheet() {
     `;
   }).join('');
 
+  // Make sure drag-reorder is enabled on mobile list (safe if already enabled)
+  try { enablePressHoldDragReorder(list); } catch (e) {}
+
   // Tap a row to play (uses your existing play function if present)
   list.querySelectorAll('.queue-row').forEach(row => {
     row.addEventListener('click', () => {
-      const i = parseInt(row.getAttribute('data-qi') || '-1', 10);
+      const i = parseInt(row.getAttribute('data-mq-index') || '-1', 10);
       const s = manualQueue[i];
       if (!s) return;
 
@@ -5538,17 +5541,26 @@ function renderQueueSheet() {
   });
 }
 
+
+// Clear button
 // Clear button
 (function bindQueueClear() {
   const btn = document.getElementById('queue-clear');
   if (!btn) return;
+
+  // Prevent double-binding (wireQueueClearButtons also targets #queue-clear)
+  if (btn.__clearBound) return;
+  btn.__clearBound = true;
+
   btn.addEventListener('click', () => {
-    manualQueue = [];
-    try { localStorage.setItem('manualQueue', JSON.stringify(manualQueue)); } catch (e) {}
-    renderQueueSheet();
-    closeQueueSheet();
+    // Use the shared clear logic (updates both mobile + right sidebar)
+    try { clearManualQueue(); } catch (e) {}
+
+    // Keep your existing “close sheet after clearing” behavior
+    try { closeQueueSheet(); } catch (e) {}
   }, { passive: true });
 })();
+
 
 // Tap backdrop closes
 (function bindQueueBackdropClose() {
