@@ -1401,6 +1401,14 @@ body.qs-lock{
   margin-bottom: 18px;
 }
 
+        .home-recents-grid {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+        
 .recent-tile {
   display: flex;
   align-items: center;
@@ -1828,12 +1836,13 @@ body.qs-lock {
 
   <!-- Recents -->
   <div class="mt-2">
-    <h2 class="text-3xl font-black mb-4">Recents</h2>
-
-
-    <div id="home-recents-row"
-         class="flex gap-4 overflow-x-auto pb-2">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-3xl font-black">Recents</h2>
+      <button id="home-recents-showall" class="text-xs font-extrabold text-zinc-400 hover:text-white md:hidden" type="button">
+        Show all
+      </button>
     </div>
+      <div id="home-recents-row" class="home-recents-grid"></div>
   </div>
 
 </div>
@@ -7152,12 +7161,26 @@ function handleContextMenu(e, song) {
   });
 }
 
+         let mobileRecentsExpanded = false;
 
         function renderHomeRecentsRow(containerId) {
           const row = document.getElementById(containerId);
           if (!row) return;
 
-          const items = Array.isArray(history) ? history.slice(0, 12) : [];
+          const isMobile = (window.innerWidth <= 768);
+          const allItems = Array.isArray(history) ? history.slice(0, 12) : [];
+          const items = isMobile
+            ? allItems.slice(0, mobileRecentsExpanded ? 12 : 4)
+            : allItems;
+          const showAllBtn = document.getElementById('home-recents-showall');
+          if (showAllBtn) {
+            if (!isMobile) {
+              showAllBtn.classList.add('hidden');
+            } else {
+              showAllBtn.classList.toggle('hidden', allItems.length <= 4);
+              showAllBtn.textContent = mobileRecentsExpanded ? 'Show less' : 'Show all';
+            }
+          }
 
            if (!items.length) {
             row.innerHTML = `<div class="text-zinc-500 text-sm">No recents yet.</div>`;
@@ -7173,7 +7196,7 @@ function handleContextMenu(e, song) {
               ? `data-type="playlist" data-id="${safeId}"`
               : `data-type="album" data-album="${safeAlbum}"`;
             return `
-              <div class="min-w-[160px] max-w-[160px] cursor-pointer recents-row-card" ${dataAttrs}>
+              <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
                 <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
                   <img src="${item.cover || ''}" class="w-full h-full object-cover" alt="">
                 </div>
@@ -7208,6 +7231,14 @@ function handleContextMenu(e, song) {
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
+}
+
+        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+if (homeRecentsShowAllBtn) {
+  homeRecentsShowAllBtn.addEventListener('click', () => {
+    mobileRecentsExpanded = !mobileRecentsExpanded;
+    renderHomeRecentsRow('home-recents-row');
+  });
 }
 
 
