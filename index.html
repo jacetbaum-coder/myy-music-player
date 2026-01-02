@@ -8870,16 +8870,6 @@ player.addEventListener('ended', () => {
 
     function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
       
-    
-
-    // Save the shared userId for this browser
-    localStorage.setItem("app_user_id", data.userId);
-    window.APP_USER_ID = data.userId;
-
-    return data; // { ok, userId }
-  }
-
-
 
     ready(() => {
       const btn = document.getElementById('library-search-icon-btn');
