@@ -2186,15 +2186,15 @@ body.qs-lock {
 </div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
 
 <nav class="mobile-nav">
-  <div class="nav-item active" id="nav-home" onclick="showView('home')">
+  <div class="nav-item active" id="nav-home" onclick="onNavTap('home')">
     <i class="fas fa-home"></i>
     <span>Home</span>
   </div>
-  <div class="nav-item" id="nav-search" onclick="showView('search')">
+  <div class="nav-item" id="nav-search" onclick="onNavTap('search')">
     <i class="fas fa-search"></i>
     <span>Search</span>
   </div>
-  <div class="nav-item" id="nav-library" onclick="showView('library')">
+  <div class="nav-item" id="nav-library" onclick="onNavTap('library')">
     <i class="fas fa-layer-group"></i>
     <span>Library</span>
   </div>
@@ -2203,6 +2203,7 @@ body.qs-lock {
     <span>Cloud</span>
   </div>
 </nav>
+
 
     <div id="main-dock" class="player-bar dock-hidden">
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
@@ -4549,24 +4550,82 @@ const scrollArea = document.getElementById('main-scroll-area');
 
 
         function updateActiveStates(viewType) {
-            // Mobile Nav
-                        const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
-            Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
-            if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
+  // Mobile Nav
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
+  Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
+  if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
 
-            // Desktop Sidebar
-                        document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
-            document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
-            document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
-            document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
-            document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
-        }
+  // Desktop Sidebar
+  document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
+  document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
+  document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
+  document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
+  document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
+}
 
-        /**
-         * ---------------------------------------------------------------------
-         * RENDERERS
-         * ---------------------------------------------------------------------
-         */
+/* ---------------------------------------------------------------------
+   Mobile: double-tap active tab to scroll to top (smooth)
+   --------------------------------------------------------------------- */
+
+const __navTapLast = { home: 0, search: 0, library: 0 };
+
+function scrollMainToTopSmooth() {
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  // Mobile only
+  if (window.innerWidth > 768) {
+    area.scrollTop = 0;
+    return;
+  }
+
+  // Smooth scroll to top
+  try {
+    area.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    // Fallback
+    area.scrollTop = 0;
+  }
+}
+
+function onNavTap(viewType) {
+  const isMobile = window.innerWidth <= 768;
+
+  const navId =
+    viewType === 'home' ? 'nav-home' :
+    viewType === 'search' ? 'nav-search' :
+    viewType === 'library' ? 'nav-library' :
+    null;
+
+  const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
+
+  if (isMobile && isActive) {
+    const now = Date.now();
+    const last = __navTapLast[viewType] || 0;
+
+    // Double tap window (ms)
+    if (now - last <= 350) {
+      __navTapLast[viewType] = 0;
+      scrollMainToTopSmooth();
+      return;
+    }
+
+    __navTapLast[viewType] = now;
+    // First tap on active tab: do nothing (wait to see if second tap happens)
+    return;
+  }
+
+  // Not active (or not mobile): navigate normally
+  __navTapLast[viewType] = 0;
+  showView(viewType);
+}
+
+/**
+          * ---------------------------------------------------------------------
+          * RENDERERS
+          * ---------------------------------------------------------------------
+          */
+
 function renderGrid(data) {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
