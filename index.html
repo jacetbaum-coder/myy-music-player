@@ -8251,13 +8251,17 @@ function renderPlaylists() {
 
             // ✅ Prefer cloud playlists if present (read-only for now)
             // Map cloud shape -> your existing UI shape.
-            const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
+                        const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
               ? window.cloudPlaylists.map(p => ({
                   id: p.playlist_id,
                   name: p.name,
                   songs: [] // items come in a later step
                 }))
               : playlists;
+
+            // ✅ IMPORTANT: make the rest of the app use the same list the sidebar is rendering
+            playlists = uiPlaylists;
+
 
             const pinnedIds = loadPinnedPlaylists();
 
