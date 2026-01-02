@@ -4078,7 +4078,25 @@ window.onload = async () => {
     userId = makeUserId();
     localStorage.setItem("app_user_id", userId);
   }
-  window.APP_USER_ID = userId;
+    window.APP_USER_ID = userId;
+
+  // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
+  window.cloudPlaylists = [];
+  window.loadPlaylistsFromCloud = async function () {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (!uid) return [];
+
+    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid));
+    const data = await res.json();
+
+    if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
+      window.cloudPlaylists = data.playlists;
+      return data.playlists;
+    }
+
+    window.cloudPlaylists = [];
+    return [];
+  };
 
   // Never let one missing helper break app startup
 
@@ -4099,7 +4117,15 @@ window.onload = async () => {
   // You already upgrade playlist IDs elsewhere; do NOT hard-require ensurePlaylistIds()
   // safe(window.ensurePlaylistIds);
 
+    // Load cloud playlists first (then your existing renderer can use them later)
+  try {
+    await window.loadPlaylistsFromCloud();
+    console.log("cloudPlaylists:", window.cloudPlaylists);
+  } catch (e) {
+    console.warn(e);
+  }
   safe(window.renderPlaylists);
+
 
   // Auto covers helper exists in some versions; keep it optional
   try { if (typeof ensureAllPlaylistAutoCovers === 'function') await ensureAllPlaylistAutoCovers(); } catch (e) {}
