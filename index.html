@@ -4182,12 +4182,19 @@ function setNavCurrent(state) {
 }
 
 function pushNavCurrent() {
-  // Don’t push during back navigation
   if (__isBackNav) return;
-  // Don’t push empty
   if (!navCurrent) navCurrent = { type: 'home' };
-  navStack.push(JSON.parse(JSON.stringify(navCurrent)));
-  // Keep it from growing forever
+
+  // Clone current view state
+  const snapshot = JSON.parse(JSON.stringify(navCurrent));
+
+  // ✅ If we're leaving Library, capture the current scroll position
+  if (snapshot.type === 'library') {
+    const area = document.getElementById('main-scroll-area');
+    snapshot.scrollTop = area ? area.scrollTop : 0;
+  }
+
+  navStack.push(snapshot);
   if (navStack.length > 80) navStack.shift();
 }
 
@@ -4210,7 +4217,18 @@ function goBack() {
       showView('search');
     } else if (prev.type === 'library') {
       showView('library');
+
+      // ✅ Restore where you were in Library before entering the album
+      const area = document.getElementById('main-scroll-area');
+      const top = Number.isFinite(prev.scrollTop) ? prev.scrollTop : 0;
+
+      if (area) {
+        requestAnimationFrame(() => {
+          area.scrollTop = top;
+        });
+      }
     } else if (prev.type === 'liked') {
+
       showView('liked');
     } else {
       showView('home');
@@ -4643,13 +4661,30 @@ function onNavTap(viewType) {
   if (isMobile && isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
-    // If active tab says "library" but current view is album/playlist/etc, pop to library root
-    if (currentType && currentType !== viewType) {
-      popToRootSection(viewType);
-      // Reset tap timer so we don't instantly count this as a double tap
+   // If active tab says "library" but current view is album/playlist/etc
+if (currentType && currentType !== viewType) {
+
+  // ✅ SPECIAL CASE:
+  // Inside album/playlist → double-tap Library should go BACK
+  if (viewType === 'library') {
+    const now = Date.now();
+    const last = __navTapLast[viewType] || 0;
+
+    if (now - last <= 350) {
       __navTapLast[viewType] = 0;
-      return;
+      goBack(); // restores Library + scroll position
+    } else {
+      __navTapLast[viewType] = now;
     }
+    return;
+  }
+
+  // Other tabs keep old behavior
+  popToRootSection(viewType);
+  __navTapLast[viewType] = 0;
+  return;
+}
+
 
     // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
