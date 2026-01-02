@@ -8004,14 +8004,48 @@ function showPlaylistMenuAt(x, y, playlistId) {
 
   const pinBtn = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
+  const delBtn = document.getElementById('pm-delete');
 
   const pinned = isPinnedPlaylist(playlistId);
-  pinBtn.classList.toggle('hidden', pinned);
-  unpinBtn.classList.toggle('hidden', !pinned);
+  if (pinBtn) pinBtn.classList.toggle('hidden', pinned);
+  if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-  m.style.left = x + "px";
-  m.style.top = y + "px";
+  // ✅ Delete playlist
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      const id = playlistMenuTargetId;
+      if (!id) return;
+
+      const plIndex = playlists.findIndex(p => p.id === id);
+      if (plIndex === -1) return;
+
+      const plName = playlists[plIndex].name || "this playlist";
+      const ok = confirm(`Delete "${plName}"? This cannot be undone.`);
+      if (!ok) return;
+
+      // remove locally
+      playlists.splice(plIndex, 1);
+      try { savePlaylists(); } catch (e) {}
+
+      // If you also have a cloud delete endpoint later, you can call it here.
+
+      // If we’re viewing the deleted playlist, go home
+      if (activePlaylistId === id) {
+        activePlaylistId = null;
+        try { showView('home'); } catch (e) {}
+      }
+
+      renderPlaylists();
+      hidePlaylistMenu();
+    };
+  }
+
+  // Position + show menu
+  m.style.left = `${x}px`;
+  m.style.top = `${y}px`;
   m.classList.remove('hidden');
+}
+
 }
 function openPlaylistPinMenuFromHero(e) {
   // Only works when you're inside a playlist view
@@ -8252,169 +8286,139 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function renderPlaylists() {
-            const list = document.getElementById('dynamic-playlists-list');
-            const sub = document.getElementById('playlist-submenu');
-            list.innerHTML = '';
-            sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
+  const list = document.getElementById('dynamic-playlists-list');
+  const sub  = document.getElementById('playlist-submenu');
+  if (!list || !sub) return;
 
-            // ✅ Prefer cloud playlists if present (read-only for now)
-            // Map cloud shape -> your existing UI shape.
-                        const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-              ? window.cloudPlaylists.map(p => ({
-                  id: p.playlist_id,
-                  name: p.name,
-                  songs: [] // items come in a later step
-                }))
-              : playlists;
+  // Clear the sidebar list
+  list.innerHTML = "";
 
-            // ✅ IMPORTANT: make the rest of the app use the same list the sidebar is rendering
-            playlists = uiPlaylists;
+  // ✅ Only show 4 playlists, most recent first
+  const recent = (Array.isArray(playlists) ? playlists.slice() : []).reverse().slice(0, 4);
 
-
-            const pinnedIds = loadPinnedPlaylists();
-
-            const pinnedSet = new Set(pinnedIds);
-                        const pinnedPlaylists = pinnedIds.map(id => uiPlaylists.find(pl => pl.id === id)).filter(Boolean);
-
-                        const unpinnedPlaylists = uiPlaylists.filter(pl => !pinnedSet.has(pl.id));
-
-            const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-
-            orderedPlaylists.forEach((pl) => {
-        const i = uiPlaylists.findIndex(p => p.id === pl.id);
-
+  recent.forEach((pl) => {
     const div = document.createElement('div');
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
-    div.onclick = () => showView('playlist', i);
 
-    const cover = getEffectivePlaylistCover(pl);
+    const songs = Array.isArray(pl.songs) ? pl.songs : [];
+    const count = songs.length;
+
+    // cover: manual > auto > first song cover > empty
+    const cover = (typeof getEffectivePlaylistCover === "function" ? getEffectivePlaylistCover(pl) : "") ||
+                  (songs[0] && (songs[0].cover || songs[0].coverArt || songs[0].cover_url)) ||
+                  "";
+
+    const coverHtml = cover
+      ? `<img src="${cover}" class="w-12 h-12 rounded object-cover bg-zinc-800 flex-shrink-0">`
+      : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
+           <i class="fas fa-music text-zinc-500"></i>
+         </div>`;
 
     div.innerHTML = `
-        <div class="playlist-cover w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center"
-             data-playlist-id="${pl.id}">
-          ${
-            cover
-              ? `<img src="${cover}" class="w-full h-full object-cover" alt="">`
-              : `<i class="fas fa-music text-zinc-600"></i>`
-          }
-        </div>
-
-        <div class="flex-1 truncate">
-            <div class="text-sm font-bold truncate flex items-center gap-2">
-              ${pinnedSet.has(pl.id) ? '<i class="fas fa-thumbtack text-[#1db954]"></i>' : ''}
-              <span class="truncate">${pl.name}</span>
-            </div>
-            <div class="text-xs text-zinc-400">${pl.songs.length} songs</div>
-        </div>
+      ${coverHtml}
+      <div class="min-w-0 flex-1">
+        <div class="text-white font-semibold truncate">${pl.name}</div>
+        <div class="text-xs text-zinc-400">${count} song${count === 1 ? "" : "s"}</div>
+      </div>
     `;
 
-    // Keep your existing right-click + mobile long-press menu for the whole row
-    attachPlaylistPressHandlers(div, pl.id);
+    // Click opens playlist
+    div.onclick = () => {
+      const idx = playlists.findIndex(p => p.id === pl.id);
+      if (idx !== -1) showView('playlist', idx);
+    };
 
-    // DESKTOP ONLY: press-and-hold on the COVER opens the playlist menu
-    const coverEl = div.querySelector('.playlist-cover');
-    if (coverEl) {
-      let holdTimer = null;
-
-      coverEl.addEventListener('pointerdown', (e) => {
-        // Desktop only
-        if (window.innerWidth <= 768) return;
-
-        // Don’t trigger the row click
-        e.preventDefault();
-        e.stopPropagation();
-
-        holdTimer = setTimeout(() => {
-          try { hidePlaylistMenu(); } catch (err) {}
-           try { closeContextMenu(); } catch (err) {}
-
-          showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
-        }, 450);
-      });
-
-      const cancelHold = () => {
-        if (holdTimer) clearTimeout(holdTimer);
-        holdTimer = null;
-      };
-
-      coverEl.addEventListener('pointerup', cancelHold);
-      coverEl.addEventListener('pointercancel', cancelHold);
-      coverEl.addEventListener('pointerleave', cancelHold);
-
-      // Also support right-click directly on the cover
-      coverEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try { hidePlaylistMenu(); } catch (err) {}
-        try { closeContextMenu(); } catch (err) {}
-        showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
-      });
-    }
+    // Right-click / menu button (optional): show playlist menu
+    div.oncontextmenu = (e) => {
+      e.preventDefault();
+      try { showPlaylistMenuAt(e.clientX, e.clientY, pl.id); } catch (_) {}
+    };
 
     list.appendChild(div);
-});
+  });
 
-                        // ✅ Build “Add to playlist” submenu from CLOUD playlists
-            const cloudList = (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : []);
-            cloudList.forEach((pl) => {
-                const item = document.createElement('div');
-                item.className = "menu-item";
-                item.innerText = pl.name;
+  // ✅ Build “Add to playlist” submenu
+  sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">+ New Playlist</div>`;
 
-item.onclick = async () => {
-  const s = menuTargetSong;
-  if (!s || !s.link) return;
+  // If you already load cloud playlists, prefer those for the add-menu if present
+  const cloudList = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
+  if (cloudList.length) {
+    cloudList.forEach((pl) => {
+      const item = document.createElement('div');
+      item.className = "menu-item";
+      item.innerText = pl.name;
 
-  // Extract trackId from ?id=...
-  const m = /[?&]id=([^&]+)/.exec(s.link);
-  if (!m || !m[1]) {
-    alert("Could not determine trackId for this song.");
-    return;
-  }
-  const trackId = decodeURIComponent(m[1]);
+      item.onclick = async () => {
+        const s = menuTargetSong;
+        if (!s) return;
 
-  try {
-    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-  playlistId: pl.playlist_id,
-  trackId,
-  title: s.title || s.name || "",
-  artist: s.artist || "",
-  album: s.album || "",
-  cover_url: s.cover || s.coverArt || s.cover_url || ""
-})
+        // You likely already have a trackId resolver elsewhere.
+        // If you store r2_key/track_id on the song object, use it here.
+        const trackId =
+          s.track_id ||
+          s.trackId ||
+          s.key ||
+          s.r2_key ||
+          "";
 
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data || !data.ok) {
-  throw new Error("Failed to add song to playlist");
-}
-
-// ✅ After success: refresh this playlist’s songs so counts/covers update
-closeContextMenu();
-
-try {
-  const ui = playlists.find(p => p.id === pl.playlist_id);
-  if (ui) {
-    ui.songs = await window.loadPlaylistItemsFromCloud(ui.id);
-    try { await updatePlaylistAutoCoverById(ui.id); } catch (e) {}
-  }
-} catch (e) {}
-
-renderPlaylists();
-} catch (e) {
-  console.error(e);
-  alert("Could not add song to playlist.");
-}
-};
-
-
-                sub.appendChild(item);
-            });
+        if (!trackId) {
+          alert("Missing trackId for this song.");
+          return;
         }
+
+        try {
+          await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              playlistId: pl.playlist_id,
+              trackId
+            })
+          });
+        } catch (e) {
+          console.warn(e);
+        }
+
+        try { await window.loadPlaylistsFromCloud(); } catch (e) {}
+        renderPlaylists();
+        closeContextMenu();
+      };
+
+      sub.appendChild(item);
+    });
+  } else {
+    // fallback to local playlists for add-menu
+    playlists.forEach((pl, i) => {
+      const item = document.createElement('div');
+      item.className = "menu-item";
+      item.innerText = pl.name;
+
+      item.onclick = async () => {
+        const s = menuTargetSong;
+        if (!s) return;
+
+        playlists[i].songs.push({
+          url: s.link || s.url,
+          title: s.name || s.title,
+          album: s.album,
+          artist: s.artist,
+          cover: s.cover || s.coverArt
+        });
+
+        savePlaylists();
+
+        // update auto cover right after adding
+        try { await updatePlaylistAutoCoverById(playlists[i].id); } catch (e) {}
+
+        renderPlaylists();
+        closeContextMenu();
+      };
+
+      sub.appendChild(item);
+    });
+  }
+} // This closes renderPlaylists
+
 
 
         function updateCounts() {
@@ -8951,8 +8955,14 @@ player.addEventListener('ended', () => {
   <div class="my-2 border-t border-white/10"></div>
 
   <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
-  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
-  <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
+  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload)</button>
+
+<button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">
+  Delete playlist
+</button>
+
+<button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
+
 </div>
 
 <!-- hidden file input used by playlist “upload file” -->
