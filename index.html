@@ -4336,7 +4336,23 @@ function captureSwipeBackUnderlay() {
   // Match current scroll position so it “peeks” correctly
   content.scrollTop = area.scrollTop || 0;
 
-  // Keep underlay hidd
+  // Keep underlay hidden until the user starts dragging
+  under.style.opacity = '0';
+}
+
+function showSwipeBackUnderlay() {
+  const { under } = ensureSwipeBackUnderlay();
+  under.style.opacity = '1';
+}
+
+function hideSwipeBackUnderlay() {
+  const { under } = ensureSwipeBackUnderlay();
+  under.style.opacity = '0';
+}
+
+  window.captureSwipeBackUnderlay = captureSwipeBackUnderlay;
+  window.showSwipeBackUnderlay = showSwipeBackUnderlay;
+  window.hideSwipeBackUnderlay = hideSwipeBackUnderlay;
 
   // Desktop / trackpad only
   if (window.innerWidth < 1024) return;
@@ -4840,6 +4856,11 @@ function renderGrid(data) {
 
 
 function openAlbumByName(name) {
+
+    if (!__isBackNav && window.innerWidth <= 768) {
+    window.captureSwipeBackUnderlay?.();
+  }
+
   // BACK STACK: push current view before entering album
   pushNavCurrent();
   setNavCurrent({ type: 'album', albumName: name });
