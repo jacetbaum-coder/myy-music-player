@@ -1318,10 +1318,14 @@ body.qs-lock{
 
 .queue-hamburger:active{ background: rgba(255,255,255,0.08); }
 
-.queue-row.dragging{
-  opacity: 0.85;
-  outline: 2px solid rgba(255,255,255,0.20);
-  background: rgba(255,255,255,0.06);
+.queue-row.dragging,
+.queue-row.mq-dragging{
+  opacity: 0.72;
+  transform: scale(0.985);
+  transition: transform 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+  outline: 2px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
 
 /* Desktop: Spotify-style context menu */
