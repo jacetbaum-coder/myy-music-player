@@ -4690,40 +4690,27 @@ const scrollArea = document.getElementById('main-scroll-area');
     renderCollection("Liked Songs", likedSongs);
   }
 
-  if (viewType === 'playlist') {
-  document.getElementById('album-view').classList.remove('hidden');
+    if (viewType === 'playlist') {
+    document.getElementById('album-view').classList.remove('hidden');
 
-  // ✅ Prefer cloud playlists if present (same mapping as renderPlaylists)
-  const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-    ? window.cloudPlaylists.map(p => ({
-        id: p.playlist_id,
-        name: p.name,
-        songs: [] // items come in a later step
-      }))
-    : playlists;
+    const pl = playlists[playlistIndex];
+    if (!pl) return;
 
-  // First try the UI list (cloud), then fall back to local playlists
-  let pl = uiPlaylists[playlistIndex];
-  if (!pl) pl = playlists[playlistIndex];
-  if (!pl) return;
+    activePlaylistId = pl?.id || null;
+    playContext = { type: 'playlist', label: pl.name };
 
-  activePlaylistId = pl?.id || null;
-  playContext = { type: 'playlist', label: pl.name };
-
-  // ✅ Load playlist songs from cloud before rendering
-  (async () => {
-    try {
-      const songs = await window.loadPlaylistItemsFromCloud(pl.id);
-      pl.songs = Array.isArray(songs) ? songs : [];
-    } catch (e) {
-      console.warn(e);
-      pl.songs = [];
-    }
-    renderCollection(pl.name, pl.songs, true, playlistIndex);
-  })();
-
-}
-
+    // ✅ Load playlist songs from cloud before rendering
+    (async () => {
+      try {
+        const songs = await window.loadPlaylistItemsFromCloud(pl.id);
+        pl.songs = Array.isArray(songs) ? songs : [];
+      } catch (e) {
+        console.warn(e);
+        pl.songs = [];
+      }
+      renderCollection(pl.name, pl.songs, true, playlistIndex);
+    })();
+  }
 
   if (viewType === 'artist') {
     document.getElementById('artist-view').classList.remove('hidden');
