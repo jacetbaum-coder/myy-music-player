@@ -8197,14 +8197,28 @@ function renderPlaylists() {
             list.innerHTML = '';
             sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
 
+            // ✅ Prefer cloud playlists if present (read-only for now)
+            // Map cloud shape -> your existing UI shape.
+            const uiPlaylists = (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
+              ? window.cloudPlaylists.map(p => ({
+                  id: p.playlist_id,
+                  name: p.name,
+                  songs: [] // items come in a later step
+                }))
+              : playlists;
+
             const pinnedIds = loadPinnedPlaylists();
+
             const pinnedSet = new Set(pinnedIds);
-            const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-            const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+                        const pinnedPlaylists = pinnedIds.map(id => uiPlaylists.find(pl => pl.id === id)).filter(Boolean);
+
+                        const unpinnedPlaylists = uiPlaylists.filter(pl => !pinnedSet.has(pl.id));
+
             const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
 
             orderedPlaylists.forEach((pl) => {
-    const i = playlists.findIndex(p => p.id === pl.id);
+        const i = uiPlaylists.findIndex(p => p.id === pl.id);
+
     const div = document.createElement('div');
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
     div.onclick = () => showView('playlist', i);
