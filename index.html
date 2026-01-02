@@ -7071,12 +7071,6 @@ function handleContextMenu(e, song) {
         // HOME RENDERING (Mobile Home + Desktop Home)
         // -----------------------
 
-        function getHistoryItemsForHome() {
-  const limit = (window.innerWidth <= 768) ? 4 : 8;
-  return Array.isArray(history) ? history.slice(0, limit) : [];
-}
-
-
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
             ? libraryDataOriginal
@@ -7093,43 +7087,47 @@ function handleContextMenu(e, song) {
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-  const items = getHistoryItemsForHome();
-  const filled = items.slice(0, slotCount);
+  const pinnedIds = loadPinnedPlaylists();
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+  const filled = orderedPlaylists.slice(0, slotCount);
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
 
   for (let i = 0; i < slotCount; i++) {
-    const h = filled[i];
+     const pl = filled[i];
 
     // Placeholder tile (keeps the “imaginary rectangle” space)
-    if (!h) {
+    if (!pl) {
       tiles.push(`
-        <div class="mobile-recent-card opacity-40 pointer-events-none">
-          <div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex-shrink-0"></div>
-          <div class="min-w-0 flex-1">
-            <div class="h-[14px] w-3/5 rounded bg-white/10 mb-2"></div>
-            <div class="h-[11px] w-2/5 rounded bg-white/10"></div>
-          </div>
+        <div class="min-w-0 flex-1"></div>
         </div>
       `);
       continue;
     }
 
-    const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
-    const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
-    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
-    const safeId = String(h.id || '').replace(/"/g,'&quot;');
+    const cover = getEffectivePlaylistCover(pl);
+    const title = pl.name || 'Playlist';
+    const safeId = String(pl.id || '').replace(/"/g,'&quot;');
 
     tiles.push(`
       <div class="mobile-recent-card"
-           data-type="${h.type}"
+            data-type="playlist"
            data-id="${safeId}"
-           data-album="${safeAlbum}">
-        <img src="${h.cover || ''}" alt="">
+                      data-album="">
+        ${
+          cover
+            ? `<img src="${cover}" alt="">`
+            : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                 <i class="fas fa-music text-zinc-400 text-xs"></i>
+               </div>`
+        }
         <div class="min-w-0">
           <div class="title">${title}</div>
-          <div class="sub">${sub}</div>
+          <div class="sub">Playlist</div>
         </div>
       </div>
     `);
@@ -7141,6 +7139,7 @@ function handleContextMenu(e, song) {
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
+        if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
         const idx = playlists.findIndex(pl => pl.id === id);
@@ -7192,42 +7191,23 @@ function handleContextMenu(e, song) {
                 const id = card.getAttribute('data-id');
                 const idx = playlists.findIndex(pl => pl.id === id);
                 if (idx !== -1) showView('playlist', idx);
-              } else {
-                const album = card.getAttribute('data-album');
-                if (album) openAlbumByName(album);
+             
               }
             });
           });
         }
-function bindHomePlaylistsShowAll() {
-  const go = () => showView('library');
-
-  const b1 = document.getElementById('home-playlists-showall');
-  if (b1 && !b1.dataset.bound) {
-    b1.dataset.bound = '1';
-    b1.addEventListener('click', go);
-  }
-
-  const b2 = document.getElementById('desktop-playlists-showall');
-  if (b2 && !b2.dataset.bound) {
-    b2.dataset.bound = '1';
-    b2.addEventListener('click', go);
-  }
-}
 
         function renderHome() {
   // Mobile Home
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
     renderHomeRecentsRow('home-recents-row');
-    bindHomePlaylistsShowAll();
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
-  bindHomePlaylistsShowAll();
 }
 
 
