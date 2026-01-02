@@ -8373,47 +8373,40 @@ function renderPlaylists() {
                 item.className = "menu-item";
                 item.innerText = pl.name;
 
-                item.onclick = async () => {
-                  const s = menuTargetSong;
-                  if (!s) return;
+item.onclick = async () => {
+  const s = menuTargetSong;
+  if (!s || !s.link) return;
 
-                  // trackId should be the R2 object key
-                  let trackId = s.key || s.track_id || s.trackId || "";
+  // Extract trackId from ?id=...
+  const m = /[?&]id=([^&]+)/.exec(s.link);
+  if (!m || !m[1]) {
+    alert("Could not determine trackId for this song.");
+    return;
+  }
+  const trackId = decodeURIComponent(m[1]);
 
-                  // If we only have a URL like ".../?id=<key>", extract id=
-                  if (!trackId) {
-                    const u = s.link || s.url || "";
-                    const m = /[?&]id=([^&]+)/.exec(u);
-                    if (m && m[1]) trackId = decodeURIComponent(m[1]);
-                  }
+  try {
+    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playlistId: pl.playlist_id,
+        trackId
+      })
+    });
 
-                  if (!trackId) {
-                    alert("Couldn't find trackId for this song.");
-                    return;
-                  }
+    const data = await res.json();
+    if (!res.ok || !data || !data.ok) {
+      throw new Error("Failed to add song to playlist");
+    }
 
-                  try {
-                    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        playlistId: pl.playlist_id,
-                        trackId
-                      })
-                    });
+    closeContextMenu();
+  } catch (e) {
+    console.error(e);
+    alert("Could not add song to playlist.");
+  }
+};
 
-                    const data = await res.json();
-                    if (!res.ok || !data || !data.ok) throw new Error("Failed to add");
-
-                    closeContextMenu();
-                    // Optional: refresh cloud playlists list (not required for items, but keeps things consistent)
-                    try { await window.loadPlaylistsFromCloud(); } catch (e) {}
-                    renderPlaylists();
-                  } catch (e) {
-                    console.error(e);
-                    alert("Could not add to playlist.");
-                  }
-                };
 
                 sub.appendChild(item);
             });
