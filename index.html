@@ -146,6 +146,7 @@
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+ overscroll-behavior: none;
 }
 
 body { 
@@ -175,6 +176,12 @@ font-feature-settings: "liga" 1, "calt" 1;
 #search-view {
   max-width: 100%;
   overflow-x: hidden;
+}
+
+        /* Keep the main scroll area clipped on mobile drags */
+#main-scroll-area {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 /* Images should never overflow their container */
@@ -1468,6 +1475,18 @@ body.qs-lock{
   /* hide desktop sidebars/resizers on mobile */
   .sidebar, .resizer, .right-sidebar { display: none !important; }
   .mobile-nav { display: flex; }
+
+    /* allow horizontal-only scrolling in tab rows without dragging the whole view */
+  #home-view .overflow-x-auto,
+  #grid-view .overflow-x-auto,
+  #search-view .overflow-x-auto,
+  #album-view .overflow-x-auto,
+  #artist-view .overflow-x-auto,
+  .home-recents-grid {
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+  }
+
 
   .main-view {
     padding: 16px;
