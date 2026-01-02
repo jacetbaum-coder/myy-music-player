@@ -5613,18 +5613,36 @@ function seekOnBar(barEl, clientX) {
   const target = clamped * duration;
   if (!Number.isFinite(target)) return;
 
-  player.currentTime = target;
+  // ✅ Chrome can throw if you seek "too early" or during certain states.
+  // If it throws, keep it pending and apply on canplay/metadata.
+  try {
+    player.currentTime = target;
+  } catch (err) {
+    pendingSeekPct = clamped;
+    pendingSeekBarId = barEl.id || null;
+  }
 }
+
         
 function applyPendingSeek() {
   if (pendingSeekPct == null) return;
-const duration = getSeekDuration();
+
+  const duration = getSeekDuration();
   if (!duration) return;
 
-  player.currentTime = pendingSeekPct * duration;
-  pendingSeekPct = null;
-  pendingSeekBarId = null;
+  const target = pendingSeekPct * duration;
+  if (!Number.isFinite(target)) return;
+
+  try {
+    player.currentTime = target;
+    // Only clear pending AFTER a successful seek
+    pendingSeekPct = null;
+    pendingSeekBarId = null;
+  } catch (err) {
+    // keep pending; we'll try again on the next canplay/metadata tick
+  }
 }
+
 
 player.addEventListener('loadedmetadata', applyPendingSeek);
 player.addEventListener('durationchange', applyPendingSeek);
