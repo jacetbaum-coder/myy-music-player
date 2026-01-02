@@ -4441,7 +4441,7 @@ function hideSwipeBackUnderlay() {
   }
 
 // 1. You likely need a wrapper function to hold the logic and variables
-function initSwipeBack(area) {
+function initSwipeBack_WRAPPER_DISABLED(area) {
   let active = false;
   let decided = false;
   let isHorizontal = false;
@@ -4552,7 +4552,7 @@ function initSwipeBack(area) {
 } // This is the closing brace that was likely missing its "opening" partner
 function showView(viewType, playlistIndex = null) {
     // Capture what's currently on screen so swipe-back shows it behind
-  captureSwipeBackUnderlay();
+  window.captureSwipeBackUnderlay?.();
   // BACK STACK: push the current state before switching views
   pushNavCurrent();
 
