@@ -167,48 +167,20 @@ font-feature-settings: "liga" 1, "calt" 1;
 }
 
 /* Prevent any view container from forcing the page wider than the screen */
-html, body{
-  max-width: 100%;
-  overflow-x: hidden; /* ✅ hard stop: no sideways “leak” */
-}
-
 #main-scroll-area,
 .main-view,
 #grid-view,
 #album-view,
 #artist-view,
-#search-view{
+#search-view {
   max-width: 100%;
-  overflow-x: hidden; /* ✅ clip Recents/cards during drag */
+  overflow-x: hidden;
 }
 
 /* Images should never overflow their container */
-img{
+img {
   max-width: 100%;
 }
-
-/* ✅ Swipe-back “live preview” layering */
-#main-scroll-area{
-  position: relative; /* allows absolute underlay */
-}
-
-.sb-underlay{
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-
-  /* hidden until you start swiping */
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-.sb-topview{
-  position: relative;
-  z-index: 1;
-  will-change: transform;
-}
-
 
         /* --- DESKTOP LAYOUT --- */
         .sidebar { 
@@ -4184,167 +4156,29 @@ function initSwipeBack() {
   const area = document.getElementById('main-scroll-area');
   if (!area) return;
 
+  // Bind only once
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
-  let tracking = false;
+  // Default behavior: allow vertical scrolling
+  area.style.touchAction = 'pan-y';
+
+  let active = false;
   let decided = false;
   let isHorizontal = false;
   let startX = 0;
   let startY = 0;
   let lastDx = 0;
 
-  const MOVE_DECIDE_PX = 6;
-  const EDGE_PCT = 0.35;
-  const TRIGGER_PX = 110;
-  const MAX_DRAG = () => Math.max(1, window.innerWidth * 0.85);
+  const THRESHOLD_PX = 90;          // commit swipe-back
+  const MOVE_DECIDE_PX = 6;         // like your Now Playing logic (more sensitive than 10px)
+  const OPACITY_DROP = 0.20;        // subtle “peek” feel
 
-  function getTopViewEl() {
-    const ids = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (el && !el.classList.contains('hidden') && !el.classList.contains('sb-underlay')) return el;
-    }
-    return null;
+  function getXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
   }
-
-  function getUnderlayEl() {
-    const id = window.__sbUnderlayId;
-    if (!id) return null;
-    return document.getElementById(id) || null;
-  }
-
-  function canStart(e) {
-    if (!Array.isArray(navStack) || navStack.length === 0) return false;
-    const np = document.getElementById('now-playing-overlay');
-    if (np && !np.classList.contains('hidden')) return false;
-
-    const t = e.target;
-    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) return false;
-
-    return e.clientX <= (window.innerWidth * EDGE_PCT);
-  }
-
-  function reset(animated = true) {
-    const top = getTopViewEl();
-    const under = getUnderlayEl();
-
-    area.style.touchAction = 'pan-y';
-
-    if (top) {
-      top.style.transition = animated ? 'transform 220ms ease' : '';
-      top.style.transform = 'translateX(0px)';
-      if (animated) {
-        const clearTop = () => { top.style.transition = ''; top.removeEventListener('transitionend', clearTop); };
-        top.addEventListener('transitionend', clearTop);
-      }
-    }
-
-    if (under) {
-      under.style.transition = animated ? 'opacity 220ms ease, transform 220ms ease' : '';
-      under.style.opacity = '0';
-      under.style.transform = 'translateX(-20px)';
-      if (animated) {
-        const clearUnder = () => { under.style.transition = ''; under.removeEventListener('transitionend', clearUnder); };
-        under.addEventListener('transitionend', clearUnder);
-      }
-    }
-  }
-
-  area.addEventListener('pointerdown', (e) => {
-    if (!canStart(e)) return;
-
-    tracking = true;
-    decided = false;
-    isHorizontal = false;
-    lastDx = 0;
-
-    startX = e.clientX;
-    startY = e.clientY;
-
-    area.style.touchAction = 'none';
-
-    const under = getUnderlayEl();
-    if (under) {
-      under.style.transition = '';
-      under.style.opacity = '0';
-      under.style.transform = 'translateX(-20px)';
-    }
-
-    try { area.setPointerCapture(e.pointerId); } catch (err) {}
-  }, { passive: true });
-
-  area.addEventListener('pointermove', (e) => {
-    if (!tracking) return;
-
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    if (!decided) {
-      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
-      decided = true;
-      isHorizontal = Math.abs(dx) > Math.abs(dy);
-    }
-    if (!isHorizontal) return;
-
-    e.preventDefault();
-
-    lastDx = Math.max(0, dx);
-    const clamped = Math.min(lastDx, MAX_DRAG());
-    const pct = Math.max(0, Math.min(1, clamped / MAX_DRAG()));
-
-    const top = getTopViewEl();
-    const under = getUnderlayEl();
-
-    if (top) {
-      top.style.transition = '';
-      top.style.transform = `translateX(${clamped}px)`;
-    }
-
-    if (under) {
-      under.style.transition = '';
-      under.style.opacity = String(0.9 * pct);
-      under.style.transform = `translateX(${(-20 + (20 * pct))}px)`;
-    }
-  }, { passive: false });
-
-  area.addEventListener('pointerup', () => {
-    if (!tracking) return;
-    tracking = false;
-
-    const shouldGoBack = lastDx >= TRIGGER_PX;
-
-    if (shouldGoBack) {
-      const top = getTopViewEl();
-      const under = getUnderlayEl();
-
-      if (top) {
-        top.style.transition = 'transform 180ms ease';
-        top.style.transform = `translateX(${window.innerWidth}px)`;
-      }
-      if (under) {
-        under.style.transition = 'opacity 180ms ease, transform 180ms ease';
-        under.style.opacity = '1';
-        under.style.transform = 'translateX(0px)';
-      }
-
-      setTimeout(() => {
-        reset(false);
-        goBack();
-      }, 185);
-    } else {
-      reset(true);
-    }
-  }, { passive: true });
-
-  area.addEventListener('pointercancel', () => {
-    if (!tracking) return;
-    tracking = false;
-    reset(true);
-  }, { passive: true });
-}
-
-function initDesktopSwipeBack() {
+    function initDesktopSwipeBack() {
   // Desktop / trackpad only
   if (window.innerWidth < 1024) return;
 
@@ -4359,46 +4193,7 @@ function initDesktopSwipeBack() {
   let animating = false;
 
   const THRESHOLD = 120;
-  const MAX_DRAG = () => Math.max(1, window.innerWidth * 0.85);
-
-  function getTopViewEl() {
-    const ids = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (el && !el.classList.contains('hidden') && !el.classList.contains('sb-underlay')) return el;
-    }
-    return null;
-  }
-
-  function getUnderlayEl() {
-    const id = window.__sbUnderlayId;
-    if (!id) return null;
-    return document.getElementById(id) || null;
-  }
-
-  function reset(animated = true) {
-    const top = getTopViewEl();
-    const under = getUnderlayEl();
-
-    if (top) {
-      top.style.transition = animated ? 'transform 220ms ease' : '';
-      top.style.transform = 'translateX(0px)';
-      if (animated) {
-        const clearTop = () => { top.style.transition = ''; top.removeEventListener('transitionend', clearTop); };
-        top.addEventListener('transitionend', clearTop);
-      }
-    }
-
-    if (under) {
-      under.style.transition = animated ? 'opacity 220ms ease, transform 220ms ease' : '';
-      under.style.opacity = '0';
-      under.style.transform = 'translateX(-20px)';
-      if (animated) {
-        const clearUnder = () => { under.style.transition = ''; under.removeEventListener('transitionend', clearUnder); };
-        under.addEventListener('transitionend', clearUnder);
-      }
-    }
-  }
+  const OPACITY_DROP = 0.18;
 
   area.addEventListener('wheel', (e) => {
     if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
@@ -4410,27 +4205,16 @@ function initDesktopSwipeBack() {
     if (!active) {
       active = true;
       dx = 0;
+      area.style.transition = '';
     }
 
     dx += e.deltaX;
     dx = Math.max(0, dx);
 
-    const clamped = Math.min(dx, MAX_DRAG());
-    const pct = Math.max(0, Math.min(1, clamped / MAX_DRAG()));
+    area.style.transform = `translateX(${dx}px)`;
 
-    const top = getTopViewEl();
-    const under = getUnderlayEl();
-
-    if (top) {
-      top.style.transition = '';
-      top.style.transform = `translateX(${clamped}px)`;
-    }
-
-    if (under) {
-      under.style.transition = '';
-      under.style.opacity = String(0.9 * pct);
-      under.style.transform = `translateX(${(-20 + (20 * pct))}px)`;
-    }
+    const p = Math.min(1, dx / (window.innerWidth * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
   }, { passive: false });
 
   area.addEventListener('mouseleave', finish);
@@ -4439,34 +4223,33 @@ function initDesktopSwipeBack() {
     if (!active || animating) return;
     active = false;
 
-    const shouldGoBack = dx > THRESHOLD;
-
-    if (shouldGoBack) {
+    if (dx > THRESHOLD) {
       animating = true;
+      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transform = `translateX(${window.innerWidth}px)`;
 
-      const top = getTopViewEl();
-      const under = getUnderlayEl();
-
-      if (top) {
-        top.style.transition = 'transform 180ms ease';
-        top.style.transform = `translateX(${window.innerWidth}px)`;
-      }
-      if (under) {
-        under.style.transition = 'opacity 180ms ease, transform 180ms ease';
-        under.style.opacity = '1';
-        under.style.transform = 'translateX(0px)';
-      }
-
-      setTimeout(() => {
-        reset(false);
+      const done = () => {
+        area.removeEventListener('transitionend', done);
+        reset();
         goBack();
         animating = false;
-      }, 185);
+      };
+      area.addEventListener('transitionend', done);
     } else {
-      reset(true);
+      reset();
     }
+  }
 
-    dx = 0;
+  function reset() {
+    area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+    area.style.transform = 'translateX(0px)';
+    area.style.opacity = '1';
+
+    const clear = () => {
+      area.style.transition = '';
+      area.removeEventListener('transitionend', clear);
+    };
+    area.addEventListener('transitionend', clear);
   }
 }
     function showView(viewType, playlistIndex = null) {
@@ -4475,35 +4258,9 @@ function initDesktopSwipeBack() {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-   const __viewIds = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
-
-  // Find what is currently visible BEFORE switching
-  const __currentVisibleId = __viewIds.find((id) => {
-    const el = document.getElementById(id);
-    return el && !el.classList.contains('hidden');
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
   });
-
-  // If this is a normal forward nav (not a back nav), remember the previous view as the underlay
-  if (!__isBackNav && __currentVisibleId) {
-    window.__sbUnderlayId = __currentVisibleId;
-  }
-
-  // Hide all views EXCEPT the underlay (kept rendered but invisible)
-  __viewIds.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    el.classList.remove('sb-topview');
-
-    if (!__isBackNav && window.__sbUnderlayId && id === window.__sbUnderlayId) {
-      el.classList.add('sb-underlay');
-      el.classList.remove('hidden'); // keep it rendered behind
-    } else {
-      el.classList.remove('sb-underlay');
-      el.classList.add('hidden');
-    }
-  });
-
 
   activePlaylistIndex = playlistIndex;
   activePlaylistId = null;
