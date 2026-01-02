@@ -7071,8 +7071,10 @@ function handleContextMenu(e, song) {
         // -----------------------
 
         function getHistoryItemsForHome() {
-          return Array.isArray(history) ? history.slice(0, 8) : [];
-        }
+  const limit = (window.innerWidth <= 768) ? 4 : 8;
+  return Array.isArray(history) ? history.slice(0, limit) : [];
+}
+
 
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
@@ -7087,50 +7089,46 @@ function handleContextMenu(e, song) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
-  const LIMIT = 8;
+  const isMobile = (window.innerWidth <= 768);
+  const slotCount = isMobile ? 4 : 8;
 
-  // newest first (if you ever store timestamps later this still works fine)
-  const pls = Array.isArray(playlists) ? playlists.slice() : [];
-  const items = pls.slice(0, LIMIT);
+  const items = getHistoryItemsForHome();
+  const filled = items.slice(0, slotCount);
 
-  // Always render 8 tiles (placeholders if you have fewer playlists)
+  // Build fixed slots (real items first, then placeholders)
   const tiles = [];
-  for (let i = 0; i < LIMIT; i++) {
-    const pl = items[i];
 
-    if (!pl) {
+  for (let i = 0; i < slotCount; i++) {
+    const h = filled[i];
+
+    // Placeholder tile (keeps the “imaginary rectangle” space)
+    if (!h) {
       tiles.push(`
-        <div class="mobile-recent-card" aria-hidden="true">
-          <div style="width:44px;height:44px;border-radius:6px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>
-          <div class="min-w-0" style="opacity:0;">
-            <div class="title">Placeholder</div>
-            <div class="sub">Playlist</div>
+        <div class="mobile-recent-card opacity-40 pointer-events-none">
+          <div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex-shrink-0"></div>
+          <div class="min-w-0 flex-1">
+            <div class="h-[14px] w-3/5 rounded bg-white/10 mb-2"></div>
+            <div class="h-[11px] w-2/5 rounded bg-white/10"></div>
           </div>
         </div>
       `);
       continue;
     }
 
-    const safeId = String(pl.id || '');
-    const title = pl.name || 'Playlist';
-
-    // Best-effort cover:
-    // - if your playlist has pl.cover use it
-    // - else use first song cover if present
-    // - else empty
-    const cover =
-      (pl.cover || pl.coverUrl || pl.coverArt) ||
-      (pl.songs && pl.songs[0] && (pl.songs[0].cover || pl.songs[0].coverArt)) ||
-      '';
+    const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
+    const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
+    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+    const safeId = String(h.id || '').replace(/"/g,'&quot;');
 
     tiles.push(`
       <div class="mobile-recent-card"
-           data-type="playlist"
-           data-id="${safeId}">
-        <img src="${cover}" alt="">
+           data-type="${h.type}"
+           data-id="${safeId}"
+           data-album="${safeAlbum}">
+        <img src="${h.cover || ''}" alt="">
         <div class="min-w-0">
           <div class="title">${title}</div>
-          <div class="sub">Playlist</div>
+          <div class="sub">${sub}</div>
         </div>
       </div>
     `);
@@ -7138,16 +7136,18 @@ function handleContextMenu(e, song) {
 
   grid.innerHTML = tiles.join('');
 
-  // Click opens playlist
+  // Click opens playlist/album (placeholders have pointer-events none)
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
-    const type = card.getAttribute('data-type');
-    if (type !== 'playlist') return;
-
     card.addEventListener('click', () => {
-      const id = card.getAttribute('data-id');
-      if (!id) return;
-      const idx = playlists.findIndex(pl => pl.id === id);
-      if (idx !== -1) showView('playlist', idx);
+      const type = card.getAttribute('data-type');
+      if (type === 'playlist') {
+        const id = card.getAttribute('data-id');
+        const idx = playlists.findIndex(pl => pl.id === id);
+        if (idx !== -1) showView('playlist', idx);
+      } else {
+        const album = card.getAttribute('data-album');
+        if (album) openAlbumByName(album);
+      }
     });
   });
 }
