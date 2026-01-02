@@ -1487,9 +1487,10 @@ body.qs-lock{
   .sidebar, .resizer, .right-sidebar { display: none !important; }
   .mobile-nav { display: flex; }
 
-  .main-view {
-    padding: 16px;
-    .home-recents-grid {
+    .main-view { padding: 16px; }
+
+  .home-recents-grid {
+
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
@@ -1691,11 +1692,8 @@ body.qs-lock{
   }
 
   /* prevent iOS auto-zoom */
-  .search-input { font-size: 16px; }
-
-
-
-
+    .search-input { font-size: 16px; }
+}
 
         /* --- SCROLLBAR --- */
         ::-webkit-scrollbar { width: 8px; }
@@ -4213,7 +4211,7 @@ function goBack() {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
-        } else if (prev.type === 'search') {
+    } else if (prev.type === 'search') {
       showView('search');
     } else if (prev.type === 'library') {
       showView('library');
@@ -4228,7 +4226,6 @@ function goBack() {
         });
       }
     } else if (prev.type === 'liked') {
-
       showView('liked');
     } else {
       showView('home');
@@ -4237,6 +4234,7 @@ function goBack() {
     __isBackNav = false;
   }
 }
+
 
 function initSwipeBack() {
   // Mobile only
