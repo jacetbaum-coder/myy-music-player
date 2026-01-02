@@ -2449,10 +2449,216 @@ let manualQueue = (() => {
 })();
 
         function persistManualQueue() {
- try {
+  try {
     localStorage.setItem('manualQueue', JSON.stringify(manualQueue));
   } catch (e) {}
 }
+
+/* -----------------------
+   QUEUE CONTROLS:
+   - Clear queue button
+   - Press/hold hamburger to drag reorder
+------------------------ */
+
+function clearManualQueue() {
+  manualQueue = [];
+  persistManualQueue();
+
+  // Re-render any queue UIs that exist
+  try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+  try { if (typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
+}
+
+function wireQueueClearButtons() {
+  const btnA = document.getElementById('queue-clear');        // mobile queue sheet
+  const btnB = document.getElementById('right-queue-clear');  // right sidebar queue
+
+  if (btnA && !btnA.__clearBound) {
+    btnA.__clearBound = true;
+    btnA.addEventListener('click', clearManualQueue);
+  }
+
+  if (btnB && !btnB.__clearBound) {
+    btnB.__clearBound = true;
+    btnB.addEventListener('click', clearManualQueue);
+  }
+}
+
+function ensureHamburgerHandle(itemEl) {
+  // If you already render a hamburger, we’ll reuse it.
+  let handle = itemEl.querySelector('.queue-hamburger');
+
+  if (!handle) {
+    // Create one if missing
+    handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'queue-hamburger';
+    handle.innerHTML = '<i class="fas fa-bars"></i>';
+
+    // Put it at the end of the row so it matches your UI
+    itemEl.appendChild(handle);
+  }
+
+  // Make it obvious it’s draggable
+  handle.style.cursor = 'grab';
+  handle.style.touchAction = 'none';
+  return handle;
+}
+
+function renumberQueueList(container) {
+  const children = Array.from(container.children);
+  children.forEach((el, i) => {
+    el.dataset.mqIndex = String(i);
+  });
+}
+
+function moveManualQueueItem(fromIndex, toIndex) {
+  if (fromIndex === toIndex) return;
+  if (fromIndex < 0 || toIndex < 0) return;
+  if (fromIndex >= manualQueue.length || toIndex >= manualQueue.length) return;
+
+  const [moved] = manualQueue.splice(fromIndex, 1);
+  manualQueue.splice(toIndex, 0, moved);
+  persistManualQueue();
+}
+
+function enablePressHoldDragReorder(container) {
+  if (!container || container.__mqDnDEnabled) return;
+  container.__mqDnDEnabled = true;
+
+  container.style.userSelect = 'none';
+
+  // Setup items + handles
+  const setupItems = () => {
+    const items = Array.from(container.children);
+    items.forEach((item) => {
+      // Mark + number items so we can map to manualQueue positions
+      if (!item.dataset) return;
+      // If a renderer already sets a data index, keep it; otherwise set it.
+      if (typeof item.dataset.mqIndex === 'undefined') {
+        // will be corrected by renumberQueueList anyway
+        item.dataset.mqIndex = '0';
+      }
+
+      const handle = ensureHamburgerHandle(item);
+
+      // Bind once per handle
+      if (handle.__mqHoldBound) return;
+      handle.__mqHoldBound = true;
+
+      let holdTimer = null;
+      let dragging = false;
+      let draggedEl = null;
+
+      const holdMs = 220; // “press and hold” feel
+
+      const onPointerDown = (e) => {
+        // Only left click / touch
+        if (e.button != null && e.button !== 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        draggedEl = item;
+
+        // Start hold timer
+        holdTimer = setTimeout(() => {
+          dragging = true;
+          handle.style.cursor = 'grabbing';
+          draggedEl.classList.add('mq-dragging');
+        }, holdMs);
+
+        try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      };
+
+      const onPointerMove = (e) => {
+        if (!dragging || !draggedEl) return;
+
+        const x = e.clientX;
+        const y = e.clientY;
+        const over = document.elementFromPoint(x, y);
+        if (!over) return;
+
+        const overItem = over.closest && over.closest('[data-mq-index]');
+        if (!overItem || overItem === draggedEl) return;
+
+        // Only reorder within the same list container
+        if (overItem.parentElement !== container) return;
+
+        const fromIndex = parseInt(draggedEl.dataset.mqIndex || '0', 10);
+        const toIndex = parseInt(overItem.dataset.mqIndex || '0', 10);
+
+        if (Number.isNaN(fromIndex) || Number.isNaN(toIndex)) return;
+
+        // Move DOM
+        if (toIndex > fromIndex) {
+          container.insertBefore(draggedEl, overItem.nextSibling);
+        } else {
+          container.insertBefore(draggedEl, overItem);
+        }
+
+        // Sync indexes + sync manualQueue
+        renumberQueueList(container);
+        moveManualQueueItem(fromIndex, toIndex);
+      };
+
+      const endDrag = () => {
+        if (holdTimer) clearTimeout(holdTimer);
+        holdTimer = null;
+
+        if (dragging && draggedEl) {
+          draggedEl.classList.remove('mq-dragging');
+        }
+
+        dragging = false;
+        draggedEl = null;
+        handle.style.cursor = 'grab';
+
+        // Re-render to keep any “next in queue” labels consistent (optional but safe)
+        try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
+        try { if (typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
+      };
+
+      handle.addEventListener('pointerdown', onPointerDown, { passive: false });
+      handle.addEventListener('pointermove', onPointerMove, { passive: false });
+      handle.addEventListener('pointerup', endDrag, { passive: true });
+      handle.addEventListener('pointercancel', endDrag, { passive: true });
+    });
+
+    // Normalize indexes after any render
+    renumberQueueList(container);
+  };
+
+  // Initial setup
+  setupItems();
+
+  // Re-setup when your renderer replaces list HTML
+  const mo = new MutationObserver(() => setupItems());
+  mo.observe(container, { childList: true, subtree: false });
+}
+
+function initQueueControlsOnce() {
+  wireQueueClearButtons();
+
+  // Your right sidebar queue list (if present)
+  const rightList = document.getElementById('right-queue-list');
+  if (rightList) enablePressHoldDragReorder(rightList);
+
+  // Your mobile queue sheet list (if present)
+  const sheetList = document.getElementById('queue-list');
+  if (sheetList) enablePressHoldDragReorder(sheetList);
+}
+
+// Auto-init (safe even if called early)
+if (!window.__mqControlsInit) {
+  window.__mqControlsInit = true;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initQueueControlsOnce);
+  } else {
+    initQueueControlsOnce();
+  }
+}
+
 
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
 const makeId = () => {
