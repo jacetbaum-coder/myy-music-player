@@ -4361,7 +4361,7 @@ function hideSwipeBackUnderlay() {
   area.dataset.desktopSwipeBound = "1";
 
   let dx = 0;
-  let active = false;
+  let desktopSwipeActive = false;
   let animating = false;
 
   const THRESHOLD = 120;
@@ -4374,8 +4374,8 @@ function hideSwipeBackUnderlay() {
 
     e.preventDefault();
 
-    if (!active) {
-      active = true;
+    if (!desktopSwipeActive) {
+      desktopSwipeActive = true;
       dx = 0;
       area.style.transition = '';
     }
@@ -4392,8 +4392,8 @@ function hideSwipeBackUnderlay() {
   area.addEventListener('mouseleave', finish);
 
   function finish() {
-    if (!active || animating) return;
-    active = false;
+    if (!desktopSwipeActive || animating) return;
+    desktopSwipeActive = false;
 
     if (dx > THRESHOLD) {
       animating = true;
