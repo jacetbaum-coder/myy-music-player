@@ -4662,80 +4662,102 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
+  const __viewIds = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
+
+  // Find what is currently visible BEFORE switching (ignore any existing underlay)
+  const __currentVisibleId = __viewIds.find((id) => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden') && !el.classList.contains('sb-underlay');
   });
 
-  activePlaylistIndex = playlistIndex;
-activePlaylistId = null;
+  // If this is a normal forward nav (not a back nav), remember the previous view as the underlay
+  if (!__isBackNav && __currentVisibleId) {
+    window.__sbUnderlayId = __currentVisibleId;
+  }
 
-// BACK STACK: set new current view
-if (viewType === 'home') setNavCurrent({ type: 'home' });
-else if (viewType === 'library') setNavCurrent({ type: 'library' });
-else if (viewType === 'search') setNavCurrent({ type: 'search' });
-else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-else if (viewType === 'playlist') {
-  const pl = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: pl?.id || null });
-} else {
-  setNavCurrent({ type: viewType || 'home' });
-}
+  // Hide all views EXCEPT the underlay (kept rendered behind)
+  __viewIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
 
-const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
+    el.classList.remove('sb-topview');
 
-        if (viewType === 'home') {
-    // MOBILE: show the real Home screen
-    if (window.innerWidth <= 768) {
-      document.getElementById('home-view')?.classList.remove('hidden');
-      try { renderHome(); } catch (e) {}
+    if (!__isBackNav && window.__sbUnderlayId && id === window.__sbUnderlayId) {
+      el.classList.add('sb-underlay');
+      el.classList.remove('hidden'); // keep it rendered behind
     } else {
-      // DESKTOP: Home shows the new header + still shows your library below
-      document.getElementById('grid-view').classList.remove('hidden');
-      renderGrid(libraryData);
-      renderHistory();
-      try { renderHome(); } catch (e) {}
+      el.classList.remove('sb-underlay');
+      el.classList.add('hidden');
     }
+  });
+
+  // Figure out which element should be the top view for this navigation
+  const topId =
+    viewType === 'home' ? 'home-view' :
+    viewType === 'grid' ? 'grid-view' :
+    viewType === 'search' ? 'search-view' :
+    (viewType === 'album' || viewType === 'liked' || viewType === 'playlist') ? 'album-view' :
+    viewType === 'artist' ? 'artist-view' :
+    'home-view';
+
+  const topEl = document.getElementById(topId);
+  if (topEl) {
+    topEl.classList.remove('hidden');
+    topEl.classList.remove('sb-underlay');
+    topEl.classList.add('sb-topview');
   }
 
-  if (viewType === 'library') {
-  document.getElementById('grid-view').classList.remove('hidden');
+  activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
 
-  renderGrid(getLibraryGridData());
-  renderHistory();
+  // BACK STACK: set new current view
+  if (viewType === 'home') setNavCurrent({ type: 'home' });
+  if (viewType === 'grid') setNavCurrent({ type: 'grid' });
+  if (viewType === 'album') setNavCurrent({ type: 'album' });
+  if (viewType === 'search') setNavCurrent({ type: 'search' });
+  if (viewType === 'artist') setNavCurrent({ type: 'artist' });
+  if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+  if (viewType === 'playlist') setNavCurrent({ type: 'playlist', playlistIndex });
 
-  if (window.innerWidth <= 768) {
-    renderMobileRecents();
+  if (viewType === 'home') {
+    // nothing else required
   }
-}
+
+  if (viewType === 'grid') {
+    // your grid view is just shown as topId above
+  }
+
+  if (viewType === 'album') {
+    document.getElementById('album-view')?.classList.remove('hidden');
+  }
 
   if (viewType === 'search') {
-    document.getElementById('search-view').classList.remove('hidden');
-    document.getElementById('global-search').focus();
+    document.getElementById('search-view')?.classList.remove('hidden');
+    document.getElementById('global-search')?.focus();
   }
 
   if (viewType === 'liked') {
-    document.getElementById('album-view').classList.remove('hidden');
+    document.getElementById('album-view')?.classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
   }
 
   if (viewType === 'playlist') {
-  document.getElementById('album-view').classList.remove('hidden');
-  const pl = playlists[playlistIndex];
-  activePlaylistId = pl?.id || null;
+    document.getElementById('album-view')?.classList.remove('hidden');
+    const pl = playlists[playlistIndex];
+    activePlaylistId = pl?.id || null;
 
-  playContext = { type: 'playlist', label: pl.name };
+    playContext = { type: 'playlist', label: pl.name };
 
-  renderCollection(pl.name, pl.songs, true, playlistIndex);
-}
+    renderCollection(pl.name, pl.songs, true, playlistIndex);
+  }
 
   if (viewType === 'artist') {
-    document.getElementById('artist-view').classList.remove('hidden');
+    document.getElementById('artist-view')?.classList.remove('hidden');
   }
 
   updateActiveStates(viewType);
 }
+
 
 
 
