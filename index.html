@@ -4088,7 +4088,10 @@ window.onload = async () => {
 
   safe(window.initResizers);
   safe(window.initGlobalKeys);
-safe(window.initMobileDoubleTapScrollToTop);
+
+// NOTE: Do NOT run initMobileDoubleTapScrollToTop.
+// onNavTap(viewType) now handles double-tap-to-top + pop-to-root + debounce.
+
 
 // Swipe-back helper (optional)
   safe(window.initSwipeBack);
@@ -4564,10 +4567,17 @@ const scrollArea = document.getElementById('main-scroll-area');
 }
 
 /* ---------------------------------------------------------------------
-   Mobile: double-tap active tab to scroll to top (smooth)
+   Mobile: active-tab taps
+   - Tap active tab while deep (album/playlist/etc): Pop-to-root of that tab
+   - Double-tap active tab while already at root: Smooth scroll-to-top
+   - Debounce rapid taps to prevent flicker / race conditions
    --------------------------------------------------------------------- */
 
 const __navTapLast = { home: 0, search: 0, library: 0 };
+
+// Debounce for navigation (prevents multiple showView() calls fighting each other)
+let __navTapLockUntil = 0;
+let __navTapLastNavType = null;
 
 function scrollMainToTopSmooth() {
   const area = document.getElementById('main-scroll-area');
@@ -4579,12 +4589,26 @@ function scrollMainToTopSmooth() {
     return;
   }
 
-  // Smooth scroll to top
   try {
     area.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
-    // Fallback
     area.scrollTop = 0;
+  }
+}
+
+function popToRootSection(targetViewType) {
+  // This function resets the nav stack and shows the target root view
+  try {
+    // Prevent showView() from pushing the current view onto the back stack
+    window.__isBackNav = true;
+
+    // Clear back stack
+    if (Array.isArray(window.navStack)) window.navStack.length = 0;
+
+    // Go to root view
+    showView(targetViewType);
+  } finally {
+    window.__isBackNav = false;
   }
 }
 
@@ -4599,11 +4623,23 @@ function onNavTap(viewType) {
 
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
+  // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
+  // This fixes the “tap ignored while deep in album view” behavior.
   if (isMobile && isActive) {
+    const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
+
+    // If active tab says "library" but current view is album/playlist/etc, pop to library root
+    if (currentType && currentType !== viewType) {
+      popToRootSection(viewType);
+      // Reset tap timer so we don't instantly count this as a double tap
+      __navTapLast[viewType] = 0;
+      return;
+    }
+
+    // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
 
-    // Double tap window (ms)
     if (now - last <= 350) {
       __navTapLast[viewType] = 0;
       scrollMainToTopSmooth();
@@ -4611,14 +4647,22 @@ function onNavTap(viewType) {
     }
 
     __navTapLast[viewType] = now;
-    // First tap on active tab: do nothing (wait to see if second tap happens)
-    return;
+    return; // wait for possible second tap
   }
 
-  // Not active (or not mobile): navigate normally
+  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
   __navTapLast[viewType] = 0;
+
+  const now = Date.now();
+  if (isMobile) {
+    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
+    __navTapLastNavType = viewType;
+    __navTapLockUntil = now + 300; // 300ms debounce window
+  }
+
   showView(viewType);
 }
+
 
 /**
           * ---------------------------------------------------------------------
