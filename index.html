@@ -1471,8 +1471,20 @@ body.qs-lock{
 
   .main-view {
     padding: 16px;
-    padding-bottom: calc(var(--player-height) + var(--nav-height) + env(safe-area-inset-bottom) + 16px);
+    .home-recents-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    overflow: visible;
+    padding-bottom: 0;
   }
+
+  .home-recents-grid .recents-row-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
 
   .track-row {
     grid-template-columns: 1fr 36px;
@@ -4497,7 +4509,7 @@ function renderGrid(data) {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-      <div class="album-card bg-[#181818] p-4 rounded-lg shadow-lg"
+      <div class="album-card p-4"
            data-album="${safeName}">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
@@ -4714,7 +4726,7 @@ function openArtistByName(artistName) {
   grid.innerHTML = albums.map(a => {
     const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
     return `
-      <div class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+      <div class="p-4 cursor-pointer"
            onclick="openAlbumByName('${a.albumName.replace(/'/g, "\\'")}')">
         <img src="${cover}"
              class="w-full aspect-square rounded-md mb-3 object-cover">
@@ -7069,7 +7081,7 @@ function handleContextMenu(e, song) {
                 history.unshift({ type: 'album', album, artist, cover });
             }
 
-            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 8)));
+            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
             renderHistory();
 
             // Keep Home tiles synced
