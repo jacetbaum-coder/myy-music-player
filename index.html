@@ -1826,11 +1826,12 @@ body.qs-lock {
 
 
 
-  <!-- Recently added -->
+  <!-- Recents -->
   <div class="mt-2">
-    <h2 class="text-3xl font-black mb-4">Recently added</h2>
+    <h2 class="text-3xl font-black mb-4">Recents</h2>
 
-    <div id="home-recently-added"
+
+    <div id="home-recents-row"
          class="flex gap-4 overflow-x-auto pb-2">
     </div>
   </div>
@@ -1868,8 +1869,8 @@ body.qs-lock {
     <div id="desktop-recent-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
 
 
-    <h2 class="text-3xl font-black mb-4">Recently added</h2>
-    <div id="desktop-recently-added" class="flex gap-5 overflow-x-auto pb-3"></div>
+     <h2 class="text-3xl font-black mb-4">Recents</h2>
+    <div id="desktop-recents-row" class="flex gap-5 overflow-x-auto pb-3"></div>
 
   </div>
 
@@ -7153,31 +7154,50 @@ function handleContextMenu(e, song) {
 }
 
 
-        function renderHomeRecentlyAdded(containerId) {
+        function renderHomeRecentsRow(containerId) {
           const row = document.getElementById(containerId);
           if (!row) return;
 
-          const albums = getRecentlyAddedAlbums(12);
+          const items = Array.isArray(history) ? history.slice(0, 12) : [];
 
-          if (!albums.length) {
-            row.innerHTML = `<div class="text-zinc-500 text-sm">No albums yet.</div>`;
+           if (!items.length) {
+            row.innerHTML = `<div class="text-zinc-500 text-sm">No recents yet.</div>`;
             return;
           }
 
-          row.innerHTML = albums.map(a => {
-            const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
-            const safeName = String(a.albumName || '').replace(/'/g, "\\'");
+         row.innerHTML = items.map(item => {
+            const title = (item.type === 'playlist') ? (item.name || 'Playlist') : (item.album || 'Album');
+            const sub = (item.type === 'playlist') ? 'Playlist' : (item.artist || '');
+            const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
+            const safeId = String(item.id || '').replace(/"/g, '&quot;');
+            const dataAttrs = item.type === 'playlist'
+              ? `data-type="playlist" data-id="${safeId}"`
+              : `data-type="album" data-album="${safeAlbum}"`;
             return `
-              <div class="min-w-[160px] max-w-[160px] cursor-pointer"
-                   onclick="openAlbumByName('${safeName}')">
+              <div class="min-w-[160px] max-w-[160px] cursor-pointer recents-row-card" ${dataAttrs}>
                 <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
-                  <img src="${cover}" class="w-full h-full object-cover" alt="">
+                  <img src="${item.cover || ''}" class="w-full h-full object-cover" alt="">
                 </div>
-                <div class="mt-3 font-extrabold text-white truncate">${a.albumName || ''}</div>
-                <div class="text-sm text-zinc-400 truncate">${a.artistName || ''}</div>
+                <div class="mt-3 font-extrabold text-white truncate">${title}</div>
+                <div class="text-sm text-zinc-400 truncate">${sub}</div>
               </div>
             `;
           }).join('');
+
+            
+          [...row.querySelectorAll('.recents-row-card')].forEach(card => {
+            card.addEventListener('click', () => {
+              const type = card.getAttribute('data-type');
+              if (type === 'playlist') {
+                const id = card.getAttribute('data-id');
+                const idx = playlists.findIndex(pl => pl.id === id);
+                if (idx !== -1) showView('playlist', idx);
+              } else {
+                const album = card.getAttribute('data-album');
+                if (album) openAlbumByName(album);
+              }
+            });
+          });
         }
 function bindHomePlaylistsShowAll() {
   const go = () => showView('library');
@@ -7199,14 +7219,14 @@ function bindHomePlaylistsShowAll() {
   // Mobile Home
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
-    renderHomeRecentlyAdded('home-recently-added');
+    renderHomeRecentsRow('home-recents-row');
     bindHomePlaylistsShowAll();
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
-  renderHomeRecentlyAdded('desktop-recently-added');
+  renderHomeRecentsRow('desktop-recents-row');
   bindHomePlaylistsShowAll();
 }
 
