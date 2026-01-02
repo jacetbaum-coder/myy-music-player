@@ -8377,21 +8377,37 @@ item.onclick = async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        playlistId: pl.playlist_id,
-        trackId
-      })
+  playlistId: pl.playlist_id,
+  trackId,
+  title: s.title || s.name || "",
+  artist: s.artist || "",
+  album: s.album || "",
+  cover_url: s.cover || s.coverArt || s.cover_url || ""
+})
+
     });
 
     const data = await res.json();
     if (!res.ok || !data || !data.ok) {
-      throw new Error("Failed to add song to playlist");
-    }
+  throw new Error("Failed to add song to playlist");
+}
 
-    closeContextMenu();
-  } catch (e) {
-    console.error(e);
-    alert("Could not add song to playlist.");
+// ✅ After success: refresh this playlist’s songs so counts/covers update
+closeContextMenu();
+
+try {
+  const ui = playlists.find(p => p.id === pl.playlist_id);
+  if (ui) {
+    ui.songs = await window.loadPlaylistItemsFromCloud(ui.id);
+    try { await updatePlaylistAutoCoverById(ui.id); } catch (e) {}
   }
+} catch (e) {}
+
+renderPlaylists();
+} catch (e) {
+  console.error(e);
+  alert("Could not add song to playlist.");
+}
 };
 
 
