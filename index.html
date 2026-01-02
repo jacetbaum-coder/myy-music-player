@@ -3999,6 +3999,57 @@ showView = function(viewType, playlistIndex = null) {
   }
 };
 
+// -----------------------
+// MOBILE: double-tap active bottom nav => smooth scroll to top
+// -----------------------
+function initMobileDoubleTapScrollToTop(){
+  // Mobile only
+  if (window.innerWidth > 768) return;
+
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  // Bind once
+  if (window.__doubleTapScrollTopBound) return;
+  window.__doubleTapScrollTopBound = true;
+
+  const DOUBLE_TAP_MS = 350;
+
+  function bindNavDoubleTap(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    let lastTap = 0;
+
+    el.addEventListener('touchend', (e) => {
+      // Only when this tab is already active (your code uses .active)
+      if (!el.classList.contains('active')) {
+        lastTap = 0;
+        return;
+      }
+
+      const now = Date.now();
+      const dt = now - lastTap;
+      lastTap = now;
+
+      if (dt > 0 && dt <= DOUBLE_TAP_MS) {
+        // Smooth scroll to top
+        try {
+          area.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+          // Fallback (very old browsers)
+          area.scrollTop = 0;
+        }
+      }
+    }, { passive: true });
+  }
+
+  bindNavDoubleTap('nav-home');
+  bindNavDoubleTap('nav-search');
+  bindNavDoubleTap('nav-library');
+}
+
+
 window.onload = async () => {
   // Never let one missing helper break app startup
   const safe = (fn, ...args) => {
@@ -4036,8 +4087,9 @@ window.onload = async () => {
 
   safe(window.initResizers);
   safe(window.initGlobalKeys);
+safe(window.initMobileDoubleTapScrollToTop);
 
-  // Swipe-back helper (optional)
+// Swipe-back helper (optional)
   safe(window.initSwipeBack);
 
   // Fetch library
