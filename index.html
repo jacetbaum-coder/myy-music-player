@@ -4690,7 +4690,18 @@ const scrollArea = document.getElementById('main-scroll-area');
   activePlaylistId = pl?.id || null;
   playContext = { type: 'playlist', label: pl.name };
 
-  renderCollection(pl.name, pl.songs, true, playlistIndex);
+  // ✅ Load playlist songs from cloud before rendering
+  (async () => {
+    try {
+      const songs = await window.loadPlaylistItemsFromCloud(pl.id);
+      pl.songs = Array.isArray(songs) ? songs : [];
+    } catch (e) {
+      console.warn(e);
+      pl.songs = [];
+    }
+    renderCollection(pl.name, pl.songs, true, playlistIndex);
+  })();
+
 }
 
 
