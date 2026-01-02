@@ -4065,7 +4065,23 @@ function initMobileDoubleTapScrollToTop(){
 
 
 window.onload = async () => {
+  // ✅ Identity (Phase 1): persist a userId in localStorage
+  // Later, Desktop will generate a link code and Mobile will redeem it to share the same userId.
+  const makeUserId = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+
+  let userId = localStorage.getItem("app_user_id");
+  if (!userId) {
+    userId = makeUserId();
+    localStorage.setItem("app_user_id", userId);
+  }
+  window.APP_USER_ID = userId;
+
   // Never let one missing helper break app startup
+
   const safe = (fn, ...args) => {
     try {
       if (typeof fn === 'function') return fn(...args);
