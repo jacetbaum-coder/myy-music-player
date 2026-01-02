@@ -7667,17 +7667,33 @@ function renderHistory() {
 }
 
         function createNewPlaylist() {
-    const name = prompt("Enter Playlist Name:", `My Playlist #${playlists.length + 1}`);
-    if (name && name.trim()) {
-        playlists.push({
-            id: crypto.randomUUID(),
-            name: name.trim(),
-            songs: [],
-            cover: "" // <-- custom playlist cover (url or dataURL)
-        });
-        localStorage.setItem('playlists', JSON.stringify(playlists));
-renderPlaylists();
+  const name = prompt("Enter Playlist Name:");
+  if (!name || !name.trim()) return;
+
+  (async () => {
+    try {
+      const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: window.APP_USER_ID || localStorage.getItem("app_user_id"),
+          name: name.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data || !data.ok) {
+        throw new Error("Failed to create playlist");
+      }
+
+      // Reload cloud playlists and re-render
+      await window.loadPlaylistsFromCloud();
+      renderPlaylists();
+    } catch (e) {
+      console.error(e);
+      alert("Could not create playlist.");
     }
+  })();
 }
 
 
