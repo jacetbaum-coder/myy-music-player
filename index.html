@@ -4504,17 +4504,11 @@ function captureSwipeBackUnderlay() {
     startY = y;
     lastDx = 0;
 
-    // While dragging horizontally, we temporarily own the gesture
-    area.style.touchAction = 'none';
-
-    // ✅ HARD CLIP while transformed so nothing can “peek” from the left
-    area.style.overflow = 'hidden';
-    area.style.willChange = 'transform, opacity';
-
+    // Allow vertical scroll until we confirm a horizontal swipe.
+    area.style.touchAction = 'pan-y';
     // ✅ Show the previous screen behind the drag (instead of black)
     showSwipeBackUnderlay();
 
-    area.classList.add('sb-dragging');
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
