@@ -2576,35 +2576,76 @@ function enablePressHoldDragReorder(container) {
       };
 
       const onPointerMove = (e) => {
-        if (!dragging || !draggedEl) return;
+  if (!dragging || !draggedEl) return;
 
-        const x = e.clientX;
-        const y = e.clientY;
-        const over = document.elementFromPoint(x, y);
-        if (!over) return;
+  // keep the gesture owned by the drag (prevents scroll stealing it)
+  e.preventDefault();
 
-        const overItem = over.closest && over.closest('[data-mq-index]');
-        if (!overItem || overItem === draggedEl) return;
+  // ---- RAF throttle so it feels smooth (not “jittery swap”) ----
+  onPointerMove.__lastEvent = e;
+  if (onPointerMove.__raf) return;
 
-        // Only reorder within the same list container
-        if (overItem.parentElement !== container) return;
+  onPointerMove.__raf = requestAnimationFrame(() => {
+    onPointerMove.__raf = null;
+    const ev = onPointerMove.__lastEvent;
+    if (!ev || !dragging || !draggedEl) return;
 
-        const fromIndex = parseInt(draggedEl.dataset.mqIndex || '0', 10);
-        const toIndex = parseInt(overItem.dataset.mqIndex || '0', 10);
+    const y = ev.clientY;
 
-        if (Number.isNaN(fromIndex) || Number.isNaN(toIndex)) return;
+    // ---- Auto-scroll the queue while dragging near edges ----
+    const cRect = container.getBoundingClientRect();
+    const edge = 44;      // px from top/bottom to start scrolling
+    const speed = 14;     // px per frame
 
-        // Move DOM
-        if (toIndex > fromIndex) {
-          container.insertBefore(draggedEl, overItem.nextSibling);
-        } else {
-          container.insertBefore(draggedEl, overItem);
-        }
+    if (y < cRect.top + edge) container.scrollTop -= speed;
+    else if (y > cRect.bottom - edge) container.scrollTop += speed;
 
-        // Sync indexes + sync manualQueue
-        renumberQueueList(container);
-        moveManualQueueItem(fromIndex, toIndex);
-      };
+    // ---- Find the “target index” by crossing row midpoints ----
+    const items = Array.from(container.querySelectorAll('[data-mq-index]'));
+    if (!items.length) return;
+
+    const fromIndex = parseInt(draggedEl.dataset.mqIndex || '0', 10);
+    if (Number.isNaN(fromIndex)) return;
+
+    // Build a list excluding the dragged element
+    const others = items.filter(el => el !== draggedEl);
+
+    // Default: drop at end
+    let targetEl = null;
+
+    for (const el of others) {
+      const r = el.getBoundingClientRect();
+      const mid = r.top + (r.height / 2);
+      if (y < mid) {
+        targetEl = el;
+        break;
+      }
+    }
+
+    // Compute toIndex based on where we’ll insert
+    let toIndex;
+    if (!targetEl) {
+      // end
+      toIndex = others.length; // last position
+      container.appendChild(draggedEl);
+    } else {
+      toIndex = parseInt(targetEl.dataset.mqIndex || '0', 10);
+      if (Number.isNaN(toIndex)) return;
+      container.insertBefore(draggedEl, targetEl);
+    }
+
+    // If it didn't change, do nothing
+    if (toIndex === fromIndex) {
+      renumberQueueList(container);
+      return;
+    }
+
+    // Sync indexes + manualQueue
+    renumberQueueList(container);
+    moveManualQueueItem(fromIndex, toIndex);
+  });
+};
+
 
       const endDrag = () => {
         if (holdTimer) clearTimeout(holdTimer);
