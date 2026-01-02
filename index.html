@@ -8830,11 +8830,7 @@ player.addEventListener('ended', () => {
 <input id="album-cover-file" type="file" accept="image/*" class="hidden">
 
 <script>
-  // Mobile Library: tap magnifying glass to open/close the existing search input
-  (function bindLibrarySearchIcon() {
-    function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
-      
-  // ✅ Link flow (Phase 1): share the same userId across devices
+      // ✅ Link flow (Phase 1): share the same userId across devices
   async function startLink() {
     const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/link/start", {
       method: "POST"
@@ -8868,6 +8864,20 @@ player.addEventListener('ended', () => {
 
     return data; // { ok, userId }
   }
+
+  // Mobile Library: tap magnifying glass to open/close the existing search input
+  (function bindLibrarySearchIcon() {
+    function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+      
+    
+
+    // Save the shared userId for this browser
+    localStorage.setItem("app_user_id", data.userId);
+    window.APP_USER_ID = data.userId;
+
+    return data; // { ok, userId }
+  }
+
 
 
     ready(() => {
