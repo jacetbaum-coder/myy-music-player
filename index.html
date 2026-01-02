@@ -7235,17 +7235,25 @@ function handleContextMenu(e, song) {
 
             
           [...row.querySelectorAll('.recents-row-card')].forEach(card => {
-            card.addEventListener('click', () => {
-              const type = card.getAttribute('data-type');
-              if (type === 'playlist') {
-                const id = card.getAttribute('data-id');
-                const idx = playlists.findIndex(pl => pl.id === id);
-                if (idx !== -1) showView('playlist', idx);
-             
-              }
-            });
-          });
-        }
+  card.addEventListener('click', () => {
+    const type = card.getAttribute('data-type');
+
+    // ✅ PLAYLIST
+    if (type === 'playlist') {
+      const id = card.getAttribute('data-id');
+      const idx = playlists.findIndex(pl => pl.id === id);
+      if (idx !== -1) showView('playlist', idx);
+      return;
+    }
+
+    // ✅ ALBUM
+    if (type === 'album') {
+      const albumName = card.getAttribute('data-album');
+      if (albumName) openAlbumByName(albumName);
+      return;
+    }
+  });
+});
 
         function renderHome() {
   // Mobile Home
