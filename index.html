@@ -4114,15 +4114,16 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (res.ok && data && data.ok && Array.isArray(data.items)) {
     // Map DB track rows -> the song objects your UI expects
     return data.items.map(it => ({
-      key: it.r2_key || it.track_id,
-      url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
-      title: it.title || it.r2_key || it.track_id,
-      name: it.title || it.r2_key || it.track_id,
-      artist: it.artist || "",
-      album: it.album || "",
-      cover: "",
-      coverArt: ""
-    }));
+  key: it.r2_key || it.track_id,
+  url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
+  link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
+  title: it.title || it.r2_key || it.track_id,
+  name: it.title || it.r2_key || it.track_id,
+  artist: it.artist || "",
+  album: it.album || "",
+  cover: it.cover_url || "",
+  coverArt: it.cover_url || ""
+}));
   }
 
   return [];
