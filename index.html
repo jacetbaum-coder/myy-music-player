@@ -4365,7 +4365,7 @@ function hideSwipeBackUnderlay() {
   let animating = false;
 
   const THRESHOLD = 120;
-  const OPACITY_DROP = 0.18;
+  const DESKTOP_OPACITY_DROP = 0.18;
 
   area.addEventListener('wheel', (e) => {
     if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
@@ -4386,7 +4386,7 @@ function hideSwipeBackUnderlay() {
     area.style.transform = `translateX(${dx}px)`;
 
     const p = Math.min(1, dx / (window.innerWidth * 0.6));
-    area.style.opacity = String(1 - (p * OPACITY_DROP));
+    area.style.opacity = String(1 - (p * DESKTOP_OPACITY_DROP));
   }, { passive: false });
 
   area.addEventListener('mouseleave', finish);
