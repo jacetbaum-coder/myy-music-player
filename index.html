@@ -4440,19 +4440,21 @@ function hideSwipeBackUnderlay() {
     return y <= (window.innerHeight * 0.75);
   }
 
-   function reset(animated = true) {
-    // Hide underlay once we're resetting back to normal
+// 1. You likely need a wrapper function to hold the logic and variables
+function initSwipeBack(area) {
+  let active = false;
+  let decided = false;
+  let isHorizontal = false;
+  let startX, startY, lastDx;
+  const MOVE_DECIDE_PX = 10;
+  const THRESHOLD_PX = 100;
+  const OPACITY_DROP = 0.5;
+
+  function reset(animated = true) {
     hideSwipeBackUnderlay();
-
-    // Restore vertical scroll behavior
-
     area.style.touchAction = 'pan-y';
-
-    // ✅ Always keep x clipped after any drag
     area.style.overflowX = 'hidden';
     area.style.overflowY = 'auto';
-
-    // ✅ Stop “painting” outside during transforms
     area.style.willChange = '';
 
     if (animated) {
@@ -4474,10 +4476,8 @@ function hideSwipeBackUnderlay() {
     area.addEventListener('transitionend', clear);
   }
 
-
-    area.addEventListener('pointerdown', (e) => {
+  area.addEventListener('pointerdown', (e) => {
     if (!canStart(e)) return;
-
     const { x, y } = getXY(e);
     active = true;
     decided = false;
@@ -4486,68 +4486,54 @@ function hideSwipeBackUnderlay() {
     startY = y;
     lastDx = 0;
 
-    // Allow vertical scroll until we confirm a horizontal swipe.
     area.style.touchAction = 'pan-y';
-    // ✅ Show the previous screen behind the drag (instead of black)
     showSwipeBackUnderlay();
 
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
-  if (!active) return;
+    if (!active) return;
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
 
-  const { x, y } = getXY(e);
-  const dx = x - startX;
-  const dy = y - startY;
+    if (!decided) {
+      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
 
-  // Don’t decide until it actually moves (prevents taps triggering)
-  if (!decided) {
-    if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
-    decided = true;
-    isHorizontal = Math.abs(dx) > Math.abs(dy);
-
-    // ✅ Only when we confirm it’s horizontal do we “take over” the gesture.
-    if (isHorizontal) {
-      area.style.touchAction = 'none';
-
-      // HARD CLIP while transformed so nothing can “peek”
-      area.style.overflow = 'hidden';
-      area.style.willChange = 'transform, opacity';
-      area.classList.add('sb-dragging');
+      if (isHorizontal) {
+        area.style.touchAction = 'none';
+        area.style.overflow = 'hidden';
+        area.style.willChange = 'transform, opacity';
+        area.classList.add('sb-dragging');
+      }
     }
-  }
 
-  // ✅ If it’s vertical, let the browser scroll naturally (NO preventDefault)
-  if (!isHorizontal) return;
+    if (!isHorizontal) return;
+    
+    // Note: preventDefault() only works if { passive: false } is set
+    if (e.cancelable) e.preventDefault();
 
-  // We own the gesture now — prevent page/scroll from hijacking it
-  e.preventDefault();
+    lastDx = Math.max(0, dx);
+    area.style.transition = '';
+    area.style.transform = `translateX(${lastDx}px)`;
 
-  // Only count right-swipes (iOS back gesture)
-  lastDx = Math.max(0, dx);
-
-  // Live drag
-  area.style.transition = '';
-  area.style.transform = `translateX(${lastDx}px)`;
-
-  const p = Math.min(1, lastDx / (window.innerWidth * 0.6));
-  area.style.opacity = String(1 - (p * OPACITY_DROP));
-}, { passive: false });
-
+    const p = Math.min(1, lastDx / (window.innerWidth * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
+  }, { passive: false });
 
   area.addEventListener('pointerup', () => {
     if (!active) return;
     active = false;
 
-    // Commit if far enough
     if (lastDx > THRESHOLD_PX) {
       area.style.transition = 'transform 180ms ease, opacity 180ms ease';
       area.style.transform = `translateX(${window.innerWidth}px)`;
 
       const done = () => {
         area.removeEventListener('transitionend', done);
-        // Instantly reset styles before navigating back (prevents seeing the slide state on the new view)
         reset(false);
         goBack();
       };
@@ -4555,7 +4541,6 @@ function hideSwipeBackUnderlay() {
       return;
     }
 
-    // Otherwise snap back smoothly (cancelable feel)
     reset(true);
   }, { passive: true });
 
@@ -4564,8 +4549,7 @@ function hideSwipeBackUnderlay() {
     active = false;
     reset(true);
   }, { passive: true });
-}
-
+} // This is the closing brace that was likely missing its "opening" partner
 function showView(viewType, playlistIndex = null) {
     // Capture what's currently on screen so swipe-back shows it behind
   captureSwipeBackUnderlay();
