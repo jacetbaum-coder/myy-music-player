@@ -144,8 +144,15 @@
 
         html, body {
   width: 100%;
+  height: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+
+  /* Prevent any sideways “peek” and page rubber-band */
+  overflow: hidden;
+  overscroll-behavior: none;
+
+  /* If iOS tries to reveal the “page behind”, make it black */
+  background: #000;
 }
 
 body { 
@@ -174,8 +181,16 @@ font-feature-settings: "liga" 1, "calt" 1;
 #artist-view,
 #search-view {
   max-width: 100%;
+  width: 100%;
   overflow-x: hidden;
+
+  /* Prevent vertical rubber-band “showing behind” on supporting browsers */
+  overscroll-behavior: none;
+
+  /* iOS momentum scrolling stays smooth */
+  -webkit-overflow-scrolling: touch;
 }
+
 
 /* Images should never overflow their container */
 img {
