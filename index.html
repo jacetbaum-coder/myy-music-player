@@ -4341,9 +4341,6 @@ function captureSwipeBackUnderlay() {
   // Desktop / trackpad only
   if (window.innerWidth < 1024) return;
 
-  const area = document.getElementById('main-scroll-area');
-  if (!area) return;
-
   if (area.dataset.desktopSwipeBound === "1") return;
   area.dataset.desktopSwipeBound = "1";
 
