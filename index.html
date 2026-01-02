@@ -4469,21 +4469,18 @@ function initDesktopSwipeBack() {
     dx = 0;
   }
 }
-        
-
-function showView(viewType, playlistIndex = null) {
-  // BACK STACK: push the current state before switching views
+    function showView(viewType, playlistIndex = null) {
   pushNavCurrent();
 
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-  const __viewIds = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
+   const __viewIds = ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'];
 
-  // Find what is currently visible BEFORE switching (ignore any existing underlay)
+  // Find what is currently visible BEFORE switching
   const __currentVisibleId = __viewIds.find((id) => {
     const el = document.getElementById(id);
-    return el && !el.classList.contains('hidden') && !el.classList.contains('sb-underlay');
+    return el && !el.classList.contains('hidden');
   });
 
   // If this is a normal forward nav (not a back nav), remember the previous view as the underlay
@@ -4491,7 +4488,7 @@ function showView(viewType, playlistIndex = null) {
     window.__sbUnderlayId = __currentVisibleId;
   }
 
-  // Hide all views EXCEPT the underlay (kept rendered behind)
+  // Hide all views EXCEPT the underlay (kept rendered but invisible)
   __viewIds.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -4507,73 +4504,238 @@ function showView(viewType, playlistIndex = null) {
     }
   });
 
-  // Figure out which element should be the top view for this navigation
-  const topId =
-    viewType === 'home' ? 'home-view' :
-    viewType === 'grid' ? 'grid-view' :
-    viewType === 'search' ? 'search-view' :
-    (viewType === 'album' || viewType === 'liked' || viewType === 'playlist') ? 'album-view' :
-    viewType === 'artist' ? 'artist-view' :
-    'home-view';
-
-  const topEl = document.getElementById(topId);
-  if (topEl) {
-    topEl.classList.remove('hidden');
-    topEl.classList.remove('sb-underlay');
-    topEl.classList.add('sb-topview');
-  }
 
   activePlaylistIndex = playlistIndex;
   activePlaylistId = null;
 
-  // BACK STACK: set new current view
   if (viewType === 'home') setNavCurrent({ type: 'home' });
-  if (viewType === 'grid') setNavCurrent({ type: 'grid' });
-  if (viewType === 'album') setNavCurrent({ type: 'album' });
-  if (viewType === 'search') setNavCurrent({ type: 'search' });
-  if (viewType === 'artist') setNavCurrent({ type: 'artist' });
-  if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-  if (viewType === 'playlist') setNavCurrent({ type: 'playlist', playlistIndex });
-
-  if (viewType === 'home') {
-    // nothing else required
+  else if (viewType === 'library') setNavCurrent({ type: 'library' });
+  else if (viewType === 'search') setNavCurrent({ type: 'search' });
+  else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+  else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+  else if (viewType === 'playlist') {
+    const pl = playlists[playlistIndex];
+    setNavCurrent({ type: 'playlist', playlistIndex, playlistId: pl?.id || null });
+  } else {
+    setNavCurrent({ type: viewType || 'home' });
   }
 
-  if (viewType === 'grid') {
-    // your grid view is just shown as topId above
+  const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+}
+
+
+  function canStart(e) {
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
+
+    // Don’t hijack gestures on form controls / buttons
+    const t = e.target;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+      return false;
+    }
+
+    // Allow swipe start ANYWHERE in the upper 75% of the screen (same rule as Now Playing)
+    const { y } = getXY(e);
+    return y <= (window.innerHeight * 0.75);
   }
 
-  if (viewType === 'album') {
-    document.getElementById('album-view')?.classList.remove('hidden');
+   function reset(animated = true) {
+    // Restore vertical scroll behavior
+    area.style.touchAction = 'pan-y';
+
+    // ✅ Always keep x clipped after any drag
+    area.style.overflowX = 'hidden';
+    area.style.overflowY = 'auto';
+
+    // ✅ Stop “painting” outside during transforms
+    area.style.willChange = '';
+
+    if (animated) {
+      area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+    } else {
+      area.style.transition = '';
+    }
+
+    area.style.transform = 'translateX(0px)';
+    area.style.opacity = '1';
+    area.classList.remove('sb-dragging');
+
+    if (!animated) return;
+
+    const clear = () => {
+      area.style.transition = '';
+      area.removeEventListener('transitionend', clear);
+    };
+    area.addEventListener('transitionend', clear);
   }
+
+
+    area.addEventListener('pointerdown', (e) => {
+    if (!canStart(e)) return;
+
+    const { x, y } = getXY(e);
+    active = true;
+    decided = false;
+    isHorizontal = false;
+    startX = x;
+    startY = y;
+    lastDx = 0;
+
+    // While dragging horizontally, we temporarily own the gesture
+    area.style.touchAction = 'none';
+
+    // ✅ HARD CLIP while transformed so nothing can “peek” from the left
+    area.style.overflow = 'hidden';
+    area.style.willChange = 'transform, opacity';
+
+    area.classList.add('sb-dragging');
+    try { area.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { passive: true });
+
+  area.addEventListener('pointermove', (e) => {
+    if (!active) return;
+
+    // IMPORTANT: keep owning the gesture while dragging (same idea as Now Playing)
+    e.preventDefault();
+
+    const { x, y } = getXY(e);
+    const dx = x - startX;
+    const dy = y - startY;
+
+    // Don’t decide until it actually moves (prevents taps triggering)
+    if (!decided) {
+      if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
+      decided = true;
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+
+    if (!isHorizontal) return;
+
+    // Only count right-swipes (iOS back gesture)
+    lastDx = Math.max(0, dx);
+
+    // Live drag
+    area.style.transition = '';
+    area.style.transform = `translateX(${lastDx}px)`;
+
+    // Subtle opacity shift for a “layer” feel (doesn’t break anything if nothing is behind)
+    const w = Math.max(1, window.innerWidth);
+    const p = Math.min(1, lastDx / (w * 0.6));
+    area.style.opacity = String(1 - (p * OPACITY_DROP));
+  }, { passive: false });
+
+  area.addEventListener('pointerup', () => {
+    if (!active) return;
+    active = false;
+
+    // Commit if far enough
+    if (lastDx > THRESHOLD_PX) {
+      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transform = `translateX(${window.innerWidth}px)`;
+
+      const done = () => {
+        area.removeEventListener('transitionend', done);
+        // Instantly reset styles before navigating back (prevents seeing the slide state on the new view)
+        reset(false);
+        goBack();
+      };
+      area.addEventListener('transitionend', done);
+      return;
+    }
+
+    // Otherwise snap back smoothly (cancelable feel)
+    reset(true);
+  }, { passive: true });
+
+  area.addEventListener('pointercancel', () => {
+    if (!active) return;
+    active = false;
+    reset(true);
+  }, { passive: true });
+}
+
+function showView(viewType, playlistIndex = null) {
+  // BACK STACK: push the current state before switching views
+  pushNavCurrent();
+
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { closeContextMenu(); } catch (e) {}
+
+    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+
+  activePlaylistIndex = playlistIndex;
+activePlaylistId = null;
+
+// BACK STACK: set new current view
+if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'library') setNavCurrent({ type: 'library' });
+else if (viewType === 'search') setNavCurrent({ type: 'search' });
+else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+else if (viewType === 'playlist') {
+  const pl = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: pl?.id || null });
+} else {
+  setNavCurrent({ type: viewType || 'home' });
+}
+
+const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+
+        if (viewType === 'home') {
+    // MOBILE: show the real Home screen
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
+    } else {
+      // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+      try { renderHome(); } catch (e) {}
+    }
+  }
+
+  if (viewType === 'library') {
+  document.getElementById('grid-view').classList.remove('hidden');
+
+  renderGrid(getLibraryGridData());
+  renderHistory();
+
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
+  }
+}
 
   if (viewType === 'search') {
-    document.getElementById('search-view')?.classList.remove('hidden');
-    document.getElementById('global-search')?.focus();
+    document.getElementById('search-view').classList.remove('hidden');
+    document.getElementById('global-search').focus();
   }
 
   if (viewType === 'liked') {
-    document.getElementById('album-view')?.classList.remove('hidden');
+    document.getElementById('album-view').classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
   }
 
   if (viewType === 'playlist') {
-    document.getElementById('album-view')?.classList.remove('hidden');
-    const pl = playlists[playlistIndex];
-    activePlaylistId = pl?.id || null;
+  document.getElementById('album-view').classList.remove('hidden');
+  const pl = playlists[playlistIndex];
+  activePlaylistId = pl?.id || null;
 
-    playContext = { type: 'playlist', label: pl.name };
+  playContext = { type: 'playlist', label: pl.name };
 
-    renderCollection(pl.name, pl.songs, true, playlistIndex);
-  }
+  renderCollection(pl.name, pl.songs, true, playlistIndex);
+}
 
   if (viewType === 'artist') {
-    document.getElementById('artist-view')?.classList.remove('hidden');
+    document.getElementById('artist-view').classList.remove('hidden');
   }
 
   updateActiveStates(viewType);
 }
-
 
 
 
