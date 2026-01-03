@@ -4700,20 +4700,28 @@ const scrollArea = document.getElementById('main-scroll-area');
     activePlaylistId = pl?.id || null;
     playContext = { type: 'playlist', label: pl.name };
 
-    // ✅ Load playlist songs from cloud before rendering
+        // ✅ Load playlist songs from cloud before rendering
     (async () => {
       try {
         const songs = await window.loadPlaylistItemsFromCloud(pl.id);
-pl.songs = Array.isArray(songs) ? songs : [];
+        pl.songs = Array.isArray(songs) ? songs : [];
 
-// ✅ compute auto cover + refresh sidebar immediately
-try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
-pl.songCount = pl.songs.length;
-renderPlaylists();
+        // ✅ compute auto cover + refresh sidebar immediately
+        try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
-renderCollection(pl.name, pl.songs, true, playlistIndex);
-})();
-  }
+        pl.songCount = pl.songs.length;
+        renderPlaylists();
+
+        renderCollection(pl.name, pl.songs, true, playlistIndex);
+      } catch (e) {
+        console.warn(e);
+
+        // fallback: render whatever we have
+        if (!Array.isArray(pl.songs)) pl.songs = [];
+        renderCollection(pl.name, pl.songs, true, playlistIndex);
+      }
+    })();
+
 
   if (viewType === 'artist') {
     document.getElementById('artist-view').classList.remove('hidden');
