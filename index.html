@@ -10720,13 +10720,13 @@ let cover = queue[0]?.cover || '';
     }
   }
 
-    const coverMarkup = cover ?
-    `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
+  const coverMarkup = cover
+
+    ? `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
     : `<div class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center">
          <i class="fas fa-music text-4xl text-zinc-500"></i>
        </div>`;
-
-  const label = isPlaylist ? 'Playlist' : (name === 'Liked Songs' ? 'Liked Songs' : 'Album');
+  const label = isPlaylist ? 'Playlist' : name === 'Liked Songs' ? 'Liked Songs' : 'Album';
 
   document.getElementById('album-hero').innerHTML = `
     ${coverMarkup}
