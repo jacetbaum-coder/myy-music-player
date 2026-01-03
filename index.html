@@ -1816,34 +1816,55 @@ body.qs-lock {
 /* -----------------------
    Pull-to-refresh (mobile)
 ------------------------ */
-.ptr{
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 46px;
+
+/* The Container: Now sits at the top of the scroll flow */
+.ptr {
+  position: relative; 
+  width: 100%;
+  /* Start with a negative margin so it is hidden 'above' the screen */
+  margin-top: -50px; 
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 70;
+  /* Smooth transition for when it 'snaps' back or stays open */
+  transition: margin-top 0.2s cubic-bezier(0.33, 1, 0.68, 1);
   pointer-events: none;
 }
-.ptr.hidden{ display:none; }
 
-.ptr .ptr-text{
-  font-size: 12px;
+/* Active State: Apply this class via JS when pulling or refreshing */
+.ptr.active {
+  margin-top: 0;
+}
+
+.ptr.hidden { 
+  display: none; 
+}
+
+.ptr .ptr-text {
+  font-size: 11px; /* Slightly smaller for a tighter mobile look */
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.70);
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.10);
-  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(20, 20, 20, 0.6); /* Darker for better contrast on Meddle/J.Cole art */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
   border-radius: 9999px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  
+  /* High-end glassmorphism */
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  
+  /* Add a subtle scale-in effect */
+  transform: scale(0.9);
+  transition: transform 0.2s ease;
 }
 
+.ptr.active .ptr-text {
+  transform: scale(1);
+}
 </style>
 
 </head>
