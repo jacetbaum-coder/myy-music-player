@@ -3809,6 +3809,46 @@ try { window.startCloudPlaylistSync(); } catch (e) {}
 
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 
+// ✅ Resolve playlist trackIds into master-library track objects (tracksById).
+// If a track isn't in the library yet, return a playable fallback object.
+window.resolveTrackIdsToSongs = function (trackIds) {
+  const ids = Array.isArray(trackIds) ? trackIds : [];
+  const out = [];
+
+  for (const id of ids) {
+    const key = String(id || "").trim();
+    if (!key) continue;
+
+    const found =
+      (window.tracksById && typeof window.tracksById.get === "function")
+        ? (window.tracksById.get(key) || null)
+        : null;
+
+    if (found) {
+      out.push(found);
+      continue;
+    }
+
+    out.push({
+      id: key,
+      r2Path: key,
+      key: key,
+      title: key.split("/").pop() || key,
+      name: key.split("/").pop() || key,
+      artist: "",
+      album: "",
+      artistName: "",
+      albumName: "",
+      cover: "",
+      coverArt: "",
+      url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
+      link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
+    });
+  }
+
+  return out;
+};
+
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (!playlistId) return [];
 
@@ -3819,23 +3859,16 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   const data = await res.json().catch(() => ({}));
 
   if (res.ok && data && data.ok && Array.isArray(data.items)) {
-    return data.items.map(it => ({
-      key: it.r2_key || it.track_id,
-      track_id: it.track_id,
-      r2_key: it.r2_key,
-      url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
-      link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
-      title: it.title || it.r2_key || it.track_id,
-      name: it.title || it.r2_key || it.track_id,
-      artist: it.artist || "",
-      album: it.album || "",
-      cover: it.cover_url || "",
-      coverArt: it.cover_url || ""
-    }));
+    // ✅ IMPORTANT: playlists store track IDs ONLY
+    return data.items
+      .map(it => (it.r2_key || it.track_id || ""))
+      .map(x => String(x).trim())
+      .filter(Boolean);
   }
 
   return [];
 };
+
 
 // ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
@@ -5299,31 +5332,30 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 }
 
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
+// ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
+// (This copy is intentionally a thin wrapper. The canonical implementation lives in the Cloud Playlist API section.)
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
-  if (!playlistId) return [];
+  // Call the canonical version (if this wrapper got defined later, it still behaves correctly)
+  return await (async function (pid) {
+    if (!pid) return [];
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(playlistId)
-  );
-  const data = await res.json();
+    const res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(pid)
+    );
 
-  if (res.ok && data && data.ok && Array.isArray(data.items)) {
-    // Map DB track rows -> the song objects your UI expects
-    return data.items.map(it => ({
-  key: it.r2_key || it.track_id,
-  url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
-  link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
-  title: it.title || it.r2_key || it.track_id,
-  name: it.title || it.r2_key || it.track_id,
-  artist: it.artist || "",
-  album: it.album || "",
-  cover: it.cover_url || "",
-  coverArt: it.cover_url || ""
-}));
-  }
+    const data = await res.json().catch(() => ({}));
 
-  return [];
+    if (res.ok && data && data.ok && Array.isArray(data.items)) {
+      return data.items
+        .map(it => (it.r2_key || it.track_id || ""))
+        .map(x => String(x).trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  })(playlistId);
 };
+
 
 
   // Never let one missing helper break app startup
@@ -6115,7 +6147,7 @@ const scrollArea = document.getElementById('main-scroll-area');
     renderCollection("Liked Songs", likedSongs);
   }
 
-    if (viewType === 'playlist') {
+        if (viewType === 'playlist') {
     document.getElementById('album-view').classList.remove('hidden');
 
     const pl = playlists[playlistIndex];
@@ -6124,26 +6156,38 @@ const scrollArea = document.getElementById('main-scroll-area');
     activePlaylistId = pl?.id || null;
     playContext = { type: 'playlist', label: pl.name };
 
-        // ✅ Load playlist songs from cloud before rendering
+        // ✅ Load playlist trackIds from cloud before rendering
     (async () => {
       try {
-        const songs = await window.loadPlaylistItemsFromCloud(pl.id);
-        pl.songs = Array.isArray(songs) ? songs : [];
+        const trackIds = await window.loadPlaylistItemsFromCloud(pl.id);
+
+        // ✅ Canonical storage: IDs only
+        pl.trackIds = Array.isArray(trackIds) ? trackIds : [];
+
+        // ✅ Derived view model for UI + playback only
+        pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+          ? window.resolveTrackIdsToSongs(pl.trackIds)
+          : [];
 
         try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
-        pl.songCount = pl.songs.length;
+        pl.songCount = pl.trackIds.length;
         renderPlaylists();
 
         renderCollection(pl.name, pl.songs, true, playlistIndex);
       } catch (e) {
         console.warn(e);
-        if (!Array.isArray(pl.songs)) pl.songs = [];
+
+        if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+        pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+          ? window.resolveTrackIdsToSongs(pl.trackIds)
+          : [];
+
         renderCollection(pl.name, pl.songs, true, playlistIndex);
       }
     })();
 
-  }  // ✅ CLOSES: if (viewType === 'playlist')
+}  // ✅ CLOSES: if (viewType === 'playlist')
 
 
   if (viewType === 'artist') {
