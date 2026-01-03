@@ -10251,8 +10251,9 @@ function renderPlaylists() {
 
     const cover = getEffectivePlaylistCover(pl);
 
-    // Count: use loaded songs if present, else a stored fallback songCount, else 0
+        // Count: prefer canonical trackIds, else loaded songs, else stored fallback, else 0
     const count =
+      (Array.isArray(pl.trackIds) ? pl.trackIds.length : null) ??
       (Array.isArray(pl.songs) ? pl.songs.length : null) ??
       (Number.isFinite(pl.songCount) ? pl.songCount : 0);
 
@@ -10326,8 +10327,10 @@ function renderPlaylists() {
       const s = menuTargetSong;
       if (!s) return;
 
-      // Resolve trackId robustly
+            // Resolve trackId robustly (canonical ID is the R2 path)
       let trackId =
+        s.id ||
+        s.r2Path ||
         s.track_id ||
         s.trackId ||
         s.key ||
@@ -10358,24 +10361,28 @@ function renderPlaylists() {
         console.warn(e);
       }
 
-      // Update local preview immediately (count + cover logic)
-      if (!Array.isArray(pl.songs)) pl.songs = [];
-      pl.songs.push({
-        url: s.link || s.url,
-        title: s.name || s.title,
-        album: s.album,
-        artist: s.artist,
-        cover: s.cover || s.coverArt
-      });
+      // ✅ Update local immediately using IDs-only
+      if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+
+      // Avoid duplicates inside the same playlist (simple guard)
+      if (!pl.trackIds.includes(trackId)) {
+        pl.trackIds.push(trackId);
+      }
+
+      // ✅ Derived view model for UI
+      pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+        ? window.resolveTrackIdsToSongs(pl.trackIds)
+        : [];
 
       // Update auto cover after adding
       try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
       // keep a fallback count even if songs later get replaced by cloud
-      pl.songCount = pl.songs.length;
+      pl.songCount = pl.trackIds.length;
       pl.updated_at = new Date().toISOString();
 
             renderPlaylists();
+
       closeContextMenu();
 
       // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
