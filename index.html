@@ -5450,6 +5450,94 @@ let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
 
+// -----------------------
+// SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
+// -----------------------
+function ensureSwipeBackUnderlay() {
+  let el = document.getElementById('swipe-back-underlay');
+  if (el) return el;
+
+  el = document.createElement('div');
+  el.id = 'swipe-back-underlay';
+  el.style.position = 'fixed';
+  el.style.left = '0';
+  el.style.top = '0';
+  el.style.right = '0';
+  el.style.bottom = '0';
+  el.style.display = 'none';
+  el.style.pointerEvents = 'none';
+  el.style.overflow = 'hidden';
+  el.style.background = '#000';
+  el.style.zIndex = '9998';
+
+  const inner = document.createElement('div');
+  inner.id = 'swipe-back-underlay-inner';
+  inner.style.position = 'absolute';
+  inner.style.left = '0';
+  inner.style.top = '0';
+  inner.style.right = '0';
+  inner.style.bottom = '0';
+  inner.style.overflow = 'hidden';
+
+  el.appendChild(inner);
+  document.body.appendChild(el);
+  return el;
+}
+
+function __stripIds(root) {
+  try {
+    if (root && root.removeAttribute) root.removeAttribute('id');
+    const all = root.querySelectorAll ? root.querySelectorAll('[id]') : [];
+    all.forEach(n => n.removeAttribute('id'));
+  } catch (e) {}
+}
+
+window.captureSwipeBackUnderlay = function captureSwipeBackUnderlay() {
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  const underlay = ensureSwipeBackUnderlay();
+  const inner = document.getElementById('swipe-back-underlay-inner');
+  if (!inner) return;
+
+  // Clear old snapshot
+  inner.innerHTML = '';
+
+  // Clone scroll area content without duplicating IDs
+  const clone = area.cloneNode(true);
+  __stripIds(clone);
+
+  // Prevent any transitions in the clone
+  try {
+    clone.style.transition = '';
+    clone.style.transform = 'translateX(0px)';
+    clone.style.opacity = '1';
+  } catch (e) {}
+
+  inner.appendChild(clone);
+
+  // Match scroll position (best effort)
+  try { clone.scrollTop = area.scrollTop; } catch (e) {}
+};
+
+function showSwipeBackUnderlay() {
+  const underlay = ensureSwipeBackUnderlay();
+  underlay.style.display = 'block';
+
+  // Keep current page above the underlay
+  const area = document.getElementById('main-scroll-area');
+  if (area) {
+    area.style.position = 'relative';
+    area.style.zIndex = '9999';
+  }
+}
+
+function hideSwipeBackUnderlay() {
+  const underlay = document.getElementById('swipe-back-underlay');
+  if (underlay) underlay.style.display = 'none';
+}
+
+
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
 }
