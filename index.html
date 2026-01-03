@@ -3716,22 +3716,42 @@ window.loadPlaylistsFromCloud = async function () {
   if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
     window.cloudPlaylists = data.playlists;
 
-    // ✅ IMPORTANT: populate the actual UI `playlists` array from cloud
-    try {
-      const cloudUi = data.playlists
-        .map(cloudRowToUiPlaylist)
-        .filter(pl => pl && pl.id);
+    // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
+try {
+  const cloudUi = data.playlists
+    .map(cloudRowToUiPlaylist)
+    .filter(pl => pl && pl.id);
 
-      // Replace local playlists with cloud (source of truth)
-      playlists = cloudUi;
+  const localArr = Array.isArray(playlists) ? playlists : [];
+  const byId = new Map(localArr.map(p => [p.id, p]));
 
-      // Persist locally so refresh works even if offline
-      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-    } catch (e) {
-      console.warn("Failed to map cloud playlists:", e);
+  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
+  for (const c of cloudUi) {
+    const existing = byId.get(c.id);
+    if (existing) {
+      byId.set(c.id, {
+        ...existing,
+        ...c,
+        // preserve local-only content if cloud meta doesn't include it
+        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
+        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+      });
+    } else {
+      byId.set(c.id, c);
     }
+  }
 
-    return data.playlists;
+  // Keep local-only playlists that aren't in cloud yet
+  playlists = Array.from(byId.values());
+
+  // Persist locally so refresh works even if offline
+  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+} catch (e) {
+  console.warn("Failed to merge cloud playlists:", e);
+}
+
+return data.playlists;
+
   }
 
    window.cloudPlaylists = [];
@@ -6157,95 +6177,50 @@ const scrollArea = document.getElementById('main-scroll-area');
   }
 
         if (viewType === 'playlist') {
-    document.getElementById('album-view').classList.remove('hidden');
+  document.getElementById('album-view').classList.remove('hidden');
 
-    const pl = playlists[playlistIndex];
-    if (!pl) return;
+  const pl = playlists[playlistIndex];
+  if (!pl) return;
 
-    activePlaylistId = pl?.id || null;
-    playContext = { type: 'playlist', label: pl.name };
+  activePlaylistId = pl?.id || null;
+  playContext = { type: 'playlist', label: pl.name };
 
-        // ✅ Load playlist trackIds from cloud before rendering
-    (async () => {
-      try {
-        // 1) If this playlist already has local songs (old model), migrate them to trackIds once.
-               // 1) If this playlist already has local songs (old model), migrate them to trackIds once.
-        //    IMPORTANT: handle (a) strings, (b) objects, and (c) URLs that contain ?id=...
-        if ((!Array.isArray(pl.trackIds) || pl.trackIds.length === 0) && Array.isArray(pl.songs) && pl.songs.length > 0) {
-          pl.trackIds = pl.songs
-            .map((s) => {
-              // Case A: already a string trackId like "Artist/Album/Track.mp3"
-              if (typeof s === "string") return s.trim();
+  // ✅ Load playlist items from cloud ONLY if cloud returns something.
+  // Never wipe local-only playlists by overwriting with [].
+  (async () => {
+    try {
+      const ids = await window.loadPlaylistItemsFromCloud(pl.id);
 
-              if (!s) return "";
+      // If cloud returned IDs, use IDs-only model
+      if (Array.isArray(ids) && ids.length > 0) {
+        pl.trackIds = ids;
 
-              // Case B: object form (newer)
-              const direct =
-                s.id ||
-                s.r2Path ||
-                s.key ||
-                s.track_id ||
-                s.r2_key;
-
-              if (direct) return String(direct).trim();
-
-              // Case C: object has a URL like ".../?id=Artist/Album/Track.mp3"
-              const u = s.url || s.link || "";
-              if (u) {
-                try {
-                  const parsed = new URL(u, window.location.origin);
-                  const id = parsed.searchParams.get("id") || "";
-                  if (id) return String(id).trim();
-                } catch (e) {}
-              }
-
-              return "";
-            })
-            .filter(Boolean);
-        }
-
-
-        // 2) Attempt to load from cloud, but DO NOT overwrite local data with empty results.
-        let cloudIds = [];
-        try {
-          cloudIds = await window.loadPlaylistItemsFromCloud(pl.id);
-        } catch (e) {
-          cloudIds = [];
-        }
-
-        const cloudTrackIds = Array.isArray(cloudIds) ? cloudIds : [];
-
-        // Only replace local trackIds if cloud actually has items,
-        // OR if local trackIds are currently empty.
-        if (cloudTrackIds.length > 0 || !Array.isArray(pl.trackIds) || pl.trackIds.length === 0) {
-          pl.trackIds = cloudTrackIds;
-        }
-
-        // 3) Derived view model for UI + playback
+        // Derive UI song objects from master library map
         pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
           ? window.resolveTrackIdsToSongs(pl.trackIds)
           : [];
 
-        try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
-
-        pl.songCount = Array.isArray(pl.trackIds) ? pl.trackIds.length : 0;
-        renderPlaylists();
-
-        renderCollection(pl.name, pl.songs, true, playlistIndex);
-      } catch (e) {
-        console.warn(e);
-
-        if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
-        pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
-          ? window.resolveTrackIdsToSongs(pl.trackIds)
-          : [];
-
-        renderCollection(pl.name, pl.songs, true, playlistIndex);
+        pl.songCount = pl.trackIds.length;
+      } else {
+        // Cloud empty: keep whatever local data you already have
+        pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+        pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
+        pl.songCount = pl.trackIds.length || pl.songs.length || 0;
       }
-    })();
 
+      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+      renderPlaylists();
 
+      renderCollection(pl.name, pl.songs, true, playlistIndex);
+    } catch (e) {
+      console.warn(e);
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+      pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
+      renderCollection(pl.name, pl.songs, true, playlistIndex);
+    }
+  })();
 }  // ✅ CLOSES: if (viewType === 'playlist')
+
 
 
   if (viewType === 'artist') {
