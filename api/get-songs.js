@@ -55,35 +55,64 @@ export default async function handler(req, res) {
     ['https://www.googleapis.com/auth/drive.readonly']
   );
 
-  const drive = google.drive({ version: 'v3', auth });
+const drive = google.drive({ version: 'v3', auth });
 
-  try {
+// ✅ Drive listings are paginated. This helper returns ALL pages.
+async function driveListAll({ q, fields, pageSize = 1000 }) {
+  let pageToken = undefined;
+  const all = [];
+
+  while (true) {
+    const res = await drive.files.list({
+      q,
+      fields: `nextPageToken, files(${fields})`,
+      pageSize,
+      pageToken,
+    });
+
+    const files = res?.data?.files || [];
+    all.push(...files);
+
+    pageToken = res?.data?.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return all;
+}
+
+try {
+
     // -----------------------
     // List artist folders
     // -----------------------
-    const artistsRes = await drive.files.list({
-      q: `'${process.env.GCP_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
-      fields: 'files(id, name)',
-    });
+    const artists = await driveListAll({
+  q: `'${process.env.GCP_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
+  fields: 'id, name',
+});
+
 
     const allAlbums = [];
 
     await Promise.all(
-      artistsRes.data.files.map(async (artist) => {
-        const albumsRes = await drive.files.list({
+            artists.map(async (artist) => {
+
+                const albums = await driveListAll({
           q: `'${artist.id}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
-          fields: 'files(id, name)',
+          fields: 'id, name',
         });
 
-        for (const album of albumsRes.data.files) {
-          const contentRes = await drive.files.list({
+
+         for (const album of albums) {
+                    const contents = await driveListAll({
             q: `'${album.id}' in parents`,
-            fields: 'files(id, name, mimeType)',
+            fields: 'id, name, mimeType',
           });
 
-          const songs = contentRes.data.files.filter(f =>
+
+                    const songs = contents.filter(f =>
             f.mimeType?.includes('audio')
           );
+
 
           // -----------------------
           // Cover art (KV override → iTunes fallback)
