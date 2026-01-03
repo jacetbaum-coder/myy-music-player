@@ -10161,9 +10161,9 @@ player.addEventListener('ended', () => {
 
     function isMobile(){ return window.innerWidth <= 768; }
 
-    function homeVisible(){
-      const hv = document.getElementById('home-view');
-      return !!(hv && !hv.classList.contains('hidden'));
+      function homeVisible(){
+      // ✅ Pull-to-refresh should work from ANY screen
+      return true;
     }
 
     function getArea(){ return document.getElementById('main-scroll-area'); }
@@ -10281,7 +10281,6 @@ player.addEventListener('ended', () => {
 
       area.addEventListener('pointerdown', (e) => {
         if (!isMobile()) return;
-        if (!homeVisible()) return;
         if (refreshing) return;
 
         // must be at top
@@ -10299,7 +10298,6 @@ player.addEventListener('ended', () => {
       area.addEventListener('pointermove', (e) => {
         if (!active) return;
         if (!isMobile()) return;
-        if (!homeVisible()) return;
         if (refreshing) return;
 
         const dy = e.clientY - startY;
