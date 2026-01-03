@@ -4706,7 +4706,6 @@ const scrollArea = document.getElementById('main-scroll-area');
         const songs = await window.loadPlaylistItemsFromCloud(pl.id);
         pl.songs = Array.isArray(songs) ? songs : [];
 
-        // ✅ compute auto cover + refresh sidebar immediately
         try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
         pl.songCount = pl.songs.length;
@@ -4715,12 +4714,12 @@ const scrollArea = document.getElementById('main-scroll-area');
         renderCollection(pl.name, pl.songs, true, playlistIndex);
       } catch (e) {
         console.warn(e);
-
-        // fallback: render whatever we have
         if (!Array.isArray(pl.songs)) pl.songs = [];
         renderCollection(pl.name, pl.songs, true, playlistIndex);
       }
     })();
+
+  }  // ✅ CLOSES: if (viewType === 'playlist')
 
 
   if (viewType === 'artist') {
