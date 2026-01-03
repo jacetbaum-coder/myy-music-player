@@ -10216,18 +10216,22 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // Outside click closes the menu
-    document.addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
     // ✅ If we just opened via right-click, ignore the follow-up click that Chrome fires
     if (window.__playlistMenuSuppressCloseUntil && Date.now() < window.__playlistMenuSuppressCloseUntil) {
       return;
     }
 
-    if (!menu) return;
     if (menu.classList.contains('hidden')) return;
     if (menu.contains(e.target)) return;
     try { hidePlaylistMenu(); } catch (err) {}
   });
 
+  // Scroll closes the menu
+  window.addEventListener('scroll', () => {
+    try { hidePlaylistMenu(); } catch (err) {}
+  }, true);
+});
 
 
         // -----------------------
