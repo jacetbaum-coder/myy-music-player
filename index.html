@@ -1843,9 +1843,12 @@ body.qs-lock {
 
   <!-- Spotify-like top tabs (not functional yet) -->
   <div class="flex items-center gap-3 mb-5">
-    <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-      <i class="fas fa-user text-white/70"></i>
-    </div>
+    <button id="sync-devices-btn" type="button"
+  class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+  aria-label="Sync devices">
+  <i class="fas fa-user text-white/70"></i>
+</button>
+
 
     <div class="flex gap-2 overflow-x-auto no-scrollbar">
       <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
@@ -2834,7 +2837,7 @@ window.setSyncCode = function (code) {
 try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } catch (e) {}
 
 // -----------------------
-// SYNC DEVICES UI (copy/paste userId)
+// SYNC DEVICES UI (Home profile button)
 // -----------------------
 (function bindSyncDevicesUI() {
   if (window.__syncDevicesUIBound) return;
@@ -2860,13 +2863,13 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   }
 
   document.addEventListener("click", async (e) => {
-    const btn = e.target && e.target.closest ? e.target.closest("#sync-devices-btn") : null;
+    const syncBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-btn") : null;
     const closeBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-close") : null;
     const backdrop = e.target && e.target.closest ? e.target.closest("#sync-devices-backdrop") : null;
     const copyBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-copy") : null;
     const applyBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-apply") : null;
 
-    if (btn) {
+    if (syncBtn) {
       e.preventDefault();
       openModal();
       return;
@@ -2887,7 +2890,7 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
         copyBtn.textContent = "Copied";
         setTimeout(() => { copyBtn.textContent = "Copy"; }, 900);
       } catch (err) {
-        alert("Could not copy. Long-press the code and copy it manually.");
+        alert("Could not copy. Tap and hold the code to copy it manually.");
       }
       return;
     }
@@ -2896,6 +2899,7 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
       e.preventDefault();
       const val = ($("sync-devices-paste")?.value || "").trim();
       if (!val) return;
+
       if (typeof window.setSyncCode === "function") {
         const ok = window.setSyncCode(val);
         if (!ok) alert("That code doesn't look valid.");
@@ -2907,7 +2911,8 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   });
 })();
 
-// Cloud playlists
+// Cloud playlists (raw DB rows
+
 
 window.cloudPlaylists = [];
 
@@ -9552,8 +9557,6 @@ player.addEventListener('ended', () => {
     });
   })();
 </script>
-
-
   <!-- SYNC DEVICES MODAL -->
   <div id="sync-devices-modal" class="hidden fixed inset-0 z-[9999]">
     <div id="sync-devices-backdrop" class="absolute inset-0 bg-black/70"></div>
@@ -9566,7 +9569,7 @@ player.addEventListener('ended', () => {
             Copy this code on one device, then paste it on the other device.
           </div>
         </div>
-        <button id="sync-devices-close" class="text-zinc-400 hover:text-white">
+        <button id="sync-devices-close" class="text-zinc-400 hover:text-white" type="button" aria-label="Close">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -9578,7 +9581,8 @@ player.addEventListener('ended', () => {
             class="flex-1 bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
             readonly />
           <button id="sync-devices-copy"
-            class="px-3 py-2 rounded-lg bg-white text-black text-sm font-bold hover:opacity-90">
+            class="px-3 py-2 rounded-lg bg-white text-black text-sm font-bold hover:opacity-90"
+            type="button">
             Copy
           </button>
         </div>
@@ -9591,7 +9595,8 @@ player.addEventListener('ended', () => {
             class="flex-1 bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
             placeholder="Paste sync code here..." />
           <button id="sync-devices-apply"
-            class="px-3 py-2 rounded-lg bg-[var(--spotify-green)] text-black text-sm font-bold hover:opacity-90">
+            class="px-3 py-2 rounded-lg bg-[var(--spotify-green)] text-black text-sm font-bold hover:opacity-90"
+            type="button">
             Apply
           </button>
         </div>
