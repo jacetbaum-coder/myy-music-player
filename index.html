@@ -3880,25 +3880,82 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   const data = await res.json().catch(() => ({}));
 
   if (res.ok && data && data.ok && Array.isArray(data.items)) {
-    // ✅ IMPORTANT: playlists store track IDs ONLY
+    // Accept either:
+    // - ["Artist/Album/Song.mp3", ...]
+    // - [{ track_id:"Artist/Album/Song.mp3" }, ...]
+    // - [{ r2_key:"Artist/Album/Song.mp3" }, ...]
+    // - [{ key:"Artist/Album/Song.mp3" }, ...]
     return data.items
-      .map(it => (it.r2_key || it.track_id || ""))
-      .map(x => String(x).trim())
+      .map((it) => {
+        if (typeof it === "string") return it;
+        if (!it) return "";
+        return (it.r2_key || it.track_id || it.trackId || it.key || it.id || "");
+      })
+      .map((x) => String(x).trim())
       .filter(Boolean);
   }
 
   return [];
 };
 
-// ✅ Remove playlist item in cloud (pairs with POST /api/playlist-items)
+// ✅ Add playlist item in cloud
+window.addTrackToPlaylistInCloud = async function (playlistId, trackId) {
+  if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
+
+  const body = {
+    playlistId,
+    playlist_id: playlistId,
+    id: playlistId,
+
+    trackId,
+    track_id: trackId,
+    r2_key: trackId,
+    key: trackId
+  };
+
+  // Try POST with JSON body
+  let res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  // Fallback: some APIs expect query params
+  if (!res.ok) {
+    res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" +
+        encodeURIComponent(playlistId) +
+        "&trackId=" +
+        encodeURIComponent(trackId),
+      { method: "POST" }
+    );
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Add item failed");
+  return data;
+};
+
+// ✅ Remove playlist item in cloud
 window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
   if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
 
-  // Try DELETE with JSON body (most common)
+  const body = {
+    playlistId,
+    playlist_id: playlistId,
+    id: playlistId,
+
+    trackId,
+    track_id: trackId,
+    r2_key: trackId,
+    key: trackId
+  };
+
+  // Try DELETE with JSON body
   let res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ playlistId, trackId })
+    body: JSON.stringify(body)
   });
 
   // Fallback: some APIs expect query params
@@ -3916,6 +3973,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Remove item failed");
   return data;
 };
+
 
 
 // ✅ Create playlist in cloud
@@ -10519,17 +10577,12 @@ function renderPlaylists() {
     return;
   }
 
-  // 1) CLOUD FIRST (so refresh + other devices match)
+   // 1) CLOUD FIRST (so refresh + other devices match)
   try {
-    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playlistId: pl.id, trackId })
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data || !data.ok) {
-      throw new Error(data?.error || "Cloud add failed");
+    if (typeof window.addTrackToPlaylistInCloud === "function") {
+      await window.addTrackToPlaylistInCloud(pl.id, trackId);
+    } else {
+      throw new Error("addTrackToPlaylistInCloud is missing");
     }
   } catch (e) {
     console.warn("Cloud add failed:", e);
