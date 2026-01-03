@@ -2761,6 +2761,135 @@ if (!window.__mqControlsInit) {
 
 
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
+
+
+// -----------------------
+// CLOUD PLAYLIST SYNC (D1 via Worker)
+// -----------------------
+function makeUserId() {
+  return "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+}
+
+let userId = localStorage.getItem("app_user_id");
+if (!userId) {
+  userId = makeUserId();
+  localStorage.setItem("app_user_id", userId);
+}
+window.APP_USER_ID = userId;
+
+// Cloud playlists (raw DB rows)
+window.cloudPlaylists = [];
+
+// Convert DB playlist row -> UI playlist object
+function cloudRowToUiPlaylist(row) {
+  const id = row.playlist_id || row.id || "";
+  return {
+    id,
+    name: row.name || "Playlist",
+    // keep cover fields (your renderers may read either)
+    cover: row.cover_url || row.cover || "",
+    coverUrl: row.cover_url || row.cover || "",
+    // local fields your UI expects
+    songs: Array.isArray(row.songs) ? row.songs : [],
+    songCount: typeof row.songCount === "number" ? row.songCount : (typeof row.song_count === "number" ? row.song_count : undefined),
+  };
+}
+
+// ✅ Load playlists list (meta) from Cloudflare for the current user
+window.loadPlaylistsFromCloud = async function () {
+  const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+  if (!uid) return [];
+
+  const res = await fetch(
+    "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
+  );
+
+  const data = await res.json().catch(() => ({}));
+
+  if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
+    window.cloudPlaylists = data.playlists;
+
+    // ✅ IMPORTANT: populate the actual UI `playlists` array from cloud
+    try {
+      const cloudUi = data.playlists
+        .map(cloudRowToUiPlaylist)
+        .filter(pl => pl && pl.id);
+
+      // Replace local playlists with cloud (source of truth)
+      playlists = cloudUi;
+
+      // Persist locally so refresh works even if offline
+      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+    } catch (e) {
+      console.warn("Failed to map cloud playlists:", e);
+    }
+
+    return data.playlists;
+  }
+
+  window.cloudPlaylists = [];
+  return [];
+};
+
+// ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
+window.loadPlaylistItemsFromCloud = async function (playlistId) {
+  if (!playlistId) return [];
+
+  const res = await fetch(
+    "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(playlistId)
+  );
+
+  const data = await res.json().catch(() => ({}));
+
+  if (res.ok && data && data.ok && Array.isArray(data.items)) {
+    return data.items.map(it => ({
+      key: it.r2_key || it.track_id,
+      track_id: it.track_id,
+      r2_key: it.r2_key,
+      url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
+      link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(it.r2_key || it.track_id)}`,
+      title: it.title || it.r2_key || it.track_id,
+      name: it.title || it.r2_key || it.track_id,
+      artist: it.artist || "",
+      album: it.album || "",
+      cover: it.cover_url || "",
+      coverArt: it.cover_url || ""
+    }));
+  }
+
+  return [];
+};
+
+// ✅ Create playlist in cloud
+window.createPlaylistInCloud = async function (name) {
+  const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+  if (!uid) throw new Error("Missing userId");
+
+  const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: uid, name: String(name || "Playlist") })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Create playlist failed");
+  return data;
+};
+
+// ✅ Delete playlist in cloud
+window.deletePlaylistFromCloud = async function (playlistId) {
+  if (!playlistId) throw new Error("Missing playlistId");
+
+  const res = await fetch(
+    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" + encodeURIComponent(playlistId),
+    { method: "DELETE" }
+  );
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");
+  return data;
+};
+
 const makeId = () => {
   try {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -8228,113 +8357,123 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
 window.addEventListener('DOMContentLoaded', () => {
   const pinBtn = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
-  const menu = document.getElementById('playlist-menu');
-
   const coverUrlBtn = document.getElementById('pm-cover-url');
   const coverUploadBtn = document.getElementById('pm-cover-upload');
   const coverClearBtn = document.getElementById('pm-cover-clear');
-  const fileInput = document.getElementById('playlist-cover-file');
+  const delBtn = document.getElementById('pm-delete');
 
-  // If the menu HTML isn't on the page, do nothing (prevents crashes)
-  if (!pinBtn || !unpinBtn || !menu) return;
-
-  function findPlaylistIndexById(id) {
-    return playlists.findIndex(pl => pl.id === id);
-  }
-
-  function setPlaylistCover(playlistId, coverValue) {
-    const idx = findPlaylistIndexById(playlistId);
-    if (idx === -1) return;
-
-    playlists[idx].cover = coverValue || "";
-    savePlaylists();
-    renderPlaylists();
-
-    // If currently viewing this playlist, re-render the page hero
-    if (activePlaylistId === playlistId && activePlaylistIndex != null) {
-      showView('playlist', activePlaylistIndex);
-    }
-  }
-
-  pinBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  if (pinBtn) pinBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
     if (!playlistMenuTargetId) return;
-    pinPlaylist(playlistMenuTargetId);
-    hidePlaylistMenu();
+    try { pinPlaylist(playlistMenuTargetId); } catch (err) { console.warn(err); }
+    try { hidePlaylistMenu(); } catch (err) {}
   };
 
-  unpinBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  if (unpinBtn) unpinBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
     if (!playlistMenuTargetId) return;
-    unpinPlaylist(playlistMenuTargetId);
-    hidePlaylistMenu();
+    try { unpinPlaylist(playlistMenuTargetId); } catch (err) { console.warn(err); }
+    try { hidePlaylistMenu(); } catch (err) {}
   };
 
-  // Paste image URL
-  if (coverUrlBtn) {
-    coverUrlBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!playlistMenuTargetId) return;
+  if (coverUrlBtn) coverUrlBtn.onclick = async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!playlistMenuTargetId) return;
 
-      const url = prompt("Paste a direct image link (ends with .jpg .png etc):");
-      if (!url || !url.trim()) return;
+    const url = prompt("Paste an image URL for this playlist cover:");
+    if (!url) return;
 
-      setPlaylistCover(playlistMenuTargetId, url.trim());
-      hidePlaylistMenu();
-    };
-  }
+    try { setPlaylistManualCoverById(playlistMenuTargetId, url); } catch (err) { console.warn(err); }
+    try { renderPlaylists(); } catch (err) {}
+    try { hidePlaylistMenu(); } catch (err) {}
+  };
 
-  // Upload file (stores as dataURL in localStorage)
-  if (coverUploadBtn && fileInput) {
-    coverUploadBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!playlistMenuTargetId) return;
+  if (coverUploadBtn) coverUploadBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!playlistMenuTargetId) return;
 
-      fileInput.value = "";
-      fileInput.click();
-    };
-
-    fileInput.addEventListener('change', () => {
-      if (!playlistMenuTargetId) return;
-      const file = fileInput.files && fileInput.files[0];
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = String(reader.result || "");
-        if (!dataUrl) return;
-        setPlaylistCover(playlistMenuTargetId, dataUrl);
-        hidePlaylistMenu();
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // Remove custom cover
-  if (coverClearBtn) {
-    coverClearBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!playlistMenuTargetId) return;
-      setPlaylistCover(playlistMenuTargetId, "");
-      hidePlaylistMenu();
+      try {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try { setPlaylistManualCoverById(playlistMenuTargetId, String(reader.result || '')); } catch (err) {}
+          try { renderPlaylists(); } catch (err) {}
+          try { hidePlaylistMenu(); } catch (err) {}
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn(err);
+      }
     };
-  }
+    input.click();
+  };
 
-  // Click anywhere else closes the menu
-  window.addEventListener('click', (e) => {
-    if (!menu.classList.contains('hidden') && !menu.contains(e.target)) {
-      hidePlaylistMenu();
+  if (coverClearBtn) coverClearBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!playlistMenuTargetId) return;
+
+    try { clearPlaylistManualCoverById(playlistMenuTargetId); } catch (err) { console.warn(err); }
+    try { renderPlaylists(); } catch (err) {}
+    try { hidePlaylistMenu(); } catch (err) {}
+  };
+
+  // ✅ DELETE PLAYLIST
+  if (delBtn) delBtn.onclick = async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const id = playlistMenuTargetId;
+    if (!id) return;
+
+    const pl = (Array.isArray(playlists) ? playlists.find(p => p.id === id) : null);
+    const name = pl?.name || "this playlist";
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+
+    try {
+      // remove locally
+      const idx = playlists.findIndex(p => p.id === id);
+      if (idx !== -1) playlists.splice(idx, 1);
+      try { savePlaylists(); } catch (err) {}
+      try { renderPlaylists(); } catch (err) {}
+
+      // best-effort: also remove from cloud if you have a helper
+      try { if (typeof window.deletePlaylistFromCloud === 'function') await window.deletePlaylistFromCloud(id); } catch (err) {}
+
+      // if you are currently viewing it, kick back to library
+      try {
+        if (activePlaylistId === id) {
+          activePlaylistId = null;
+          activePlaylistIndex = null;
+          showView('library');
+        }
+      } catch (err) {}
+
+    } catch (err) {
+      console.warn(err);
     }
+
+    try { hidePlaylistMenu(); } catch (err) {}
+    try { closeContextMenu(); } catch (err) {}
+  };
+
+  // Outside click closes the menu
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('playlist-menu');
+    if (!menu) return;
+    if (menu.classList.contains('hidden')) return;
+    if (menu.contains(e.target)) return;
+    try { hidePlaylistMenu(); } catch (err) {}
   });
 
-  // Scroll closes the menu (capture so it closes even when scrolling inside containers)
-  window.addEventListener('scroll', hidePlaylistMenu, true);
+  window.addEventListener('scroll', () => {
+    try { hidePlaylistMenu(); } catch (err) {}
+  }, true);
 });
+
 
         // -----------------------
 // ALBUM COVER MENU buttons (desktop only)
@@ -9127,7 +9266,11 @@ player.addEventListener('ended', () => {
 
 <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
 
+<div class="my-2 border-t border-white/10"></div>
+
+<button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-red-400 text-sm">Delete playlist</button>
 </div>
+
 
 <!-- hidden file input used by playlist “upload file” -->
 <input id="playlist-cover-file" type="file" accept="image/*" class="hidden">
