@@ -5722,7 +5722,28 @@ function initSwipeBack_WRAPPER_DISABLED(area) {
   let startX, startY, lastDx;
   const MOVE_DECIDE_PX = 10;
   const THRESHOLD_PX = 100;
-  const OPACITY_DROP = 0.5;
+    const OPACITY_DROP = 0.5;
+
+  function getXY(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function canStart(e) {
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
+
+    // Don’t hijack gestures on form controls / buttons
+    const t = e.target;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+      return false;
+    }
+
+    // Allow swipe start anywhere in upper 75% (same spirit as your other gestures)
+    const { y } = getXY(e);
+    return y <= (window.innerHeight * 0.75);
+  }
+
 
   function reset(animated = true) {
     hideSwipeBackUnderlay();
@@ -5790,12 +5811,26 @@ function initSwipeBack_WRAPPER_DISABLED(area) {
     // Note: preventDefault() only works if { passive: false } is set
     if (e.cancelable) e.preventDefault();
 
-    lastDx = Math.max(0, dx);
+        // Support BOTH directions:
+    //  - swipe right (dx > 0)
+    //  - swipe left  (dx < 0)  ✅ what you asked for
+    lastDx = dx;
+
+    // Clamp so it never flies too far
+    const maxShift = Math.max(40, Math.floor(window.innerWidth * 0.85));
+    if (lastDx >  maxShift) lastDx =  maxShift;
+    if (lastDx < -maxShift) lastDx = -maxShift;
+
+    // Move the current view to reveal the captured underlay behind it
+        // Move the current view to reveal the captured underlay behind it
     area.style.transition = '';
     area.style.transform = `translateX(${lastDx}px)`;
 
-    const p = Math.min(1, lastDx / (window.innerWidth * 0.6));
+
+    // Subtle fade while dragging (based on distance, regardless of direction)
+    const p = Math.min(1, Math.abs(lastDx) / maxShift);
     area.style.opacity = String(1 - (p * OPACITY_DROP));
+
   }, { passive: false });
 
   area.addEventListener('pointerup', () => {
