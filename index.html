@@ -3889,6 +3889,33 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   return [];
 };
 
+// ✅ Remove playlist item in cloud (pairs with POST /api/playlist-items)
+window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
+  if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
+
+  // Try DELETE with JSON body (most common)
+  let res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ playlistId, trackId })
+  });
+
+  // Fallback: some APIs expect query params
+  if (!res.ok) {
+    res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" +
+        encodeURIComponent(playlistId) +
+        "&trackId=" +
+        encodeURIComponent(trackId),
+      { method: "DELETE" }
+    );
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Remove item failed");
+  return data;
+};
+
 
 // ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
@@ -6171,11 +6198,12 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const pl = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: pl?.id || null });
+  const plForNav = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
+
 
 const scrollArea = document.getElementById('main-scroll-area');
   scrollArea.scrollTop = 0;
@@ -10631,7 +10659,7 @@ if (pl) {
   try { renderPlaylists(); } catch (e) {}
 }
 
-// Cloud delete best effort (does NOT block UI)
+// Cloud delete (try to persist so it stays removed after refresh)
 try {
   if (typeof window.removeTrackFromPlaylistInCloud === "function") {
     await window.removeTrackFromPlaylistInCloud(activePlaylistId, trackId);
@@ -10643,11 +10671,22 @@ try {
 try { closeContextMenu(); } catch (e) {}
 try { hidePlaylistMenu(); } catch (e) {}
 
-try { showView('playlist', activePlaylistIndex); } catch (e) {}
+// ✅ Re-render immediately WITHOUT reloading from cloud
+try {
+  const plNow = playlists.find(p => p.id === activePlaylistId);
+  if (plNow) {
+    plNow.trackIds = Array.isArray(plNow.trackIds) ? plNow.trackIds : [];
+    plNow.songs = resolveTrackIdsToSongs(plNow.trackIds);
+    renderCollection(plNow.name || "Playlist", plNow.songs, true, activePlaylistIndex);
+  }
+} catch (e) {}
 
+// ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
+try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
 
-    closeContextMenu();
-    return;
+closeContextMenu();
+return;
+
   }
 
   // LIKE / UNLIKE
