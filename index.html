@@ -9993,12 +9993,18 @@ function attachPlaylistPressHandlers(el, playlistId) {
 
   // Desktop: right-click
   el.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    try { hidePlaylistMenu(); } catch (e) {}
-try { contextMenu.style.display = 'none'; } catch (e) {}
+  e.preventDefault();
+  e.stopPropagation();
 
-    showPlaylistMenuAt(e.clientX, e.clientY, playlistId);
-  });
+  // ✅ Prevent the very next "click" from auto-closing the menu (Chrome fires a click after right-click)
+  window.__playlistMenuSuppressCloseUntil = Date.now() + 500;
+
+  try { hidePlaylistMenu(); } catch (err) {}
+  try { contextMenu.style.display = 'none'; } catch (err) {}
+
+  showPlaylistMenuAt(e.clientX, e.clientY, playlistId);
+});
+
 
   // Mobile: press-and-hold (long press)
   let pressTimer = null;
@@ -10210,18 +10216,18 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // Outside click closes the menu
-  document.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
+    // ✅ If we just opened via right-click, ignore the follow-up click that Chrome fires
+    if (window.__playlistMenuSuppressCloseUntil && Date.now() < window.__playlistMenuSuppressCloseUntil) {
+      return;
+    }
+
     if (!menu) return;
     if (menu.classList.contains('hidden')) return;
     if (menu.contains(e.target)) return;
     try { hidePlaylistMenu(); } catch (err) {}
   });
 
-  // Scroll closes
-  window.addEventListener('scroll', () => {
-    try { hidePlaylistMenu(); } catch (err) {}
-  }, true);
-});
 
 
         // -----------------------
@@ -10615,6 +10621,9 @@ function renderPlaylists() {
     return;
   }
 }
+
+try { window.menuAction = menuAction; } catch (e) {}
+
 
 
 
