@@ -6159,19 +6159,37 @@ const scrollArea = document.getElementById('main-scroll-area');
         // ✅ Load playlist trackIds from cloud before rendering
     (async () => {
       try {
-        const trackIds = await window.loadPlaylistItemsFromCloud(pl.id);
+        // 1) If this playlist already has local songs (old model), migrate them to trackIds once.
+        if ((!Array.isArray(pl.trackIds) || pl.trackIds.length === 0) && Array.isArray(pl.songs) && pl.songs.length > 0) {
+          pl.trackIds = pl.songs
+            .map(s => (s && (s.id || s.r2Path || s.key)) ? String(s.id || s.r2Path || s.key).trim() : "")
+            .filter(Boolean);
+        }
 
-        // ✅ Canonical storage: IDs only
-        pl.trackIds = Array.isArray(trackIds) ? trackIds : [];
+        // 2) Attempt to load from cloud, but DO NOT overwrite local data with empty results.
+        let cloudIds = [];
+        try {
+          cloudIds = await window.loadPlaylistItemsFromCloud(pl.id);
+        } catch (e) {
+          cloudIds = [];
+        }
 
-        // ✅ Derived view model for UI + playback only
+        const cloudTrackIds = Array.isArray(cloudIds) ? cloudIds : [];
+
+        // Only replace local trackIds if cloud actually has items,
+        // OR if local trackIds are currently empty.
+        if (cloudTrackIds.length > 0 || !Array.isArray(pl.trackIds) || pl.trackIds.length === 0) {
+          pl.trackIds = cloudTrackIds;
+        }
+
+        // 3) Derived view model for UI + playback
         pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
           ? window.resolveTrackIdsToSongs(pl.trackIds)
           : [];
 
         try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
-        pl.songCount = pl.trackIds.length;
+        pl.songCount = Array.isArray(pl.trackIds) ? pl.trackIds.length : 0;
         renderPlaylists();
 
         renderCollection(pl.name, pl.songs, true, playlistIndex);
@@ -6186,6 +6204,7 @@ const scrollArea = document.getElementById('main-scroll-area');
         renderCollection(pl.name, pl.songs, true, playlistIndex);
       }
     })();
+
 
 }  // ✅ CLOSES: if (viewType === 'playlist')
 
