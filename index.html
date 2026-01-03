@@ -10040,33 +10040,47 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 
+  // -----------------------
+// PLAYLIST MENU buttons (bind once, after DOM exists)
+// -----------------------
+window.addEventListener('DOMContentLoaded', () => {
+  const menu = document.getElementById('playlist-menu');
+  const coverUrlBtn = document.getElementById('pm-cover-url');
+  const coverUploadBtn = document.getElementById('pm-cover-upload');
+  const coverClearBtn = document.getElementById('pm-cover-clear');
+  const delBtn = document.getElementById('pm-delete');
+  const fileInput = document.getElementById('playlist-cover-file');
+
+  // If menu isn't in DOM, nothing to bind
+  if (!menu) return;
+
+  // ✅ Cover URL
   if (coverUrlBtn) coverUrlBtn.onclick = async (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!playlistMenuTargetId) return;
+    if (!window.playlistMenuTargetId) return;
 
     const url = prompt("Paste an image URL for this playlist cover:");
     if (!url) return;
 
-    try { setPlaylistManualCoverById(playlistMenuTargetId, url); } catch (err) { console.warn(err); }
+    try { setPlaylistManualCoverById(window.playlistMenuTargetId, url); } catch (err) { console.warn(err); }
     try { renderPlaylists(); } catch (err) {}
     try { hidePlaylistMenu(); } catch (err) {}
   };
 
-  if (coverUploadBtn) coverUploadBtn.onclick = (e) => {
+  // ✅ Cover upload (use the hidden input already in your HTML)
+  if (coverUploadBtn && fileInput) coverUploadBtn.onclick = (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!playlistMenuTargetId) return;
+    if (!window.playlistMenuTargetId) return;
 
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async () => {
-      const file = input.files && input.files[0];
+    fileInput.value = "";
+    fileInput.onchange = async () => {
+      const file = fileInput.files && fileInput.files[0];
       if (!file) return;
 
       try {
         const reader = new FileReader();
         reader.onload = () => {
-          try { setPlaylistManualCoverById(playlistMenuTargetId, String(reader.result || '')); } catch (err) {}
+          try { setPlaylistManualCoverById(window.playlistMenuTargetId, String(reader.result || '')); } catch (err) {}
           try { renderPlaylists(); } catch (err) {}
           try { hidePlaylistMenu(); } catch (err) {}
         };
@@ -10075,22 +10089,23 @@ window.addEventListener('DOMContentLoaded', () => {
         console.warn(err);
       }
     };
-    input.click();
+    fileInput.click();
   };
 
+  // ✅ Clear cover
   if (coverClearBtn) coverClearBtn.onclick = (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!playlistMenuTargetId) return;
+    if (!window.playlistMenuTargetId) return;
 
-    try { clearPlaylistManualCoverById(playlistMenuTargetId); } catch (err) { console.warn(err); }
+    try { clearPlaylistManualCoverById(window.playlistMenuTargetId); } catch (err) { console.warn(err); }
     try { renderPlaylists(); } catch (err) {}
     try { hidePlaylistMenu(); } catch (err) {}
   };
 
-  // ✅ DELETE PLAYLIST
+  // ✅ Delete playlist
   if (delBtn) delBtn.onclick = async (e) => {
     e.preventDefault(); e.stopPropagation();
-    const id = playlistMenuTargetId;
+    const id = window.playlistMenuTargetId;
     if (!id) return;
 
     const pl = (Array.isArray(playlists) ? playlists.find(p => p.id === id) : null);
@@ -10104,10 +10119,10 @@ window.addEventListener('DOMContentLoaded', () => {
       try { savePlaylists(); } catch (err) {}
       try { renderPlaylists(); } catch (err) {}
 
-      // best-effort: also remove from cloud if you have a helper
+      // best-effort: also remove from cloud if helper exists
       try { if (typeof window.deletePlaylistFromCloud === 'function') await window.deletePlaylistFromCloud(id); } catch (err) {}
 
-      // if you are currently viewing it, kick back to library
+      // if viewing it, go back
       try {
         if (activePlaylistId === id) {
           activePlaylistId = null;
@@ -10115,7 +10130,6 @@ window.addEventListener('DOMContentLoaded', () => {
           showView('library');
         }
       } catch (err) {}
-
     } catch (err) {
       console.warn(err);
     }
@@ -10126,16 +10140,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Outside click closes the menu
   document.addEventListener('click', (e) => {
-    const menu = document.getElementById('playlist-menu');
     if (!menu) return;
     if (menu.classList.contains('hidden')) return;
     if (menu.contains(e.target)) return;
     try { hidePlaylistMenu(); } catch (err) {}
   });
 
+  // Scroll closes
   window.addEventListener('scroll', () => {
     try { hidePlaylistMenu(); } catch (err) {}
   }, true);
+});
+
 
         // -----------------------
 // ALBUM COVER MENU buttons (desktop only)
