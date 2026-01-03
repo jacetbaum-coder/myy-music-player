@@ -2555,16 +2555,27 @@ function wireQueueClearButtons() {
   const btnA = document.getElementById('queue-clear');        // mobile queue sheet
   const btnB = document.getElementById('right-queue-clear');  // right sidebar queue
 
+  const handler = (e) => {
+    try { e.preventDefault(); } catch (_) {}
+    try { e.stopPropagation(); } catch (_) {}
+
+    try { clearManualQueue(); } catch (_) {}
+
+    // ✅ Mobile: close the sheet after clearing (if it exists)
+    try { if (typeof closeQueueSheet === 'function') closeQueueSheet(); } catch (_) {}
+  };
+
   if (btnA && !btnA.__clearBound) {
     btnA.__clearBound = true;
-    btnA.addEventListener('click', clearManualQueue);
+    btnA.addEventListener('click', handler, { passive: false });
   }
 
   if (btnB && !btnB.__clearBound) {
     btnB.__clearBound = true;
-    btnB.addEventListener('click', clearManualQueue);
+    btnB.addEventListener('click', handler, { passive: false });
   }
 }
+
 
 function ensureHamburgerHandle(itemEl) {
   // If you already render a hamburger, we’ll reuse it.
@@ -6192,16 +6203,19 @@ function initQueueSheetSwipe() {
     qsLastDown = 0;
   }
 
-  function qsCanStart(e) {
-    // only if sheet is open
-    if (sheet.classList.contains('qs-hidden')) return false;
+ function qsCanStart(e) {
+  // only if sheet is open
+  if (sheet.classList.contains('qs-hidden')) return false;
 
-    // if finger starts inside the scroll list AND the list is scrolled, don't hijack
-    const list = sheet.querySelector('.qs-list') || sheet.querySelector('#queue-list');
-    if (list && list.contains(e.target) && list.scrollTop > 0) return false;
+  // ✅ If the tap is on the header (including Clear), do NOT start drag
+  if (e.target && (e.target.closest('#queue-clear') || e.target.closest('.qs-head'))) return false;
 
-    return true;
-  }
+  // if finger starts inside the scroll list AND the list is scrolled, don't hijack
+  const list = sheet.querySelector('.qs-list') || sheet.querySelector('#queue-list');
+  if (list && list.contains(e.target) && list.scrollTop > 0) return false;
+
+  return true;
+}
 
   sheet.addEventListener('pointerdown', (e) => {
     if (!qsCanStart(e)) return;
@@ -8680,26 +8694,99 @@ try { contextMenu.style.display = 'none'; } catch (e) {}
 
 // Menu buttons + outside click (run AFTER the page HTML exists)
 window.addEventListener('DOMContentLoaded', () => {
+  // ✅ Make sure queue clear buttons get wired when DOM exists
+  try { if (typeof wireQueueClearButtons === 'function') wireQueueClearButtons(); } catch (e) {}
+
   const pinBtn = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
+  const menu = document.getElementById('playlist-menu');
+
   const coverUrlBtn = document.getElementById('pm-cover-url');
   const coverUploadBtn = document.getElementById('pm-cover-upload');
   const coverClearBtn = document.getElementById('pm-cover-clear');
+  const fileInput = document.getElementById('playlist-cover-file');
+
   const delBtn = document.getElementById('pm-delete');
 
-  if (pinBtn) pinBtn.onclick = (e) => {
-    e.preventDefault(); e.stopPropagation();
+  // If the menu HTML isn't on the page, do nothing (prevents crashes)
+  if (!pinBtn || !unpinBtn || !menu) return;
+
+  function findPlaylistIndexById(id) {
+    return playlists.findIndex(pl => pl.id === id);
+  }
+
+  function setPlaylistCover(playlistId, coverValue) {
+    const idx = findPlaylistIndexById(playlistId);
+    if (idx === -1) return;
+
+    playlists[idx].cover = coverValue || "";
+    savePlaylists();
+    renderPlaylists();
+
+    // If currently viewing this playlist, re-render the page hero
+    if (activePlaylistId === playlistId && activePlaylistIndex != null) {
+      showView('playlist', activePlaylistIndex);
+    }
+  }
+
+  pinBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!playlistMenuTargetId) return;
-    try { pinPlaylist(playlistMenuTargetId); } catch (err) { console.warn(err); }
-    try { hidePlaylistMenu(); } catch (err) {}
+    pinPlaylist(playlistMenuTargetId);
+    hidePlaylistMenu();
   };
 
-  if (unpinBtn) unpinBtn.onclick = (e) => {
-    e.preventDefault(); e.stopPropagation();
+  unpinBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!playlistMenuTargetId) return;
-    try { unpinPlaylist(playlistMenuTargetId); } catch (err) { console.warn(err); }
-    try { hidePlaylistMenu(); } catch (err) {}
+    unpinPlaylist(playlistMenuTargetId);
+    hidePlaylistMenu();
   };
+
+  // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
+  if (delBtn && !delBtn.__bound) {
+    delBtn.__bound = true;
+
+    delBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const id = playlistMenuTargetId;
+      if (!id) { hidePlaylistMenu(); return; }
+
+      // 1) Try cloud delete if you have it
+      try {
+        if (typeof deletePlaylistFromCloud === 'function') {
+          await deletePlaylistFromCloud(id);
+        }
+      } catch (err) {
+        console.warn('Cloud delete failed, continuing local delete:', err);
+      }
+
+      // 2) Always delete locally so UI updates immediately
+      const idx = findPlaylistIndexById(id);
+      if (idx !== -1) playlists.splice(idx, 1);
+
+      savePlaylists();
+
+      // 3) Refresh every place playlists appear
+      try { renderPlaylists(); } catch (e) {}
+      try { renderHome(); } catch (e) {}
+
+      // 4) If you were inside that playlist, kick back to home/library
+      if (activePlaylistId === id) {
+        activePlaylistId = null;
+        activePlaylistIndex = null;
+        try { showView('home'); } catch (e) {}
+      }
+
+      hidePlaylistMenu();
+    };
+  }
+});
+
 
   if (coverUrlBtn) coverUrlBtn.onclick = async (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -9587,7 +9674,7 @@ player.addEventListener('ended', () => {
   <div class="my-2 border-t border-white/10"></div>
 
   <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
-  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload)</button>
+  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
   <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
 
   <div class="my-2 border-t border-white/10"></div>
@@ -9595,10 +9682,7 @@ player.addEventListener('ended', () => {
   <button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">
     Delete playlist
   </button>
-
 </div>
-
-
 
 <!-- hidden file input used by playlist “upload file” -->
 <input id="playlist-cover-file" type="file" accept="image/*" class="hidden">
