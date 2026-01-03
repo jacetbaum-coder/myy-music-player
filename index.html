@@ -2909,7 +2909,18 @@ let libraryDataOriginal = [];
 let currentSong = null;
 let currentQueue = [];
 let currentIndex = -1;
+
+// -----------------------
+// PLAYBACK / SHUFFLE STATE (must be defined early to avoid TDZ crashes)
+// -----------------------
+let shuffleOrder = [];
+let shufflePos = 0;
+let playedStack = [];      // history of played indexes (for Prev)
+let isAutoNav = false;     // true only when Next/Prev triggers playback
+let isShuffle = false;     // shuffle enabled flag
+
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
+
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
 let playContext = null;
@@ -2958,13 +2969,16 @@ function clearManualQueue() {
   currentIndex = -1;
   playContext = null;
 
-  // 3) Reset shuffle helpers if they exist
-  try { if (typeof resetShuffleForQueue === 'function') resetShuffleForQueue(); } catch (e) {}
-  try { if (typeof playedStack !== 'undefined') playedStack = []; } catch (e) {}
-  try { if (typeof shuffleOrder !== 'undefined') shuffleOrder = []; } catch (e) {}
-  try { if (typeof shufflePos !== 'undefined') shufflePos = 0; } catch (e) {}
+// 3) Reset shuffle helpers
+resetShuffleForQueue?.();
 
-  // 4) Re-render any queue UIs that exist
+// These are now guaranteed globals (defined at the top), so just reset directly:
+playedStack = [];
+shuffleOrder = [];
+shufflePos = 0;
+
+// 4) Re-render any queue UIs that exist
+
   try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
   try { if (typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
 }
@@ -10188,15 +10202,17 @@ function renderPlaylists() {
 
 // --- Playback navigation (Next/Prev + Shuffle) ---
 
-        // --- Shuffle "no repeats" state ---
-let shuffleOrder = [];
-let shufflePos = 0;
-let playedStack = [];      // history of played indexes (for Prev)
-let isAutoNav = false;     // true only when Next/Prev triggers playback
-        let isShuffle = false;
-        
+       // --- Shuffle "no repeats" state ---
+// (State variables are declared in GLOBAL APP STATE near the top)
+// Ensure they are sane in case anything loaded from old sessions:
+shuffleOrder = Array.isArray(shuffleOrder) ? shuffleOrder : [];
+shufflePos = Number.isFinite(shufflePos) ? shufflePos : 0;
+playedStack = Array.isArray(playedStack) ? playedStack : [];
+isAutoNav = !!isAutoNav;
+isShuffle = !!isShuffle;
 
 function buildShuffleOrder(len, startIndex) {
+
     // Makes a shuffled list of indexes that does NOT start with the current song
     const arr = [];
     for (let i = 0; i < len; i++) {
