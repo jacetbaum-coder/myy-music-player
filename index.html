@@ -10492,7 +10492,7 @@ function renderPlaylists() {
         function menuAction(type) {
   if (!menuTargetSong) return;
 
-  // REMOVE FROM PLAYLIST
+ // REMOVE FROM PLAYLIST
   if (type === 'remove') {
     if (!activePlaylistId) return;
 
@@ -10501,12 +10501,40 @@ function renderPlaylists() {
 
     const pl = playlists[plIndex];
 
-    // Remove by URL match
-    pl.songs = pl.songs.filter(s =>
-      (s.url || s.link) !== (menuTargetSong.url || menuTargetSong.link)
-    );
+    // ✅ IDs-only removal: compute the trackId for the target song
+    let targetId =
+      menuTargetSong?.id ||
+      menuTargetSong?.r2Path ||
+      menuTargetSong?.track_id ||
+      menuTargetSong?.r2_key ||
+      menuTargetSong?.key ||
+      "";
 
-    savePlaylists();
+    // fallback: pull ?id=... from URL
+    if (!targetId) {
+      const u = menuTargetSong?.url || menuTargetSong?.link || "";
+      try {
+        const parsed = new URL(u, window.location.origin);
+        targetId = parsed.searchParams.get("id") || "";
+      } catch (e) {}
+    }
+
+    targetId = String(targetId || "").trim();
+    if (!targetId) return;
+
+    // Remove from canonical list
+    pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+    pl.trackIds = pl.trackIds.filter(id => String(id || "").trim() !== targetId);
+
+    // Derive songs for UI
+    pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+      ? window.resolveTrackIdsToSongs(pl.trackIds)
+      : [];
+
+    pl.songCount = pl.trackIds.length;
+    pl.updated_at = new Date().toISOString();
+
+    try { savePlaylists(); } catch (e) {}
 
     // Update auto cover after removal
     updatePlaylistAutoCoverById(pl.id).then(() => {
@@ -10517,6 +10545,7 @@ function renderPlaylists() {
     closeContextMenu();
     return;
   }
+
 
   // LIKE / UNLIKE
   if (type === 'like') {
