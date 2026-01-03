@@ -3931,9 +3931,51 @@ playlists = playlists.map(pl => ({
   ...pl,
   id: pl.id || makeId()
 }));
+
+// ✅ Ensure every playlist has trackIds (migrate from old local songs once)
+try {
+  playlists.forEach((pl) => {
+    if (Array.isArray(pl.trackIds) && pl.trackIds.length) return;
+
+    const src = Array.isArray(pl.songs) ? pl.songs : [];
+    const ids = src.map((s) => {
+      // already a raw track id string
+      if (typeof s === "string") return s.trim();
+
+      if (!s) return "";
+
+      // common fields
+      const direct =
+        s.id ||
+        s.r2Path ||
+        s.key ||
+        s.track_id ||
+        s.r2_key;
+
+      if (direct) return String(direct).trim();
+
+      // extract ?id=... from url/link
+      const u = s.url || s.link || "";
+      if (!u) return "";
+
+      try {
+        const parsed = new URL(u, window.location.origin);
+        return String(parsed.searchParams.get("id") || "").trim();
+      } catch (e) {
+        return "";
+      }
+    }).filter(Boolean);
+
+    pl.trackIds = ids;
+  });
+} catch (e) {
+  console.warn("playlist trackIds migration failed:", e);
+}
+
 localStorage.setItem('playlists', JSON.stringify(playlists));
 
 let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
+
 
 
         // Elements
