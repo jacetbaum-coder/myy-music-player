@@ -8010,7 +8010,7 @@ function showPlaylistMenuAt(x, y, playlistId) {
   if (pinBtn) pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-  // ✅ Delete playlist
+    // ✅ Delete playlist
   if (delBtn) {
     delBtn.onclick = async () => {
       const id = playlistMenuTargetId;
@@ -8027,7 +8027,29 @@ function showPlaylistMenuAt(x, y, playlistId) {
       playlists.splice(plIndex, 1);
       try { savePlaylists(); } catch (e) {}
 
-      // If you also have a cloud delete endpoint later, you can call it here.
+      // ✅ ALSO remove from Recently listened (historyLog)
+      try {
+        if (Array.isArray(historyLog)) {
+          historyLog = historyLog.filter(h => {
+            const pid = h && (h.playlistId || h.id);
+            return !(h && h.type === 'playlist' && String(pid) === String(id));
+          });
+          localStorage.setItem('historyLog', JSON.stringify(historyLog));
+          try { renderHistory(); } catch (e) {}
+        }
+      } catch (e) {}
+
+      // Optional cloud delete (safe if endpoint exists; ignored if it doesn't)
+      try {
+        const userId = localStorage.getItem("app_user_id");
+        if (userId) {
+          await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, playlistId: id })
+          });
+        }
+      } catch (e) {}
 
       // If we’re viewing the deleted playlist, go home
       if (activePlaylistId === id) {
@@ -8039,6 +8061,7 @@ function showPlaylistMenuAt(x, y, playlistId) {
       hidePlaylistMenu();
     };
   }
+
 
   // Position + show menu
   m.style.left = `${x}px`;
@@ -8351,14 +8374,33 @@ function renderPlaylists() {
         const s = menuTargetSong;
         if (!s) return;
 
-        // You likely already have a trackId resolver elsewhere.
-        // If you store r2_key/track_id on the song object, use it here.
-        const trackId =
-          s.track_id ||
-          s.trackId ||
-          s.key ||
-          s.r2_key ||
-          "";
+                // Resolve a usable trackId for D1:
+        // - prefer explicit ids on the object
+        // - else parse ?id=... from the song URL/link
+        const trackId = (() => {
+          const direct =
+            s.track_id ||
+            s.trackId ||
+            s.key ||
+            s.r2_key ||
+            "";
+
+          if (direct) return String(direct);
+
+          const u = String(s.url || s.link || "");
+          if (!u) return "";
+
+          try {
+            // works for absolute OR relative URLs
+            const parsed = new URL(u, window.location.origin);
+            const id = parsed.searchParams.get("id");
+            return id ? String(id) : "";
+          } catch (e) {
+            // fallback: dumb parse
+            const m = u.match(/[?&]id=([^&]+)/i);
+            return m ? decodeURIComponent(m[1]) : "";
+          }
+        })();
 
         if (!trackId) {
           alert("Missing trackId for this song.");
@@ -8382,6 +8424,7 @@ function renderPlaylists() {
         renderPlaylists();
         closeContextMenu();
       };
+
 
       sub.appendChild(item);
     });
