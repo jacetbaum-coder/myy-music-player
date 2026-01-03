@@ -1799,6 +1799,13 @@ body.qs-lock {
                 
                 <div id="dynamic-playlists-list"></div>
 
+<button id="sync-devices-btn"
+  class="w-full mt-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm flex items-center justify-center gap-2">
+  <i class="fas fa-link"></i>
+  Sync devices
+</button>
+
+
                 <div id="history-container" class="pt-6 border-t border-zinc-800 mt-4">
                     <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>
                 </div>
@@ -2826,8 +2833,82 @@ window.setSyncCode = function (code) {
 // Optional: log once so you can copy it easily
 try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } catch (e) {}
 
+// -----------------------
+// SYNC DEVICES UI (copy/paste userId)
+// -----------------------
+(function bindSyncDevicesUI() {
+  if (window.__syncDevicesUIBound) return;
+  window.__syncDevicesUIBound = true;
 
-// Cloud playlists (raw DB rows)
+  function $(id) { return document.getElementById(id); }
+
+  function openModal() {
+    const modal = $("sync-devices-modal");
+    const code = $("sync-devices-code");
+    const paste = $("sync-devices-paste");
+    if (!modal || !code) return;
+
+    code.value = (window.getSyncCode ? window.getSyncCode() : (window.APP_USER_ID || localStorage.getItem("app_user_id") || "")) || "";
+    if (paste) paste.value = "";
+    modal.classList.remove("hidden");
+  }
+
+  function closeModal() {
+    const modal = $("sync-devices-modal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+  }
+
+  document.addEventListener("click", async (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest("#sync-devices-btn") : null;
+    const closeBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-close") : null;
+    const backdrop = e.target && e.target.closest ? e.target.closest("#sync-devices-backdrop") : null;
+    const copyBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-copy") : null;
+    const applyBtn = e.target && e.target.closest ? e.target.closest("#sync-devices-apply") : null;
+
+    if (btn) {
+      e.preventDefault();
+      openModal();
+      return;
+    }
+
+    if (closeBtn || backdrop) {
+      e.preventDefault();
+      closeModal();
+      return;
+    }
+
+    if (copyBtn) {
+      e.preventDefault();
+      const val = ($("sync-devices-code")?.value || "").trim();
+      if (!val) return;
+      try {
+        await navigator.clipboard.writeText(val);
+        copyBtn.textContent = "Copied";
+        setTimeout(() => { copyBtn.textContent = "Copy"; }, 900);
+      } catch (err) {
+        alert("Could not copy. Long-press the code and copy it manually.");
+      }
+      return;
+    }
+
+    if (applyBtn) {
+      e.preventDefault();
+      const val = ($("sync-devices-paste")?.value || "").trim();
+      if (!val) return;
+      if (typeof window.setSyncCode === "function") {
+        const ok = window.setSyncCode(val);
+        if (!ok) alert("That code doesn't look valid.");
+      } else {
+        alert("Sync function missing: window.setSyncCode");
+      }
+      return;
+    }
+  });
+})();
+
+// Cloud playlists
+
 window.cloudPlaylists = [];
 
 // Convert DB playlist row -> UI playlist object
@@ -9473,5 +9554,54 @@ player.addEventListener('ended', () => {
 </script>
 
 
+  <!-- SYNC DEVICES MODAL -->
+  <div id="sync-devices-modal" class="hidden fixed inset-0 z-[9999]">
+    <div id="sync-devices-backdrop" class="absolute inset-0 bg-black/70"></div>
+
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-[520px] bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class="text-white font-bold text-lg">Sync devices</div>
+          <div class="text-zinc-400 text-sm mt-1">
+            Copy this code on one device, then paste it on the other device.
+          </div>
+        </div>
+        <button id="sync-devices-close" class="text-zinc-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="mt-4">
+        <div class="text-xs text-zinc-400 uppercase font-bold mb-2">Your sync code</div>
+        <div class="flex gap-2">
+          <input id="sync-devices-code"
+            class="flex-1 bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+            readonly />
+          <button id="sync-devices-copy"
+            class="px-3 py-2 rounded-lg bg-white text-black text-sm font-bold hover:opacity-90">
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-5">
+        <div class="text-xs text-zinc-400 uppercase font-bold mb-2">Paste a code to sync this device</div>
+        <div class="flex gap-2">
+          <input id="sync-devices-paste"
+            class="flex-1 bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+            placeholder="Paste sync code here..." />
+          <button id="sync-devices-apply"
+            class="px-3 py-2 rounded-lg bg-[var(--spotify-green)] text-black text-sm font-bold hover:opacity-90">
+            Apply
+          </button>
+        </div>
+        <div class="text-xs text-zinc-500 mt-2">
+          Applying reloads the app and pulls playlists from the cloud for that code.
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
+
 </html>
