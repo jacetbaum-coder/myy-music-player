@@ -9268,11 +9268,13 @@ function toggleShuffle() {
 }
 
 function isShuffleOn() {
-    return (
-        document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
-        document.getElementById('np-shuffle-icon')?.classList.contains('active-green')
-    );
+  return (
+    document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
+    document.getElementById('np-shuffle-icon')?.classList.contains('active-green') ||
+    document.getElementById('album-shuffle-icon')?.classList.contains('active-green')
+  );
 }
+
 
         // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
@@ -9434,11 +9436,19 @@ function buildQueueFromSongs(songs, fallback) {
 }
 
 function playQueue(queue, startIndex = 0) {
-  if (!queue.length) return;
-  currentQueue = queue;
-  currentIndex = startIndex;
+  if (!queue || !queue.length) return;
 
-  playedStack = [currentIndex];   // <— add this
+  currentQueue = queue;
+
+  // If shuffle is ON and we’re starting from the beginning (green Play button behavior),
+  // pick a random starting song like Spotify.
+  if (isShuffleOn() && startIndex === 0 && queue.length > 1) {
+    currentIndex = Math.floor(Math.random() * queue.length);
+  } else {
+    currentIndex = startIndex;
+  }
+
+  playedStack = [currentIndex];
   resetShuffleForQueue();
 
   const s = currentQueue[currentIndex];
@@ -9446,13 +9456,20 @@ function playQueue(queue, startIndex = 0) {
 }
 
 
+
 function renderCollection(name, songs, isPlaylist = false) {
   const queue = buildQueueFromSongs(songs, { album: name });
   currentQueue = queue;
   currentIndex = -1;
 
-  const heroPlay = document.getElementById('hero-play-btn');
-  if (heroPlay) heroPlay.onclick = () => playQueue(queue, 0);
+    const heroPlay = document.getElementById('hero-play-btn');
+  if (heroPlay) {
+    heroPlay.onclick = () => {
+      playContext = { type: (isPlaylist ? 'playlist' : 'album'), label: name };
+      playQueue(queue, 0); // shuffle-start handled inside playQueue
+    };
+  }
+
 
     // Prefer custom playlist cover when viewing a playlist
 let cover = queue[0]?.cover || '';
@@ -9594,8 +9611,13 @@ function playAlbumByName(name) {
     cover: cover
   });
 
+  // Label the play context (used by your UI)
+  playContext = { type: 'album', label: name };
+
+  // Shuffle-start is handled inside playQueue now
   playQueue(queue, 0);
 }
+
 
 function prevSong() {
     if (!currentQueue || currentQueue.length === 0) return;
