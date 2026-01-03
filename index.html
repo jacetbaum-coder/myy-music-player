@@ -10606,10 +10606,7 @@ function renderPlaylists() {
     pl.trackIds.push(trackId);
   }
 
-  pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
-    ? window.resolveTrackIdsToSongs(pl.trackIds)
-    : [];
-
+    // ✅ Playlists are IDs-only: do NOT store song objects on playlist
   savePlaylists();
 
   // Update auto cover after adding
