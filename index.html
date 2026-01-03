@@ -2374,15 +2374,14 @@ body.qs-lock {
               <!-- Mobile-only: Grid density slider (1–6 columns) -->
               <div id="library-grid-cols-wrap" class="px-4 pb-4 hidden">
                 <div class="text-xs font-black text-zinc-400 uppercase tracking-widest mb-2">Albums per row</div>
-               <input id="library-grid-cols"
+                <input id="library-grid-cols"
                        type="range"
                        min="1"
-                       max="4"
+                       max="6"
                        step="1"
                        value="2"
                        class="w-full"
                        aria-label="Albums per row">
-
               </div>
             </div>
           </div>
@@ -2430,8 +2429,7 @@ body.qs-lock {
   </div>
 </div>
 
-    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"></div>
-
+    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
 
 </div>
 
@@ -4550,45 +4548,33 @@ function applyLibraryGridCols() {
   // Show slider only on mobile + grid view
   if (wrap) wrap.classList.toggle('hidden', !(isMobile && isGridMode));
 
-   if (!isMobile) {
+  if (!isMobile) {
     // desktop: let your tailwind grid-cols classes handle it
-    if (grid) {
-      grid.style.gridTemplateColumns = '';
-      grid.style.gap = '';
-    }
+    if (grid) grid.style.gridTemplateColumns = '';
     return;
   }
-
 
   // mobile list mode: clear any inline grid override
-   if (!isGridMode) {
-    if (grid) {
-      grid.style.gridTemplateColumns = '';
-      grid.style.gap = '';
-    }
+  if (!isGridMode) {
+    if (grid) grid.style.gridTemplateColumns = '';
     return;
   }
 
-
-   // Read stored cols (default 2) — ✅ cap at 4
+  // Read stored cols (default 2)
   let cols = 2;
   try {
     const stored = parseInt(localStorage.getItem('libraryGridCols') || '2', 10);
-    if (!Number.isNaN(stored)) cols = Math.min(4, Math.max(1, stored));
+    if (!Number.isNaN(stored)) cols = Math.min(6, Math.max(1, stored));
   } catch (e) {}
 
   // Sync slider position if it exists
   if (slider) slider.value = String(cols);
 
-  // Apply inline grid columns + tighter spacing on mobile grid view
+  // Apply inline grid columns (beats tailwind classes on mobile)
   if (grid) {
     grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-
-    // ✅ Reduce gaps as columns increase (bigger covers, less dead space)
-    // 1 col: biggest gaps; 4 cols: tightest
-    const gapPx = (cols === 4) ? 8 : (cols === 3) ? 10 : (cols === 2) ? 12 : 14;
-    grid.style.gap = `${gapPx}px`;
   }
+}
 
 function getLibraryRecentsRank() {
 
@@ -4703,7 +4689,7 @@ function initLibraryControls() {
     if (!colsSlider.__bound) {
       colsSlider.__bound = true;
       colsSlider.addEventListener('input', () => {
- v = Math.min(4, Math.max(1, parseInt(colsSlider.value || '2', 10) || 2));
+        const v = Math.min(6, Math.max(1, parseInt(colsSlider.value || '2', 10) || 2));
         localStorage.setItem('libraryGridCols', String(v));
         applyLibraryGridCols(); // live update while dragging
       });
