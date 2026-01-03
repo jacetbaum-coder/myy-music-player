@@ -6236,24 +6236,64 @@ const scrollArea = document.getElementById('main-scroll-area');
   // 🔒 wrap async work so `await` is legal
   (async () => {
     try {
-      const ids = await window.loadPlaylistItemsFromCloud(pl.id);
+      const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
 
-      if (Array.isArray(ids) && ids.length > 0) {
-        pl.trackIds = ids;
+// Accept either:
+// - ["Artist/Album/Song.mp3", ...]
+// - [{ track_id:"Artist/Album/Song.mp3" }, ...]
+// - [{ key:"Artist/Album/Song.mp3" }, ...]
+// - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
 
-        pl.songs = window.resolveTrackIdsToSongs
-          ? window.resolveTrackIdsToSongs(pl.trackIds)
-          : [];
+  // If we were given a full URL, pull out ?id=
+  try {
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
+    }
+  } catch (e) {}
 
-        pl.songCount = pl.trackIds.length;
-      } else {
-        pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-        pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
-        pl.songCount = pl.trackIds.length || pl.songs.length || 0;
-      }
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
+    try {
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
+  }
 
-      renderPlaylists();
-      renderCollection(pl.name, pl.songs, true, playlistIndex);
+  // Decode %2F etc
+  try { s = decodeURIComponent(s); } catch (e) {}
+
+  // Strip leading slash if present
+  s = s.replace(/^\/+/, "").trim();
+
+  return s;
+}
+
+const itemsArr = Array.isArray(rawItems) ? rawItems : [];
+
+const normalizedIds = itemsArr
+  .map((x) => {
+    if (typeof x === "string") return canonTrackId(x);
+    if (x && typeof x === "object") {
+      return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
+    }
+    return "";
+  })
+  .filter(Boolean);
+
+// ✅ Always keep playlist as IDs-only
+pl.trackIds = normalizedIds;
+pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+
+// covers & render
+try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+try { renderPlaylists(); } catch (e) {}
+renderCollection(pl.name, pl.songs, true, playlistIndex);
+
 
     } catch (err) {
       console.warn(err);
@@ -10539,51 +10579,72 @@ function renderPlaylists() {
       "";
 
     // Fallback: parse ?id= from the song URL/link
-    if (!trackId) {
-      const u = s?.link || s?.url || "";
-      try {
-        const parsed = new URL(u, window.location.origin);
-        trackId = parsed.searchParams.get("id") || "";
-      } catch (_) {}
+if (!trackId) {
+  trackId = __extractIdFromMaybeUrl(menuTargetSong?.url || menuTargetSong?.link || "");
+}
+
+// ✅ Canonicalize ids so comparisons always match
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+
+  // If we were given a full URL, pull out ?id=
+  try {
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
     }
+  } catch (e) {}
 
-    if (!trackId) {
-      alert("Missing trackId for this song.");
-      closeContextMenu();
-      return;
-    }
-
-    // ✅ Update local IDs-only model first
-    pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-    pl.trackIds = pl.trackIds.filter(id => String(id || "").trim() !== String(trackId || "").trim());
-
-    // ✅ Re-derive UI song objects from master library map
-    pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
-      ? window.resolveTrackIdsToSongs(pl.trackIds)
-      : (Array.isArray(pl.songs) ? pl.songs : []);
-
-    pl.songCount = pl.trackIds.length;
-    pl.updated_at = new Date().toISOString();
-
-    try { savePlaylists(); } catch (e) {}
-
-    // ✅ Best-effort: remove from cloud too
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
     try {
-      await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistId: pl.id, trackId })
-      });
-    } catch (e) {
-      console.warn(e);
-    }
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
+  }
 
-    // Update auto cover after removal
-    try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+  try { s = decodeURIComponent(s); } catch (e) {}
+  s = s.replace(/^\/+/, "").trim();
+  return s;
+}
 
-    try { renderPlaylists(); } catch (e) {}
-    try { renderHome(); } catch (e) {}
-    try { showView('playlist', plIndex); } catch (e) {}
+trackId = canonTrackId(trackId);
+
+if (!trackId) {
+  alert("Missing trackId for this song.");
+  return;
+}
+
+// ✅ Update local IDs-only model first (UI updates instantly)
+const pl = playlists.find(p => p.id === activePlaylistId);
+if (pl) {
+  const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+
+  pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
+  pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+
+  savePlaylists();
+
+  try { updatePlaylistAutoCoverById(activePlaylistId); } catch (e) {}
+  try { renderPlaylists(); } catch (e) {}
+}
+
+// Cloud delete best effort (does NOT block UI)
+try {
+  if (typeof window.removeTrackFromPlaylistInCloud === "function") {
+    await window.removeTrackFromPlaylistInCloud(activePlaylistId, trackId);
+  }
+} catch (err) {
+  console.warn("Cloud remove failed:", err);
+}
+
+try { closeContextMenu(); } catch (e) {}
+try { hidePlaylistMenu(); } catch (e) {}
+
+try { showView('playlist', activePlaylistIndex); } catch (e) {}
+
 
     closeContextMenu();
     return;
