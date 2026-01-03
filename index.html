@@ -5522,212 +5522,30 @@ function initSwipeBack() {
   if (area.dataset.swipeBackBound === "1") return;
   area.dataset.swipeBackBound = "1";
 
-  // Default behavior: allow vertical scrolling
+  // Default: allow vertical scrolling
   area.style.touchAction = 'pan-y';
 
   let active = false;
   let decided = false;
   let isHorizontal = false;
+
   let startX = 0;
   let startY = 0;
   let lastDx = 0;
 
-  const THRESHOLD_PX = 90;          // commit swipe-back
-  const MOVE_DECIDE_PX = 6;         // like your Now Playing logic (more sensitive than 10px)
-  const OPACITY_DROP = 0.20;        // subtle “peek” feel
+  // Which edge started the gesture?
+  //  +1 = left edge (swipe right to go back)
+  //  -1 = right edge (swipe left to go back)
+  let edgeDir = 0;
+
+  const EDGE_PX = 24;              // must start near an edge
+  const THRESHOLD_PX = 90;         // commit distance
+  const MOVE_DECIDE_PX = 6;        // when we decide direction
+  const OPACITY_DROP = 0.20;
 
   function getXY(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    return { x: e.clientX, y: e.clientY };
-  }
-    function ensureSwipeBackUnderlay() {
-  let under = document.getElementById('swipe-back-underlay');
-  let content = document.getElementById('swipe-back-underlay-content');
-
-  if (!under) {
-    under = document.createElement('div');
-    under.id = 'swipe-back-underlay';
-    // Fixed behind the main scroll area
-    under.style.position = 'fixed';
-    under.style.inset = '0';
-    under.style.zIndex = '0';
-    under.style.pointerEvents = 'none';
-    under.style.opacity = '0';
-    under.style.transition = 'opacity 120ms ease';
-    // Match your app backdrop (prevents white flashes)
-    under.style.background = 'rgb(0,0,0)';
-
-    content = document.createElement('div');
-    content.id = 'swipe-back-underlay-content';
-    content.style.position = 'absolute';
-    content.style.inset = '0';
-    content.style.overflowY = 'auto';
-    content.style.overflowX = 'hidden';
-    content.style.webkitOverflowScrolling = 'touch';
-
-    under.appendChild(content);
-
-    // Put it at the very top of <body> so it sits behind everything
-    document.body.insertBefore(under, document.body.firstChild);
-  }
-
-  // Ensure main scroll area is above it
-  const area = document.getElementById('main-scroll-area');
-  if (area) {
-    // Only set if not already positioned
-    if (!area.style.position) area.style.position = 'relative';
-    area.style.zIndex = '1';
-    // Prevent horizontal “painting” during transforms
-    area.style.overflowX = 'hidden';
-  }
-
-  return { under, content };
-}
-
-function captureSwipeBackUnderlay() {
-  const area = document.getElementById('main-scroll-area');
-  if (!area) return;
-
-  const { under, content } = ensureSwipeBackUnderlay();
-
-  // Find which main view is currently visible
-    const viewIds = ['home-view', 'grid-view', 'search-view', 'artist-view', 'album-view', 'crate-view'];
-
-  let visibleEl = null;
-
-  for (const id of viewIds) {
-    const el = document.getElementById(id);
-    if (el && !el.classList.contains('hidden')) {
-      visibleEl = el;
-      break;
-    }
-  }
-
-  if (!visibleEl) return;
-
-  // IMPORTANT: avoid duplicating IDs into the DOM (copy innerHTML only)
-  const safeClass = String(visibleEl.className || '').replace(/\bhidden\b/g, '').trim();
-  content.innerHTML = `<div class="${safeClass}">${visibleEl.innerHTML}</div>`;
-
-  // Match current scroll position so it “peeks” correctly
-  content.scrollTop = area.scrollTop || 0;
-
-  // Keep underlay hidden until the user starts dragging
-  under.style.opacity = '0';
-}
-
-function showSwipeBackUnderlay() {
-  const { under } = ensureSwipeBackUnderlay();
-  under.style.opacity = '1';
-}
-
-function hideSwipeBackUnderlay() {
-  const { under } = ensureSwipeBackUnderlay();
-  under.style.opacity = '0';
-}
-
-  window.captureSwipeBackUnderlay = captureSwipeBackUnderlay;
-  window.showSwipeBackUnderlay = showSwipeBackUnderlay;
-  window.hideSwipeBackUnderlay = hideSwipeBackUnderlay;
-
-  // Desktop / trackpad only
-  if (window.innerWidth < 1024) return;
-
-  if (area.dataset.desktopSwipeBound === "1") return;
-  area.dataset.desktopSwipeBound = "1";
-
-  let dx = 0;
-  let desktopSwipeActive = false;
-  let animating = false;
-
-  const THRESHOLD = 120;
-  const DESKTOP_OPACITY_DROP = 0.18;
-
-  area.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-    if (!Array.isArray(navStack) || navStack.length === 0) return;
-    if (e.deltaX < 0) return;
-
-    e.preventDefault();
-
-    if (!desktopSwipeActive) {
-      desktopSwipeActive = true;
-      dx = 0;
-      area.style.transition = '';
-    }
-
-    dx += e.deltaX;
-    dx = Math.max(0, dx);
-
-    area.style.transform = `translateX(${dx}px)`;
-
-    const p = Math.min(1, dx / (window.innerWidth * 0.6));
-    area.style.opacity = String(1 - (p * DESKTOP_OPACITY_DROP));
-  }, { passive: false });
-
-  area.addEventListener('mouseleave', finish);
-
-  function finish() {
-    if (!desktopSwipeActive || animating) return;
-    desktopSwipeActive = false;
-
-    if (dx > THRESHOLD) {
-      animating = true;
-      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
-      area.style.transform = `translateX(${window.innerWidth}px)`;
-
-      const done = () => {
-        area.removeEventListener('transitionend', done);
-        reset();
-        goBack();
-        animating = false;
-      };
-      area.addEventListener('transitionend', done);
-    } else {
-      reset();
-    }
-  }
-
-  function reset() {
-    area.style.transition = 'transform 220ms ease, opacity 220ms ease';
-    area.style.transform = 'translateX(0px)';
-    area.style.opacity = '1';
-
-    const clear = () => {
-      area.style.transition = '';
-      area.removeEventListener('transitionend', clear);
-    };
-    area.addEventListener('transitionend', clear);
-  }
-}
-
-  function canStart(e) {
-    // Must have something to go back to
-    if (!Array.isArray(navStack) || navStack.length === 0) return false;
-
-    // Don’t hijack gestures on form controls / buttons
-    const t = e.target;
-    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
-      return false;
-    }
-
-    // Allow swipe start ANYWHERE in the upper 75% of the screen (same rule as Now Playing)
-    const { y } = getXY(e);
-    return y <= (window.innerHeight * 0.75);
-  }
-
-// 1. You likely need a wrapper function to hold the logic and variables
-function initSwipeBack_WRAPPER_DISABLED(area) {
-  let active = false;
-  let decided = false;
-  let isHorizontal = false;
-  let startX, startY, lastDx;
-  const MOVE_DECIDE_PX = 10;
-  const THRESHOLD_PX = 100;
-    const OPACITY_DROP = 0.5;
-
-  function getXY(e) {
-    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
     return { x: e.clientX, y: e.clientY };
   }
 
@@ -5741,14 +5559,21 @@ function initSwipeBack_WRAPPER_DISABLED(area) {
       return false;
     }
 
-    // Allow swipe start anywhere in upper 75% (same spirit as your other gestures)
+    // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
     const { y } = getXY(e);
-    return y <= (window.innerHeight * 0.75);
-  }
+    if (y > (window.innerHeight * 0.75)) return false;
 
+    // Must start from an edge (Android back gesture feel)
+    const { x } = getXY(e);
+    const w = window.innerWidth;
+    if (x <= EDGE_PX) return true;              // left edge
+    if (x >= (w - EDGE_PX)) return true;        // right edge
+    return false;
+  }
 
   function reset(animated = true) {
-    hideSwipeBackUnderlay();
+    try { hideSwipeBackUnderlay(); } catch (e) {}
+
     area.style.touchAction = 'pan-y';
     area.style.overflowX = 'hidden';
     area.style.overflowY = 'auto';
@@ -5775,24 +5600,32 @@ function initSwipeBack_WRAPPER_DISABLED(area) {
 
   area.addEventListener('pointerdown', (e) => {
     if (!canStart(e)) return;
+
     const { x, y } = getXY(e);
+    startX = x;
+    startY = y;
+
+    // Determine edge direction
+    const w = window.innerWidth;
+    edgeDir = (x <= EDGE_PX) ? 1 : (x >= (w - EDGE_PX) ? -1 : 0);
+    if (!edgeDir) return;
+
     active = true;
     decided = false;
     isHorizontal = false;
-    startX = x;
-    startY = y;
     lastDx = 0;
 
+    // Hide underlay until we commit to horizontal gesture
+    try { hideSwipeBackUnderlay(); } catch (err) {}
+
     area.style.touchAction = 'pan-y';
-   // Keep underlay hidden until we know this is a horizontal swipe-back
-hideSwipeBackUnderlay();
 
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
-
   }, { passive: true });
 
   area.addEventListener('pointermove', (e) => {
     if (!active) return;
+
     const { x, y } = getXY(e);
     const dx = x - startX;
     const dy = y - startY;
@@ -5806,48 +5639,55 @@ hideSwipeBackUnderlay();
         area.style.overflow = 'hidden';
         area.style.willChange = 'transform, opacity';
         area.classList.add('sb-dragging');
-showSwipeBackUnderlay();
-      area.style.touchAction = 'none';
 
+        // Now we can show what’s “behind”
+        try { showSwipeBackUnderlay(); } catch (err) {}
+
+        // We need full control now
+        area.style.touchAction = 'none';
       }
     }
 
     if (!isHorizontal) return;
-    
+
     // Note: preventDefault() only works if { passive: false } is set
     if (e.cancelable) e.preventDefault();
 
-        // Support BOTH directions:
-    //  - swipe right (dx > 0)
-    //  - swipe left  (dx < 0)  ✅ what you asked for
-    lastDx = dx;
+    // Only allow motion in the direction of the starting edge
+    // left edge => dx must be positive
+    // right edge => dx must be negative
+    let clamped = dx;
+    if (edgeDir === 1) clamped = Math.max(0, dx);
+    if (edgeDir === -1) clamped = Math.min(0, dx);
 
-    // Clamp so it never flies too far
+    // Clamp distance
     const maxShift = Math.max(40, Math.floor(window.innerWidth * 0.85));
-    if (lastDx >  maxShift) lastDx =  maxShift;
-    if (lastDx < -maxShift) lastDx = -maxShift;
+    if (clamped >  maxShift) clamped =  maxShift;
+    if (clamped < -maxShift) clamped = -maxShift;
 
-    // Move the current view to reveal the captured underlay behind it
-        // Move the current view to reveal the captured underlay behind it
+    lastDx = clamped;
+
+    // Drag the current view
     area.style.transition = '';
     area.style.transform = `translateX(${lastDx}px)`;
 
-
-    // Subtle fade while dragging (based on distance, regardless of direction)
+    // Fade based on distance
     const p = Math.min(1, Math.abs(lastDx) / maxShift);
     area.style.opacity = String(1 - (p * OPACITY_DROP));
-
   }, { passive: false });
 
   area.addEventListener('pointerup', () => {
     if (!active) return;
     active = false;
 
-        if (Math.abs(lastDx) > THRESHOLD_PX) {
-      const dir = lastDx >= 0 ? 1 : -1;
+    // Commit if we passed threshold in the allowed direction
+    const shouldCommit =
+      (edgeDir === 1 && lastDx > THRESHOLD_PX) ||
+      (edgeDir === -1 && lastDx < -THRESHOLD_PX);
 
+    if (shouldCommit) {
       area.style.transition = 'transform 180ms ease, opacity 180ms ease';
-      area.style.transform = `translateX(${dir * window.innerWidth}px)`;
+      area.style.transform = `translateX(${edgeDir * window.innerWidth}px)`;
 
       const done = () => {
         area.removeEventListener('transitionend', done);
@@ -5866,7 +5706,10 @@ showSwipeBackUnderlay();
     active = false;
     reset(true);
   }, { passive: true });
-} // This is the closing brace that was likely missing its "opening" partner
+}
+
+function initSearchSwipeDownClose() {
+
 function initSearchSwipeDownClose() {
   // Mobile only
   if (window.innerWidth > 768) return;
