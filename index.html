@@ -4213,23 +4213,32 @@ window.onload = async () => {
 window.cloudPlaylists = [];
 
 // ✅ Load playlists list (meta) from Cloudflare for the current user
-window.loadPlaylistsFromCloud = async function () {
-  const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) return [];
+// (Fallback-safe: if something else breaks earlier, app won't crash)
+if (typeof window.loadPlaylistsFromCloud !== "function") {
+  window.loadPlaylistsFromCloud = async function () {
+    try {
+      const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+      if (!uid) return [];
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
-  );
-  const data = await res.json();
+      const res = await fetch(
+        "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
+      );
+      const data = await res.json();
 
-  if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
-    window.cloudPlaylists = data.playlists;
-    return data.playlists;
-  }
+      if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
+        window.cloudPlaylists = data.playlists;
+        return data.playlists;
+      }
 
-  window.cloudPlaylists = [];
-  return [];
-};
+      window.cloudPlaylists = [];
+      return [];
+    } catch (e) {
+      console.warn("loadPlaylistsFromCloud failed:", e);
+      window.cloudPlaylists = [];
+      return [];
+    }
+  };
+}
 
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
@@ -4279,13 +4288,18 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   // safe(window.ensurePlaylistIds);
 
     // Load cloud playlists first (then your existing renderer can use them later)
-  try {
-    await window.loadPlaylistsFromCloud();
-    console.log("cloudPlaylists:", window.cloudPlaylists);
+    try {
+    if (typeof window.loadPlaylistsFromCloud === "function") {
+      await window.loadPlaylistsFromCloud();
+      console.log("cloudPlaylists:", window.cloudPlaylists);
+    } else {
+      console.warn("loadPlaylistsFromCloud missing at runtime");
+    }
   } catch (e) {
     console.warn(e);
   }
   safe(window.renderPlaylists);
+
 
 
   // Auto covers helper exists in some versions; keep it optional
@@ -8277,29 +8291,61 @@ function showPlaylistMenuAt(x, y, playlistId) {
   if (pinBtn) pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-    // ✅ Delete playlist
-  if (delBtn) {
-    delBtn.onclick = async () => {
-  if (!activePlaylistMenuId) return;
-  const ok = confirm("Delete this playlist? This cannot be undone.");
-  if (!ok) return;
+      // ✅ Delete playlist
+  delBtn.onclick = async () => {
+    const playlistId = playlistMenuTargetId; // ✅ correct target
+    if (!playlistId) return;
 
-  // Remove locally
-  playlists = playlists.filter(p => p.id !== activePlaylistMenuId);
-  try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
+    const ok = confirm("Delete this playlist?");
+    if (!ok) return;
 
-  // ✅ Remove from Recently listened history too
-  try {
-    const raw = localStorage.getItem('history');
-    const hist = raw ? JSON.parse(raw) : [];
-    const cleaned = Array.isArray(hist) ? hist.filter(h => !(h && h.type === 'playlist' && h.id === activePlaylistMenuId)) : [];
-    localStorage.setItem('history', JSON.stringify(cleaned));
-  } catch (e) {}
+    // Close the menu immediately (mobile needs this)
+    try { hidePlaylistMenu(); } catch (e) {}
+    try { closeContextMenu(); } catch (e) {}
 
-  hidePlaylistMenu();
-  renderPlaylists();
-  try { renderHistory(); } catch (e) {}
-};
+    // Delete in cloud first (so it syncs across devices)
+    try {
+      const userId = localStorage.getItem("app_user_id") || "";
+      const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, playlistId })
+      });
+      // Even if backend returns non-JSON sometimes, we only care res.ok
+      if (!res.ok) throw new Error("Cloud delete failed");
+    } catch (e) {
+      console.warn(e);
+      // fallback: still remove locally so UI doesn’t get stuck
+    }
+
+    // Remove locally (UI)
+    playlists = playlists.filter(p => p.id !== playlistId);
+    try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+
+    // Remove from recents historyLog so deleted playlists don’t show
+    try {
+      let history = JSON.parse(localStorage.getItem("historyLog") || "[]");
+      if (!Array.isArray(history)) history = [];
+      history = history.filter(h => !(h && h.type === "playlist" && h.id === playlistId));
+      localStorage.setItem("historyLog", JSON.stringify(history));
+    } catch (e) {}
+
+    // Re-sync UI
+    try { await window.loadPlaylistsFromCloud(); } catch (e) {}
+    renderPlaylists();
+    try { renderHistory(); } catch (e) {}
+    try { renderHome(); } catch (e) {}
+
+    // If you were viewing the deleted playlist, go back to Library
+    try {
+      if (activePlaylistId === playlistId) {
+        activePlaylistId = null;
+        activePlaylistIndex = null;
+        showView("library");
+      }
+    } catch (e) {}
+  };
+
 
   }
 
