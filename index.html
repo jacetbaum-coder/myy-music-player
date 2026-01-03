@@ -2530,13 +2530,26 @@ let manualQueue = (() => {
 ------------------------ */
 
 function clearManualQueue() {
+  // 1) Clear manual "Add to queue" list
   manualQueue = [];
   persistManualQueue();
 
-  // Re-render any queue UIs that exist
+  // 2) Clear the active play queue ("Up next") without stopping the current song
+  currentQueue = [];
+  currentIndex = -1;
+  playContext = null;
+
+  // 3) Reset shuffle helpers if they exist
+  try { if (typeof resetShuffleForQueue === 'function') resetShuffleForQueue(); } catch (e) {}
+  try { if (typeof playedStack !== 'undefined') playedStack = []; } catch (e) {}
+  try { if (typeof shuffleOrder !== 'undefined') shuffleOrder = []; } catch (e) {}
+  try { if (typeof shufflePos !== 'undefined') shufflePos = 0; } catch (e) {}
+
+  // 4) Re-render any queue UIs that exist
   try { if (typeof renderQueueSheet === 'function') renderQueueSheet(); } catch (e) {}
   try { if (typeof renderRightQueue === 'function') renderRightQueue(); } catch (e) {}
 }
+
 
 function wireQueueClearButtons() {
   const btnA = document.getElementById('queue-clear');        // mobile queue sheet
@@ -8489,20 +8502,138 @@ function showPlaylistMenuAt(x, y, playlistId) {
 
   playlistMenuTargetId = playlistId;
 
-  const pinBtn = document.getElementById('pm-pin');
+  const pinBtn   = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
-  const delBtn = document.getElementById('pm-delete');
 
   const pinned = isPinnedPlaylist(playlistId);
-  if (pinBtn) pinBtn.classList.toggle('hidden', pinned);
+  if (pinBtn)   pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-  // ✅ Delete playlist is wired once in DOMContentLoaded (below).
+  // Bind menu actions ONCE
+  if (!m.__playlistMenuBound) {
+    m.__playlistMenuBound = true;
+
+    const safeClose = () => { try { hidePlaylistMenu(); } catch (e) {} };
+
+    const pin = document.getElementById('pm-pin');
+    if (pin) {
+      pin.addEventListener('click', () => {
+        if (!playlistMenuTargetId) return;
+        try { pinPlaylist(playlistMenuTargetId); } catch (e) {}
+        safeClose();
+        try { renderPlaylists(); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+      });
+    }
+
+    const unpin = document.getElementById('pm-unpin');
+    if (unpin) {
+      unpin.addEventListener('click', () => {
+        if (!playlistMenuTargetId) return;
+        try { unpinPlaylist(playlistMenuTargetId); } catch (e) {}
+        safeClose();
+        try { renderPlaylists(); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+      });
+    }
+
+    const coverUrl = document.getElementById('pm-cover-url');
+    if (coverUrl) {
+      coverUrl.addEventListener('click', async () => {
+        if (!playlistMenuTargetId) return;
+        const url = prompt('Paste image URL for playlist cover:');
+        if (!url) return;
+        try { await setPlaylistManualCover(playlistMenuTargetId, url); } catch (e) {}
+        safeClose();
+        try { renderPlaylists(); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+        try { if (activePlaylistId === playlistMenuTargetId) showView('playlist', playlists.findIndex(p => p.id === playlistMenuTargetId)); } catch (e) {}
+      });
+    }
+
+    const coverUpload = document.getElementById('pm-cover-upload');
+    if (coverUpload) {
+      coverUpload.addEventListener('click', () => {
+        if (!playlistMenuTargetId) return;
+        // Use your existing upload flow if present
+        try { openPlaylistCoverUpload(playlistMenuTargetId); } catch (e) {}
+        safeClose();
+      });
+    }
+
+    const coverClear = document.getElementById('pm-cover-clear');
+    if (coverClear) {
+      coverClear.addEventListener('click', async () => {
+        if (!playlistMenuTargetId) return;
+        try { await clearPlaylistManualCover(playlistMenuTargetId); } catch (e) {}
+        safeClose();
+        try { renderPlaylists(); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+        try { if (activePlaylistId === playlistMenuTargetId) showView('playlist', playlists.findIndex(p => p.id === playlistMenuTargetId)); } catch (e) {}
+      });
+    }
+
+    const delBtn = document.getElementById('pm-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        const id = playlistMenuTargetId;
+        if (!id) return;
+
+        const pl = playlists.find(p => p.id === id);
+        const name = pl ? (pl.name || 'this playlist') : 'this playlist';
+        if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+
+        // Close menu immediately so it feels responsive
+        safeClose();
+
+        // Delete in cloud first so the other device sees it too
+        try {
+          if (typeof window.deletePlaylistFromCloud === 'function') {
+            await window.deletePlaylistFromCloud(id);
+          } else if (typeof window.deletePlaylistInCloud === 'function') {
+            await window.deletePlaylistInCloud(id);
+          }
+        } catch (e) {
+          console.warn(e);
+          // still continue locally so UI doesn't get stuck
+        }
+
+        // Remove locally
+        try { playlists = playlists.filter(p => p.id !== id); } catch (e) {}
+        try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
+
+        // Remove from recents/history so it doesn't keep showing
+        try {
+          let history = JSON.parse(localStorage.getItem('historyLog') || '[]');
+          if (!Array.isArray(history)) history = [];
+          history = history.filter(h => !(h && h.type === 'playlist' && h.id === id));
+          localStorage.setItem('historyLog', JSON.stringify(history));
+        } catch (e) {}
+
+        // Re-pull from cloud to be safe + re-render
+        try { if (typeof window.loadPlaylistsFromCloud === 'function') await window.loadPlaylistsFromCloud(); } catch (e) {}
+        try { renderPlaylists(); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+        try { renderHistory(); } catch (e) {}
+
+        // If you were inside that playlist, navigate away
+        try {
+          if (activePlaylistId === id) {
+            activePlaylistId = null;
+            activePlaylistIndex = null;
+            showView('library');
+          }
+        } catch (e) {}
+      });
+    }
+  }
+
   // Position + show menu
   m.style.left = `${x}px`;
   m.style.top = `${y}px`;
   m.classList.remove('hidden');
 }
+
 
 function openPlaylistPinMenuFromHero(e) {
   // Only works when you're inside a playlist view
@@ -9457,17 +9588,16 @@ player.addEventListener('ended', () => {
 
   <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
   <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload)</button>
+  <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
 
-<button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">
-  Delete playlist
-</button>
+  <div class="my-2 border-t border-white/10"></div>
 
-<button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
+  <button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">
+    Delete playlist
+  </button>
 
-<div class="my-2 border-t border-white/10"></div>
-
-<button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-red-400 text-sm">Delete playlist</button>
 </div>
+
 
 
 <!-- hidden file input used by playlist “upload file” -->
