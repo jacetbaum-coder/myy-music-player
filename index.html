@@ -10300,9 +10300,17 @@ player.addEventListener('ended', () => {
       if (area.dataset.ptrBound === '1') return;
       area.dataset.ptrBound = '1';
 
-      area.addEventListener('pointerdown', (e) => {
+            area.addEventListener('pointerdown', (e) => {
         if (!isMobile()) return;
         if (refreshing) return;
+
+        // ✅ Do NOT steal taps that start on buttons/interactive UI
+        // (This was breaking the green play buttons because a tiny downward move cancels the click.)
+        if (e.target && e.target.closest(
+          'button, a, input, textarea, select, [role="button"], #context-menu, #playlist-menu, #album-cover-menu'
+        )) {
+          return;
+        }
 
         // must be at top
         if (area.scrollTop > 0) return;
@@ -10315,6 +10323,7 @@ player.addEventListener('ended', () => {
 
         // don’t set touchAction none yet—only once we know it’s a pull
       }, { passive: true });
+
 
       area.addEventListener('pointermove', (e) => {
         if (!active) return;
