@@ -6374,12 +6374,15 @@ const normalizedIds = itemsArr
 
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
-pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+
+// ✅ Derive songs only for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, pl.songs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
 
 
     } catch (err) {
