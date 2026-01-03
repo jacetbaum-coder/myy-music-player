@@ -40,11 +40,85 @@
             --nav-height: 70px;
             --player-height: 90px;
 
-            /* Album-derived accent color (default: black) */
+             /* Album-derived accent color (default: black) */
             --accent-rgb: 0, 0, 0;
         }
 
+/* -----------------------
+   MOBILE PULL TO REFRESH
+------------------------ */
+#ptr-overlay{
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 0px;               /* we change this live while pulling */
+  overflow: hidden;
+
+  z-index: 5000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+#ptr-overlay .ptr-bg{
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0.96;
+}
+
+#ptr-overlay .ptr-inner{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 86px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  padding-bottom: 10px;
+}
+
+#ptr-icon{
+  font-size: 18px;
+  color: rgba(255,255,255,0.9);
+  transform: rotate(0deg);
+  transition: transform 80ms linear;
+}
+
+#ptr-text{
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.72);
+}
+
+#main-scroll-area.ptr-refreshing #ptr-icon{
+  animation: ptrSpin 0.75s linear infinite;
+  transition: none;
+}
+
+@keyframes ptrSpin{
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Mobile only: makes the drag feel “owned” by the app */
+@media (max-width: 768px){
+  #main-scroll-area.ptr-pulling{
+    overscroll-behavior: contain;
+  }
+}
+
 /* Mobile "Recently listened" rectangles (Spotify-ish) */
+
 .mobile-recent-card {
   display: flex;
   align-items: center;
@@ -1879,17 +1953,17 @@ body.qs-lock {
 
         <main class="main-view" id="main-scroll-area">
 
-  <!-- Desktop: discreet reload button -->
-  <button id="desktop-reload-btn" type="button" title="Reload" aria-label="Reload">
-    <i class="fas fa-rotate-right"></i>
-  </button>
-
-  <!-- Mobile: pull-to-refresh hint (only shows while pulling) -->
-  <div id="ptr-indicator" class="ptr hidden" aria-hidden="true">
-    <span class="ptr-text" id="ptr-text">Pull to refresh</span>
+  <!-- MOBILE PULL TO REFRESH (black bg + reload icon) -->
+  <div id="ptr-overlay" aria-hidden="true">
+    <div class="ptr-bg"></div>
+    <div class="ptr-inner">
+      <i id="ptr-icon" class="fas fa-sync-alt"></i>
+      <div id="ptr-text">Pull to refresh</div>
+    </div>
   </div>
 
   <!-- CENTER LYRICS OVERLAY (Dock mic) -->
+
   <div id="lyrics-center-overlay" class="lyrics-center hidden" aria-hidden="true">
     <div class="lyrics-center-inner">
       <div class="lyrics-center-top">
@@ -10035,8 +10109,253 @@ player.addEventListener('ended', () => {
         pop.classList.add('hidden');
       });
     });
+   })();
+
+  // -----------------------
+  // MOBILE PULL TO REFRESH (Home only)
+  // - Black background + reload icon
+  // - Follows finger, release to refresh
+  // -----------------------
+  ;(function initPullToRefresh(){
+    if (window.__ptrInit) return;
+    window.__ptrInit = true;
+
+    function isMobile(){ return window.innerWidth <= 768; }
+
+    function homeVisible(){
+      const hv = document.getElementById('home-view');
+      return !!(hv && !hv.classList.contains('hidden'));
+    }
+
+    function getArea(){ return document.getElementById('main-scroll-area'); }
+    function getOverlay(){ return document.getElementById('ptr-overlay'); }
+    function getIcon(){ return document.getElementById('ptr-icon'); }
+    function getText(){ return document.getElementById('ptr-text'); }
+
+    const THRESH = 92;   // pull distance to trigger
+    const MAX = 150;     // max visual pull
+    const SNAP = 78;     // where it sits while “refreshing”
+
+    let active = false;
+    let pulling = false;
+    let refreshing = false;
+
+    let startY = 0;
+    let current = 0;
+    let pid = null;
+
+    function setOverlayHeight(px){
+      const ov = getOverlay();
+      if (!ov) return;
+      ov.style.height = px + 'px';
+      ov.style.opacity = px > 0 ? '1' : '0';
+    }
+
+    function setAreaTranslate(px, animated){
+      const area = getArea();
+      if (!area) return;
+
+      if (animated) {
+        area.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      } else {
+        area.style.transition = 'none';
+      }
+      area.style.transform = 'translateY(' + px + 'px)';
+    }
+
+    function setStatusText(msg){
+      const t = getText();
+      if (t) t.textContent = msg;
+    }
+
+    function setIconRotation(deg){
+      const ic = getIcon();
+      if (!ic) return;
+      ic.style.transform = 'rotate(' + deg + 'deg)';
+    }
+
+    async function softRefresh(){
+      // Best-effort “refresh app” without full page reload:
+      // - pull playlists from cloud
+      // - re-render home + playlists + history
+      // If anything isn’t available, fallback to location.reload()
+      try {
+        if (typeof window.forceCloudPlaylistPull === 'function') {
+          await window.forceCloudPlaylistPull();
+        } else if (typeof window.loadPlaylistsFromCloud === 'function') {
+          await window.loadPlaylistsFromCloud();
+        }
+
+        try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e) {}
+        try { if (typeof window.renderHome === 'function') window.renderHome(); } catch (e) {}
+        try { if (typeof window.renderHistory === 'function') window.renderHistory(); } catch (e) {}
+
+        // If your library data also needs a refresh, call it if it exists
+        try { if (typeof window.loadLibraryFromCloud === 'function') await window.loadLibraryFromCloud(); } catch (e) {}
+
+        // give the spinner a tiny moment so it’s visible
+        await new Promise(r => setTimeout(r, 350));
+      } catch (e) {
+        // hard fallback
+        try { window.location.reload(); } catch (err) {}
+      }
+    }
+
+    function resetPTR(animated){
+      const area = getArea();
+      const ov = getOverlay();
+      if (!area || !ov) return;
+
+      pulling = false;
+      current = 0;
+      pid = null;
+
+      area.classList.remove('ptr-pulling');
+      area.classList.remove('ptr-refreshing');
+
+      // restore default gesture behavior
+      area.style.touchAction = 'pan-y';
+
+      setStatusText('Pull to refresh');
+      setOverlayHeight(0);
+      setIconRotation(0);
+      setAreaTranslate(0, !!animated);
+
+      // clear transition after snap back
+      if (animated) {
+        setTimeout(() => {
+          try { area.style.transition = ''; } catch (e) {}
+        }, 260);
+      } else {
+        try { area.style.transition = ''; } catch (e) {}
+      }
+    }
+
+    function bind(){
+      const area = getArea();
+      const ov = getOverlay();
+      if (!area || !ov) return;
+
+      // bind once
+      if (area.dataset.ptrBound === '1') return;
+      area.dataset.ptrBound = '1';
+
+      area.addEventListener('pointerdown', (e) => {
+        if (!isMobile()) return;
+        if (!homeVisible()) return;
+        if (refreshing) return;
+
+        // must be at top
+        if (area.scrollTop > 0) return;
+
+        active = true;
+        pulling = false;
+        startY = e.clientY;
+        current = 0;
+        pid = e.pointerId;
+
+        // don’t set touchAction none yet—only once we know it’s a pull
+      }, { passive: true });
+
+      area.addEventListener('pointermove', (e) => {
+        if (!active) return;
+        if (!isMobile()) return;
+        if (!homeVisible()) return;
+        if (refreshing) return;
+
+        const dy = e.clientY - startY;
+
+        // only respond to downward pulls
+        if (dy <= 0) return;
+
+        // once it’s a pull, we OWN the gesture
+        if (!pulling) {
+          pulling = true;
+          area.classList.add('ptr-pulling');
+
+          // take control so it doesn’t “slip”
+          area.style.touchAction = 'none';
+
+          try { area.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+
+        // prevent browser rubber band
+        e.preventDefault();
+
+        // dampen slightly for “weight”
+        const px = Math.min(MAX, Math.round(dy * 0.92));
+        current = px;
+
+        setOverlayHeight(px);
+        setAreaTranslate(px, false);
+
+        // rotate icon based on pull distance
+        setIconRotation(px * 3.2);
+
+        if (px >= THRESH) {
+          setStatusText('Release to refresh');
+        } else {
+          setStatusText('Pull to refresh');
+        }
+      }, { passive: false });
+
+      async function finish(e){
+        if (!active) return;
+
+        active = false;
+
+        const area = getArea();
+        if (!area) return;
+
+        try { if (pid != null) area.releasePointerCapture(pid); } catch (err) {}
+
+        if (!pulling) {
+          resetPTR(true);
+          return;
+        }
+
+        // trigger refresh
+        if (current >= THRESH) {
+          refreshing = true;
+
+          area.classList.add('ptr-refreshing');
+          setStatusText('Refreshing…');
+
+          // snap to a fixed “refresh” position
+          setOverlayHeight(SNAP);
+          setAreaTranslate(SNAP, true);
+
+          try {
+            await softRefresh();
+          } finally {
+            refreshing = false;
+            resetPTR(true);
+          }
+          return;
+        }
+
+        // not far enough: snap back
+        resetPTR(true);
+      }
+
+      area.addEventListener('pointerup', finish, { passive: true });
+      area.addEventListener('pointercancel', finish, { passive: true });
+      area.addEventListener('pointerleave', (e) => {
+        // if finger leaves the area mid-pull, finish like pointerup
+        try { finish(e); } catch (err) {}
+      }, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bind);
+    } else {
+      bind();
+    }
   })();
+
 </script>
+  <!-- SYNC DEVICES MODAL -->
+
   <!-- SYNC DEVICES MODAL -->
   <div id="sync-devices-modal" class="hidden fixed inset-0 z-[9999]">
     <div id="sync-devices-backdrop" class="absolute inset-0 bg-black/70"></div>
