@@ -2948,120 +2948,6 @@ let playContext = null;
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
 
-// -----------------------
-// TRACK INDEXES (canonical IDs)
-// -----------------------
-window.tracksById = {};      // id -> track object
-window.tracksByR2Path = {};  // r2Path -> track object
-
-function normalizeExtTitle(name) {
-  return String(name || "").replace(/\.(mp3|m4a|flac|wav)$/i, "");
-}
-
-function buildTrackIndexesFromLibrary(data) {
-  window.tracksById = {};
-  window.tracksByR2Path = {};
-
-  const albums = Array.isArray(data) ? data : [];
-  albums.forEach((album) => {
-    const artistName = album.artistName || "";
-    const albumName = album.albumName || "";
-    const coverArt = album.coverArt || album.cover || "";
-
-    const songs = Array.isArray(album.songs) ? album.songs : [];
-    songs.forEach((s) => {
-      if (!s) return;
-
-      const id = s.id || s.trackId || s.track_id || s.r2Path || s.r2_key || null;
-      const r2Path = s.r2Path || s.r2_key || id || null;
-
-      if (!id) return;
-
-      const track = {
-        id,
-        r2Path: r2Path || id,
-        fileName: s.fileName || s.name || "",
-        title: s.title || normalizeExtTitle(s.name || s.fileName || ""),
-        artistName: s.artistName || artistName,
-        albumName: s.albumName || albumName,
-        cover: s.cover || s.coverArt || coverArt,
-        coverArt: s.cover || s.coverArt || coverArt,
-        link: s.link || s.url || (r2Path ? `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(r2Path)}` : "")
-      };
-
-      window.tracksById[track.id] = track;
-      if (track.r2Path) window.tracksByR2Path[track.r2Path] = track;
-    });
-  });
-}
-
-function extractIdFromUrl(u) {
-  try {
-    const url = new URL(String(u || ""), window.location.origin);
-    const id = url.searchParams.get("id");
-    return id ? decodeURIComponent(id) : "";
-  } catch (e) {
-    return "";
-  }
-}
-
-function normalizePlaylistInPlace(pl) {
-  if (!pl || typeof pl !== "object") return pl;
-
-  // Build trackIds from whatever shape we have
-  let trackIds = Array.isArray(pl.trackIds) ? pl.trackIds.slice() : [];
-
-  if (!trackIds.length && Array.isArray(pl.songs)) {
-    trackIds = pl.songs.map((s) => {
-      if (!s) return "";
-      if (typeof s === "string") return s;
-      return (
-        s.trackId ||
-        s.track_id ||
-        s.id ||
-        s.r2Path ||
-        s.r2_key ||
-        extractIdFromUrl(s.link || s.url) ||
-        ""
-      );
-    });
-  }
-
-  // de-dupe + clean
-  const seen = new Set();
-  trackIds = trackIds
-    .map(x => String(x || "").trim())
-    .filter(Boolean)
-    .filter(id => (seen.has(id) ? false : (seen.add(id), true)));
-
-  pl.trackIds = trackIds;
-
-  // Build songs array for UI (covers, rendering, etc.)
-  pl.songs = trackIds.map((id) => window.tracksById[id] || window.tracksByR2Path[id] || ({
-    id,
-    r2Path: id,
-    title: id,
-    name: id,
-    link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
-    cover: "",
-    coverArt: ""
-  }));
-
-  if (typeof pl.songCount !== "number") pl.songCount = trackIds.length;
-
-  return pl;
-}
-
-function normalizeAllPlaylists() {
-  try {
-    if (!Array.isArray(playlists)) playlists = [];
-    playlists = playlists.map(normalizePlaylistInPlace);
-  } catch (e) {
-    console.warn("normalizeAllPlaylists failed:", e);
-  }
-}
-
-
 /* -----------------------
    MANUAL QUEUE (Add to queue)
    First added stays at top
@@ -5516,19 +5402,14 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
-        libraryData = await response.json();
+    libraryData = await response.json();
     if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
     // Keep original order for "Recently added"
     libraryDataOriginal = libraryData.slice();
 
-    // ✅ Build canonical indexes (id -> track), then normalize playlists to trackIds
-    buildTrackIndexesFromLibrary(libraryDataOriginal);
-    normalizeAllPlaylists();
-
     // Sort library alphabetically by album (Library grid)
     libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
-
 
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
@@ -9598,30 +9479,8 @@ function ensurePlaylistIds() {
   if (changed) savePlaylists();
 }
 function savePlaylists() {
-  // Persist a small, stable shape (no duplicated song objects)
-  const slim = (Array.isArray(playlists) ? playlists : []).map((pl) => {
-    const trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : (Array.isArray(pl.songs) ? pl.songs.map(s => (s && typeof s === "object" ? (s.id || s.trackId || s.track_id || s.r2Path || s.r2_key || "") : String(s || ""))) : []);
-    const seen = new Set();
-    const cleanIds = trackIds
-      .map(x => String(x || "").trim())
-      .filter(Boolean)
-      .filter(id => (seen.has(id) ? false : (seen.add(id), true)));
-
-    return {
-      id: pl.id,
-      name: pl.name,
-      cover: pl.cover || pl.cover_url || "",
-      cover_url: pl.cover_url || pl.cover || "",
-      autoCover: pl.autoCover || "",
-      trackIds: cleanIds,
-      songCount: typeof pl.songCount === "number" ? pl.songCount : cleanIds.length,
-      updated_at: pl.updated_at || pl.updatedAt || ""
-    };
-  });
-
-  localStorage.setItem('playlists', JSON.stringify(slim));
+  localStorage.setItem('playlists', JSON.stringify(playlists));
 }
-
 
 /* -----------------------
    PLAYLIST AUTO COVERS
