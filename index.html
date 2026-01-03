@@ -1880,7 +1880,164 @@ body.qs-lock {
 .ptr.active .ptr-text {
   transform: scale(1);
 }
+
+/* -----------------------
+   CRATE (Notes-like)
+------------------------ */
+#crate-view{
+  min-height: 100%;
+}
+
+.crate-shell{
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 14px 14px 28px;
+}
+
+.crate-topbar{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+}
+
+.crate-back{
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crate-done{
+  padding: 10px 14px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.crate-title{
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  padding: 8px 6px;
+}
+
+.crate-body{
+  margin-top: 14px;
+  background: rgba(20,20,20,0.82);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.crate-items{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crate-row{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+}
+
+.crate-bubble{
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255,255,255,0.55);
+  margin-top: 2px;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.crate-bubble.checked{
+  border-color: rgba(29,185,84,0.95);
+  background: rgba(29,185,84,0.18);
+}
+
+.crate-bubble.checked:after{
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 12px;
+  border: solid rgba(29,185,84,0.95);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.crate-text{
+  flex: 1;
+  min-height: 22px;
+  outline: none;
+  color: rgba(255,255,255,0.95);
+  font-size: 15px;
+  line-height: 1.25rem;
+}
+
+.crate-text.muted{
+  color: rgba(255,255,255,0.65);
+}
+
+.crate-actions{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.crate-action-btn{
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.crate-hint{
+  margin-top: 10px;
+  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+  padding: 0 2px;
+}
+
+@media (max-width: 768px){
+  .crate-shell{ padding: 10px 12px 24px; }
+  .crate-title{ font-size: 18px; }
+  .crate-actions{ grid-template-columns: 1fr; }
+}
+
 </style>
+
 
 </head>
 <body>
@@ -1915,14 +2072,19 @@ body.qs-lock {
     Remove from this playlist
   </div>
 
-  <div class="menu-item" onclick="menuAction('queue_add')">
+    <div class="menu-item" onclick="menuAction('queue_add')">
     Add to queue
+  </div>
+
+  <div class="menu-item" onclick="menuAction('crate_add_artist')">
+    Add artist to crate
   </div>
 
   <div class="menu-item" onclick="menuAction('queue_go')">
     Go to queue
   </div>
 </div>
+
 
 
     <div class="flex flex-1 overflow-hidden">
@@ -1977,6 +2139,13 @@ body.qs-lock {
   <i class="fas fa-link"></i>
   Sync devices
 </button>
+
+<button id="open-crate-btn"
+  class="w-full mt-2 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm flex items-center justify-center gap-2">
+  <i class="fas fa-user"></i>
+  Crate
+</button>
+
 
 
                 <div id="history-container" class="pt-6 border-t border-zinc-800 mt-4">
@@ -2266,7 +2435,48 @@ body.qs-lock {
   </div>
 </div>
 
+<div id="crate-view" class="hidden">
+  <div class="crate-shell">
+    <div class="crate-topbar">
+      <button type="button" class="crate-back" onclick="goBackFromCrate()" aria-label="Back">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+
+      <input id="crate-title"
+             class="crate-title"
+             type="text"
+             placeholder="Crate"
+             autocomplete="off" />
+
+      <button type="button" class="crate-done" onclick="goBackFromCrate()">
+        Done
+      </button>
+    </div>
+
+    <div class="crate-body">
+      <div id="crate-items" class="crate-items"></div>
+
+      <div class="crate-actions">
+        <button type="button" id="crate-add-check" class="crate-action-btn">
+          <i class="far fa-circle"></i>
+          New checklist item
+        </button>
+
+        <button type="button" id="crate-add-text" class="crate-action-btn">
+          <i class="fas fa-plus"></i>
+          New note line
+        </button>
+      </div>
+
+      <div class="crate-hint">
+        Tip: tap the circle to check off. Tap text to edit.
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="album-view" class="hidden">
+
   <button onclick="goBack()"
           class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
     <i class="fas fa-arrow-left text-white"></i>
@@ -2429,11 +2639,12 @@ body.qs-lock {
     <i class="fas fa-layer-group"></i>
     <span>Library</span>
   </div>
-  <div class="nav-item" id="nav-premium">
-    <i class="fab fa-spotify"></i>
-    <span>Cloud</span>
+    <div class="nav-item" id="nav-premium" onclick="onNavTap('crate')">
+    <i class="fas fa-box-archive"></i>
+    <span>Crate</span>
   </div>
 </nav>
+
 
 
     <div id="main-dock" class="player-bar dock-hidden">
@@ -3142,6 +3353,306 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
     }
   });
 })();
+// -----------------------
+// PLAY BUTTON (delegated)
+// -----------------------
+(function bindPlayButtons() {
+  if (window.__playButtonsBound) return;
+  window.__playButtonsBound = true;
+
+  function findNearestElement(startEl, selector) {
+    let current = startEl;
+    while (current && current !== document) {
+      const found = current.querySelector(selector);
+      if (found) return found;
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  document.addEventListener('click', (e) => {
+    const playBtn = e.target && e.target.closest ? e.target.closest('.play-btn') : null;
+    if (!playBtn) return;
+
+    e.preventDefault();
+
+    const titleEl = findNearestElement(playBtn, 'h3');
+    const artistEl = findNearestElement(playBtn, '.sub, p');
+    const imageEl = findNearestElement(playBtn, 'img');
+
+    const title = (titleEl?.textContent || '').trim();
+    const artist = (artistEl?.textContent || '').trim();
+    const cover = imageEl?.getAttribute('src') || imageEl?.src || '';
+
+    if (typeof updateDock === 'function') {
+      updateDock(title, artist, cover);
+    }
+
+    const icon = playBtn.querySelector('i');
+    if (icon) {
+      if (icon.classList.contains('fa-play')) {
+        icon.classList.remove('fa-play');
+        icon.classList.add('fa-pause');
+      } else if (icon.classList.contains('fa-pause')) {
+        icon.classList.remove('fa-pause');
+        icon.classList.add('fa-play');
+      }
+    }
+  });
+})();
+
+// -----------------------
+// CRATE (Notes-like + checklist + cloud sync)
+// -----------------------
+const CRATE_LS_KEY = "reson_crate_doc_v1";
+const CRATE_API_BASE = "https://music-streamer.jacetbaum.workers.dev/api/crate";
+
+let crateDoc = null;
+
+function defaultCrateDoc() {
+  return {
+    title: "Crate",
+    items: [],
+    updatedAt: Date.now()
+  };
+}
+
+function loadCrateLocal() {
+  try {
+    const raw = localStorage.getItem(CRATE_LS_KEY);
+    if (!raw) return defaultCrateDoc();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return defaultCrateDoc();
+    if (!Array.isArray(parsed.items)) parsed.items = [];
+    if (!parsed.title) parsed.title = "Crate";
+    if (!parsed.updatedAt) parsed.updatedAt = Date.now();
+    return parsed;
+  } catch (e) {
+    return defaultCrateDoc();
+  }
+}
+
+function saveCrateLocal() {
+  try {
+    if (!crateDoc) return;
+    crateDoc.updatedAt = Date.now();
+    localStorage.setItem(CRATE_LS_KEY, JSON.stringify(crateDoc));
+  } catch (e) {}
+}
+
+async function pullCrateFromCloud() {
+  try {
+    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    if (!uid) return;
+
+    const res = await fetch(CRATE_API_BASE + "?userId=" + encodeURIComponent(uid), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const remote = data && (data.doc || data.crate || data.data);
+    if (!remote || typeof remote !== "object") return;
+
+    // Prefer the newer doc
+    const local = crateDoc || loadCrateLocal();
+    const rTime = Number(remote.updatedAt || 0);
+    const lTime = Number(local.updatedAt || 0);
+
+    if (rTime > lTime) {
+      crateDoc = {
+        title: String(remote.title || "Crate"),
+        items: Array.isArray(remote.items) ? remote.items : [],
+        updatedAt: rTime || Date.now()
+      };
+      saveCrateLocal();
+    }
+  } catch (e) {}
+}
+
+async function pushCrateToCloud() {
+  try {
+    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    if (!uid) return;
+    if (!crateDoc) return;
+
+    await fetch(CRATE_API_BASE, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: uid,
+        doc: crateDoc
+      })
+    });
+  } catch (e) {}
+}
+
+function ensureCrateLoaded() {
+  if (!crateDoc) crateDoc = loadCrateLocal();
+}
+
+function renderCrate() {
+  ensureCrateLoaded();
+
+  const titleEl = document.getElementById("crate-title");
+  const itemsEl = document.getElementById("crate-items");
+  if (!itemsEl) return;
+
+  if (titleEl) {
+    titleEl.value = String(crateDoc.title || "Crate");
+  }
+
+  const html = (crateDoc.items || []).map((it, idx) => {
+    const checked = !!it.checked;
+    const kind = String(it.kind || "check");
+    const text = String(it.text || "");
+
+    return `
+      <div class="crate-row" data-idx="${idx}">
+        <div class="crate-bubble ${checked ? "checked" : ""}" data-hit="bubble" role="button" aria-label="Toggle"></div>
+        <div class="crate-text ${kind === "text" ? "muted" : ""}" data-hit="text" contenteditable="true" spellcheck="false">${escapeHtml(text)}</div>
+      </div>
+    `;
+  }).join("");
+
+  itemsEl.innerHTML = html || `<div class="crate-row"><div class="crate-text muted">No items yet. Add one below.</div></div>`;
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function addCrateItem(text, kind = "check") {
+  ensureCrateLoaded();
+  crateDoc.items.push({
+    kind,
+    checked: false,
+    text: String(text || "").trim()
+  });
+  saveCrateLocal();
+  renderCrate();
+  pushCrateToCloud();
+}
+
+function addArtistToCrate(artistName) {
+  const name = String(artistName || "").trim();
+  if (!name) return;
+  addCrateItem(name, "check");
+}
+
+function goBackFromCrate() {
+  // If back stack exists, use it; otherwise return Home
+  try {
+    if (window.navStack && window.navStack.length) {
+      goBack();
+      return;
+    }
+  } catch (e) {}
+  showView("home");
+}
+
+function initCrateUIOnce() {
+  if (window.__crateUIBound) return;
+  window.__crateUIBound = true;
+
+  ensureCrateLoaded();
+
+  // Pull from cloud once on first init
+  pullCrateFromCloud().then(() => {
+    try { renderCrate(); } catch (e) {}
+  });
+
+  document.addEventListener("click", (e) => {
+    const openBtn = e.target && e.target.closest ? e.target.closest("#open-crate-btn") : null;
+    if (openBtn) {
+      e.preventDefault();
+      showView("crate");
+      return;
+    }
+
+    const addCheck = e.target && e.target.closest ? e.target.closest("#crate-add-check") : null;
+    if (addCheck) {
+      e.preventDefault();
+      addCrateItem("", "check");
+      // focus the last row
+      setTimeout(() => {
+        const rows = document.querySelectorAll("#crate-items .crate-row");
+        const last = rows[rows.length - 1];
+        const t = last && last.querySelector ? last.querySelector("[data-hit='text']") : null;
+        if (t) t.focus();
+      }, 0);
+      return;
+    }
+
+    const addText = e.target && e.target.closest ? e.target.closest("#crate-add-text") : null;
+    if (addText) {
+      e.preventDefault();
+      addCrateItem("", "text");
+      setTimeout(() => {
+        const rows = document.querySelectorAll("#crate-items .crate-row");
+        const last = rows[rows.length - 1];
+        const t = last && last.querySelector ? last.querySelector("[data-hit='text']") : null;
+        if (t) t.focus();
+      }, 0);
+      return;
+    }
+
+    // bubble toggle
+    const bubble = e.target && e.target.closest ? e.target.closest("#crate-items [data-hit='bubble']") : null;
+    if (bubble) {
+      e.preventDefault();
+      const row = bubble.closest(".crate-row");
+      const idx = row ? Number(row.getAttribute("data-idx")) : -1;
+      if (idx >= 0 && crateDoc && crateDoc.items && crateDoc.items[idx]) {
+        crateDoc.items[idx].checked = !crateDoc.items[idx].checked;
+        saveCrateLocal();
+        renderCrate();
+        pushCrateToCloud();
+      }
+      return;
+    }
+  });
+
+  // typing edits: update crateDoc on input
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t) return;
+
+    if (t.id === "crate-title") {
+      ensureCrateLoaded();
+      crateDoc.title = String(t.value || "Crate");
+      saveCrateLocal();
+      pushCrateToCloud();
+      return;
+    }
+
+    const textEl = t.closest ? t.closest("#crate-items [data-hit='text']") : null;
+    if (!textEl) return;
+
+    const row = textEl.closest(".crate-row");
+    const idx = row ? Number(row.getAttribute("data-idx")) : -1;
+    if (idx >= 0 && crateDoc && crateDoc.items && crateDoc.items[idx]) {
+      crateDoc.items[idx].text = String(textEl.textContent || "");
+      saveCrateLocal();
+      // push less aggressively while typing
+      clearTimeout(window.__cratePushTimer);
+      window.__cratePushTimer = setTimeout(() => { pushCrateToCloud(); }, 450);
+    }
+  });
+}
+
+// expose for menuAction
+window.addArtistToCrate = addArtistToCrate;
+window.goBackFromCrate = goBackFromCrate;
+window.initCrateUIOnce = initCrateUIOnce;
+window.renderCrate = renderCrate;
 
 // Cloud playlists (raw DB rows
 
@@ -5059,7 +5570,8 @@ function captureSwipeBackUnderlay() {
   const { under, content } = ensureSwipeBackUnderlay();
 
   // Find which main view is currently visible
-  const viewIds = ['home-view', 'grid-view', 'search-view', 'artist-view', 'album-view'];
+    const viewIds = ['home-view', 'grid-view', 'search-view', 'artist-view', 'album-view', 'crate-view'];
+
   let visibleEl = null;
 
   for (const id of viewIds) {
@@ -5302,9 +5814,10 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view'].forEach(id => {
+      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
+
 
   activePlaylistIndex = playlistIndex;
 activePlaylistId = null;
@@ -5314,8 +5827,10 @@ if (viewType === 'home') setNavCurrent({ type: 'home' });
 else if (viewType === 'library') setNavCurrent({ type: 'library' });
 else if (viewType === 'search') setNavCurrent({ type: 'search' });
 else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
+
   const pl = playlists[playlistIndex];
   setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: pl?.id || null });
 } else {
@@ -5350,10 +5865,18 @@ const scrollArea = document.getElementById('main-scroll-area');
   }
 }
 
-  if (viewType === 'search') {
+    if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
     document.getElementById('global-search').focus();
   }
+
+  if (viewType === 'crate') {
+    document.getElementById('crate-view')?.classList.remove('hidden');
+    try { initCrateUIOnce(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
+    try { document.getElementById('crate-title')?.focus(); } catch (e) {}
+  }
+
 
   if (viewType === 'liked') {
     document.getElementById('album-view').classList.remove('hidden');
@@ -5463,43 +5986,51 @@ function popToRootSection(targetViewType) {
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
 
-  const navId =
+    const navId =
     viewType === 'home' ? 'nav-home' :
     viewType === 'search' ? 'nav-search' :
     viewType === 'library' ? 'nav-library' :
+    viewType === 'crate' ? 'nav-premium' :
     null;
+
 
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
-  // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
+    // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
   // This fixes the “tap ignored while deep in album view” behavior.
   if (isMobile && isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
-   // If active tab says "library" but current view is album/playlist/etc
-if (currentType && currentType !== viewType) {
-
-  // ✅ SPECIAL CASE:
-  // Inside album/playlist → double-tap Library should go BACK
-  if (viewType === 'library') {
-    const now = Date.now();
-    const last = __navTapLast[viewType] || 0;
-
-    if (now - last <= 350) {
+    // Crate: just open it (no double-tap behavior)
+    if (viewType === 'crate') {
+      showView('crate');
       __navTapLast[viewType] = 0;
-      goBack(); // restores Library + scroll position
-    } else {
-      __navTapLast[viewType] = now;
+      return;
     }
-    return;
-  }
 
-  // Other tabs keep old behavior
-  popToRootSection(viewType);
-  __navTapLast[viewType] = 0;
-  return;
-}
+    // If active tab says "library" but current view is album/playlist/etc
+    if (currentType && currentType !== viewType) {
 
+      // ✅ SPECIAL CASE:
+      // Inside album/playlist → double-tap Library should go BACK
+      if (viewType === 'library') {
+        const now = Date.now();
+        const last = __navTapLast[viewType] || 0;
+
+        if (now - last <= 350) {
+          __navTapLast[viewType] = 0;
+          goBack(); // restores Library + scroll position
+        } else {
+          __navTapLast[viewType] = now;
+        }
+        return;
+      }
+
+      // Other tabs keep old behavior
+      popToRootSection(viewType);
+      __navTapLast[viewType] = 0;
+      return;
+    }
 
     // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
@@ -5525,7 +6056,13 @@ if (currentType && currentType !== viewType) {
     __navTapLockUntil = now + 300; // 300ms debounce window
   }
 
-  showView(viewType);
+    // Normal navigation
+  if (viewType === 'crate') {
+    showView('crate');
+  } else {
+    showView(viewType);
+  }
+
 }
 
 
@@ -9615,13 +10152,27 @@ function renderPlaylists() {
     return;
   }
 
-// GO TO QUEUE
+  // GO TO QUEUE
   if (type === 'queue_go') {
     closeContextMenu();
     openQueueSheet();
     return;
   }
+
+  // ADD ARTIST TO CRATE
+  if (type === 'crate_add_artist') {
+    const a = (menuTargetSong && (menuTargetSong.artist || menuTargetSong.artistName)) ? String(menuTargetSong.artist || menuTargetSong.artistName).trim() : "";
+    if (a) {
+      try { addArtistToCrate(a); } catch (e) {}
+      try { closeContextMenu(); } catch (e) {}
+      try { showView('crate'); } catch (e) {}
+    } else {
+      try { closeContextMenu(); } catch (e) {}
+    }
+    return;
+  }
 }
+
 
 
 // --- Playback navigation (Next/Prev + Shuffle) ---
@@ -9631,6 +10182,7 @@ let shuffleOrder = [];
 let shufflePos = 0;
 let playedStack = [];      // history of played indexes (for Prev)
 let isAutoNav = false;     // true only when Next/Prev triggers playback
+        let isShuffle = false;
         
 
 function buildShuffleOrder(len, startIndex) {
@@ -9669,6 +10221,7 @@ function toggleShuffle() {
         albumIcon?.classList.contains('active-green');
 
     const nextState = !currentlyOn;
+    isShuffle = nextState;
 
     // Update ALL UIs (desktop + now-playing + album)
     if (desktopBtn) desktopBtn.classList.toggle('active-green', nextState);
@@ -9680,6 +10233,23 @@ function toggleShuffle() {
         resetShuffleForQueue();
         playedStack = [currentIndex];
     }
+}
+function bindActionShuffleButton() {
+  const actionButtons = Array.from(document.querySelectorAll('.action-btn'));
+  const shuffleBtn = actionButtons.find(btn => btn.querySelector('.fa-shuffle'));
+  if (!shuffleBtn || shuffleBtn.dataset.shuffleBound === '1') return;
+
+  shuffleBtn.dataset.shuffleBound = '1';
+  shuffleBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleShuffle();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindActionShuffleButton);
+} else {
+  bindActionShuffleButton();
 }
 
 function isShuffleOn() {
