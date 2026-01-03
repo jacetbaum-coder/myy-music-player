@@ -4532,7 +4532,9 @@ if (volumeContainer) {
         const contextMenu = document.getElementById('context-menu');
 const contextMenuBackdrop = document.getElementById('context-menu-backdrop');
 let suppressContextMenuCloseUntil = 0;
-        let contextMenuAnchor = null;
+let suppressPlaylistMenuCloseUntil = 0;
+let contextMenuAnchor = null;
+
         let contextMenuScrollHandler = null;
 
        function closeContextMenu() {
@@ -8926,14 +8928,19 @@ function initResizers() {
     }, { passive: false });
   }
 
-  // Existing: click outside closes the context menu
+    // Existing: click outside closes the context menu
   document.addEventListener('click', (e) => {
     if (window.innerWidth <= 768) return;
+
+    // ✅ If we JUST opened a menu, ignore this click
     if (Date.now() < suppressContextMenuCloseUntil) return;
+    if (Date.now() < suppressPlaylistMenuCloseUntil) return;
+
     if (!contextMenu.contains(e.target)) closeContextMenu();
-        });
+  });
 
   document.addEventListener('touchstart', (e) => {
+
     if (window.innerWidth > 768) return;
     if (Date.now() < suppressContextMenuCloseUntil) return;
     if (!contextMenu.contains(e.target)) closeContextMenu();
@@ -9822,7 +9829,11 @@ function showPlaylistMenuAt(x, y, playlistId) {
   const m = document.getElementById('playlist-menu');
   if (!m) return;
 
+  // ✅ Prevent “open click” from immediately closing it
+  suppressPlaylistMenuCloseUntil = Date.now() + 350;
+
   playlistMenuTargetId = playlistId;
+
 
   const pinBtn   = document.getElementById('pm-pin');
   const unpinBtn = document.getElementById('pm-unpin');
@@ -10492,7 +10503,7 @@ function renderPlaylists() {
         function menuAction(type) {
   if (!menuTargetSong) return;
 
- // REMOVE FROM PLAYLIST
+   // REMOVE FROM PLAYLIST
   if (type === 'remove') {
     if (!activePlaylistId) return;
 
@@ -10501,50 +10512,69 @@ function renderPlaylists() {
 
     const pl = playlists[plIndex];
 
-    // ✅ IDs-only removal: compute the trackId for the target song
-    let targetId =
-      menuTargetSong?.id ||
-      menuTargetSong?.r2Path ||
-      menuTargetSong?.track_id ||
-      menuTargetSong?.r2_key ||
-      menuTargetSong?.key ||
+    // ✅ Resolve trackId robustly (canonical ID is the R2 path)
+    const s = menuTargetSong;
+    let trackId =
+      s?.id ||
+      s?.r2Path ||
+      s?.track_id ||
+      s?.trackId ||
+      s?.key ||
+      s?.r2_key ||
       "";
 
-    // fallback: pull ?id=... from URL
-    if (!targetId) {
-      const u = menuTargetSong?.url || menuTargetSong?.link || "";
+    // Fallback: parse ?id= from the song URL/link
+    if (!trackId) {
+      const u = s?.link || s?.url || "";
       try {
         const parsed = new URL(u, window.location.origin);
-        targetId = parsed.searchParams.get("id") || "";
-      } catch (e) {}
+        trackId = parsed.searchParams.get("id") || "";
+      } catch (_) {}
     }
 
-    targetId = String(targetId || "").trim();
-    if (!targetId) return;
+    if (!trackId) {
+      alert("Missing trackId for this song.");
+      closeContextMenu();
+      return;
+    }
 
-    // Remove from canonical list
+    // ✅ Update local IDs-only model first
     pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-    pl.trackIds = pl.trackIds.filter(id => String(id || "").trim() !== targetId);
+    pl.trackIds = pl.trackIds.filter(id => String(id || "").trim() !== String(trackId || "").trim());
 
-    // Derive songs for UI
+    // ✅ Re-derive UI song objects from master library map
     pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
       ? window.resolveTrackIdsToSongs(pl.trackIds)
-      : [];
+      : (Array.isArray(pl.songs) ? pl.songs : []);
 
     pl.songCount = pl.trackIds.length;
     pl.updated_at = new Date().toISOString();
 
     try { savePlaylists(); } catch (e) {}
 
+    // ✅ Best-effort: remove from cloud too
+    try {
+      await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistId: pl.id, trackId })
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+
     // Update auto cover after removal
-    updatePlaylistAutoCoverById(pl.id).then(() => {
-      renderPlaylists();
-      showView('playlist', plIndex);
-    });
+    try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+
+    try { renderPlaylists(); } catch (e) {}
+    try { renderHome(); } catch (e) {}
+    try { showView('playlist', plIndex); } catch (e) {}
 
     closeContextMenu();
     return;
   }
+
+  // LIKE / UNLIKE
 
 
   // LIKE / UNLIKE
