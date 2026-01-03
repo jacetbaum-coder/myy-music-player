@@ -5555,18 +5555,22 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
       window.__globalOutsideDismissBound = true;
 
       document.addEventListener('pointerdown', (e) => {
-        // If click is inside a menu/popover, do nothing
-        const inside =
-          e.target.closest('#context-menu') ||
-          e.target.closest('#playlist-menu') ||
-          e.target.closest('#album-cover-menu') ||
-          e.target.closest('#library-sort-menu') ||
-          e.target.closest('#playlist-submenu') ||
-          e.target.closest('#library-search-popover') ||
-          e.target.closest('.search-container') ||
-          e.target.closest('#search-results');
+  // ✅ If a menu was JUST opened, don't instantly close it on the same pointerdown
+  if (Date.now() < (window.__outsideDismissSkipUntil || 0)) return;
 
-        if (inside) return;
+  // If click is inside a menu/popover, do nothing
+  const inside =
+    e.target.closest('#context-menu') ||
+    e.target.closest('#playlist-menu') ||
+    e.target.closest('#album-cover-menu') ||
+    e.target.closest('#library-sort-menu') ||
+    e.target.closest('#playlist-submenu') ||
+    e.target.closest('#library-search-popover') ||
+    e.target.closest('.search-container') ||
+    e.target.closest('#search-results');
+
+  if (inside) return;
+
 
         // Close desktop/mobile menus
         try { if (typeof hidePlaylistMenu === 'function') hidePlaylistMenu(); } catch (err) {}
@@ -6226,44 +6230,40 @@ const scrollArea = document.getElementById('main-scroll-area');
   const pl = playlists[playlistIndex];
   if (!pl) return;
 
-  activePlaylistId = pl?.id || null;
+  activePlaylistId = pl.id;
   playContext = { type: 'playlist', label: pl.name };
 
-  // ✅ Load playlist items from cloud ONLY if cloud returns something.
-  // Never wipe local-only playlists by overwriting with [].
+  // 🔒 wrap async work so `await` is legal
   (async () => {
     try {
       const ids = await window.loadPlaylistItemsFromCloud(pl.id);
 
-      // If cloud returned IDs, use IDs-only model
       if (Array.isArray(ids) && ids.length > 0) {
         pl.trackIds = ids;
 
-        // Derive UI song objects from master library map
-        pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+        pl.songs = window.resolveTrackIdsToSongs
           ? window.resolveTrackIdsToSongs(pl.trackIds)
           : [];
 
         pl.songCount = pl.trackIds.length;
       } else {
-        // Cloud empty: keep whatever local data you already have
         pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
         pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
         pl.songCount = pl.trackIds.length || pl.songs.length || 0;
       }
 
-      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
       renderPlaylists();
-
       renderCollection(pl.name, pl.songs, true, playlistIndex);
-    } catch (e) {
-      console.warn(e);
+
+    } catch (err) {
+      console.warn(err);
       pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
       pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
       renderCollection(pl.name, pl.songs, true, playlistIndex);
     }
   })();
-}  // ✅ CLOSES: if (viewType === 'playlist')
+}
+
 
 
 
@@ -9004,8 +9004,10 @@ function initResizers() {
       });
     });
 
-    suppressContextMenuCloseUntil = Date.now() + 400;
-    return;
+   suppressContextMenuCloseUntil = Date.now() + 400;
+window.__outsideDismissSkipUntil = Date.now() + 450;
+return;
+
   }
 
   // Desktop: existing anchored popover behavior
@@ -9036,7 +9038,9 @@ function initResizers() {
   }
 
   contextMenu.style.display = 'block';
-  suppressContextMenuCloseUntil = Date.now() + 400;
+suppressContextMenuCloseUntil = Date.now() + 400;
+window.__outsideDismissSkipUntil = Date.now() + 450;
+
 }
 
 
@@ -10500,7 +10504,8 @@ function renderPlaylists() {
             updateCounts();
             updateHeartUI();
         }
-        function menuAction(type) {
+        async function menuAction(type) {
+
   if (!menuTargetSong) return;
 
    // REMOVE FROM PLAYLIST
