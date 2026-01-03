@@ -2295,15 +2295,40 @@ body.qs-lock {
   <!-- ARTIST HERO -->
   <div id="artist-hero" class="flex items-end gap-6 mb-10"></div>
 
+  <!-- ARTIST CONTROLS (Shuffle + Play) -->
+  <div id="artist-controls" class="mb-8 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button id="artist-shuffle-btn"
+              class="text-xl text-zinc-300 hover:text-white transition"
+              onclick="toggleShuffle()"
+              aria-label="Shuffle">
+        <i id="artist-shuffle-icon" class="fas fa-shuffle"></i>
+      </button>
+    </div>
+
+    <button id="artist-play-btn"
+            class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg"
+            aria-label="Play">
+      <i class="fas fa-play text-black text-xl ml-1"></i>
+    </button>
+  </div>
+
   <!-- DISCOGRAPHY -->
   <h2 class="text-2xl font-black mb-4">Albums</h2>
   <div id="artist-album-grid"
        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
   </div>
 
+  <!-- FEATURED IN -->
+  <h2 id="artist-featured-title" class="text-2xl font-black mt-10 mb-4 hidden">Featured in…</h2>
+  <div id="artist-playlist-grid"
+       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+  </div>
+
 </div>
 
 </main>
+
 
 <!-- RIGHT SIDEBAR (ADDED) -->
 <div id="resizer-right" class="resizer hidden md:block"></div>
@@ -4827,93 +4852,8 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
     }
   } catch (e) {}
 
-  // ✅ Pull-to-refresh (mobile only, from HOME screen)
-  try {
-    if (!window.__ptrBound) {
-      window.__ptrBound = true;
+  // Removed duplicate PTR binding here to prevent “slipping” / double-handlers.
 
-      const area = document.getElementById('main-scroll-area');
-      const ptr = document.getElementById('ptr-indicator');
-      const ptrText = document.getElementById('ptr-text');
-
-      if (area && ptr && ptrText) {
-        let pulling = false;
-        let startY = 0;
-        let lastY = 0;
-        let armed = false;
-
-        const THRESH_ARM = 60;
-        const THRESH_FIRE = 92;
-
-        function isHomeVisible() {
-          const hv = document.getElementById('home-view');
-          return !!(hv && !hv.classList.contains('hidden'));
-        }
-
-        function resetPTR() {
-          pulling = false;
-          armed = false;
-          startY = 0;
-          lastY = 0;
-          ptr.classList.add('hidden');
-          ptrText.textContent = 'Pull to refresh';
-        }
-
-        area.addEventListener('pointerdown', (e) => {
-          if (window.innerWidth > 768) return;              // mobile only
-          if (!isHomeVisible()) return;                     // home only
-          if (area.scrollTop > 0) return;                   // must be at top
-          pulling = true;
-          armed = false;
-          startY = e.clientY;
-          lastY = startY;
-        }, { passive: true });
-
-        area.addEventListener('pointermove', (e) => {
-          if (!pulling) return;
-          if (window.innerWidth > 768) return;
-          if (!isHomeVisible()) return;
-
-          lastY = e.clientY;
-          const dy = lastY - startY;
-          if (dy <= 0) return;
-
-          // show indicator once they start pulling
-          ptr.classList.remove('hidden');
-
-          if (dy >= THRESH_ARM) {
-            armed = true;
-            ptrText.textContent = 'Release to refresh';
-            // prevent the browser from treating this as a normal scroll bounce
-            try { e.preventDefault(); } catch (err) {}
-          } else {
-            armed = false;
-            ptrText.textContent = 'Pull to refresh';
-          }
-        }, { passive: false });
-
-        area.addEventListener('pointerup', (e) => {
-          if (!pulling) return;
-          const dy = (lastY - startY);
-          if (armed && dy >= THRESH_FIRE) {
-            ptrText.textContent = 'Refreshing…';
-            location.reload();
-            return;
-          }
-          resetPTR();
-        }, { passive: true });
-
-        area.addEventListener('pointercancel', resetPTR, { passive: true });
-
-        // If they scroll normally / leave home, hide indicator
-        area.addEventListener('scroll', () => {
-          if (window.innerWidth > 768) return;
-          if (!isHomeVisible()) { resetPTR(); return; }
-          if (area.scrollTop > 0) resetPTR();
-        }, { passive: true });
-      }
-    }
-  } catch (e) {}
 
 };
 
@@ -5635,8 +5575,16 @@ function openAlbumByName(name) {
 
 
   // Hook the big green hero play button to play this album
+  // (Bind directly to the already-built currentQueue so it always works + respects shuffle)
   const heroPlay = document.getElementById('hero-play-btn');
-  if (heroPlay) heroPlay.onclick = () => playAlbumByName(name);
+  if (heroPlay) {
+    heroPlay.onclick = () => {
+      playContext = { type: 'album', label: name };
+      // shuffle-start handled inside playQueue
+      playQueue(currentQueue, 0);
+    };
+  }
+
 
   document.getElementById('album-hero').innerHTML = `
     <img id="album-hero-cover"
@@ -5762,13 +5710,12 @@ function openArtistByName(artistName) {
   activeArtistName = artistName;
 
   // IMPORTANT: we are already switching views here, but during back-nav we don't want double pushes
-  // showView() will try to push; temporarily disable pushing for this call.
   const wasBack = __isBackNav;
   __isBackNav = true;
   showView('artist');
   __isBackNav = wasBack;
 
-  const albums = libraryData.filter(a => a.artistName === artistName);
+  const albums = (Array.isArray(libraryData) ? libraryData : []).filter(a => a.artistName === artistName);
   if (!albums.length) return;
 
   const heroCover = getAlbumCover(albums[0].artistName, albums[0].albumName, albums[0].coverArt);
@@ -5785,21 +5732,113 @@ function openArtistByName(artistName) {
     </div>
   `;
 
-  // ALBUM GRID
+  // Bind Artist green Play button (plays all songs by the artist)
+  const artistPlayBtn = document.getElementById('artist-play-btn');
+  if (artistPlayBtn) {
+    artistPlayBtn.onclick = () => playArtistByName(artistName);
+  }
+
+  // ALBUM GRID (with green play overlay)
   const grid = document.getElementById('artist-album-grid');
   grid.innerHTML = albums.map(a => {
     const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
+    const safeAlbum = a.albumName.replace(/'/g, "\\'");
     return `
-      <div class="p-4 cursor-pointer"
-           onclick="openAlbumByName('${a.albumName.replace(/'/g, "\\'")}')">
+      <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
+           onclick="openAlbumByName('${safeAlbum}')">
         <img src="${cover}"
              class="w-full aspect-square rounded-md mb-3 object-cover">
+
+        <button
+          class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition"
+          onclick="event.preventDefault(); event.stopPropagation(); playAlbumByName('${safeAlbum}')"
+          aria-label="Play album">
+          <i class="fas fa-play text-black text-lg ml-1"></i>
+        </button>
+
         <div class="text-white font-bold truncate">${a.albumName}</div>
         <div class="text-sm text-zinc-400">${a.year || ''}</div>
       </div>
     `;
   }).join('');
+
+  // FEATURED IN… (Playlists containing songs by this artist)
+  const featuredTitle = document.getElementById('artist-featured-title');
+  const plGrid = document.getElementById('artist-playlist-grid');
+
+  const pls = (Array.isArray(playlists) ? playlists : []).filter(pl => {
+    const songs = Array.isArray(pl.songs) ? pl.songs : [];
+    return songs.some(s => {
+      const a = (s.artist || s.artistName || '');
+      return a === artistName;
+    });
+  });
+
+  if (featuredTitle) featuredTitle.classList.toggle('hidden', pls.length === 0);
+
+  if (plGrid) {
+    plGrid.innerHTML = pls.map(pl => {
+      const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
+      const cover = getEffectivePlaylistCover(pl) || pl.cover || '';
+      const safeName = String(pl.name || 'Playlist').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `
+        <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
+             onclick="if (${idx} !== -1) showView('playlist', ${idx});">
+          ${cover
+            ? `<img src="${cover}" class="w-full aspect-square rounded-md mb-3 object-cover">`
+            : `<div class="w-full aspect-square rounded-md mb-3 bg-zinc-800 flex items-center justify-center">
+                 <i class="fas fa-music text-3xl text-zinc-500"></i>
+               </div>`
+          }
+
+          <button
+            class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition"
+            onclick="event.preventDefault(); event.stopPropagation(); playPlaylistById('${pl.id}')"
+            aria-label="Play playlist">
+            <i class="fas fa-play text-black text-lg ml-1"></i>
+          </button>
+
+          <div class="text-white font-bold truncate">${safeName}</div>
+          <div class="text-sm text-zinc-400">Playlist</div>
+        </div>
+      `;
+    }).join('');
+  }
 }
+
+// Plays ALL songs by this artist (respects shuffle)
+function playArtistByName(artistName) {
+  const albums = (Array.isArray(libraryData) ? libraryData : []).filter(a => a.artistName === artistName);
+  const allSongs = [];
+  albums.forEach(a => {
+    (Array.isArray(a.songs) ? a.songs : []).forEach(s => allSongs.push({
+      ...s,
+      album: a.albumName,
+      artist: a.artistName,
+      cover: getAlbumCover(a.artistName, a.albumName, a.coverArt)
+    }));
+  });
+
+  const queue = buildQueueFromSongs(allSongs, { album: 'Artist', artist: artistName });
+  playContext = { type: 'artist', label: artistName };
+  playQueue(queue, 0);
+}
+
+// Plays a playlist by id (respects shuffle)
+function playPlaylistById(playlistId) {
+  const pl = (Array.isArray(playlists) ? playlists.find(p => p.id === playlistId) : null);
+  if (!pl) return;
+
+  const queue = buildQueueFromSongs(pl.songs || [], { album: pl.name || 'Playlist' });
+  playContext = { type: 'playlist', label: pl.name || 'Playlist' };
+  playQueue(queue, 0);
+}
+
+        /**
+         * ---------------------------------------------------------------------
+         * SEARCH LOGIC
+         * ---------------------------------------------------------------------
+         */
 
         /**
          * ---------------------------------------------------------------------
