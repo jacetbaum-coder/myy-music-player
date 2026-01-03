@@ -5266,9 +5266,14 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   safe(window.checkDockVisibility);
 
   safe(window.initResizers);
-  safe(window.initGlobalKeys);
+   safe(window.initGlobalKeys);
+
+  // ✅ Make the desktop "Crate" button work immediately (binds #open-crate-btn click handler)
+  safe(window.initCrateUIOnce);
 
 // NOTE: Do NOT run initMobileDoubleTapScrollToTop.
+
+
 // onNavTap(viewType) now handles double-tap-to-top + pop-to-root + debounce.
 
 
@@ -6976,9 +6981,17 @@ if (window.innerWidth >= 1024) {
 }
         
 function togglePlay() {
-  if (!currentSong) return;
+  // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
+  // start playing from the top instead of doing nothing.
+  if (!currentSong) {
+    if (Array.isArray(currentQueue) && currentQueue.length) {
+      playQueue(currentQueue, 0);
+    }
+    return;
+  }
 
   const desktopIcon = document.getElementById('play-icon');
+
   const mobileIcon = document.getElementById('mobile-play-icon');
   const npIcon = document.getElementById('np-play-icon');
 
