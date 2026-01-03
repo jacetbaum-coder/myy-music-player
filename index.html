@@ -7439,13 +7439,26 @@ function handleContextMenu(e, song) {
                 ? playlists.find(pl => pl.id === activePlaylistId)
                 : null;
 
-            if (playlistMatch) {
+                        if (playlistMatch) {
+                // ✅ Recompute playlist cover using the real rules (explicit > 1 song > 2x2)
+                const explicit = getEffectivePlaylistCover(playlistMatch);
+
+                const songs = Array.isArray(playlistMatch.songs) ? playlistMatch.songs : [];
+                const covers = songs
+                  .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
+                  .map(x => String(x || '').trim())
+                  .filter(Boolean);
+
+                const historyCover =
+                  explicit ||
+                  (covers.length >= 1 ? covers[0] : cover);
+
                 history = history.filter(h => h.id !== playlistMatch.id || h.type !== 'playlist');
                 history.unshift({
                     type: 'playlist',
                     id: playlistMatch.id,
                     name: playlistMatch.name,
-                    cover
+                    cover: historyCover
                 });
             } else {
                 history = history.filter(h => h.album !== album || h.type === 'playlist');
@@ -7453,6 +7466,7 @@ function handleContextMenu(e, song) {
             }
 
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+
             renderHistory();
 
             // Keep Home tiles synced
@@ -7683,46 +7697,89 @@ if (homeRecentsShowAllBtn) {
 }
 
 function renderHistory() {
-  // LEFT SIDEBAR "Recently Listened" (desktop)
-  const sidebarContainer = document.getElementById('history-container');
-  if (sidebarContainer) {
-    sidebarContainer.innerHTML =
-      '<span class="text-xs font-bold text-zinc-400 uppercase tracking-widest block mb-4">Recently Listened</span>';
+  const historyEl = document.getElementById('history-container');
+  if (!historyEl) return;
 
-    (Array.isArray(history) ? history : []).forEach(h => {
-      const div = document.createElement('div');
-      div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { history = []; }
 
-      if (h.type === 'playlist' && h.id) {
-  const pl = playlists.find(p => p.id === h.id);
+  // ✅ helper to resolve a playlist that still exists
+  const getPlaylistById = (id) => {
+    const local = Array.isArray(playlists) ? playlists.find(p => p.id === id) : null;
+    if (local) return local;
 
-  // ✅ Playlist was deleted — do NOT show it in Recently Played
-  if (!pl) return;
+    const cloud = Array.isArray(window.cloudPlaylists)
+      ? window.cloudPlaylists.find(p => p.playlist_id === id)
+      : null;
 
-  const idx = playlists.indexOf(pl);
-  div.onclick = () => showView('playlist', idx);
-  attachPlaylistPressHandlers(div, h.id);
-} else {
-  div.onclick = () => openAlbumByName(h.album);
-}
+    // Normalize cloud shape to look like your local playlist (id/name)
+    if (cloud) {
+      return {
+        id: cloud.playlist_id,
+        name: cloud.name,
+        songs: Array.isArray(cloud.songs) ? cloud.songs : [],
+        cover: cloud.cover_url || ""
+      };
+    }
+    return null;
+  };
 
+  // ✅ Remove deleted playlists from history
+  history = history.filter(h => {
+    if (h && h.type === 'playlist') return !!getPlaylistById(h.id);
+    if (h && h.type === 'album') return !!h.album;
+    return false;
+  });
+
+  localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+
+  historyEl.innerHTML = '';
+
+  history.slice(0, 12).forEach((h) => {
+    const div = document.createElement('div');
+    div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer";
+    div.style.pointerEvents = "auto";
+
+    if (h.type === 'playlist' && h.id) {
+      const pl = getPlaylistById(h.id);
+      if (!pl) return;
+
+      const idx = Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1;
+
+      div.onclick = () => { if (idx !== -1) showView('playlist', idx); };
+
+      const coverMarkup = getPlaylistCoverMarkup(pl, "w-10 h-10");
 
       div.innerHTML = `
-        <img src="${h.cover || ''}" class="w-12 h-12 rounded shadow-md object-cover">
-        <div class="truncate">
-          <div class="text-sm font-bold text-white truncate">${h.type === 'playlist' ? (h.name || 'Playlist') : (h.album || 'Album')}</div>
-          <div class="text-xs text-zinc-400">${h.type === 'playlist' ? 'Playlist' : (h.artist || '')}</div>
+        <div class="w-10 h-10 rounded overflow-hidden bg-zinc-800 flex items-center justify-center">
+          ${coverMarkup}
+        </div>
+        <div class="flex-1 truncate">
+          <div class="text-sm font-bold truncate">${pl.name}</div>
+          <div class="text-xs text-zinc-400">Playlist</div>
         </div>
       `;
-      sidebarContainer.appendChild(div);
-    });
-  }
+      return historyEl.appendChild(div);
+    }
 
-  // MOBILE mini recents row (inside Library tab grid-view)
-  renderMobileRecents();
+    // album
+    div.onclick = () => openAlbumByName(h.album);
 
-  // Keep the Home tiles synced too
-  try { renderHome(); } catch (e) {}
+    const cover = (h.cover && String(h.cover).trim()) ? String(h.cover).trim() : '';
+    const coverHtml = cover
+      ? `<img src="${cover}" class="w-10 h-10 rounded object-cover" alt="">`
+      : `<div class="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>`;
+
+    div.innerHTML = `
+      ${coverHtml}
+      <div class="flex-1 truncate">
+        <div class="text-sm font-bold truncate">${h.album}</div>
+        <div class="text-xs text-zinc-400">${h.artist || ''}</div>
+      </div>
+    `;
+
+    historyEl.appendChild(div);
+  });
 }
 
         function createNewPlaylist() {
@@ -7870,7 +7927,16 @@ function savePlaylists() {
 ------------------------ */
 
 function getSongCoverFromPlaylistSong(s) {
-  return (s && (s.cover || s.coverArt || s.coverUrl)) ? String(s.cover || s.coverArt || s.coverUrl) : "";
+  if (!s) return "";
+  return (
+    s.cover_url ||
+    s.coverURL ||
+    s.cover ||
+    s.coverArt ||
+    s.cover_art ||
+    (s.track && (s.track.cover_url || s.track.cover)) ||
+    ""
+  );
 }
 
 function getPlaylistManualCover(pl) {
@@ -7882,10 +7948,67 @@ function getPlaylistAutoCover(pl) {
 }
 
 function getEffectivePlaylistCover(pl) {
-  return getPlaylistManualCover(pl) || getPlaylistAutoCover(pl) || "";
+  if (!pl) return '';
+  // Manual cover wins
+  if (pl.cover && String(pl.cover).trim()) return String(pl.cover).trim();
+  // Cloud field wins if present
+  if (pl.cover_url && String(pl.cover_url).trim()) return String(pl.cover_url).trim();
+  // Auto cover
+  if (pl.autoCover && String(pl.autoCover).trim()) return String(pl.autoCover).trim();
+  return '';
+}
+
+/**
+ * ✅ Returns HTML markup for a playlist cover that matches your rules:
+ * - If playlist has a manual/explicit cover => single image
+ * - Else if >= 4 songs with covers => 2x2 grid of first 4 covers
+ * - Else if >= 1 song with a cover => single image of first song cover
+ * - Else => music icon
+ *
+ * sizeClass should be something like: "w-12 h-12" or "w-16 h-16"
+ */
+function getPlaylistCoverMarkup(pl, sizeClass) {
+  const sc = sizeClass || "w-12 h-12";
+
+  // 1) explicit cover (manual/cloud/auto)
+  const explicit = getEffectivePlaylistCover(pl);
+  if (explicit) {
+    return `<img src="${explicit}" class="${sc} object-cover" alt="">`;
+  }
+
+  // 2) build from song covers
+  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+  const covers = songs
+    .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
+    .map(x => String(x || '').trim())
+    .filter(Boolean);
+
+  if (covers.length >= 4) {
+    const c0 = covers[0], c1 = covers[1], c2 = covers[2], c3 = covers[3];
+    return `
+      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden">
+        <img src="${c0}" class="w-full h-full object-cover" alt="">
+        <img src="${c1}" class="w-full h-full object-cover" alt="">
+        <img src="${c2}" class="w-full h-full object-cover" alt="">
+        <img src="${c3}" class="w-full h-full object-cover" alt="">
+      </div>
+    `;
+  }
+
+  if (covers.length >= 1) {
+    return `<img src="${covers[0]}" class="${sc} object-cover" alt="">`;
+  }
+
+  // 3) fallback icon
+  return `
+    <div class="${sc} flex items-center justify-center bg-zinc-800">
+      <i class="fas fa-music text-zinc-600"></i>
+    </div>
+  `;
 }
 
 function playlistAutoCoverSignature(pl) {
+
   // Signature determines when we need to rebuild the auto cover
   const songs = Array.isArray(pl?.songs) ? pl.songs : [];
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
