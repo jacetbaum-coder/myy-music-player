@@ -10618,7 +10618,7 @@ if (!trackId) {
 }
 
 // ✅ Update local IDs-only model first (UI updates instantly)
-const pl = playlists.find(p => p.id === activePlaylistId);
+// reuse existing playlist reference (do NOT redeclare)
 if (pl) {
   const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
