@@ -10691,12 +10691,11 @@ try {
     try { renderPlaylists(); } catch (e) {}
   }
 
-  alert("Couldn’t remove from playlist (cloud sync failed). Try again.");
-}
-
+ alert("Couldn’t remove from playlist (cloud sync failed). Try again.");
 }
 
 try { closeContextMenu(); } catch (e) {}
+
 try { hidePlaylistMenu(); } catch (e) {}
 
 // ✅ Re-render immediately WITHOUT reloading from cloud
