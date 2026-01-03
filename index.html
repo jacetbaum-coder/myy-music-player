@@ -5333,29 +5333,6 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
-// (This copy is intentionally a thin wrapper. The canonical implementation lives in the Cloud Playlist API section.)
-window.loadPlaylistItemsFromCloud = async function (playlistId) {
-  // Call the canonical version (if this wrapper got defined later, it still behaves correctly)
-  return await (async function (pid) {
-    if (!pid) return [];
-
-    const res = await fetch(
-      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(pid)
-    );
-
-    const data = await res.json().catch(() => ({}));
-
-    if (res.ok && data && data.ok && Array.isArray(data.items)) {
-      return data.items
-        .map(it => (it.r2_key || it.track_id || ""))
-        .map(x => String(x).trim())
-        .filter(Boolean);
-    }
-
-    return [];
-  })(playlistId);
-};
-
 
 
   // Never let one missing helper break app startup
@@ -5437,8 +5414,40 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
     libraryData = await response.json();
     if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
+    // ✅ Build master track index: id/r2Path -> canonical track object
+    // This is what playlists will reference.
+    window.tracksById = new Map();
+
+    try {
+      libraryData.forEach((album) => {
+        const songs = Array.isArray(album?.songs) ? album.songs : [];
+        songs.forEach((s) => {
+          const id = String(s?.id || s?.r2Path || "").trim();
+          if (!id) return;
+
+          // Normalize a consistent object shape for the UI
+          const track = {
+            ...s,
+            id,
+            r2Path: id,
+            title: s?.title || s?.name || id.split("/").pop() || id,
+            name: s?.name || s?.title || id.split("/").pop() || id,
+            artistName: s?.artistName || album?.artistName || "",
+            albumName: s?.albumName || album?.albumName || "",
+            link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
+            url: s?.url || s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`
+          };
+
+          window.tracksById.set(id, track);
+        });
+      });
+    } catch (e) {
+      console.warn("tracksById build failed:", e);
+    }
+
     // Keep original order for "Recently added"
     libraryDataOriginal = libraryData.slice();
+
 
     // Sort library alphabetically by album (Library grid)
     libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
