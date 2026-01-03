@@ -10452,8 +10452,41 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', hideAlbumCoverMenu, true);
 });
 
+// ✅ Canonical track id helper (global)
+// Turns URLs or encoded ids into the stable R2 path: "Artist/Album/Song.mp3"
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+
+  // If we were given a full URL, pull out ?id=
+  try {
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
+    }
+  } catch (e) {}
+
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
+    try {
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
+  }
+
+  // Decode %2F etc
+  try { s = decodeURIComponent(s); } catch (e) {}
+
+  // Strip leading slash if present
+  s = s.replace(/^\/+/, "").trim();
+
+  return s;
+}
+
 function renderPlaylists() {
   const list = document.getElementById('dynamic-playlists-list');
+
   const sub = document.getElementById('playlist-submenu');
   if (!list || !sub) return;
 
