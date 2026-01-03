@@ -5874,8 +5874,9 @@ const scrollArea = document.getElementById('main-scroll-area');
     document.getElementById('crate-view')?.classList.remove('hidden');
     try { initCrateUIOnce(); } catch (e) {}
     try { renderCrate(); } catch (e) {}
-    try { document.getElementById('crate-title')?.focus(); } catch (e) {}
+    // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
   }
+
 
 
   if (viewType === 'liked') {
@@ -6056,14 +6057,11 @@ function onNavTap(viewType) {
     __navTapLockUntil = now + 300; // 300ms debounce window
   }
 
-    // Normal navigation
-  if (viewType === 'crate') {
-    showView('crate');
-  } else {
-    showView(viewType);
-  }
+   // Normal navigation
+  showView(viewType);
 
 }
+
 
 
 /**
