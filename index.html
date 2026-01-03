@@ -4704,12 +4704,15 @@ const scrollArea = document.getElementById('main-scroll-area');
     (async () => {
       try {
         const songs = await window.loadPlaylistItemsFromCloud(pl.id);
-        pl.songs = Array.isArray(songs) ? songs : [];
-      } catch (e) {
-        console.warn(e);
-        pl.songs = [];
-      }
-      renderCollection(pl.name, pl.songs, true, playlistIndex);
+pl.songs = Array.isArray(songs) ? songs : [];
+
+// ✅ compute auto cover + refresh sidebar immediately
+try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+pl.songCount = pl.songs.length;
+renderPlaylists();
+
+renderCollection(pl.name, pl.songs, true, playlistIndex);
+
     })();
   }
 
@@ -7685,12 +7688,18 @@ function renderHistory() {
       div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer mb-1";
 
       if (h.type === 'playlist' && h.id) {
-        const idx = playlists.findIndex(pl => pl.id === h.id);
-        div.onclick = () => { if (idx !== -1) showView('playlist', idx); };
-        attachPlaylistPressHandlers(div, h.id);
-      } else {
-        div.onclick = () => openAlbumByName(h.album);
-      }
+  const pl = playlists.find(p => p.id === h.id);
+
+  // ✅ Playlist was deleted — do NOT show it in Recently Played
+  if (!pl) return;
+
+  const idx = playlists.indexOf(pl);
+  div.onclick = () => showView('playlist', idx);
+  attachPlaylistPressHandlers(div, h.id);
+} else {
+  div.onclick = () => openAlbumByName(h.album);
+}
+
 
       div.innerHTML = `
         <img src="${h.cover || ''}" class="w-12 h-12 rounded shadow-md object-cover">
@@ -8013,53 +8022,27 @@ function showPlaylistMenuAt(x, y, playlistId) {
     // ✅ Delete playlist
   if (delBtn) {
     delBtn.onclick = async () => {
-      const id = playlistMenuTargetId;
-      if (!id) return;
+  if (!activePlaylistMenuId) return;
+  const ok = confirm("Delete this playlist? This cannot be undone.");
+  if (!ok) return;
 
-      const plIndex = playlists.findIndex(p => p.id === id);
-      if (plIndex === -1) return;
+  // Remove locally
+  playlists = playlists.filter(p => p.id !== activePlaylistMenuId);
+  try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
 
-      const plName = playlists[plIndex].name || "this playlist";
-      const ok = confirm(`Delete "${plName}"? This cannot be undone.`);
-      if (!ok) return;
+  // ✅ Remove from Recently listened history too
+  try {
+    const raw = localStorage.getItem('history');
+    const hist = raw ? JSON.parse(raw) : [];
+    const cleaned = Array.isArray(hist) ? hist.filter(h => !(h && h.type === 'playlist' && h.id === activePlaylistMenuId)) : [];
+    localStorage.setItem('history', JSON.stringify(cleaned));
+  } catch (e) {}
 
-      // remove locally
-      playlists.splice(plIndex, 1);
-      try { savePlaylists(); } catch (e) {}
+  hidePlaylistMenu();
+  renderPlaylists();
+  try { renderHistory(); } catch (e) {}
+};
 
-      // ✅ ALSO remove from Recently listened (historyLog)
-      try {
-        if (Array.isArray(historyLog)) {
-          historyLog = historyLog.filter(h => {
-            const pid = h && (h.playlistId || h.id);
-            return !(h && h.type === 'playlist' && String(pid) === String(id));
-          });
-          localStorage.setItem('historyLog', JSON.stringify(historyLog));
-          try { renderHistory(); } catch (e) {}
-        }
-      } catch (e) {}
-
-      // Optional cloud delete (safe if endpoint exists; ignored if it doesn't)
-      try {
-        const userId = localStorage.getItem("app_user_id");
-        if (userId) {
-          await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, playlistId: id })
-          });
-        }
-      } catch (e) {}
-
-      // If we’re viewing the deleted playlist, go home
-      if (activePlaylistId === id) {
-        activePlaylistId = null;
-        try { showView('home'); } catch (e) {}
-      }
-
-      renderPlaylists();
-      hidePlaylistMenu();
-    };
   }
 
 
@@ -8309,157 +8292,167 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function renderPlaylists() {
   const list = document.getElementById('dynamic-playlists-list');
-  const sub  = document.getElementById('playlist-submenu');
+  const sub = document.getElementById('playlist-submenu');
   if (!list || !sub) return;
 
-  // Clear the sidebar list
-  list.innerHTML = "";
+  list.innerHTML = '';
+  sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
 
-  // ✅ Only show 4 playlists, most recent first
-  const recent = (Array.isArray(playlists) ? playlists.slice() : []).reverse().slice(0, 4);
+  // ---------
+  // Sort playlists by most-recent first (updated_at, else created_at)
+  // ---------
+  const sorted = (Array.isArray(playlists) ? playlists.slice() : []).sort((a, b) => {
+    const ta = Date.parse(a.updated_at || a.created_at || '') || 0;
+    const tb = Date.parse(b.updated_at || b.created_at || '') || 0;
+    return tb - ta;
+  });
 
-  recent.forEach((pl) => {
+  // Sidebar should show ONLY 4 playlists
+  const sidebarPlaylists = sorted.slice(0, 4);
+
+  // Render the left sidebar rows (only 4)
+  sidebarPlaylists.forEach((pl) => {
     const div = document.createElement('div');
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
 
-    const songs = Array.isArray(pl.songs) ? pl.songs : [];
-    const count = songs.length;
+    // Find the real index inside playlists[] for showView('playlist', index)
+    const i = playlists.findIndex(p => p.id === pl.id);
+    div.onclick = () => showView('playlist', i);
 
-    // cover: manual > auto > first song cover > empty
-    const cover = (typeof getEffectivePlaylistCover === "function" ? getEffectivePlaylistCover(pl) : "") ||
-                  (songs[0] && (songs[0].cover || songs[0].coverArt || songs[0].cover_url)) ||
-                  "";
+    const cover = getEffectivePlaylistCover(pl);
 
-    const coverHtml = cover
-      ? `<img src="${cover}" class="w-12 h-12 rounded object-cover bg-zinc-800 flex-shrink-0">`
-      : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
-           <i class="fas fa-music text-zinc-500"></i>
-         </div>`;
+    // Count: use loaded songs if present, else a stored fallback songCount, else 0
+    const count =
+      (Array.isArray(pl.songs) ? pl.songs.length : null) ??
+      (Number.isFinite(pl.songCount) ? pl.songCount : 0);
 
     div.innerHTML = `
-      ${coverHtml}
-      <div class="min-w-0 flex-1">
-        <div class="text-white font-semibold truncate">${pl.name}</div>
-        <div class="text-xs text-zinc-400">${count} song${count === 1 ? "" : "s"}</div>
+      <div class="playlist-cover w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center"
+           data-playlist-id="${pl.id}">
+        ${
+          cover
+            ? `<img src="${cover}" class="w-full h-full object-cover" alt="">`
+            : `<i class="fas fa-music text-zinc-600"></i>`
+        }
+      </div>
+
+      <div class="flex-1 truncate">
+        <div class="text-sm font-bold truncate flex items-center gap-2">
+          <span class="truncate">${pl.name}</span>
+        </div>
+        <div class="text-xs text-zinc-400">${count} songs</div>
       </div>
     `;
 
-    // Click opens playlist
-    div.onclick = () => {
-      const idx = playlists.findIndex(p => p.id === pl.id);
-      if (idx !== -1) showView('playlist', idx);
-    };
+    // Keep your existing right-click + mobile long-press menu for the whole row
+    attachPlaylistPressHandlers(div, pl.id);
 
-    // Right-click / menu button (optional): show playlist menu
-    div.oncontextmenu = (e) => {
-      e.preventDefault();
-      try { showPlaylistMenuAt(e.clientX, e.clientY, pl.id); } catch (_) {}
-    };
+    // DESKTOP ONLY: press-and-hold on the COVER opens the playlist menu
+    const coverEl = div.querySelector('.playlist-cover');
+    if (coverEl) {
+      let holdTimer = null;
+
+      coverEl.addEventListener('pointerdown', (e) => {
+        if (window.innerWidth <= 768) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        holdTimer = setTimeout(() => {
+          try { hidePlaylistMenu(); } catch (err) {}
+          try { closeContextMenu(); } catch (err) {}
+          showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
+        }, 450);
+      });
+
+      const cancelHold = () => {
+        if (holdTimer) clearTimeout(holdTimer);
+        holdTimer = null;
+      };
+
+      coverEl.addEventListener('pointerup', cancelHold);
+      coverEl.addEventListener('pointercancel', cancelHold);
+      coverEl.addEventListener('pointerleave', cancelHold);
+
+      coverEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { hidePlaylistMenu(); } catch (err) {}
+        try { closeContextMenu(); } catch (err) {}
+        showPlaylistMenuAt(e.clientX, e.clientY, pl.id);
+      });
+    }
 
     list.appendChild(div);
   });
 
-  // ✅ Build “Add to playlist” submenu
-  sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">+ New Playlist</div>`;
+  // Build the “Add to playlist” submenu (ALL playlists, not limited to 4)
+  playlists.forEach((pl, i) => {
+    const item = document.createElement('div');
+    item.className = "menu-item";
+    item.innerText = pl.name;
 
-  // If you already load cloud playlists, prefer those for the add-menu if present
-  const cloudList = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
-  if (cloudList.length) {
-    cloudList.forEach((pl) => {
-      const item = document.createElement('div');
-      item.className = "menu-item";
-      item.innerText = pl.name;
+    item.onclick = async () => {
+      const s = menuTargetSong;
+      if (!s) return;
 
-      item.onclick = async () => {
-        const s = menuTargetSong;
-        if (!s) return;
+      // Resolve trackId robustly
+      let trackId =
+        s.track_id ||
+        s.trackId ||
+        s.key ||
+        s.r2_key ||
+        "";
 
-                // Resolve a usable trackId for D1:
-        // - prefer explicit ids on the object
-        // - else parse ?id=... from the song URL/link
-        const trackId = (() => {
-          const direct =
-            s.track_id ||
-            s.trackId ||
-            s.key ||
-            s.r2_key ||
-            "";
-
-          if (direct) return String(direct);
-
-          const u = String(s.url || s.link || "");
-          if (!u) return "";
-
-          try {
-            // works for absolute OR relative URLs
-            const parsed = new URL(u, window.location.origin);
-            const id = parsed.searchParams.get("id");
-            return id ? String(id) : "";
-          } catch (e) {
-            // fallback: dumb parse
-            const m = u.match(/[?&]id=([^&]+)/i);
-            return m ? decodeURIComponent(m[1]) : "";
-          }
-        })();
-
-        if (!trackId) {
-          alert("Missing trackId for this song.");
-          return;
-        }
-
+      // If still missing, try extracting ?id=... from the song URL
+      if (!trackId) {
+        const u = s.link || s.url || "";
         try {
-          await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              playlistId: pl.playlist_id,
-              trackId
-            })
-          });
-        } catch (e) {
-          console.warn(e);
-        }
+          const parsed = new URL(u, window.location.origin);
+          trackId = parsed.searchParams.get("id") || "";
+        } catch (_) {}
+      }
 
-        try { await window.loadPlaylistsFromCloud(); } catch (e) {}
-        renderPlaylists();
-        closeContextMenu();
-      };
+      if (!trackId) {
+        alert("Missing trackId for this song.");
+        return;
+      }
 
-
-      sub.appendChild(item);
-    });
-  } else {
-    // fallback to local playlists for add-menu
-    playlists.forEach((pl, i) => {
-      const item = document.createElement('div');
-      item.className = "menu-item";
-      item.innerText = pl.name;
-
-      item.onclick = async () => {
-        const s = menuTargetSong;
-        if (!s) return;
-
-        playlists[i].songs.push({
-          url: s.link || s.url,
-          title: s.name || s.title,
-          album: s.album,
-          artist: s.artist,
-          cover: s.cover || s.coverArt
+      try {
+        await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlistId: pl.id, trackId })
         });
+      } catch (e) {
+        console.warn(e);
+      }
 
-        savePlaylists();
+      // Update local preview immediately (count + cover logic)
+      if (!Array.isArray(pl.songs)) pl.songs = [];
+      pl.songs.push({
+        url: s.link || s.url,
+        title: s.name || s.title,
+        album: s.album,
+        artist: s.artist,
+        cover: s.cover || s.coverArt
+      });
 
-        // update auto cover right after adding
-        try { await updatePlaylistAutoCoverById(playlists[i].id); } catch (e) {}
+      // Update auto cover after adding
+      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
-        renderPlaylists();
-        closeContextMenu();
-      };
+      // keep a fallback count even if songs later get replaced by cloud
+      pl.songCount = pl.songs.length;
+      pl.updated_at = new Date().toISOString();
 
-      sub.appendChild(item);
-    });
-  }
+      renderPlaylists();
+      closeContextMenu();
+    };
+
+    sub.appendChild(item);
+  });
 } // This closes renderPlaylists
+
 
 
 
