@@ -5782,7 +5782,13 @@ function initSwipeBack() {
         reset(false);
         goBack();
       };
-      area.addEventListener('transitionend', done);
+            area.addEventListener('transitionend', done);
+
+      // ✅ Fallback: if transitionend never fires (mobile Safari/Chrome quirks), still finish.
+      setTimeout(() => {
+        try { done(); } catch (e) {}
+      }, 220);
+
       return;
     }
 
