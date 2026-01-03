@@ -48,18 +48,33 @@
    MOBILE PULL TO REFRESH
 ------------------------ */
 #ptr-overlay{
-  position: absolute;
+  /* ✅ Fixed to the viewport so it doesn’t “float” with content */
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
 
-  height: 0px;               /* we change this live while pulling */
+  /* We change this live while pulling */
+  height: 0px;
   overflow: hidden;
 
+  /* Above app UI */
   z-index: 5000;
+
+  /* Pull-to-refresh is visual only; your JS owns the gesture */
   pointer-events: none;
+
   opacity: 0;
   transition: opacity 120ms ease;
+
+  /* Helps the animation feel “connected” */
+  will-change: height, opacity, transform;
+}
+
+/* ✅ Spinner animation used while refreshing */
+@keyframes ptrSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 #ptr-overlay .ptr-bg{
@@ -5770,18 +5785,35 @@ function openArtistByName(artistName) {
         <img src="${cover}"
              class="w-full aspect-square rounded-md mb-3 object-cover">
 
-        <button
-          class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition"
-          onclick="event.preventDefault(); event.stopPropagation(); playAlbumByName('${safeAlbum}')"
+       <button
+          class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition js-green-play"
+          type="button"
+          data-kind="album"
+          data-value="${safeAlbum}"
           aria-label="Play album">
           <i class="fas fa-play text-black text-lg ml-1"></i>
         </button>
+
 
         <div class="text-white font-bold truncate">${a.albumName}</div>
         <div class="text-sm text-zinc-400">${a.year || ''}</div>
       </div>
     `;
-  }).join('');
+    }).join('');
+
+  // ✅ Bind the green play overlays (do NOT rely on inline `event`)
+  grid.querySelectorAll('.js-green-play').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const kind = btn.getAttribute('data-kind');
+      const value = btn.getAttribute('data-value');
+
+      if (kind === 'album') return playAlbumByName(value);
+      if (kind === 'playlist') return playPlaylistById(value);
+    });
+  });
+
 
   // FEATURED IN… (Playlists containing songs by this artist)
   const featuredTitle = document.getElementById('artist-featured-title');
@@ -5813,11 +5845,14 @@ function openArtistByName(artistName) {
           }
 
           <button
-            class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition"
-            onclick="event.preventDefault(); event.stopPropagation(); playPlaylistById('${pl.id}')"
+            class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition js-green-play"
+            type="button"
+            data-kind="playlist"
+            data-value="${pl.id}"
             aria-label="Play playlist">
             <i class="fas fa-play text-black text-lg ml-1"></i>
           </button>
+
 
           <div class="text-white font-bold truncate">${safeName}</div>
           <div class="text-sm text-zinc-400">Playlist</div>
@@ -10229,12 +10264,31 @@ player.addEventListener('ended', () => {
     }
 
     function setIconRotation(deg){
-      const ic = getIcon();
-      if (!ic) return;
-      ic.style.transform = 'rotate(' + deg + 'deg)';
-    }
+  const ic = getIcon();
+  if (!ic) return;
+  // Only set rotation when NOT spinning (spinning uses animation)
+  if (ic.dataset.spinning === '1') return;
+  ic.style.transform = 'rotate(' + deg + 'deg)';
+}
 
-    async function softRefresh(){
+function startIconSpin(){
+  const ic = getIcon();
+  if (!ic) return;
+  ic.dataset.spinning = '1';
+  ic.style.animation = 'ptrSpin 0.9s linear infinite';
+  // clear any fixed rotation so animation is clean
+  ic.style.transform = '';
+}
+
+function stopIconSpin(){
+  const ic = getIcon();
+  if (!ic) return;
+  ic.dataset.spinning = '0';
+  ic.style.animation = '';
+  ic.style.transform = '';
+}
+
+async function softRefresh(){
       // Best-effort “refresh app” without full page reload:
       // - pull playlists from cloud
       // - re-render home + playlists + history
@@ -10278,7 +10332,9 @@ player.addEventListener('ended', () => {
 
       setStatusText('Pull to refresh');
       setOverlayHeight(0);
-      setIconRotation(0);
+stopIconSpin();
+setIconRotation(0);
+
       setAreaTranslate(0, !!animated);
 
       // clear transition after snap back
@@ -10388,13 +10444,17 @@ player.addEventListener('ended', () => {
           area.classList.add('ptr-refreshing');
           setStatusText('Refreshing…');
 
-          // snap to a fixed “refresh” position
-          setOverlayHeight(SNAP);
-          setAreaTranslate(SNAP, true);
+// snap to a fixed “refresh” position
+setOverlayHeight(SNAP);
+setAreaTranslate(SNAP, true);
 
-          try {
-            await softRefresh();
-          } finally {
+// ✅ Spin icon while we’re actually refreshing
+startIconSpin();
+
+try {
+  await softRefresh();
+} finally {
+
             refreshing = false;
             resetPTR(true);
           }
