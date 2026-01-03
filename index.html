@@ -5990,10 +5990,12 @@ function initSearchSwipeDownClose() {
         goBack();
       };
       area.addEventListener('transitionend', done);
-      return;
-        
+           return;
+    }
+
     reset(true);
   }, { passive: true });
+
 
   searchView.addEventListener('pointercancel', () => {
     if (!active) return;
