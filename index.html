@@ -3735,6 +3735,7 @@ try {
         // preserve local-only content if cloud meta doesn't include it
         songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
         trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+
       });
     } else {
       byId.set(c.id, c);
@@ -10489,70 +10490,80 @@ function renderPlaylists() {
     item.innerText = pl.name;
 
     item.onclick = async () => {
-      const s = menuTargetSong;
-      if (!s) return;
+  const s = menuTargetSong;
+  if (!s) return;
 
-            // Resolve trackId robustly (canonical ID is the R2 path)
-      let trackId =
-        s.id ||
-        s.r2Path ||
-        s.track_id ||
-        s.trackId ||
-        s.key ||
-        s.r2_key ||
-        "";
+  // Resolve trackId robustly (canonical ID is the R2 path)
+  let trackId =
+    s.id ||
+    s.r2Path ||
+    s.track_id ||
+    s.trackId ||
+    s.key ||
+    s.r2_key ||
+    "";
 
-      // If still missing, try extracting ?id=... from the song URL
-      if (!trackId) {
-        const u = s.link || s.url || "";
-        try {
-          const parsed = new URL(u, window.location.origin);
-          trackId = parsed.searchParams.get("id") || "";
-        } catch (_) {}
-      }
+  // If still missing, try extracting ?id=... from the song URL
+  if (!trackId) {
+    const u = s.link || s.url || "";
+    try {
+      const parsed = new URL(u, window.location.origin);
+      trackId = parsed.searchParams.get("id") || "";
+    } catch (_) {}
+  }
 
-      if (!trackId) {
-        alert("Missing trackId for this song.");
-        return;
-      }
+  trackId = canonTrackId(trackId);
 
-      try {
-        await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playlistId: pl.id, trackId })
-        });
-      } catch (e) {
-        console.warn(e);
-      }
+  if (!trackId) {
+    alert("Missing trackId for this song.");
+    return;
+  }
 
-      // ✅ Update local immediately using IDs-only
-      if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+  // 1) CLOUD FIRST (so refresh + other devices match)
+  try {
+    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlistId: pl.id, trackId })
+    });
 
-      // Avoid duplicates inside the same playlist (simple guard)
-      if (!pl.trackIds.includes(trackId)) {
-        pl.trackIds.push(trackId);
-      }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "Cloud add failed");
+    }
+  } catch (e) {
+    console.warn("Cloud add failed:", e);
+    alert("Couldn’t add to playlist (cloud sync failed). Try again.");
+    return;
+  }
 
-      // ✅ Derived view model for UI
-      pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
-        ? window.resolveTrackIdsToSongs(pl.trackIds)
-        : [];
+  // 2) LOCAL UPDATE (IDs-only) + SAVE (so a refresh keeps it immediately too)
+  if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
 
-      // Update auto cover after adding
-      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+  const existingCanon = new Set(pl.trackIds.map(canonTrackId));
+  if (!existingCanon.has(trackId)) {
+    pl.trackIds.push(trackId);
+  }
 
-      // keep a fallback count even if songs later get replaced by cloud
-      pl.songCount = pl.trackIds.length;
-      pl.updated_at = new Date().toISOString();
+  pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+    ? window.resolveTrackIdsToSongs(pl.trackIds)
+    : [];
 
-            renderPlaylists();
+  savePlaylists();
 
-      closeContextMenu();
+  // Update auto cover after adding
+  try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 
-      // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
-      try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
-    };
+  // keep a fallback count even if songs later get replaced by cloud
+  pl.songCount = pl.trackIds.length;
+  pl.updated_at = new Date().toISOString();
+
+  renderPlaylists();
+  closeContextMenu();
+
+  // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
+  try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
+};
 
 
     sub.appendChild(item);
@@ -10646,9 +10657,12 @@ if (!trackId) {
 }
 
 // ✅ Update local IDs-only model first (UI updates instantly)
+let __plBeforeIds = null;
+
 // reuse existing playlist reference (do NOT redeclare)
 if (pl) {
   const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+  __plBeforeIds = arr.slice();
 
   pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
   pl.songs = resolveTrackIdsToSongs(pl.trackIds);
@@ -10664,8 +10678,22 @@ try {
   if (typeof window.removeTrackFromPlaylistInCloud === "function") {
     await window.removeTrackFromPlaylistInCloud(activePlaylistId, trackId);
   }
+  try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
 } catch (err) {
   console.warn("Cloud remove failed:", err);
+
+  // Roll back local change so you DON'T get “it disappears then comes back”
+  if (pl && Array.isArray(__plBeforeIds)) {
+    pl.trackIds = __plBeforeIds;
+    pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+    savePlaylists();
+    try { updatePlaylistAutoCoverById(activePlaylistId); } catch (e) {}
+    try { renderPlaylists(); } catch (e) {}
+  }
+
+  alert("Couldn’t remove from playlist (cloud sync failed). Try again.");
+}
+
 }
 
 try { closeContextMenu(); } catch (e) {}
