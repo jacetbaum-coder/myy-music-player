@@ -5405,52 +5405,45 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   safe(window.initSearchSwipeDownClose);
 
 
-    // Fetch library
-  // ✅ Never get stuck on the logo: show UI first, then fetch in background.
-  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
-  safe(window.showView, 'home');
-  safe(window.renderHome);
+  // Fetch library
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  (async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch('/api/get-songs', { signal: controller.signal });
 
-      const response = await fetch('/api/get-songs', { signal: controller.signal });
+    clearTimeout(timeoutId);
 
-      clearTimeout(timeoutId);
+    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
-      if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+    libraryData = await response.json();
+    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
-      libraryData = await response.json();
-      if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+    // Keep original order for "Recently added"
+    libraryDataOriginal = libraryData.slice();
 
-      // Keep original order for "Recently added"
-      libraryDataOriginal = libraryData.slice();
+    // Sort library alphabetically by album (Library grid)
+    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-      // Sort library alphabetically by album (Library grid)
-      libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+    document.getElementById('loading')?.classList.add('hidden');
+    safe(window.showView, 'home');
+    safe(window.renderHome);
+  } catch (error) {
+    console.error("Fetch error:", error);
 
-      // Re-render whichever view is active
-      safe(window.renderHome);
-      if (navCurrent && navCurrent.type === 'library') {
-        safe(window.renderLibrary);
-        safe(window.applyLibraryGridCols);
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      // Keep app usable even if cloud fails
-      libraryData = [];
-      safe(window.renderHome);
-      if (navCurrent && navCurrent.type === 'library') {
-        safe(window.renderLibrary);
-        safe(window.applyLibraryGridCols);
-      }
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.innerHTML = `
+        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+        <p class="text-white font-bold">Cloud Connection Failed</p>
+        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+      `;
+      loading.classList.add('hidden');
     }
-  })();
 
-  // ✅ Reload button (desktop)
-
+        libraryData = [];
+    safe(window.showView, 'home');
+  }
 
   // ✅ Reload button (desktop)
   try {
@@ -10727,13 +10720,13 @@ let cover = queue[0]?.cover || '';
     }
   }
 
-    const coverMarkup = cover ?
-    `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
+  const coverMarkup = cover
+
+    ? `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
     : `<div class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center">
          <i class="fas fa-music text-4xl text-zinc-500"></i>
        </div>`;
-
-  const label = isPlaylist ? 'Playlist' : (name === 'Liked Songs' ? 'Liked Songs' : 'Album');
+  const label = isPlaylist ? 'Playlist' : name === 'Liked Songs' ? 'Liked Songs' : 'Album';
 
   document.getElementById('album-hero').innerHTML = `
     ${coverMarkup}
@@ -10926,12 +10919,9 @@ player.addEventListener('ended', () => {
 // Auto-hide dock interval
 
         // Auto-hide dock interval
-                setInterval(checkDockVisibility, 30000);
-
-}
+        setInterval(checkDockVisibility, 30000);
 
     </script>
-
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
