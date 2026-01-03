@@ -6160,11 +6160,41 @@ const scrollArea = document.getElementById('main-scroll-area');
     (async () => {
       try {
         // 1) If this playlist already has local songs (old model), migrate them to trackIds once.
+               // 1) If this playlist already has local songs (old model), migrate them to trackIds once.
+        //    IMPORTANT: handle (a) strings, (b) objects, and (c) URLs that contain ?id=...
         if ((!Array.isArray(pl.trackIds) || pl.trackIds.length === 0) && Array.isArray(pl.songs) && pl.songs.length > 0) {
           pl.trackIds = pl.songs
-            .map(s => (s && (s.id || s.r2Path || s.key)) ? String(s.id || s.r2Path || s.key).trim() : "")
+            .map((s) => {
+              // Case A: already a string trackId like "Artist/Album/Track.mp3"
+              if (typeof s === "string") return s.trim();
+
+              if (!s) return "";
+
+              // Case B: object form (newer)
+              const direct =
+                s.id ||
+                s.r2Path ||
+                s.key ||
+                s.track_id ||
+                s.r2_key;
+
+              if (direct) return String(direct).trim();
+
+              // Case C: object has a URL like ".../?id=Artist/Album/Track.mp3"
+              const u = s.url || s.link || "";
+              if (u) {
+                try {
+                  const parsed = new URL(u, window.location.origin);
+                  const id = parsed.searchParams.get("id") || "";
+                  if (id) return String(id).trim();
+                } catch (e) {}
+              }
+
+              return "";
+            })
             .filter(Boolean);
         }
+
 
         // 2) Attempt to load from cloud, but DO NOT overwrite local data with empty results.
         let cloudIds = [];
@@ -10740,6 +10770,119 @@ function normalizeSong(song, fallback = {}) {
   const cover = song.cover || song.coverArt || fallback.cover || "";
   return { url, title, album, artist, cover };
 }
+
+/* ---------------------------------------------------------------------
+   PLAYLIST TRACK ID RESOLVER
+   - Turns trackIds like "Artist/Album/Track.mp3" into full song objects
+   - Prefers real metadata from libraryData when possible
+--------------------------------------------------------------------- */
+function __extractIdFromMaybeUrl(u) {
+  const raw = String(u || "");
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    return String(parsed.searchParams.get("id") || "").trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+function __buildTrackIndexIfNeeded() {
+  if (window.__trackIndexMap && window.__trackIndexMap.size) return;
+
+  const map = new Map();
+  try {
+    const albums = Array.isArray(libraryData) ? libraryData : [];
+    albums.forEach((alb) => {
+      const artistName = String(alb.artistName || "").trim();
+      const albumName = String(alb.albumName || "").trim();
+      const albumCover = (typeof getAlbumCover === "function")
+        ? getAlbumCover(artistName, albumName, alb.coverArt)
+        : (alb.coverArt || "");
+
+      const songs = Array.isArray(alb.songs) ? alb.songs : [];
+      songs.forEach((s) => {
+        // Try multiple ways to get the R2 key / trackId
+        const id =
+          (s && (s.id || s.r2Path || s.key || s.r2_key || s.track_id)) ||
+          __extractIdFromMaybeUrl(s?.url || s?.link);
+
+        const key = String(id || "").trim();
+        if (!key) return;
+
+        const titleGuess = String(s?.name || s?.title || key.split("/").pop() || "").trim();
+
+        map.set(key, {
+          id: key,
+          artist: artistName,
+          album: albumName,
+          title: titleGuess,
+          cover: albumCover || ""
+        });
+      });
+    });
+  } catch (e) {}
+
+  window.__trackIndexMap = map;
+}
+
+window.resolveTrackIdsToSongs = function (trackIds) {
+  const ids = Array.isArray(trackIds) ? trackIds : [];
+  __buildTrackIndexIfNeeded();
+
+  return ids
+    .map((rawId) => {
+      const key = String(rawId || "").trim();
+      if (!key) return null;
+
+      const hit = window.__trackIndexMap ? window.__trackIndexMap.get(key) : null;
+
+      // Always build worker URL from the id
+      const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`;
+
+      if (hit) {
+        const cleanTitle = String(hit.title || "").replace(/\.mp3$/i, "");
+        return {
+          id: key,
+          key: key,
+          r2_key: key,
+          track_id: key,
+          url: u,
+          link: u,
+          title: cleanTitle || key,
+          name: cleanTitle || key,
+          artist: hit.artist || "Unknown Artist",
+          album: hit.album || "Unknown Album",
+          cover: hit.cover || "",
+          coverArt: hit.cover || ""
+        };
+      }
+
+      // Fallback: parse from "Artist/Album/Track.mp3"
+      const parts = key.split("/");
+      const artist = parts[0] ? parts[0] : "Unknown Artist";
+      const album = parts[1] ? parts[1] : "Unknown Album";
+      const file = parts[2] ? parts[2] : key;
+      const title = String(file).replace(/\.mp3$/i, "");
+
+      return {
+        id: key,
+        key: key,
+        r2_key: key,
+        track_id: key,
+        url: u,
+        link: u,
+        title: title || key,
+        name: title || key,
+        artist,
+        album,
+        cover: "",
+        coverArt: ""
+      };
+    })
+    .filter(Boolean);
+};
+
 
 function buildQueueFromSongs(songs, fallback) {
   return songs.map((song) => normalizeSong(song, fallback)).filter(Boolean);
