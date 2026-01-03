@@ -6388,8 +6388,13 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
     } catch (err) {
       console.warn(err);
       pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-      pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
-      renderCollection(pl.name, pl.songs, true, playlistIndex);
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+
+// ✅ Derive songs only for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
     }
   })();
 }
