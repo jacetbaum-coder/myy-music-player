@@ -2766,16 +2766,66 @@ if (!window.__mqControlsInit) {
 // -----------------------
 // CLOUD PLAYLIST SYNC (D1 via Worker)
 // -----------------------
+
+// A stable "account id" is REQUIRED for cross-device sync.
+// localStorage is NOT shared across devices, so we support pairing via URL (?userId=...)
+// or manually via window.setSyncCode("u_...").
+
 function makeUserId() {
   return "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
 }
 
-let userId = localStorage.getItem("app_user_id");
+function readUserIdFromUrl() {
+  try {
+    const sp = new URLSearchParams(window.location.search || "");
+    return (
+      sp.get("userId") ||
+      sp.get("uid") ||
+      sp.get("sync") ||
+      ""
+    ).trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+function normalizeUserId(id) {
+  return String(id || "").trim();
+}
+
+// Priority:
+// 1) URL userId (pairing link)
+// 2) localStorage app_user_id
+// 3) generate new
+let userId = normalizeUserId(readUserIdFromUrl()) || normalizeUserId(localStorage.getItem("app_user_id"));
+
 if (!userId) {
   userId = makeUserId();
-  localStorage.setItem("app_user_id", userId);
 }
+
+// Persist so reloads keep the same id on THIS device
+localStorage.setItem("app_user_id", userId);
+
 window.APP_USER_ID = userId;
+
+// Helpers you can use from console (or wire to UI later)
+window.getSyncCode = function () {
+  return window.APP_USER_ID || localStorage.getItem("app_user_id") || "";
+};
+
+window.setSyncCode = function (code) {
+  const next = normalizeUserId(code);
+  if (!next) return false;
+  localStorage.setItem("app_user_id", next);
+  window.APP_USER_ID = next;
+  // Force a clean reload so everything rebinds using the new account id
+  try { window.location.reload(); } catch (e) {}
+  return true;
+};
+
+// Optional: log once so you can copy it easily
+try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } catch (e) {}
+
 
 // Cloud playlists (raw DB rows)
 window.cloudPlaylists = [];
@@ -2827,11 +2877,81 @@ window.loadPlaylistsFromCloud = async function () {
     return data.playlists;
   }
 
-  window.cloudPlaylists = [];
+   window.cloudPlaylists = [];
   return [];
 };
 
+// -----------------------
+// AUTO CLOUD PULL (background sync)
+// -----------------------
+window.__cloudPlaylistSig = "";
+window.__cloudPlaylistSyncTimer = null;
+
+function computeCloudPlaylistSig(rows) {
+  try {
+    const arr = Array.isArray(rows) ? rows : [];
+    // Only include fields that change when playlists change
+    const slim = arr.map(r => ({
+      id: r.playlist_id || r.id || "",
+      name: r.name || "",
+      cover: r.cover_url || r.cover || "",
+      // count fields (your API may return one or the other)
+      song_count: (typeof r.song_count === "number") ? r.song_count : (typeof r.songCount === "number" ? r.songCount : null),
+      updated_at: r.updated_at || r.updatedAt || ""
+    }));
+    return JSON.stringify(slim);
+  } catch (e) {
+    return "";
+  }
+}
+
+window.forceCloudPlaylistPull = async function () {
+  try {
+    const before = window.__cloudPlaylistSig || "";
+    const rows = await window.loadPlaylistsFromCloud();
+    const next = computeCloudPlaylistSig(rows);
+    if (next && next !== before) {
+      window.__cloudPlaylistSig = next;
+      try { renderPlaylists(); } catch (e) {}
+      // If home shows playlists, refresh it too
+      try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
+      // History can include playlists; refresh to remove deleted ones
+      try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
+    }
+  } catch (e) {
+    // silent: background sync should never crash the app
+  }
+};
+
+window.startCloudPlaylistSync = function () {
+  // Guard: only start once
+  if (window.__cloudPlaylistSyncTimer) return;
+
+  // Pull immediately once
+  try { window.forceCloudPlaylistPull(); } catch (e) {}
+
+  // Pull every 12 seconds
+  window.__cloudPlaylistSyncTimer = setInterval(() => {
+    try { window.forceCloudPlaylistPull(); } catch (e) {}
+  }, 12000);
+
+  // Also pull when the tab becomes active again
+  window.addEventListener("focus", () => {
+    try { window.forceCloudPlaylistPull(); } catch (e) {}
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      try { window.forceCloudPlaylistPull(); } catch (e) {}
+    }
+  });
+};
+
+// ✅ start the background sync as soon as this section loads
+try { window.startCloudPlaylistSync(); } catch (e) {}
+
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
+
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (!playlistId) return [];
 
@@ -8291,61 +8411,7 @@ function showPlaylistMenuAt(x, y, playlistId) {
   if (pinBtn) pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-      // ✅ Delete playlist
-  delBtn.onclick = async () => {
-    const playlistId = playlistMenuTargetId; // ✅ correct target
-    if (!playlistId) return;
-
-    const ok = confirm("Delete this playlist?");
-    if (!ok) return;
-
-    // Close the menu immediately (mobile needs this)
-    try { hidePlaylistMenu(); } catch (e) {}
-    try { closeContextMenu(); } catch (e) {}
-
-    // Delete in cloud first (so it syncs across devices)
-    try {
-      const userId = localStorage.getItem("app_user_id") || "";
-      const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, playlistId })
-      });
-      // Even if backend returns non-JSON sometimes, we only care res.ok
-      if (!res.ok) throw new Error("Cloud delete failed");
-    } catch (e) {
-      console.warn(e);
-      // fallback: still remove locally so UI doesn’t get stuck
-    }
-
-    // Remove locally (UI)
-    playlists = playlists.filter(p => p.id !== playlistId);
-    try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-
-    // Remove from recents historyLog so deleted playlists don’t show
-    try {
-      let history = JSON.parse(localStorage.getItem("historyLog") || "[]");
-      if (!Array.isArray(history)) history = [];
-      history = history.filter(h => !(h && h.type === "playlist" && h.id === playlistId));
-      localStorage.setItem("historyLog", JSON.stringify(history));
-    } catch (e) {}
-
-    // Re-sync UI
-    try { await window.loadPlaylistsFromCloud(); } catch (e) {}
-    renderPlaylists();
-    try { renderHistory(); } catch (e) {}
-    try { renderHome(); } catch (e) {}
-
-    // If you were viewing the deleted playlist, go back to Library
-    try {
-      if (activePlaylistId === playlistId) {
-        activePlaylistId = null;
-        activePlaylistIndex = null;
-        showView("library");
-      }
-    } catch (e) {}
-  };
-
+  // ✅ Delete playlist is wired once in DOMContentLoaded (below).
   // Position + show menu
   m.style.left = `${x}px`;
   m.style.top = `${y}px`;
@@ -8755,9 +8821,13 @@ function renderPlaylists() {
       pl.songCount = pl.songs.length;
       pl.updated_at = new Date().toISOString();
 
-      renderPlaylists();
+            renderPlaylists();
       closeContextMenu();
+
+      // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
+      try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
     };
+
 
     sub.appendChild(item);
   });
