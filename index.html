@@ -5405,45 +5405,52 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
   safe(window.initSearchSwipeDownClose);
 
 
-  // Fetch library
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Fetch library
+  // ✅ Never get stuck on the logo: show UI first, then fetch in background.
+  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
+  safe(window.showView, 'home');
+  safe(window.renderHome);
 
-    const response = await fetch('/api/get-songs', { signal: controller.signal });
+  (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    clearTimeout(timeoutId);
+      const response = await fetch('/api/get-songs', { signal: controller.signal });
 
-    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+      clearTimeout(timeoutId);
 
-    libraryData = await response.json();
-    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+      if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
-    // Keep original order for "Recently added"
-    libraryDataOriginal = libraryData.slice();
+      libraryData = await response.json();
+      if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
-    // Sort library alphabetically by album (Library grid)
-    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+      // Keep original order for "Recently added"
+      libraryDataOriginal = libraryData.slice();
 
-    document.getElementById('loading')?.classList.add('hidden');
-    safe(window.showView, 'home');
-    safe(window.renderHome);
-  } catch (error) {
-    console.error("Fetch error:", error);
+      // Sort library alphabetically by album (Library grid)
+      libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-    const loading = document.getElementById('loading');
-    if (loading) {
-      loading.innerHTML = `
-        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-        <p class="text-white font-bold">Cloud Connection Failed</p>
-        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-      `;
-      loading.classList.add('hidden');
+      // Re-render whichever view is active
+      safe(window.renderHome);
+      if (navCurrent && navCurrent.type === 'library') {
+        safe(window.renderLibrary);
+        safe(window.applyLibraryGridCols);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      // Keep app usable even if cloud fails
+      libraryData = [];
+      safe(window.renderHome);
+      if (navCurrent && navCurrent.type === 'library') {
+        safe(window.renderLibrary);
+        safe(window.applyLibraryGridCols);
+      }
     }
+  })();
 
-        libraryData = [];
-    safe(window.showView, 'home');
-  }
+  // ✅ Reload button (desktop)
+
 
   // ✅ Reload button (desktop)
   try {
