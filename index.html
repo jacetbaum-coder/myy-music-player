@@ -3981,7 +3981,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 // ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
   const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing id");
+  if (!uid) throw new Error("Missing userId");
 
   const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
     method: "POST",
