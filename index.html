@@ -2303,10 +2303,23 @@ body.qs-lock {
 
           <!-- Tabs row (visual only, like your Home tabs) -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
-          </div>
+  <button id="mobile-lib-tab-playlists" type="button"
+    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
+    data-lib-filter="playlists">Playlists</button>
+
+  <button id="mobile-lib-tab-albums" type="button"
+    class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap"
+    data-lib-filter="albums">Albums</button>
+
+  <button id="mobile-lib-tab-audiobooks" type="button"
+    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
+    data-lib-filter="audiobooks">Audiobooks</button>
+
+  <button id="mobile-lib-tab-artists" type="button"
+    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
+    data-lib-filter="artists">Artists</button>
+</div>
+
         </div>
 
                 <!-- MOBILE: Library Search overlay (Spotify-like) -->
@@ -2407,31 +2420,64 @@ body.qs-lock {
           </div>
         </div>
 
+  <!-- MOBILE LIBRARY FILTER SECTIONS -->
+
+<!-- Playlists section -->
+<div id="mobile-library-playlists-section" class="hidden">
+  <div class="mb-4">
+    <h2 class="text-3xl font-black">Playlists</h2>
+  </div>
+
+  <div id="mobile-library-playlists-list" class="flex flex-col gap-2"></div>
+</div>
+
+<!-- Albums section (default visible) -->
+<div id="mobile-library-albums-section">
   <!-- Albums header -->
   <div class="mb-4">
     <h2 class="text-3xl font-black">Albums</h2>
   </div>
 
   <!-- ONE album grid only -->
-    <!-- CENTER LYRICS (toggle from dock mic) -->
-<div id="lyrics-center-view" class="lyrics-center hidden">
-  <div class="lyrics-center-inner">
-    <div class="lyrics-center-top">
-      <div class="lyrics-center-meta">
-        <div id="lyrics-center-title" class="lyrics-center-title">Lyrics</div>
-        <div id="lyrics-center-sub" class="lyrics-center-sub">Tap the mic again to close</div>
+  <!-- CENTER LYRICS (toggle from dock mic) -->
+  <div id="lyrics-center-view" class="lyrics-center hidden">
+    <div class="lyrics-center-inner">
+      <div class="lyrics-center-top">
+        <div class="lyrics-center-meta">
+          <div id="lyrics-center-title" class="lyrics-center-title">Lyrics</div>
+          <div id="lyrics-center-sub" class="lyrics-center-sub">Tap the mic again to close</div>
+        </div>
+      </div>
+
+      <div id="lyrics-center-body" class="lyrics-center-body">
+        Play a song to load lyrics.
       </div>
     </div>
+  </div>
 
-    <div id="lyrics-center-body" class="lyrics-center-body">
-      Play a song to load lyrics.
-    </div>
+  <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+</div>
+
+<!-- Audiobooks section -->
+<div id="mobile-library-audiobooks-section" class="hidden">
+  <div class="mb-4">
+    <h2 class="text-3xl font-black">Audiobooks</h2>
+  </div>
+
+  <div class="text-white/70 font-semibold">
+    No audiobooks yet.
   </div>
 </div>
 
-    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
+<!-- Artists section -->
+<div id="mobile-library-artists-section" class="hidden">
+  <div class="mb-4">
+    <h2 class="text-3xl font-black">Artists</h2>
+  </div>
 
+  <div id="mobile-library-artists-list" class="flex flex-col gap-2"></div>
 </div>
+
 
 <div id="search-view" class="hidden">
   <h1 class="text-3xl font-black mb-6">Search</h1>
@@ -6263,7 +6309,168 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
+// -----------------------
+// MOBILE LIBRARY: filter tabs (Playlists / Albums / Audiobooks / Artists)
+// -----------------------
+window.__mobileLibFilter = window.__mobileLibFilter || 'albums';
+window.__mobileLibFilterBound = window.__mobileLibFilterBound || false;
+
+function setMobileLibActiveTab(filter) {
+  const ids = [
+    'mobile-lib-tab-playlists',
+    'mobile-lib-tab-albums',
+    'mobile-lib-tab-audiobooks',
+    'mobile-lib-tab-artists'
+  ];
+
+  ids.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+
+    const f = btn.getAttribute('data-lib-filter');
+    const isActive = (f === filter);
+
+    btn.classList.toggle('bg-[#1db954]', isActive);
+    btn.classList.toggle('text-black', isActive);
+
+    btn.classList.toggle('bg-white/10', !isActive);
+    btn.classList.toggle('text-white', !isActive);
+  });
+}
+
+function renderMobileLibraryPlaylists() {
+  const list = document.getElementById('mobile-library-playlists-list');
+  if (!list) return;
+
+  const pls = Array.isArray(window.playlists) ? window.playlists : (Array.isArray(playlists) ? playlists : []);
+  list.innerHTML = '';
+
+  if (!pls.length) {
+    list.innerHTML = '<div class="text-white/70 font-semibold">No playlists yet.</div>';
+    return;
+  }
+
+  // Sort by name (stable)
+  const sorted = pls
+    .map((p, idx) => ({ p, idx }))
+    .sort((a, b) => String(a.p?.name || '').localeCompare(String(b.p?.name || ''), undefined, { sensitivity: 'base' }));
+
+  sorted.forEach(({ p, idx }) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'w-full text-left px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.99] flex items-center justify-between';
+    row.innerHTML = `
+      <div class="min-w-0">
+        <div class="font-extrabold text-white truncate">${String(p?.name || 'Untitled')}</div>
+        <div class="text-xs font-bold text-white/50 truncate">Playlist</div>
+      </div>
+      <i class="fas fa-chevron-right text-white/40"></i>
+    `;
+
+    row.addEventListener('click', () => {
+      try { showView('playlist', idx); } catch (e) {}
+    });
+
+    list.appendChild(row);
+  });
+}
+
+function renderMobileLibraryArtists() {
+  const list = document.getElementById('mobile-library-artists-list');
+  if (!list) return;
+
+  // Use your library grid data source (albums)
+  let data = [];
+  try {
+    data = (typeof getLibraryGridData === 'function') ? (getLibraryGridData() || []) : [];
+  } catch (e) {
+    data = [];
+  }
+
+  const seen = new Set();
+  const artists = [];
+
+  data.forEach((item) => {
+    const name = String(item?.artist || item?.artistName || '').trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    artists.push(name);
+  });
+
+  artists.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  list.innerHTML = '';
+
+  if (!artists.length) {
+    list.innerHTML = '<div class="text-white/70 font-semibold">No artists yet.</div>';
+    return;
+  }
+
+  artists.forEach((name) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'w-full text-left px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.99] flex items-center justify-between';
+    row.innerHTML = `
+      <div class="min-w-0">
+        <div class="font-extrabold text-white truncate">${name}</div>
+        <div class="text-xs font-bold text-white/50 truncate">Artist</div>
+      </div>
+      <i class="fas fa-chevron-right text-white/40"></i>
+    `;
+
+    row.addEventListener('click', () => {
+      try { openArtistByName(name); } catch (e) {}
+    });
+
+    list.appendChild(row);
+  });
+}
+
+function applyMobileLibraryFilter(filter) {
+  window.__mobileLibFilter = filter || 'albums';
+
+  const secPlaylists = document.getElementById('mobile-library-playlists-section');
+  const secAlbums = document.getElementById('mobile-library-albums-section');
+  const secAudiobooks = document.getElementById('mobile-library-audiobooks-section');
+  const secArtists = document.getElementById('mobile-library-artists-section');
+
+  if (secPlaylists) secPlaylists.classList.toggle('hidden', window.__mobileLibFilter !== 'playlists');
+  if (secAlbums) secAlbums.classList.toggle('hidden', window.__mobileLibFilter !== 'albums');
+  if (secAudiobooks) secAudiobooks.classList.toggle('hidden', window.__mobileLibFilter !== 'audiobooks');
+  if (secArtists) secArtists.classList.toggle('hidden', window.__mobileLibFilter !== 'artists');
+
+  setMobileLibActiveTab(window.__mobileLibFilter);
+
+  // Render lists only when needed
+  if (window.__mobileLibFilter === 'playlists') {
+    try { renderMobileLibraryPlaylists(); } catch (e) {}
+  } else if (window.__mobileLibFilter === 'artists') {
+    try { renderMobileLibraryArtists(); } catch (e) {}
+  }
+}
+
+function initMobileLibraryFiltersOnce() {
+  if (window.__mobileLibFilterBound) return;
+  window.__mobileLibFilterBound = true;
+
+  const header = document.getElementById('mobile-library-header');
+  if (!header) return;
+
+  header.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('[data-lib-filter]');
+    if (!btn) return;
+
+    const f = btn.getAttribute('data-lib-filter');
+    if (!f) return;
+
+    applyMobileLibraryFilter(f);
+  });
+}
+
 function showView(viewType, playlistIndex = null) {
+
 
     // Capture what's currently on screen so swipe-back shows it behind
   window.captureSwipeBackUnderlay?.();
@@ -6321,9 +6528,12 @@ const scrollArea = document.getElementById('main-scroll-area');
   renderHistory();
 
   if (window.innerWidth <= 768) {
+    try { initMobileLibraryFiltersOnce(); } catch (e) {}
+    try { applyMobileLibraryFilter(window.__mobileLibFilter || 'albums'); } catch (e) {}
     renderMobileRecents();
   }
 }
+
 
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
