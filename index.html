@@ -8768,8 +8768,8 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
-  if (!raw) {
+     // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
+  if (!state) {
     currentSong = null;
     toggleRightSidebar(false);
 
@@ -8781,10 +8781,13 @@ function restorePlayerStateIfRecent() {
     return;
   }
 
-  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
+
+    // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
   const ONE_HOUR = 60 * 60 * 1000;
-  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
-    localStorage.removeItem('reson_player_state');
+  if (!state || !state.updatedAt || (Date.now() - state.updatedAt) > ONE_HOUR) {
+    localStorage.removeItem('lastSongState');
+    localStorage.removeItem('lastPlayedTime');
+
     currentSong = null;
     toggleRightSidebar(false);
 
@@ -8795,6 +8798,7 @@ function restorePlayerStateIfRecent() {
     }
     return;
   }
+
 
 
   currentSong = state.song;
