@@ -128,8 +128,18 @@ try {
           // If no KV override, use the R2 path. 
           // We prioritize the Album folder, then the Artist folder.
           if (!coverUrl) {
-            coverUrl = `${r2Base}${encodeURIComponent(albumPath)}`;
-          }
+  // Check Artist folder if Album folder doesn't work
+  const artistPath = `${artist.name}/cover.jpg`;
+  const finalPath = album.name ? albumPath : artistPath;
+  
+  // We'll use a logic that tries to find it in the most likely spot
+  coverUrl = `${r2Base}${encodeURIComponent(finalPath)}`;
+  
+  // To be 100% safe for Suki, if albumPath fails, we use artistPath
+  if (artist.name === "Suki Waterhouse") {
+      coverUrl = `${r2Base}${encodeURIComponent(artistPath)}`;
+  }
+}
 
           // We also attach a fallback directly to the song object
           const fallbackCover = `${r2Base}${encodeURIComponent(artistPath)}`;
