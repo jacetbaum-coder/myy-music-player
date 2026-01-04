@@ -145,12 +145,15 @@ try {
           const fallbackCover = `${r2Base}${encodeURIComponent(artistPath)}`;
 
           // -----------------------
-          // Build album object
-          // -----------------------
-         coverArt: coverUrl,
-            fallbackArt: fallbackCover,
+          // Build album object
+          // -----------------------
+          allAlbums.push({
+            artistName: artist.name,
+            albumName: album.name,
+            coverArt: coverUrl,
+            fallbackArt: fallbackCover,
 
-            songs: songs.map((s) => {
+            songs: songs.map((s) => {
               // Canonical R2 object path
               const r2Path = `${artist.name}/${album.name}/${s.name}`;
 
