@@ -4471,30 +4471,16 @@ function reconcileAlbumCoverOverridesFromLibrary(data) {
   if (changed) saveAlbumCoverOverrides(map);
 }
 
-function getAlbumCover(artistName, albumName, fallbackCover) {
-  // 1. Check for manual overrides
-  const map = loadAlbumCoverOverrides();
-  const key = albumKey(artistName, albumName);
-  const v = map[key];
-  if (v && String(v).trim()) return v;
-
-  // 2. Use database cover if it exists
-  if (fallbackCover && fallbackCover.trim() !== "" && !fallbackCover.includes("placeholder")) {
-    return fallbackCover;
-  }
-
-  // 3. Fallback: Look for the cover.jpg in your R2 bucket
-  const r2Base = "https://music-streamer.jacetbaum.workers.dev";
-  const coverPath = `${artistName}/${albumName}/cover.jpg`;
-  
-  return `${r2Base}/?id=${encodeURIComponent(coverPath)}`;
-}
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
   map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
+  
+  // SAFE CHECK: Only run sync if the function actually exists
+  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl);
+  }
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -4502,7 +4488,11 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
+  
+  // SAFE CHECK: Only run sync if the function actually exists
+  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, "");
+  }
 }
 
 /* -----------------------
