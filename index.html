@@ -6543,7 +6543,8 @@ else if (viewType === 'playlist') {
 
 
 const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
+if (scrollArea) scrollArea.scrollTop = 0;
+
 
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
