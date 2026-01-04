@@ -6607,21 +6607,22 @@ activePlaylistIndex = null;
     try { initMobileLibraryFiltersOnce(); } catch (e) {}
     try { applyMobileLibraryFilter(window.__mobileLibFilter || 'albums'); } catch (e) {}
     renderMobileRecents();
-  } else if (resolvedViewType === 'search') {
-    document.getElementById('search-view')?.classList.remove('hidden');
-    document.getElementById('global-search')?.focus();
-   } else if (resolvedViewType === 'crate') {
-    document.getElementById('crate-view')?.classList.remove('hidden');
-    try { initCrateUIOnce(); } catch (e) {}
-    try { renderCrate(); } catch (e) {}
-    // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
-  } else if (resolvedViewType === 'artist') {
-    document.getElementById('artist-view')?.classList.remove('hidden');
-  } else if (resolvedViewType === 'liked') {
-    const albumView = document.getElementById('album-view');
-    albumView?.classList.remove('hidden');
-    renderCollection("Liked Songs", likedSongs);
-  } else if (resolvedViewType === 'playlist') {
+    }
+} else if (resolvedViewType === 'search') {
+  document.getElementById('search-view')?.classList.remove('hidden');
+  document.getElementById('global-search')?.focus();
+} else if (resolvedViewType === 'crate') {
+  document.getElementById('crate-view')?.classList.remove('hidden');
+  try { initCrateUIOnce(); } catch (e) {}
+  try { renderCrate(); } catch (e) {}
+  // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
+} else if (resolvedViewType === 'artist') {
+  document.getElementById('artist-view')?.classList.remove('hidden');
+} else if (resolvedViewType === 'liked') {
+  const albumView = document.getElementById('album-view');
+  albumView?.classList.remove('hidden');
+  renderCollection("Liked Songs", likedSongs);
+} else if (resolvedViewType === 'playlist') {
 
     const albumView = document.getElementById('album-view');
     albumView?.classList.remove('hidden');
@@ -6675,7 +6676,7 @@ activePlaylistIndex = null;
        resolvedPlaylist.trackIds = normalizedIds;
 
         // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
-        const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+        const playlistSongs = resolveTrackIdsToSongs(resolvedPlaylist.trackIds);
 
         // covers & render
         try { updatePlaylistAutoCoverById(resolvedPlaylist.id); } catch (e) {}
@@ -6684,7 +6685,7 @@ activePlaylistIndex = null;
 
       } catch (err) {
         console.warn(err);
-        resolvedPlaylist.trackIds = Array.isArray(resolvedPlaylist.trackIds) ? resolvedPlaylist.trackIds : [];;
+        resolvedPlaylist.trackIds = Array.isArray(resolvedPlaylist.trackIds) ? resolvedPlaylist.trackIds : [];
 
         // ✅ Derive songs only for rendering (do not store on playlist)
         const playlistSongs = resolveTrackIdsToSongs(resolvedPlaylist.trackIds);
