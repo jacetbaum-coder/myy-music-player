@@ -6533,7 +6533,7 @@ activePlaylistIndex = playlistIndex;
     else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
     else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
     else if (viewType === 'playlist') {
-      const plForNav = playlists[playlistIndex];
+      const plForNav = Array.isArray(playlists) ? playlists[playlistIndex] : null;
       setNavCurrent({ type: 'playlist', playlistIndex, playlistId: plForNav?.id || null });
     } else {
       setNavCurrent({ type: viewType || 'home' });
@@ -6571,8 +6571,8 @@ activePlaylistIndex = playlistIndex;
 }
 
     if (viewType === 'search') {
-    document.getElementById('search-view').classList.remove('hidden');
-    document.getElementById('global-search').focus();
+    document.getElementById('search-view')?.classList.remove('hidden');
+    document.getElementById('global-search')?.focus();
   }
 
   if (viewType === 'crate') {
@@ -6585,28 +6585,38 @@ activePlaylistIndex = playlistIndex;
 
 
    if (viewType === 'liked') {
-    document.getElementById('album-view').classList.remove('hidden');
+    const albumView = document.getElementById('album-view');
+    if (!albumView) {
+      console.warn('showView(liked): missing album-view');
+      return;
+    }
+    albumView.classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
   }
 
   if (viewType === 'playlist') {
     // Resolve playlistIndex safely (it must be a valid index into playlists[])
+      const playlistList = Array.isArray(playlists) ? playlists : [];
     let resolvedIndex = playlistIndex;
 
     // If something passed an id string by mistake, convert id -> index
     if (typeof resolvedIndex === 'string') {
-      const byId = playlists.findIndex(p => String(p.id) === String(resolvedIndex));
-      resolvedIndex = byId;
+      if (/^\d+$/.test(resolvedIndex)) {
+        resolvedIndex = Number(resolvedIndex);
+      } else {
+        const byId = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
+        resolvedIndex = byId;
+      }
     }
 
     // If it’s not a valid index, bail out to Library (prevents black screen)
-    if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlists.length) {
+    if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlistList.length) {
       console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
       showView('library');
       return;
     }
 
-    const pl = playlists[resolvedIndex];
+    const pl = playlistList[resolvedIndex];
     if (!pl) {
       console.warn('showView(playlist): playlist missing at index:', resolvedIndex);
       showView('library');
@@ -6617,7 +6627,12 @@ activePlaylistIndex = playlistIndex;
     activePlaylistIndex = resolvedIndex;
     activePlaylistId = pl.id;
 
-    document.getElementById('album-view').classList.remove('hidden');
+    const albumView = document.getElementById('album-view');
+    if (!albumView) {
+      console.warn('showView(playlist): missing album-view');
+      return;
+    }
+    albumView.classList.remove('hidden');
 
     playContext = { type: 'playlist', label: pl.name };
 
