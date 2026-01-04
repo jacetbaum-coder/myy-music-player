@@ -6588,17 +6588,38 @@ const scrollArea = document.getElementById('main-scroll-area');
 
   if (viewType === 'liked') {
     document.getElementById('album-view').classList.remove('hidden');
-    renderCollection("Liked Songs", likedSongs);
+            if (viewType === 'playlist') {
+  // Resolve playlistIndex safely (it must be a valid index into playlists[])
+  let resolvedIndex = playlistIndex;
+
+  // If something passed an id string by mistake, convert id -> index
+  if (typeof resolvedIndex === 'string') {
+    const byId = playlists.findIndex(p => String(p.id) === String(resolvedIndex));
+    resolvedIndex = byId;
   }
 
-        if (viewType === 'playlist') {
+  // If it’s not a valid index, bail out to Library (prevents black screen)
+  if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlists.length) {
+    console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
+    showView('library');
+    return;
+  }
+
+  const pl = playlists[resolvedIndex];
+  if (!pl) {
+    console.warn('showView(playlist): playlist missing at index:', resolvedIndex);
+    showView('library');
+    return;
+  }
+
+  // Keep globals consistent
+  activePlaylistIndex = resolvedIndex;
+  activePlaylistId = pl.id;
+
   document.getElementById('album-view').classList.remove('hidden');
 
-  const pl = playlists[playlistIndex];
-  if (!pl) return;
-
-  activePlaylistId = pl.id;
   playContext = { type: 'playlist', label: pl.name };
+
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
@@ -10841,8 +10862,9 @@ function renderPlaylists() {
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
 
     // Find the real index inside playlists[] for showView('playlist', index)
-    const i = playlists.findIndex(p => p.id === pl.id);
-    div.onclick = () => showView('playlist', i);
+        const i = playlists.findIndex(p => String(p.id) === String(pl.id));
+    div.onclick = () => { if (i >= 0) showView('playlist', i); };
+
 
     const cover = getEffectivePlaylistCover(pl);
 
