@@ -6508,7 +6508,11 @@ function initMobileLibraryFiltersOnce() {
 }
 
 function showView(viewType, playlistIndex = null) {
+    let resolvedViewType = viewType || 'home';
+  let resolvedPlaylistIndex = playlistIndex;
+  let resolvedPlaylist = null;
   try {
+try {
 
     // Capture what's currently on screen so swipe-back shows it behind
     window.captureSwipeBackUnderlay?.();
@@ -6522,28 +6526,67 @@ function showView(viewType, playlistIndex = null) {
       document.getElementById(id)?.classList.add('hidden');
     });
 
-activePlaylistIndex = playlistIndex;
+activePlaylistIndex = null;
     activePlaylistId = null;
+    if (resolvedViewType === 'playlist') {
+      const playlistList = Array.isArray(playlists) ? playlists : [];
+      if (typeof resolvedPlaylistIndex === 'string') {
+        if (/^\d+$/.test(resolvedPlaylistIndex)) {
+          resolvedPlaylistIndex = Number(resolvedPlaylistIndex);
+        } else {
+          const byId = playlistList.findIndex(p => String(p.id) === String(resolvedPlaylistIndex));
+          resolvedPlaylistIndex = byId;
+        }
+      }
+
+      if (!Number.isInteger(resolvedPlaylistIndex) || resolvedPlaylistIndex < 0 || resolvedPlaylistIndex >= playlistList.length) {
+        console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
+        resolvedViewType = 'library';
+      } else {
+        resolvedPlaylist = playlistList[resolvedPlaylistIndex];
+        if (!resolvedPlaylist) {
+          console.warn('showView(playlist): playlist missing at index:', resolvedPlaylistIndex);
+          resolvedViewType = 'library';
+        } else {
+          activePlaylistIndex = resolvedPlaylistIndex;
+          activePlaylistId = resolvedPlaylist.id;
+        }
+      }
+    }
+
+    if (resolvedViewType === 'liked' || resolvedViewType === 'playlist') {
+      if (!document.getElementById('album-view')) {
+        console.warn(`showView(${resolvedViewType}): missing album-view`);
+        resolvedViewType = 'home';
+      }
+    }
+
+    if (resolvedViewType === 'artist') {
+      if (!document.getElementById('artist-view')) {
+        console.warn('showView(artist): missing artist-view');
+        resolvedViewType = 'home';
+      }
+    }
+
 
     // BACK STACK: set new current view
-    if (viewType === 'home') setNavCurrent({ type: 'home' });
-    else if (viewType === 'library') setNavCurrent({ type: 'library' });
-    else if (viewType === 'search') setNavCurrent({ type: 'search' });
-    else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-    else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
-    else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-    else if (viewType === 'playlist') {
-      const plForNav = Array.isArray(playlists) ? playlists[playlistIndex] : null;
-      setNavCurrent({ type: 'playlist', playlistIndex, playlistId: plForNav?.id || null });
+    if (resolvedViewType === 'home') setNavCurrent({ type: 'home' });
+    else if (resolvedViewType === 'library') setNavCurrent({ type: 'library' });
+    else if (resolvedViewType === 'search') setNavCurrent({ type: 'search' });
+    else if (resolvedViewType === 'liked') setNavCurrent({ type: 'liked' });
+    else if (resolvedViewType === 'crate') setNavCurrent({ type: 'crate' });
+    else if (resolvedViewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+    else if (resolvedViewType === 'playlist') {
+      setNavCurrent({ type: 'playlist', playlistIndex: resolvedPlaylistIndex, playlistId: resolvedPlaylist?.id || null });
     } else {
-      setNavCurrent({ type: viewType || 'home' });
+      setNavCurrent({ type: resolvedViewType || 'home' });
     }
 
     const scrollArea = document.getElementById('main-scroll-area');
     if (scrollArea) scrollArea.scrollTop = 0;
 
 
-       if (viewType === 'home') {
+       if (resolvedViewType === 'home') {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
       document.getElementById('home-view')?.classList.remove('hidden');
@@ -6555,9 +6598,7 @@ activePlaylistIndex = playlistIndex;
       renderHistory();
       try { renderHome(); } catch (e) {}
     }
-  }
-
-  if (viewType === 'library') {
+} else if (resolvedViewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
   renderGrid(getLibraryGridData());
@@ -6567,79 +6608,30 @@ activePlaylistIndex = playlistIndex;
     try { initMobileLibraryFiltersOnce(); } catch (e) {}
     try { applyMobileLibraryFilter(window.__mobileLibFilter || 'albums'); } catch (e) {}
     renderMobileRecents();
-  }
-}
-
-    if (viewType === 'search') {
+  } else if (resolvedViewType === 'search') {
     document.getElementById('search-view')?.classList.remove('hidden');
     document.getElementById('global-search')?.focus();
-  }
-
-  if (viewType === 'crate') {
+   } else if (resolvedViewType === 'crate') {
     document.getElementById('crate-view')?.classList.remove('hidden');
     try { initCrateUIOnce(); } catch (e) {}
     try { renderCrate(); } catch (e) {}
     // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
-  }
-
-
-
-   if (viewType === 'liked') {
+  } else if (resolvedViewType === 'artist') {
+    document.getElementById('artist-view')?.classList.remove('hidden');
+  } else if (resolvedViewType === 'liked') {
     const albumView = document.getElementById('album-view');
-    if (!albumView) {
-      console.warn('showView(liked): missing album-view');
-      return;
-    }
-    albumView.classList.remove('hidden');
+    albumView?.classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
-  }
-
-  if (viewType === 'playlist') {
-    // Resolve playlistIndex safely (it must be a valid index into playlists[])
-      const playlistList = Array.isArray(playlists) ? playlists : [];
-    let resolvedIndex = playlistIndex;
-
-    // If something passed an id string by mistake, convert id -> index
-    if (typeof resolvedIndex === 'string') {
-      if (/^\d+$/.test(resolvedIndex)) {
-        resolvedIndex = Number(resolvedIndex);
-      } else {
-        const byId = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
-        resolvedIndex = byId;
-      }
-    }
-
-    // If it’s not a valid index, bail out to Library (prevents black screen)
-    if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlistList.length) {
-      console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
-      showView('library');
-      return;
-    }
-
-    const pl = playlistList[resolvedIndex];
-    if (!pl) {
-      console.warn('showView(playlist): playlist missing at index:', resolvedIndex);
-      showView('library');
-      return;
-    }
-
-    // Keep globals consistent
-    activePlaylistIndex = resolvedIndex;
-    activePlaylistId = pl.id;
+  } else if (resolvedViewType === 'playlist') {
 
     const albumView = document.getElementById('album-view');
-    if (!albumView) {
-      console.warn('showView(playlist): missing album-view');
-      return;
-    }
-    albumView.classList.remove('hidden');
-
-    playContext = { type: 'playlist', label: pl.name };
+    albumView?.classList.remove('hidden');
+   playContext = { type: 'playlist', label: resolvedPlaylist.name };
 
     // 🔒 wrap async work so `await` is legal
     (async () => {
       try {
-        const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
+        const rawItems = await window.loadPlaylistItemsFromCloud(resolvedPlaylist.id);
 
         // Accept either:
         // - ["Artist/Album/Song.mp3", ...]
@@ -6681,26 +6673,28 @@ activePlaylistIndex = playlistIndex;
           .filter(Boolean);
 
         // ✅ Always keep playlist as IDs-only
-        pl.trackIds = normalizedIds;
+       resolvedPlaylist.trackIds = normalizedIds;
 
         // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
         const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
         // covers & render
-        try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+        try { updatePlaylistAutoCoverById(resolvedPlaylist.id); } catch (e) {}
         try { renderPlaylists(); } catch (e) {}
-        renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+        renderCollection(resolvedPlaylist.name, playlistSongs, true, resolvedPlaylistIndex);
 
       } catch (err) {
         console.warn(err);
-        pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+        resolvedPlaylist.trackIds = Array.isArray(resolvedPlaylist.trackIds) ? resolvedPlaylist.trackIds : [];;
 
         // ✅ Derive songs only for rendering (do not store on playlist)
-        const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+        const playlistSongs = resolveTrackIdsToSongs(resolvedPlaylist.trackIds);
 
-        renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+         renderCollection(resolvedPlaylist.name, playlistSongs, true, resolvedPlaylistIndex);
       }
     })();
+      } else {
+    document.getElementById('home-view')?.classList.remove('hidden');
   }
     
 
@@ -6708,11 +6702,11 @@ activePlaylistIndex = playlistIndex;
     console.error('showView failed:', e);
 
     // Fail-safe: show *something* so we never stay black
-    try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (_) {}
+
     try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (_) {}
   }
 
-  updateActiveStates(viewType);
+  updateActiveStates(resolvedViewType || viewType);
 
 }
 
