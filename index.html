@@ -6351,8 +6351,21 @@ function renderMobileLibraryPlaylists() {
     `;
 
     row.addEventListener('click', () => {
-      try { showView('playlist', idx); } catch (e) {}
-    });
+  try {
+    const id = p?.id;
+    if (!id) return;
+
+    const plsNow = Array.isArray(window.playlists)
+      ? window.playlists
+      : (typeof playlists !== 'undefined' && Array.isArray(playlists) ? playlists : []);
+
+    const realIndex = plsNow.findIndex(x => x && x.id === id);
+    if (realIndex < 0) return;
+
+    showView('playlist', realIndex);
+  } catch (e) {}
+});
+
 
     list.appendChild(row);
   });
@@ -6528,11 +6541,17 @@ if (scrollArea) scrollArea.scrollTop = 0;
     renderCollection("Liked Songs", likedSongs);
   }
 
-        if (viewType === 'playlist') {
-  document.getElementById('album-view').classList.remove('hidden');
+       if (viewType === 'playlist') {
+  const pl = (Array.isArray(window.playlists) ? window.playlists : playlists)?.[playlistIndex];
 
-  const pl = playlists[playlistIndex];
-  if (!pl) return;
+  // If we can't resolve the playlist, do NOT leave a blank screen.
+  if (!pl) {
+    try { showView('library'); } catch (e) {}
+    return;
+  }
+
+  document.getElementById('album-view')?.classList.remove('hidden');
+
 
   activePlaylistId = pl.id;
   playContext = { type: 'playlist', label: pl.name };
