@@ -5500,7 +5500,46 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
       if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
         window.cloudPlaylists = data.playlists;
-        return data.playlists;
+
+// ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array
+try {
+  const cloudUi = data.playlists
+    .map(cloudRowToUiPlaylist)
+    .filter(pl => pl && pl.id);
+
+  const localArr = Array.isArray(playlists) ? playlists : [];
+  const byId = new Map(localArr.map(p => [p.id, p]));
+
+  // Merge: cloud wins for name/cover/count, but keep local-only trackIds if cloud is missing them
+  for (const c of cloudUi) {
+    const existing = byId.get(c.id);
+    if (existing) {
+      byId.set(c.id, {
+        ...existing,
+        ...c,
+        trackIds:
+          (Array.isArray(existing.trackIds) && existing.trackIds.length && (!Array.isArray(c.trackIds) || !c.trackIds.length))
+            ? existing.trackIds
+            : (Array.isArray(c.trackIds) ? c.trackIds : []),
+      });
+    } else {
+      byId.set(c.id, {
+        ...c,
+        trackIds: Array.isArray(c.trackIds) ? c.trackIds : [],
+      });
+    }
+  }
+
+  playlists = Array.from(byId.values());
+
+  // ✅ Persist so the next render (and mobile reload) still has playlists
+  try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
+} catch (e) {
+  console.warn("cloud->local playlists merge failed:", e);
+}
+
+return data.playlists;
+
       }
 
       window.cloudPlaylists = [];
