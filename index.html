@@ -4434,7 +4434,43 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
-        async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
+/* -----------------------
+   ✅ SINGLE SOURCE OF TRUTH for covers
+   - Uses override only if non-empty
+   - Auto-clears empty overrides that hide covers
+   - Falls back to library coverArt
+   - Final fallback: computed R2 cover.jpg
+------------------------ */
+function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
+  const a = String(artistName || "").trim();
+  const b = String(albumName || "").trim();
+
+  // 1) Try local override (but ONLY if non-empty)
+  const key = albumKey(a, b);
+  const map = loadAlbumCoverOverrides();
+
+  if (Object.prototype.hasOwnProperty.call(map, key)) {
+    const override = String(map[key] || "").trim();
+
+    if (override) return override;
+
+    // If override exists but is empty, it hides covers.
+    // Auto-delete it so covers come back.
+    delete map[key];
+    saveAlbumCoverOverrides(map);
+  }
+
+  // 2) Use coverArt from the library (Worker JSON)
+  const libCover = String(coverArtFromLibrary || "").trim();
+  if (libCover) return libCover;
+
+  // 3) Final fallback: build a cover.jpg URL in R2
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+  const albumCoverPath = `${a}/${b}/cover.jpg`;
+  return `${r2Base}${encodeURIComponent(albumCoverPath)}`;
+}
+
+async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   try {
     await fetch('/api/get-songs', {
       method: 'POST',
@@ -4449,6 +4485,7 @@ function saveAlbumCoverOverrides(obj) {
     console.warn('Failed to sync album cover override:', e);
   }
 }
+
 
 function reconcileAlbumCoverOverridesFromLibrary(data) {
   const map = loadAlbumCoverOverrides();
