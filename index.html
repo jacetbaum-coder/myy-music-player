@@ -6518,17 +6518,32 @@ function showView(viewType, playlistIndex = null) {
     try { hidePlaylistMenu(); } catch (e) {}
     try { closeContextMenu(); } catch (e) {}
 
-    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-      document.getElementById(id)?.classList.add('hidden');
-    });
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+  document.getElementById(id)?.classList.add('hidden');
+});
 
-
-
-  activePlaylistIndex = playlistIndex;
+activePlaylistIndex = playlistIndex;
 activePlaylistId = null;
 
 // BACK STACK: set new current view
 if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'library') setNavCurrent({ type: 'library' });
+else if (viewType === 'search') setNavCurrent({ type: 'search' });
+else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
+else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+else if (viewType === 'playlist') {
+  const plForNav = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex, playlistId: plForNav?.id || null });
+} else {
+  setNavCurrent({ type: viewType || 'home' });
+}
+
+const scrollArea = document.getElementById('main-scroll-area');
+if (scrollArea) scrollArea.scrollTop = 0;
+
+if (viewType === 'home') {
+ setNavCurrent({ type: 'home' });
 else if (viewType === 'library') setNavCurrent({ type: 'library' });
 else if (viewType === 'search') setNavCurrent({ type: 'search' });
 else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
