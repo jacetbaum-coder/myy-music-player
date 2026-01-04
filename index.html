@@ -6508,21 +6508,19 @@ function initMobileLibraryFiltersOnce() {
 }
 
 function showView(viewType, playlistIndex = null) {
-
+  try {
 
     // Capture what's currently on screen so swipe-back shows it behind
-  window.captureSwipeBackUnderlay?.();
-  // BACK STACK: push the current state before switching views
-  pushNavCurrent();
+    window.captureSwipeBackUnderlay?.();
+    // BACK STACK: push the current state before switching views
+    pushNavCurrent();
 
-  try { hidePlaylistMenu(); } catch (e) {}
-  try { closeContextMenu(); } catch (e) {}
+    try { hidePlaylistMenu(); } catch (e) {}
+    try { closeContextMenu(); } catch (e) {}
 
-      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-
-  try {
+    ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+      document.getElementById(id)?.classList.add('hidden');
+    });
 
 
 
