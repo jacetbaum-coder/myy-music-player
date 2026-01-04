@@ -6690,39 +6690,7 @@ if (scrollArea) scrollArea.scrollTop = 0;
       }
     })();
   }
-
-            if (viewType === 'playlist') {
-  // Resolve playlistIndex safely (it must be a valid index into playlists[])
-  let resolvedIndex = playlistIndex;
-
-  // If something passed an id string by mistake, convert id -> index
-  if (typeof resolvedIndex === 'string') {
-    const byId = playlists.findIndex(p => String(p.id) === String(resolvedIndex));
-    resolvedIndex = byId;
-  }
-
-  // If it’s not a valid index, bail out to Library (prevents black screen)
-  if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlists.length) {
-    console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
-    showView('library');
-    return;
-  }
-
-  const pl = playlists[resolvedIndex];
-  if (!pl) {
-    console.warn('showView(playlist): playlist missing at index:', resolvedIndex);
-    showView('library');
-    return;
-  }
-
-  // Keep globals consistent
-  activePlaylistIndex = resolvedIndex;
-  activePlaylistId = pl.id;
-
-  document.getElementById('album-view').classList.remove('hidden');
-
-  playContext = { type: 'playlist', label: pl.name };
-
+      
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
