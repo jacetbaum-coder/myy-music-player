@@ -7060,8 +7060,8 @@ function openAlbumByName(name) {
       <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
       <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
         <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
-        <span class="hover:underline cursor-pointer font-semibold"
-              onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
+                <span id="album-hero-artist-link" class="hover:underline cursor-pointer font-semibold">
+
           ${album.artistName}
         </span>
       </div>
@@ -7069,7 +7069,16 @@ function openAlbumByName(name) {
     </div>
   `;
 
+  // Bind hero artist click (no inline onclick)
+  const heroArtistLink = document.getElementById('album-hero-artist-link');
+  if (heroArtistLink) {
+    heroArtistLink.addEventListener('click', () => {
+      openArtistByName(album.artistName);
+    });
+  }
+
   // DESKTOP: right-click the hero cover to change cover
+
   const heroCover = document.getElementById('album-hero-cover');
   if (heroCover) {
     heroCover.addEventListener('contextmenu', (e) => {
