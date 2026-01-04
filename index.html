@@ -2303,23 +2303,11 @@ body.qs-lock {
 
           <!-- Tabs row (visual only, like your Home tabs) -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-  <button id="mobile-lib-tab-playlists" type="button"
-    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-    data-lib-filter="playlists">Playlists</button>
-
-  <button id="mobile-lib-tab-albums" type="button"
-    class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap"
-    data-lib-filter="albums">Albums</button>
-
-  <button id="mobile-lib-tab-audiobooks" type="button"
-    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-    data-lib-filter="audiobooks">Audiobooks</button>
-
-  <button id="mobile-lib-tab-artists" type="button"
-    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-    data-lib-filter="artists">Artists</button>
-</div>
-
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
+          </div>
+        </div>
 
                 <!-- MOBILE: Library Search overlay (Spotify-like) -->
         <div id="library-search-overlay" class="hidden md:hidden fixed inset-0 bg-black z-[9999]">
@@ -2419,64 +2407,31 @@ body.qs-lock {
           </div>
         </div>
 
-  <!-- MOBILE LIBRARY FILTER SECTIONS -->
-
-<!-- Playlists section -->
-<div id="mobile-library-playlists-section" class="hidden">
-  <div class="mb-4">
-    <h2 class="text-3xl font-black">Playlists</h2>
-  </div>
-
-  <div id="mobile-library-playlists-list" class="flex flex-col gap-2"></div>
-</div>
-
-<!-- Albums section (default visible) -->
-<div id="mobile-library-albums-section">
   <!-- Albums header -->
   <div class="mb-4">
     <h2 class="text-3xl font-black">Albums</h2>
   </div>
 
   <!-- ONE album grid only -->
-  <!-- CENTER LYRICS (toggle from dock mic) -->
-  <div id="lyrics-center-view" class="lyrics-center hidden">
-    <div class="lyrics-center-inner">
-      <div class="lyrics-center-top">
-        <div class="lyrics-center-meta">
-          <div id="lyrics-center-title" class="lyrics-center-title">Lyrics</div>
-          <div id="lyrics-center-sub" class="lyrics-center-sub">Tap the mic again to close</div>
-        </div>
-      </div>
-
-      <div id="lyrics-center-body" class="lyrics-center-body">
-        Play a song to load lyrics.
+    <!-- CENTER LYRICS (toggle from dock mic) -->
+<div id="lyrics-center-view" class="lyrics-center hidden">
+  <div class="lyrics-center-inner">
+    <div class="lyrics-center-top">
+      <div class="lyrics-center-meta">
+        <div id="lyrics-center-title" class="lyrics-center-title">Lyrics</div>
+        <div id="lyrics-center-sub" class="lyrics-center-sub">Tap the mic again to close</div>
       </div>
     </div>
-  </div>
 
-  <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
-</div>
-
-<!-- Audiobooks section -->
-<div id="mobile-library-audiobooks-section" class="hidden">
-  <div class="mb-4">
-    <h2 class="text-3xl font-black">Audiobooks</h2>
-  </div>
-
-  <div class="text-white/70 font-semibold">
-    No audiobooks yet.
+    <div id="lyrics-center-body" class="lyrics-center-body">
+      Play a song to load lyrics.
+    </div>
   </div>
 </div>
 
-<!-- Artists section -->
-<div id="mobile-library-artists-section" class="hidden">
-  <div class="mb-4">
-    <h2 class="text-3xl font-black">Artists</h2>
-  </div>
+    <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
 
-  <div id="mobile-library-artists-list" class="flex flex-col gap-2"></div>
 </div>
-
 
 <div id="search-view" class="hidden">
   <h1 class="text-3xl font-black mb-6">Search</h1>
@@ -4026,7 +3981,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 // ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
   const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) throw new Error("Missing id");
 
   const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
     method: "POST",
@@ -5545,46 +5500,7 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
       if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
         window.cloudPlaylists = data.playlists;
-
-// ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array
-try {
-  const cloudUi = data.playlists
-    .map(cloudRowToUiPlaylist)
-    .filter(pl => pl && pl.id);
-
-  const localArr = Array.isArray(playlists) ? playlists : [];
-  const byId = new Map(localArr.map(p => [p.id, p]));
-
-  // Merge: cloud wins for name/cover/count, but keep local-only trackIds if cloud is missing them
-  for (const c of cloudUi) {
-    const existing = byId.get(c.id);
-    if (existing) {
-      byId.set(c.id, {
-        ...existing,
-        ...c,
-        trackIds:
-          (Array.isArray(existing.trackIds) && existing.trackIds.length && (!Array.isArray(c.trackIds) || !c.trackIds.length))
-            ? existing.trackIds
-            : (Array.isArray(c.trackIds) ? c.trackIds : []),
-      });
-    } else {
-      byId.set(c.id, {
-        ...c,
-        trackIds: Array.isArray(c.trackIds) ? c.trackIds : [],
-      });
-    }
-  }
-
-  playlists = Array.from(byId.values());
-
-  // ✅ Persist so the next render (and mobile reload) still has playlists
-  try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
-} catch (e) {
-  console.warn("cloud->local playlists merge failed:", e);
-}
-
-return data.playlists;
-
+        return data.playlists;
       }
 
       window.cloudPlaylists = [];
@@ -6347,245 +6263,44 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
-// -----------------------
-// MOBILE LIBRARY: filter tabs (Playlists / Albums / Audiobooks / Artists)
-// -----------------------
-window.__mobileLibFilter = window.__mobileLibFilter || 'albums';
-window.__mobileLibFilterBound = window.__mobileLibFilterBound || false;
-
-function setMobileLibActiveTab(filter) {
-  const ids = [
-    'mobile-lib-tab-playlists',
-    'mobile-lib-tab-albums',
-    'mobile-lib-tab-audiobooks',
-    'mobile-lib-tab-artists'
-  ];
-
-  ids.forEach((id) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-
-    const f = btn.getAttribute('data-lib-filter');
-    const isActive = (f === filter);
-
-    btn.classList.toggle('bg-[#1db954]', isActive);
-    btn.classList.toggle('text-black', isActive);
-
-    btn.classList.toggle('bg-white/10', !isActive);
-    btn.classList.toggle('text-white', !isActive);
-  });
-}
-
-function renderMobileLibraryPlaylists() {
-  const list = document.getElementById('mobile-library-playlists-list');
-  if (!list) return;
-
-  const pls = Array.isArray(window.playlists) ? window.playlists : (Array.isArray(playlists) ? playlists : []);
-  list.innerHTML = '';
-
-  if (!pls.length) {
-    list.innerHTML = '<div class="text-white/70 font-semibold">No playlists yet.</div>';
-    return;
-  }
-
-  // Sort by name (stable)
-  const sorted = pls
-    .map((p, idx) => ({ p, idx }))
-    .sort((a, b) => String(a.p?.name || '').localeCompare(String(b.p?.name || ''), undefined, { sensitivity: 'base' }));
-
-  sorted.forEach(({ p, idx }) => {
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'w-full text-left px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.99] flex items-center justify-between';
-    row.innerHTML = `
-      <div class="min-w-0">
-        <div class="font-extrabold text-white truncate">${String(p?.name || 'Untitled')}</div>
-        <div class="text-xs font-bold text-white/50 truncate">Playlist</div>
-      </div>
-      <i class="fas fa-chevron-right text-white/40"></i>
-    `;
-
-    row.addEventListener('click', () => {
-      try { showView('playlist', idx); } catch (e) {}
-    });
-
-    list.appendChild(row);
-  });
-}
-
-function renderMobileLibraryArtists() {
-  const list = document.getElementById('mobile-library-artists-list');
-  if (!list) return;
-
-  // Use your library grid data source (albums)
-  let data = [];
-  try {
-    data = (typeof getLibraryGridData === 'function') ? (getLibraryGridData() || []) : [];
-  } catch (e) {
-    data = [];
-  }
-
-  const seen = new Set();
-  const artists = [];
-
-  data.forEach((item) => {
-    const name = String(item?.artist || item?.artistName || '').trim();
-    if (!name) return;
-    const key = name.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    artists.push(name);
-  });
-
-  artists.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
-  list.innerHTML = '';
-
-  if (!artists.length) {
-    list.innerHTML = '<div class="text-white/70 font-semibold">No artists yet.</div>';
-    return;
-  }
-
-  artists.forEach((name) => {
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'w-full text-left px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-[0.99] flex items-center justify-between';
-    row.innerHTML = `
-      <div class="min-w-0">
-        <div class="font-extrabold text-white truncate">${name}</div>
-        <div class="text-xs font-bold text-white/50 truncate">Artist</div>
-      </div>
-      <i class="fas fa-chevron-right text-white/40"></i>
-    `;
-
-    row.addEventListener('click', () => {
-      try { openArtistByName(name); } catch (e) {}
-    });
-
-    list.appendChild(row);
-  });
-}
-
-function applyMobileLibraryFilter(filter) {
-  window.__mobileLibFilter = filter || 'albums';
-
-  const secPlaylists = document.getElementById('mobile-library-playlists-section');
-  const secAlbums = document.getElementById('mobile-library-albums-section');
-  const secAudiobooks = document.getElementById('mobile-library-audiobooks-section');
-  const secArtists = document.getElementById('mobile-library-artists-section');
-
-  if (secPlaylists) secPlaylists.classList.toggle('hidden', window.__mobileLibFilter !== 'playlists');
-  if (secAlbums) secAlbums.classList.toggle('hidden', window.__mobileLibFilter !== 'albums');
-  if (secAudiobooks) secAudiobooks.classList.toggle('hidden', window.__mobileLibFilter !== 'audiobooks');
-  if (secArtists) secArtists.classList.toggle('hidden', window.__mobileLibFilter !== 'artists');
-
-  setMobileLibActiveTab(window.__mobileLibFilter);
-
-  // Render lists only when needed
-  if (window.__mobileLibFilter === 'playlists') {
-    try { renderMobileLibraryPlaylists(); } catch (e) {}
-  } else if (window.__mobileLibFilter === 'artists') {
-    try { renderMobileLibraryArtists(); } catch (e) {}
-  }
-}
-
-function initMobileLibraryFiltersOnce() {
-  if (window.__mobileLibFilterBound) return;
-  window.__mobileLibFilterBound = true;
-
-  const header = document.getElementById('mobile-library-header');
-  if (!header) return;
-
-  header.addEventListener('click', (e) => {
-    const btn = e.target?.closest?.('[data-lib-filter]');
-    if (!btn) return;
-
-    const f = btn.getAttribute('data-lib-filter');
-    if (!f) return;
-
-    applyMobileLibraryFilter(f);
-  });
-}
-
 function showView(viewType, playlistIndex = null) {
-    let resolvedViewType = viewType || 'home';
-  let resolvedPlaylistIndex = playlistIndex;
-  let resolvedPlaylist = null;
-  try {
 
     // Capture what's currently on screen so swipe-back shows it behind
-    window.captureSwipeBackUnderlay?.();
-    // BACK STACK: push the current state before switching views
-    pushNavCurrent();
+  window.captureSwipeBackUnderlay?.();
+  // BACK STACK: push the current state before switching views
+  pushNavCurrent();
 
-    try { hidePlaylistMenu(); } catch (e) {}
-    try { closeContextMenu(); } catch (e) {}
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { closeContextMenu(); } catch (e) {}
 
-  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-      document.getElementById(id)?.classList.add('hidden');
-    });
-
-activePlaylistIndex = null;
-    activePlaylistId = null;
-    if (resolvedViewType === 'playlist') {
-      const playlistList = Array.isArray(playlists) ? playlists : [];
-      if (typeof resolvedPlaylistIndex === 'string') {
-        if (/^\d+$/.test(resolvedPlaylistIndex)) {
-          resolvedPlaylistIndex = Number(resolvedPlaylistIndex);
-        } else {
-          const byId = playlistList.findIndex(p => String(p.id) === String(resolvedPlaylistIndex));
-          resolvedPlaylistIndex = byId;
-        }
-      }
-
-      if (!Number.isInteger(resolvedPlaylistIndex) || resolvedPlaylistIndex < 0 || resolvedPlaylistIndex >= playlistList.length) {
-        console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
-        resolvedViewType = 'library';
-      } else {
-        resolvedPlaylist = playlistList[resolvedPlaylistIndex];
-        if (!resolvedPlaylist) {
-          console.warn('showView(playlist): playlist missing at index:', resolvedPlaylistIndex);
-          resolvedViewType = 'library';
-        } else {
-          activePlaylistIndex = resolvedPlaylistIndex;
-          activePlaylistId = resolvedPlaylist.id;
-        }
-      }
-    }
-
-    if (resolvedViewType === 'liked' || resolvedViewType === 'playlist') {
-      if (!document.getElementById('album-view')) {
-        console.warn(`showView(${resolvedViewType}): missing album-view`);
-        resolvedViewType = 'home';
-      }
-    }
-
-    if (resolvedViewType === 'artist') {
-      if (!document.getElementById('artist-view')) {
-        console.warn('showView(artist): missing artist-view');
-        resolvedViewType = 'home';
-      }
-    }
+      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
 
 
-    // BACK STACK: set new current view
-    if (resolvedViewType === 'home') setNavCurrent({ type: 'home' });
-    else if (resolvedViewType === 'library') setNavCurrent({ type: 'library' });
-    else if (resolvedViewType === 'search') setNavCurrent({ type: 'search' });
-    else if (resolvedViewType === 'liked') setNavCurrent({ type: 'liked' });
-    else if (resolvedViewType === 'crate') setNavCurrent({ type: 'crate' });
-    else if (resolvedViewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-    else if (resolvedViewType === 'playlist') {
-      setNavCurrent({ type: 'playlist', playlistIndex: resolvedPlaylistIndex, playlistId: resolvedPlaylist?.id || null });
-    } else {
-      setNavCurrent({ type: resolvedViewType || 'home' });
-    }
+  activePlaylistIndex = playlistIndex;
+activePlaylistId = null;
 
-    const scrollArea = document.getElementById('main-scroll-area');
-    if (scrollArea) scrollArea.scrollTop = 0;
+// BACK STACK: set new current view
+if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'library') setNavCurrent({ type: 'library' });
+else if (viewType === 'search') setNavCurrent({ type: 'search' });
+else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
+else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+else if (viewType === 'playlist') {
+
+  const plForNav = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+} else {
+  setNavCurrent({ type: viewType || 'home' });
+}
 
 
-       if (resolvedViewType === 'home') {
+const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+
+        if (viewType === 'home') {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
       document.getElementById('home-view')?.classList.remove('hidden');
@@ -6597,117 +6312,135 @@ activePlaylistIndex = null;
       renderHistory();
       try { renderHome(); } catch (e) {}
     }
-} else if (resolvedViewType === 'library') {
+  }
+
+  if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
   renderGrid(getLibraryGridData());
   renderHistory();
 
   if (window.innerWidth <= 768) {
-    try { initMobileLibraryFiltersOnce(); } catch (e) {}
-    try { applyMobileLibraryFilter(window.__mobileLibFilter || 'albums'); } catch (e) {}
     renderMobileRecents();
+  }
+}
+
+    if (viewType === 'search') {
+    document.getElementById('search-view').classList.remove('hidden');
+    document.getElementById('global-search').focus();
+  }
+
+  if (viewType === 'crate') {
+    document.getElementById('crate-view')?.classList.remove('hidden');
+    try { initCrateUIOnce(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
+    // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
+  }
+
+
+
+  if (viewType === 'liked') {
+    document.getElementById('album-view').classList.remove('hidden');
+    renderCollection("Liked Songs", likedSongs);
+  }
+
+        if (viewType === 'playlist') {
+  document.getElementById('album-view').classList.remove('hidden');
+
+  const pl = playlists[playlistIndex];
+  if (!pl) return;
+
+  activePlaylistId = pl.id;
+  playContext = { type: 'playlist', label: pl.name };
+
+  // 🔒 wrap async work so `await` is legal
+  (async () => {
+    try {
+      const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
+
+// Accept either:
+// - ["Artist/Album/Song.mp3", ...]
+// - [{ track_id:"Artist/Album/Song.mp3" }, ...]
+// - [{ key:"Artist/Album/Song.mp3" }, ...]
+// - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+
+  // If we were given a full URL, pull out ?id=
+  try {
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
     }
-} else if (resolvedViewType === 'search') {
-  document.getElementById('search-view')?.classList.remove('hidden');
-  document.getElementById('global-search')?.focus();
-} else if (resolvedViewType === 'crate') {
-  document.getElementById('crate-view')?.classList.remove('hidden');
-  try { initCrateUIOnce(); } catch (e) {}
-  try { renderCrate(); } catch (e) {}
-  // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
-} else if (resolvedViewType === 'artist') {
-  document.getElementById('artist-view')?.classList.remove('hidden');
-} else if (resolvedViewType === 'liked') {
-  const albumView = document.getElementById('album-view');
-  albumView?.classList.remove('hidden');
-  renderCollection("Liked Songs", likedSongs);
-} else if (resolvedViewType === 'playlist') {
+  } catch (e) {}
 
-    const albumView = document.getElementById('album-view');
-    albumView?.classList.remove('hidden');
-   playContext = { type: 'playlist', label: resolvedPlaylist.name };
-
-    // 🔒 wrap async work so `await` is legal
-    (async () => {
-      try {
-        const rawItems = await window.loadPlaylistItemsFromCloud(resolvedPlaylist.id);
-
-        // Accept either:
-        // - ["Artist/Album/Song.mp3", ...]
-        // - [{ track_id:"Artist/Album/Song.mp3" }, ...]
-        // - [{ key:"Artist/Album/Song.mp3" }, ...]
-        // - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
-        function canonTrackId(v) {
-          let s = String(v || "").trim();
-          if (!s) return "";
-
-          // If we were given a full URL, pull out ?id=
-          try {
-            if (s.includes("://")) {
-              const u = new URL(s);
-              const id = u.searchParams.get("id");
-              if (id) s = id;
-            }
-          } catch (e) {}
-
-          // Decode %2F etc
-          try { s = decodeURIComponent(s); } catch (e) {}
-
-          // Strip leading slash if present
-          s = s.replace(/^\/+/, "").trim();
-
-          return s;
-        }
-
-        const itemsArr = Array.isArray(rawItems) ? rawItems : [];
-
-        const normalizedIds = itemsArr
-          .map((x) => {
-            if (typeof x === "string") return canonTrackId(x);
-            if (x && typeof x === "object") {
-              return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
-            }
-            return "";
-          })
-          .filter(Boolean);
-
-        // ✅ Always keep playlist as IDs-only
-       resolvedPlaylist.trackIds = normalizedIds;
-
-        // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
-        const playlistSongs = resolveTrackIdsToSongs(resolvedPlaylist.trackIds);
-
-        // covers & render
-        try { updatePlaylistAutoCoverById(resolvedPlaylist.id); } catch (e) {}
-        try { renderPlaylists(); } catch (e) {}
-        renderCollection(resolvedPlaylist.name, playlistSongs, true, resolvedPlaylistIndex);
-
-      } catch (err) {
-        console.warn(err);
-        resolvedPlaylist.trackIds = Array.isArray(resolvedPlaylist.trackIds) ? resolvedPlaylist.trackIds : [];
-
-        // ✅ Derive songs only for rendering (do not store on playlist)
-        const playlistSongs = resolveTrackIdsToSongs(resolvedPlaylist.trackIds);
-
-         renderCollection(resolvedPlaylist.name, playlistSongs, true, resolvedPlaylistIndex);
-      }
-    })();
-      } else {
-    document.getElementById('home-view')?.classList.remove('hidden');
-  }
-    
-
-  } catch (e) {
-    console.error('showView failed:', e);
-
-    // Fail-safe: show *something* so we never stay black
-
-    try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (_) {}
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
+    try {
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
   }
 
-  updateActiveStates(resolvedViewType || viewType);
+  // Decode %2F etc
+  try { s = decodeURIComponent(s); } catch (e) {}
 
+  // Strip leading slash if present
+  s = s.replace(/^\/+/, "").trim();
+
+  return s;
+}
+
+const itemsArr = Array.isArray(rawItems) ? rawItems : [];
+
+const normalizedIds = itemsArr
+  .map((x) => {
+    if (typeof x === "string") return canonTrackId(x);
+    if (x && typeof x === "object") {
+      return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
+    }
+    return "";
+  })
+  .filter(Boolean);
+
+// ✅ Always keep playlist as IDs-only
+pl.trackIds = normalizedIds;
+
+// ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+// covers & render
+try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+try { renderPlaylists(); } catch (e) {}
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
+
+
+
+    } catch (err) {
+      console.warn(err);
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+
+// ✅ Derive songs only for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
+    }
+  })();
+}
+
+
+
+
+  if (viewType === 'artist') {
+    document.getElementById('artist-view').classList.remove('hidden');
+  }
+
+  updateActiveStates(viewType);
 }
 
 
@@ -6957,8 +6690,8 @@ function openAlbumByName(name) {
       <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
       <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
         <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
-                <span id="album-hero-artist-link" class="hover:underline cursor-pointer font-semibold">
-
+        <span class="hover:underline cursor-pointer font-semibold"
+              onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
           ${album.artistName}
         </span>
       </div>
@@ -6966,16 +6699,7 @@ function openAlbumByName(name) {
     </div>
   `;
 
-  // Bind hero artist click (no inline onclick)
-  const heroArtistLink = document.getElementById('album-hero-artist-link');
-  if (heroArtistLink) {
-    heroArtistLink.addEventListener('click', () => {
-      openArtistByName(album.artistName);
-    });
-  }
-
   // DESKTOP: right-click the hero cover to change cover
-
   const heroCover = document.getElementById('album-hero-cover');
   if (heroCover) {
     heroCover.addEventListener('contextmenu', (e) => {
@@ -8652,8 +8376,8 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-     // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
-  if (!state) {
+   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
+  if (!raw) {
     currentSong = null;
     toggleRightSidebar(false);
 
@@ -8665,13 +8389,10 @@ function restorePlayerStateIfRecent() {
     return;
   }
 
-
-    // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
+  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
   const ONE_HOUR = 60 * 60 * 1000;
-  if (!state || !state.updatedAt || (Date.now() - state.updatedAt) > ONE_HOUR) {
-    localStorage.removeItem('lastSongState');
-    localStorage.removeItem('lastPlayedTime');
-
+  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
+    localStorage.removeItem('reson_player_state');
     currentSong = null;
     toggleRightSidebar(false);
 
@@ -8682,7 +8403,6 @@ function restorePlayerStateIfRecent() {
     }
     return;
   }
-
 
 
   currentSong = state.song;
@@ -10874,9 +10594,8 @@ function renderPlaylists() {
     div.className = "flex items-center gap-3 p-2 rounded hover:bg-zinc-900 cursor-pointer group";
 
     // Find the real index inside playlists[] for showView('playlist', index)
-        const i = playlists.findIndex(p => String(p.id) === String(pl.id));
-    div.onclick = () => { if (i >= 0) showView('playlist', i); };
-
+    const i = playlists.findIndex(p => p.id === pl.id);
+    div.onclick = () => showView('playlist', i);
 
     const cover = getEffectivePlaylistCover(pl);
 
