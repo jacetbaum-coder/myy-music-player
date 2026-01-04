@@ -6586,8 +6586,110 @@ const scrollArea = document.getElementById('main-scroll-area');
 
 
 
-  if (viewType === 'liked') {
+    if (viewType === 'liked') {
     document.getElementById('album-view').classList.remove('hidden');
+    renderCollection("Liked Songs", likedSongs);
+  }
+
+  if (viewType === 'playlist') {
+    // Resolve playlistIndex safely (it must be a valid index into playlists[])
+    let resolvedIndex = playlistIndex;
+
+    // If something passed an id string by mistake, convert id -> index
+    if (typeof resolvedIndex === 'string') {
+      const byId = playlists.findIndex(p => String(p.id) === String(resolvedIndex));
+      resolvedIndex = byId;
+    }
+
+    // If it’s not a valid index, bail out to Library (prevents black screen)
+    if (!Number.isInteger(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= playlists.length) {
+      console.warn('showView(playlist): invalid playlistIndex:', playlistIndex);
+      showView('library');
+      return;
+    }
+
+    const pl = playlists[resolvedIndex];
+    if (!pl) {
+      console.warn('showView(playlist): playlist missing at index:', resolvedIndex);
+      showView('library');
+      return;
+    }
+
+    // Keep globals consistent
+    activePlaylistIndex = resolvedIndex;
+    activePlaylistId = pl.id;
+
+    document.getElementById('album-view').classList.remove('hidden');
+
+    playContext = { type: 'playlist', label: pl.name };
+
+    // 🔒 wrap async work so `await` is legal
+    (async () => {
+      try {
+        const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
+
+        // Accept either:
+        // - ["Artist/Album/Song.mp3", ...]
+        // - [{ track_id:"Artist/Album/Song.mp3" }, ...]
+        // - [{ key:"Artist/Album/Song.mp3" }, ...]
+        // - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
+        function canonTrackId(v) {
+          let s = String(v || "").trim();
+          if (!s) return "";
+
+          // If we were given a full URL, pull out ?id=
+          try {
+            if (s.includes("://")) {
+              const u = new URL(s);
+              const id = u.searchParams.get("id");
+              if (id) s = id;
+            }
+          } catch (e) {}
+
+          // Decode %2F etc
+          try { s = decodeURIComponent(s); } catch (e) {}
+
+          // Strip leading slash if present
+          s = s.replace(/^\/+/, "").trim();
+
+          return s;
+        }
+
+        const itemsArr = Array.isArray(rawItems) ? rawItems : [];
+
+        const normalizedIds = itemsArr
+          .map((x) => {
+            if (typeof x === "string") return canonTrackId(x);
+            if (x && typeof x === "object") {
+              return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
+            }
+            return "";
+          })
+          .filter(Boolean);
+
+        // ✅ Always keep playlist as IDs-only
+        pl.trackIds = normalizedIds;
+
+        // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
+        const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+        // covers & render
+        try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+        try { renderPlaylists(); } catch (e) {}
+        renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+
+      } catch (err) {
+        console.warn(err);
+        pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+
+        // ✅ Derive songs only for rendering (do not store on playlist)
+        const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+        renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+      }
+    })();
+  }
+
             if (viewType === 'playlist') {
   // Resolve playlistIndex safely (it must be a valid index into playlists[])
   let resolvedIndex = playlistIndex;
