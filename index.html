@@ -9532,17 +9532,37 @@ if (homeRecentsShowAllBtn) {
 
   section.classList.remove('hidden');
 
-  grid.innerHTML = items.map(h => {
+    grid.innerHTML = items.map(h => {
     const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
+
+    // ✅ Compute a reliable cover
+    let cover = String(h.cover || '').trim();
+
+    if (!cover && h.type !== 'playlist') {
+      // For albums: find the album in libraryData and compute cover from (artist, album)
+      const albumName = String(h.album || '').trim();
+      const artistName = String(h.artist || '').trim();
+      const match = (Array.isArray(libraryData) ? libraryData : [])
+        .find(a => String(a.albumName || '').trim() === albumName && String(a.artistName || '').trim() === artistName);
+
+      if (match) {
+        cover = getAlbumCover(match.artistName, match.albumName, match.coverArt);
+      }
+    }
+
     return `
       <div class="mobile-recent-card"
            data-type="${h.type}"
            data-id="${safeId}"
            data-album="${safeAlbum}">
-        <img src="${h.cover || ''}" alt="">
+        ${
+          cover
+            ? `<img src="${cover}" alt="">`
+            : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>`
+        }
         <div class="min-w-0">
           <div class="title">${title}</div>
           <div class="sub">${sub}</div>
@@ -9550,6 +9570,7 @@ if (homeRecentsShowAllBtn) {
       </div>
     `;
   }).join('');
+
 
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
