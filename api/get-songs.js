@@ -115,25 +115,14 @@ try {
 
 
           // -----------------------
-          // Cover art (KV override → iTunes fallback)
+          // Cover art (KV override → R2 Automatic fallback)
           // -----------------------
           const storageKey = makeCoverStorageKey(artist.name, album.name);
           let coverUrl = await kv.get(storageKey);
 
           if (!coverUrl) {
-            const searchTerm = encodeURIComponent(
-              `${artist.name} ${album.name}`
-            );
-            const itunesRes = await fetch(
-              `https://itunes.apple.com/search?term=${searchTerm}&entity=album&limit=1`
-            );
-            const itunesData = await itunesRes.json();
-            coverUrl =
-              itunesData.results?.[0]?.artworkUrl100?.replace(
-                '100x100bb',
-                '600x600bb'
-              ) ||
-              'https://via.placeholder.com/600x600?text=No+Cover+Found';
+            // This automatically looks for the cover.jpg you uploaded to R2
+            coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(`${artist.name}/${album.name}/cover.jpg`)}`;
           }
 
           // -----------------------
