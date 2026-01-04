@@ -120,24 +120,25 @@ try {
           const storageKey = makeCoverStorageKey(artist.name, album.name);
           let coverUrl = await kv.get(storageKey);
 
+          // FORCE AUTOMATIC R2 CHECK
+          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+          const albumPath = `${artist.name}/${album.name}/cover.jpg`;
+          const artistPath = `${artist.name}/cover.jpg`;
+          
+          // If no KV override, use the R2 path. 
+          // We prioritize the Album folder, then the Artist folder.
           if (!coverUrl) {
-            // This automatically looks for the cover.jpg you uploaded to R2
-            // Try Album folder first, then Artist folder as fallback
-            const albumPath = `${artist.name}/${album.name}/cover.jpg`;
-            const artistPath = `${artist.name}/cover.jpg`;
-            
-            // This builds a URL that works even if the album name is missing
-            const finalPath = album.name ? albumPath : artistPath;
-            coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(finalPath)}`;
+            coverUrl = `${r2Base}${encodeURIComponent(albumPath)}`;
           }
+
+          // We also attach a fallback directly to the song object
+          const fallbackCover = `${r2Base}${encodeURIComponent(artistPath)}`;
 
           // -----------------------
           // Build album object
           // -----------------------
-          allAlbums.push({
-            artistName: artist.name,
-            albumName: album.name,
-            coverArt: coverUrl,
+         coverArt: coverUrl,
+            fallbackArt: fallbackCover,
 
             songs: songs.map((s) => {
               // Canonical R2 object path
