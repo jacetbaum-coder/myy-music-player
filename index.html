@@ -9864,8 +9864,12 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
     return `<img src="${explicit}" class="${sc} object-cover" alt="">`;
   }
 
-  // 2) build from song covers
-  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+    // 2) build from song covers
+  const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs
     .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
     .map(x => String(x || '').trim())
@@ -9897,8 +9901,12 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
 
 function playlistAutoCoverSignature(pl) {
 
-  // Signature determines when we need to rebuild the auto cover
-  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+    // Signature determines when we need to rebuild the auto cover
+  const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) return "none";
@@ -9980,7 +9988,11 @@ async function updatePlaylistAutoCoverById(playlistId) {
     return; // already up to date
   }
 
-  const songs = Array.isArray(pl.songs) ? pl.songs : [];
+    const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) {
