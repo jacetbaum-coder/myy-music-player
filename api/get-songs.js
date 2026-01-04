@@ -122,7 +122,13 @@ try {
 
           if (!coverUrl) {
             // This automatically looks for the cover.jpg you uploaded to R2
-            coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(`${artist.name}/${album.name}/cover.jpg`)}`;
+            // Try Album folder first, then Artist folder as fallback
+            const albumPath = `${artist.name}/${album.name}/cover.jpg`;
+            const artistPath = `${artist.name}/cover.jpg`;
+            
+            // This builds a URL that works even if the album name is missing
+            const finalPath = album.name ? albumPath : artistPath;
+            coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(finalPath)}`;
           }
 
           // -----------------------
