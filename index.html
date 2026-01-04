@@ -6522,6 +6522,9 @@ function showView(viewType, playlistIndex = null) {
     document.getElementById(id)?.classList.add('hidden');
   });
 
+  try {
+
+
 
   activePlaylistIndex = playlistIndex;
 activePlaylistId = null;
@@ -6811,7 +6814,16 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
     document.getElementById('artist-view').classList.remove('hidden');
   }
 
+  } catch (e) {
+    console.error('showView failed:', e);
+
+    // Fail-safe: show *something* so we never stay black
+    try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (_) {}
+    try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (_) {}
+  }
+
   updateActiveStates(viewType);
+
 }
 
 
