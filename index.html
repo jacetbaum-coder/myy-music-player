@@ -6298,7 +6298,8 @@ else if (viewType === 'playlist') {
 
 
 const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
+if (scrollArea) scrollArea.scrollTop = 0;
+
 
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
@@ -6448,11 +6449,17 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
         function updateActiveStates(viewType) {
   // Mobile Nav
   const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
-  Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
-  if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
+  Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
+if (navIds[viewType]) document.getElementById(navIds[viewType])?.classList.add('active');
+
 
   // Desktop Sidebar
-  document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
+  document.getElementById('side-nav-home')?.classList.toggle('text-white', viewType === 'home' || viewType === 'library');
+document.getElementById('side-nav-home')?.classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
+document.getElementById('side-nav-search')?.classList.toggle('text-white', viewType === 'search');
+document.getElementById('side-nav-search')?.classList.toggle('text-zinc-400', viewType !== 'search');
+document.getElementById('side-nav-liked')?.classList.toggle('bg-zinc-900', viewType === 'liked');
+
   document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
   document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
   document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
