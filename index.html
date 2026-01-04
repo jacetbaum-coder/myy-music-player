@@ -3977,20 +3977,22 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 
 
 // ✅ Create playlist in cloud
+// ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
   const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) throw new Error("Missing id");
 
   const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: uid, name: String(name || "Playlist") })
+    body: JSON.stringify({ id: uid, name: String(name || "Playlist") })
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Create playlist failed");
   return data;
 };
+
 
 // ✅ Delete playlist in cloud
 window.deletePlaylistFromCloud = async function (playlistId) {
@@ -9680,14 +9682,14 @@ function renderHistory() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: window.APP_USER_ID || localStorage.getItem("app_user_id"),
+          id: window.APP_USER_ID || localStorage.getItem("app_user_id"),
           name: name.trim()
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        throw new Error("Failed to create playlist");
+        throw new Error(data?.error || "Failed to create playlist");
       }
 
       // Reload cloud playlists and re-render
@@ -9699,6 +9701,7 @@ function renderHistory() {
     }
   })();
 }
+
 
 
 // ---------------- PINNED PLAYLISTS ----------------
