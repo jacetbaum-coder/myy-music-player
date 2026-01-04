@@ -91,76 +91,52 @@ try {
 });
 
 
-    const allAlbums = [];
+        const allAlbums = [];
 
     await Promise.all(
-            artists.map(async (artist) => {
-
-                const albums = await driveListAll({
+      artists.map(async (artist) => {
+        const albums = await driveListAll({
           q: `'${artist.id}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
           fields: 'id, name',
         });
 
-
-         for (const album of albums) {
-                    const contents = await driveListAll({
+        for (const album of albums) {
+          const contents = await driveListAll({
             q: `'${album.id}' in parents`,
             fields: 'id, name, mimeType',
           });
 
-
-                    const songs = contents.filter(f =>
-            f.mimeType?.includes('audio')
-          );
-
+          const songs = contents.filter(f => f.mimeType?.includes('audio'));
 
           // -----------------------
-          // Cover art (KV override → R2 Automatic fallback)
+          // Cover art (KV override → R2 fallback)
           // -----------------------
           const storageKey = makeCoverStorageKey(artist.name, album.name);
           let coverUrl = await kv.get(storageKey);
 
-          // FORCE AUTOMATIC R2 CHECK
           const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-          const albumPath = `${artist.name}/${album.name}/cover.jpg`;
-          const artistPath = `${artist.name}/cover.jpg`;
-          
-          // If no KV override, use the R2 path. 
-          // We prioritize the Album folder, then the Artist folder.
-          if (!coverUrl) {
-  // Check Artist folder if Album folder doesn't work
-  const artistPath = `${artist.name}/cover.jpg`;
-  const finalPath = album.name ? albumPath : artistPath;
-  
-  // We'll use a logic that tries to find it in the most likely spot
-  coverUrl = `${r2Base}${encodeURIComponent(finalPath)}`;
-  
-  // To be 100% safe for Suki, if albumPath fails, we use artistPath
-  if (artist.name === "Suki Waterhouse") {
-      coverUrl = `${r2Base}${encodeURIComponent(artistPath)}`;
-  }
-}
+          const albumCoverPath = `${artist.name}/${album.name}/cover.jpg`;
+          const artistCoverPath = `${artist.name}/cover.jpg`;
 
-          // We also attach a fallback directly to the song object
-          const fallbackCover = `${r2Base}${encodeURIComponent(artistPath)}`;
+          if (!coverUrl) {
+            coverUrl = `${r2Base}${encodeURIComponent(albumCoverPath)}`;
+          }
+
+          const fallbackCover = `${r2Base}${encodeURIComponent(artistCoverPath)}`;
 
           // -----------------------
-          // Build album object
-          // -----------------------
-          allAlbums.push({
-            artistName: artist.name,
-            albumName: album.name,
-            coverArt: coverUrl,
-            fallbackArt: fallbackCover,
+          // Build album object
+          // -----------------------
+          allAlbums.push({
+            artistName: artist.name,
+            albumName: album.name,
+            coverArt: coverUrl,
+            fallbackArt: fallbackCover,
 
-            songs: songs.map((s) => {
-              // Canonical R2 object path
+            songs: songs.map((s) => {
               const r2Path = `${artist.name}/${album.name}/${s.name}`;
-
-              // Stable track ID (used for dedupe + playlists)
               const trackId = r2Path;
 
-              // Clean title (no extension)
               const title = String(s.name || "").replace(
                 /\.(mp3|m4a|flac|wav)$/i,
                 ""
@@ -173,9 +149,7 @@ try {
                 title,
                 artistName: artist.name,
                 albumName: album.name,
-                link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(
-                  r2Path
-                )}`,
+                link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(r2Path)}`,
               };
             }),
           });
@@ -185,9 +159,11 @@ try {
 
     cachedData = allAlbums;
     lastFetchTime = now;
-    res.status(200).json(allAlbums);
+    return res.status(200).json(allAlbums);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
+  }
+
   }
 }
