@@ -2661,7 +2661,8 @@ body.qs-lock {
 
 
 
-    <div id="main-dock" class="player-bar dock-hidden">
+    <div id="main-dock" class="player-bar">
+
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
   <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
   <div class="overflow-hidden">
@@ -8384,24 +8385,35 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-  // If no saved state, hide dock
-  if (!state || !state.song || !state.song.url) {
+   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
+  if (!raw) {
     currentSong = null;
-      toggleRightSidebar(false);
-    dock.classList.add('dock-hidden');
+    toggleRightSidebar(false);
+
+    if (window.innerWidth <= 768) {
+      dock.classList.remove('dock-hidden');
+    } else {
+      dock.classList.add('dock-hidden');
+    }
     return;
   }
 
-  // If older than 1 hour, wipe it and hide dock
-  if ((Date.now() - (state.updatedAt || 0)) >= oneHour) {
-    localStorage.removeItem('lastSongState');
+  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
+    localStorage.removeItem('reson_player_state');
     currentSong = null;
-      toggleRightSidebar(false);
-    dock.classList.add('dock-hidden');
+    toggleRightSidebar(false);
+
+    if (window.innerWidth <= 768) {
+      dock.classList.remove('dock-hidden');
+    } else {
+      dock.classList.add('dock-hidden');
+    }
     return;
   }
 
-  // Restore song into memory
+
   currentSong = state.song;
 
   // Restore audio source + time (do NOT autoplay)
@@ -8440,7 +8452,18 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 }
 
 function checkDockVisibility() {
-  const oneHour = 3600000;
+  const dock = document.getElementById('main-dock');
+  if (!dock) return;
+
+  // ✅ Mobile: dock is ALWAYS visible (home, search, library, album, playlist, etc.)
+  if (window.innerWidth <= 768) {
+    dock.classList.remove('dock-hidden');
+    return;
+  }
+
+  // Desktop behavior (unchanged): only show dock when something is loaded / recently played
+  const lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime'), 10);
+  const currentTime = Date.now();
 
   // If nothing is loaded / no current song => NO dock
   if (!currentSong) {
@@ -8448,18 +8471,14 @@ function checkDockVisibility() {
     return;
   }
 
-  // If playing, always show
-  if (!player.paused) {
+  // If last played time exists and is within 1 hour => show dock
+  if (!isNaN(lastPlayedTime) && currentTime - lastPlayedTime < 3600000) {
     dock.classList.remove('dock-hidden');
-    return;
+  } else {
+    dock.classList.add('dock-hidden');
   }
-
-  // If paused: only show if last interaction within 1 hour
-  const isRecent = (Date.now() - lastPlayedTime) < oneHour;
-
-  if (isRecent) dock.classList.remove('dock-hidden');
-  else dock.classList.add('dock-hidden');
 }
+
 
        function toggleRightSidebar(show) {
   if (window.innerWidth < 1024) return;
