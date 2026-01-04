@@ -4472,12 +4472,24 @@ function reconcileAlbumCoverOverridesFromLibrary(data) {
 }
 
 function getAlbumCover(artistName, albumName, fallbackCover) {
+  // 1. Check if you manually set a cover in the "Crate" settings
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
   const v = map[key];
-  return (v && String(v).trim()) ? v : fallbackCover;
-}
+  if (v && String(v).trim()) return v;
 
+  // 2. If the database already has a cover URL, use it
+  if (fallbackCover && fallbackCover.trim() !== "" && !fallbackCover.includes("placeholder")) {
+    return fallbackCover;
+  }
+
+  // 3. The "Magic" Fix: Look for the cover.jpg file in your R2 bucket
+  // This points to the folder where spotDL saves the artwork automatically.
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev";
+  const coverPath = `${artistName}/${albumName}/cover.jpg`;
+  
+  return `${r2Base}/?id=${encodeURIComponent(coverPath)}`;
+}
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
