@@ -9538,20 +9538,26 @@ if (homeRecentsShowAllBtn) {
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
 
-    // ✅ Compute a reliable cover
-    let cover = String(h.cover || '').trim();
+        // ✅ Compute a reliable cover
+    // For ALBUM recents: ignore any stored h.cover (it may be stale/broken)
+    let cover = "";
 
-    if (!cover && h.type !== 'playlist') {
-      // For albums: find the album in libraryData and compute cover from (artist, album)
+    if (h.type === 'playlist') {
+      cover = String(h.cover || "").trim();
+    } else {
       const albumName = String(h.album || '').trim();
       const artistName = String(h.artist || '').trim();
-      const match = (Array.isArray(libraryData) ? libraryData : [])
-        .find(a => String(a.albumName || '').trim() === albumName && String(a.artistName || '').trim() === artistName);
 
-      if (match) {
-        cover = getAlbumCover(match.artistName, match.albumName, match.coverArt);
-      }
+      const match = (Array.isArray(libraryData) ? libraryData : [])
+        .find(a =>
+          String(a.albumName || '').trim() === albumName &&
+          String(a.artistName || '').trim() === artistName
+        );
+
+      // Use library coverArt if we found it; otherwise getAlbumCover still builds Artist/Album/cover.jpg
+      cover = getAlbumCover(artistName, albumName, match ? match.coverArt : "");
     }
+
 
     return `
       <div class="mobile-recent-card"
