@@ -6519,49 +6519,31 @@ function showView(viewType, playlistIndex = null) {
     try { closeContextMenu(); } catch (e) {}
 
   ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-  document.getElementById(id)?.classList.add('hidden');
-});
+      document.getElementById(id)?.classList.add('hidden');
+    });
 
 activePlaylistIndex = playlistIndex;
-activePlaylistId = null;
+    activePlaylistId = null;
 
-// BACK STACK: set new current view
-if (viewType === 'home') setNavCurrent({ type: 'home' });
-else if (viewType === 'library') setNavCurrent({ type: 'library' });
-else if (viewType === 'search') setNavCurrent({ type: 'search' });
-else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
-else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-else if (viewType === 'playlist') {
-  const plForNav = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex, playlistId: plForNav?.id || null });
-} else {
-  setNavCurrent({ type: viewType || 'home' });
-}
+    // BACK STACK: set new current view
+    if (viewType === 'home') setNavCurrent({ type: 'home' });
+    else if (viewType === 'library') setNavCurrent({ type: 'library' });
+    else if (viewType === 'search') setNavCurrent({ type: 'search' });
+    else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+    else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
+    else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+    else if (viewType === 'playlist') {
+      const plForNav = playlists[playlistIndex];
+      setNavCurrent({ type: 'playlist', playlistIndex, playlistId: plForNav?.id || null });
+    } else {
+      setNavCurrent({ type: viewType || 'home' });
+    }
 
-const scrollArea = document.getElementById('main-scroll-area');
-if (scrollArea) scrollArea.scrollTop = 0;
-
-if (viewType === 'home') {
- setNavCurrent({ type: 'home' });
-else if (viewType === 'library') setNavCurrent({ type: 'library' });
-else if (viewType === 'search') setNavCurrent({ type: 'search' });
-else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
-else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-else if (viewType === 'playlist') {
-
-  const plForNav = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
-} else {
-  setNavCurrent({ type: viewType || 'home' });
-}
-
-const scrollArea = document.getElementById('main-scroll-area');
-if (scrollArea) scrollArea.scrollTop = 0;
+    const scrollArea = document.getElementById('main-scroll-area');
+    if (scrollArea) scrollArea.scrollTop = 0;
 
 
-        if (viewType === 'home') {
+       if (viewType === 'home') {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
       document.getElementById('home-view')?.classList.remove('hidden');
@@ -6602,7 +6584,7 @@ if (scrollArea) scrollArea.scrollTop = 0;
 
 
 
-    if (viewType === 'liked') {
+   if (viewType === 'liked') {
     document.getElementById('album-view').classList.remove('hidden');
     renderCollection("Liked Songs", likedSongs);
   }
