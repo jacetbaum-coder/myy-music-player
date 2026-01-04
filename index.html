@@ -789,7 +789,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             right: 0;
             height: var(--nav-height);
             background: linear-gradient(to top, #000 80%, transparent);
-            z-index: 200;
+            z-index: 9999;
             justify-content: space-around;
             align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
@@ -5476,20 +5476,11 @@ function initMobileDoubleTapScrollToTop(){
 
 
 window.onload = async () => {
-  // ✅ Identity (Phase 1): persist a userId in localStorage
-  // Later, Desktop will generate a link code and Mobile will redeem it to share the same userId.
-  const makeUserId = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  // ✅ Identity (Phase 1): use the SAME numeric userId everywhere
+  const userId = localStorage.getItem("app_user_id") || "23";
+  localStorage.setItem("app_user_id", userId);
+  window.APP_USER_ID = userId;
 
-  let userId = localStorage.getItem("app_user_id");
-  if (!userId) {
-    userId = makeUserId();
-    localStorage.setItem("app_user_id", userId);
-  }
-    window.APP_USER_ID = userId;
 
   // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
 window.cloudPlaylists = [];
