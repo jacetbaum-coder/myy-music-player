@@ -9532,32 +9532,21 @@ if (homeRecentsShowAllBtn) {
 
   section.classList.remove('hidden');
 
-    grid.innerHTML = items.map(h => {
+  grid.innerHTML = items.map(h => {
     const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
 
-        // ✅ Compute a reliable cover
-    // For ALBUM recents: ignore any stored h.cover (it may be stale/broken)
+    // ✅ Always compute album covers from Artist + Album (ignores stale h.cover)
     let cover = "";
-
     if (h.type === 'playlist') {
       cover = String(h.cover || "").trim();
     } else {
-      const albumName = String(h.album || '').trim();
-      const artistName = String(h.artist || '').trim();
-
-      const match = (Array.isArray(libraryData) ? libraryData : [])
-        .find(a =>
-          String(a.albumName || '').trim() === albumName &&
-          String(a.artistName || '').trim() === artistName
-        );
-
-      // Use library coverArt if we found it; otherwise getAlbumCover still builds Artist/Album/cover.jpg
-      cover = getAlbumCover(artistName, albumName, match ? match.coverArt : "");
+      const artistName = String(h.artist || "").trim();
+      const albumName  = String(h.album || "").trim();
+      cover = getAlbumCover(artistName, albumName, "");
     }
-
 
     return `
       <div class="mobile-recent-card"
@@ -9577,21 +9566,23 @@ if (homeRecentsShowAllBtn) {
     `;
   }).join('');
 
-
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
+      const type = card.dataset.type;
+      const id = card.dataset.id;
+
       if (type === 'playlist') {
-        const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-      } else {
-        const album = card.getAttribute('data-album');
-        if (album) openAlbumByName(album);
+        const idx = playlists.findIndex(p => String(p.id) === String(id));
+        if (idx >= 0) showView('playlist', idx);
+        return;
       }
+
+      const albumName = card.dataset.album || '';
+      if (albumName) openAlbumByName(albumName);
     });
   });
 }
+
 
 function renderHistory() {
   const historyEl = document.getElementById('history-container');
