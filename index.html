@@ -5999,6 +5999,11 @@ function pushNavCurrent() {
         : '';
     }
   } catch (e) {}
+// ✅ If the active root tab isn't Home, but navCurrent is stale, align it.
+  // This prevents Library deep views from back-swiping to Home.
+  if (snapshot.rootTab && snapshot.rootTab !== 'home' && snapshot.type === 'home') {
+    snapshot.type = snapshot.rootTab;
+  }
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
