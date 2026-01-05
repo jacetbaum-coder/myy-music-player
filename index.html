@@ -6451,16 +6451,14 @@ else if (viewType === 'playlist') {
     ? playlistList[resolvedIndex]
     : null;
 
-  setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
+   setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
 
-}
-
 const scrollArea = document.getElementById('main-scroll-area');
-
 if (scrollArea) scrollArea.scrollTop = 0;
+
 
 
         if (viewType === 'home') {
