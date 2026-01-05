@@ -6421,14 +6421,32 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const plForNav = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+  const list = Array.isArray(playlists) ? playlists : [];
+  let idx = playlistIndex;
+
+  // If we got "12" as a string, convert to number
+  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+
+  // If we got an id string, try id -> index
+  if (typeof idx === 'string') {
+    const byId = list.findIndex(p => String(p?.id) === String(idx));
+    idx = byId;
+  }
+
+  const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+
+  setNavCurrent({
+    type: 'playlist',
+    playlistIndex: (Number.isInteger(idx) ? idx : null),
+    playlistId: plForNav?.id || null
+  });
+
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
 
-
 const scrollArea = document.getElementById('main-scroll-area');
+
 if (scrollArea) scrollArea.scrollTop = 0;
 
 
@@ -6479,10 +6497,24 @@ if (scrollArea) scrollArea.scrollTop = 0;
         if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
 
-  const pl = playlists[playlistIndex];
-  if (!pl) return;
+  const list = Array.isArray(playlists) ? playlists : [];
+let idx = playlistIndex;
 
-  activePlaylistId = pl.id;
+if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
+
+const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+
+// ✅ If playlist is missing, do NOT return (it would leave everything hidden)
+if (!pl) {
+  console.warn('showView(playlist): missing playlist for', playlistIndex);
+  showView('library');
+  return;
+}
+
+activePlaylistIndex = idx;
+activePlaylistId = pl.id;
+
   playContext = { type: 'playlist', label: pl.name };
 
   // 🔒 wrap async work so `await` is legal
@@ -6553,10 +6585,8 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
     } catch (err) {
       console.warn(err);
-      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
-// ✅ Derive songs only for rendering (do not store on playlist)
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
 renderCollection(pl.name, playlistSongs, true, playlistIndex);
