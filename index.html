@@ -6105,15 +6105,14 @@ function initSwipeBack() {
     return false;
   }
 
-    if (!Array.isArray(navStack) || navStack.length === 0) return false;
-
-    // Don’t hijack gestures on form controls / buttons
-    const t = e.target;
-    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+        // Don’t hijack gestures on form controls / buttons
+    const targetEl = e.target;
+    if (targetEl && (targetEl.closest('input, textarea, select, button') || targetEl.closest('[data-no-swipe-back="1"]'))) {
       return false;
     }
 
     // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
+
     const { y } = getXY(e);
     if (y > (window.innerHeight * 0.75)) return false;
 
