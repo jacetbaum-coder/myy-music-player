@@ -4010,27 +4010,52 @@ window.deletePlaylistFromCloud = async function (playlistId) {
 };
 
 // ✅ Delete album in cloud (R2 folder delete)
-window.deleteAlbumFromCloud = async function (artistName, albumName) {
-  const artist = String(artistName || "").trim();
-  const album = String(albumName || "").trim();
+window.deletePlaylistFromCloud = async function (playlistId) {
+  if (!playlistId) throw new Error("Missing playlistId");
 
-  if (!artist) throw new Error("Missing artist");
-  if (!album) throw new Error("Missing album");
+  const res = await fetch(
+    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" + encodeURIComponent(playlistId),
+    { method: "DELETE" }
+  );
 
-  const url =
-    "https://music-streamer.jacetbaum.workers.dev/api/delete-album?artist=" +
-    encodeURIComponent(artist) +
-    "&album=" +
-    encodeURIComponent(album);
-
-  const res = await fetch(url, { method: "DELETE" });
   const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete album failed");
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");
   return data;
 };
 
+// ✅ Cross-device Now Playing (cloud)
+window.syncNowPlayingToCloud = async function (payload) {
+  if (!payload || !payload.userId || !payload.trackId) return;
+  try {
+    await fetch("https://music-streamer.jacetbaum.workers.dev/api/now-playing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("now-playing sync failed", e);
+  }
+};
+
+window.loadNowPlayingFromCloud = async function () {
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (!uid) return null;
+
+    const res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/now-playing?userId=" + encodeURIComponent(uid)
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data && data.ok) return data.data || null;
+    return null;
+  } catch (e) {
+    console.warn("load now-playing failed", e);
+    return null;
+  }
+};
+
 const makeId = () => {
+
   try {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   } catch (e) {}
@@ -5583,7 +5608,62 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   safe(window.updateCounts);
 
-  safe(window.restorePlayerStateIfRecent);
+    // ✅ Prefer cloud “now playing” across devices (last hour)
+  try {
+    if (typeof window.loadNowPlayingFromCloud === "function") {
+      const np = await window.loadNowPlayingFromCloud();
+      if (np && np.track_id) {
+        // Build a playable URL from the track_id (R2 key)
+        const trackId = String(np.track_id);
+        const parts = trackId.split("/");
+        const artist = parts[0] || "";
+        const album = parts[1] || "";
+        const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
+        const cover = artist && album
+          ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/" + album + "/cover.jpg"))
+          : "";
+
+        currentSong = {
+          url: "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(trackId),
+          title: title,
+          artist: artist,
+          album: album,
+          cover: cover
+        };
+
+        // Load audio + restore position (do NOT autoplay)
+        player.src = currentSong.url;
+        player.currentTime = Number(np.position_sec || 0);
+
+        try { updateMediaSessionMetadata(); } catch (e) {}
+
+        // Update dock UI (safe)
+        try {
+          const dock = document.getElementById('main-dock');
+          if (dock) dock.classList.remove('dock-hidden');
+
+          const coverEl = document.getElementById('p-cover');
+          if (coverEl) coverEl.src = currentSong.cover || "";
+
+          try { updateAccentFromCover(currentSong.cover || ""); } catch (e) {}
+
+          try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
+          const artistEl = document.getElementById('p-artist');
+          if (artistEl) artistEl.innerText = currentSong.artist || "";
+
+          try { setAllPlayIconsToPlay(); } catch (e) {}
+        } catch (e) {}
+      } else {
+        // Cloud had nothing recent -> fall back to local
+        safe(window.restorePlayerStateIfRecent);
+      }
+    } else {
+      safe(window.restorePlayerStateIfRecent);
+    }
+  } catch (e) {
+    safe(window.restorePlayerStateIfRecent);
+  }
+
   safe(window.checkDockVisibility);
 
   safe(window.initResizers);
@@ -8392,9 +8472,35 @@ function persistPlayerState(isPlayingOverride = null) {
   // Also keep your existing lastPlayedTime “freshness” timestamp aligned
   lastPlayedTime = state.updatedAt;
   localStorage.setItem('lastPlayedTime', lastPlayedTime);
+
+  // ✅ Cloud sync (cross-device dock) — best-effort
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (uid && typeof window.syncNowPlayingToCloud === "function") {
+      // convert currentSong.url -> trackId (id param) when possible
+      let trackId = "";
+      try {
+        const u = new URL(currentSong.url, window.location.origin);
+        trackId = String(u.searchParams.get("id") || "").trim();
+      } catch (e) {
+        trackId = "";
+      }
+
+      if (trackId) {
+        window.syncNowPlayingToCloud({
+          userId: uid,
+          trackId: trackId,
+          contextType: null,
+          contextId: null,
+          positionSec: Number(state.currentTime || 0)
+        });
+      }
+    }
+  } catch (e) {}
 }
 
 function restorePlayerStateIfRecent() {
+
   const oneHour = 3600000;
 
   let state = null;
