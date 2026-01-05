@@ -6399,8 +6399,18 @@ function showView(viewType, playlistIndex = null) {
   });
 
 
-  activePlaylistIndex = playlistIndex;
-activePlaylistId = null;
+    activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
+
+  // ✅ Remember which bottom tab is the current "root" section on mobile.
+  // This is what prevents deep Library views (playlist/album) from flipping to Home.
+  try {
+    if (viewType === 'home' || viewType === 'library' || viewType === 'search') {
+      window.__rootTab = viewType;
+    }
+    if (!window.__rootTab) window.__rootTab = 'home';
+  } catch (e) {}
+
 
 // BACK STACK: set new current view
 if (viewType === 'home') setNavCurrent({ type: 'home' });
@@ -6568,24 +6578,39 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
 
         function updateActiveStates(viewType) {
+  const isMobile = window.innerWidth <= 768;
+
+  // On mobile, keep the bottom tab "root" active even when you're in deep views
+  // like playlist/album/artist. This stops the UI from snapping back to Home.
+  let tabType = viewType;
+
+  if (isMobile) {
+    // Initialize root tab if missing
+    if (!window.__rootTab) window.__rootTab = 'home';
+
+    // If we're at a root, update rootTab
+    if (viewType === 'home' || viewType === 'search' || viewType === 'library') {
+      window.__rootTab = viewType;
+      tabType = viewType;
+    } else {
+      // Deep views should keep whatever root tab we came from
+      tabType = window.__rootTab;
+    }
+  }
+
   // Mobile Nav
   const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
   Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
-if (navIds[viewType]) document.getElementById(navIds[viewType])?.classList.add('active');
+  if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
 
-
-  // Desktop Sidebar
-  document.getElementById('side-nav-home')?.classList.toggle('text-white', viewType === 'home' || viewType === 'library');
-document.getElementById('side-nav-home')?.classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
-document.getElementById('side-nav-search')?.classList.toggle('text-white', viewType === 'search');
-document.getElementById('side-nav-search')?.classList.toggle('text-zinc-400', viewType !== 'search');
-document.getElementById('side-nav-liked')?.classList.toggle('bg-zinc-900', viewType === 'liked');
-
-  document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
-  document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
-  document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
-  document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
+  // Desktop Sidebar (unchanged behavior, but key off tabType for consistency)
+  document.getElementById('side-nav-home')?.classList.toggle('text-white', tabType === 'home' || tabType === 'library');
+  document.getElementById('side-nav-home')?.classList.toggle('text-zinc-400', !(tabType === 'home' || tabType === 'library'));
+  document.getElementById('side-nav-search')?.classList.toggle('text-white', tabType === 'search');
+  document.getElementById('side-nav-search')?.classList.toggle('text-zinc-400', tabType !== 'search');
+  document.getElementById('side-nav-liked')?.classList.toggle('bg-zinc-900', viewType === 'liked');
 }
+
 
 /* ---------------------------------------------------------------------
    Mobile: active-tab taps
