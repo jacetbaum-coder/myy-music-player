@@ -5880,6 +5880,8 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
+        window.navStack = navStack;
+window.navCurrent = navCurrent;
 
 // -----------------------
 // SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
@@ -5971,6 +5973,7 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
+    window.navCurrent = navCurrent;
 }
 
 function pushNavCurrent() {
@@ -5988,7 +5991,7 @@ function pushNavCurrent() {
       const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
       const homeActive = !!document.getElementById('nav-home')?.classList?.contains('active');
       const searchActive = !!document.getElementById('nav-search')?.classList?.contains('active');
-      const crateActive = !!document.getElementById('nav-crate')?.classList?.contains('active');
+      const crateActive = !!document.getElementById('nav-premium')?.classList?.contains('active');
       snapshot.rootTab = libActive ? 'library'
         : homeActive ? 'home'
         : searchActive ? 'search'
@@ -6100,7 +6103,8 @@ function initSwipeBack() {
   if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
   // ✅ Do NOT allow swipe-back on ROOT pages (prevents Library -> Home swipe)
-  const t = String(window.navCurrent?.type || '').trim();
+  const current = navCurrent || window.navCurrent;
+  const t = String(current?.type || '').trim();
   if (t === 'home' || t === 'library' || t === 'search' || t === 'crate' || t === 'liked') {
     return false;
   }
@@ -6426,7 +6430,7 @@ function showView(viewType, playlistIndex = null) {
   // ✅ Remember which bottom tab is the current "root" section on mobile.
   // This is what prevents deep Library views (playlist/album) from flipping to Home.
   try {
-    if (viewType === 'home' || viewType === 'library' || viewType === 'search') {
+    if (viewType === 'home' || viewType === 'library' || viewType === 'search' || viewType === 'crate') {
       window.__rootTab = viewType;
     }
     if (!window.__rootTab) window.__rootTab = 'home';
@@ -6640,7 +6644,7 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
     if (!window.__rootTab) window.__rootTab = 'home';
 
     // If we're at a root, update rootTab
-    if (viewType === 'home' || viewType === 'search' || viewType === 'library') {
+    if (viewType === 'home' || viewType === 'search' || viewType === 'library' || viewType === 'crate') {
       window.__rootTab = viewType;
       tabType = viewType;
     } else {
@@ -6650,7 +6654,7 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
   }
 
   // Mobile Nav
-  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library', crate: 'nav-premium' };
   Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
   if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
 
