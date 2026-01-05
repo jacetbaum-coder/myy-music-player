@@ -4009,6 +4009,27 @@ window.deletePlaylistFromCloud = async function (playlistId) {
   return data;
 };
 
+// ✅ Delete album in cloud (R2 folder delete)
+window.deleteAlbumFromCloud = async function (artistName, albumName) {
+  const artist = String(artistName || "").trim();
+  const album = String(albumName || "").trim();
+
+  if (!artist) throw new Error("Missing artist");
+  if (!album) throw new Error("Missing album");
+
+  const url =
+    "https://music-streamer.jacetbaum.workers.dev/api/delete-album?artist=" +
+    encodeURIComponent(artist) +
+    "&album=" +
+    encodeURIComponent(album);
+
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete album failed");
+  return data;
+};
+
 const makeId = () => {
   try {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -10299,7 +10320,7 @@ window.addEventListener('DOMContentLoaded', () => {
     hidePlaylistMenu();
   };
 
-  // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
+    // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
   if (delBtn && !delBtn.__bound) {
     delBtn.__bound = true;
 
@@ -10310,16 +10331,23 @@ window.addEventListener('DOMContentLoaded', () => {
       const id = playlistMenuTargetId;
       if (!id) { hidePlaylistMenu(); return; }
 
-      // 1) Try cloud delete if you have it
-      try {
-        if (typeof deletePlaylistFromCloud === 'function') {
+      // 1) Cloud delete MUST succeed (otherwise it will reappear on refresh)
+      if (typeof deletePlaylistFromCloud === 'function') {
+        try {
           await deletePlaylistFromCloud(id);
+        } catch (err) {
+          console.warn('Cloud delete failed:', err);
+          alert('Cloud delete failed. Playlist was NOT deleted.\n\n' + (err?.message || String(err)));
+          hidePlaylistMenu();
+          return;
         }
-      } catch (err) {
-        console.warn('Cloud delete failed, continuing local delete:', err);
+      } else {
+        alert('Cloud delete function is missing (deletePlaylistFromCloud). Playlist was NOT deleted.');
+        hidePlaylistMenu();
+        return;
       }
 
-      // 2) Always delete locally so UI updates immediately
+      // 2) Delete locally so UI updates immediately
       const idx = findPlaylistIndexById(id);
       if (idx !== -1) playlists.splice(idx, 1);
 
@@ -10340,6 +10368,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   }
 });
+
 
 
   // -----------------------
@@ -10466,8 +10495,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('album-cover-menu');
   const urlBtn = document.getElementById('acm-cover-url');
   const uploadBtn = document.getElementById('acm-cover-upload');
-  const clearBtn = document.getElementById('acm-cover-clear');
+    const clearBtn = document.getElementById('acm-cover-clear');
+  const deleteBtn = document.getElementById('acm-delete-album');
   const fileInput = document.getElementById('album-cover-file');
+
 
   if (!menu) return;
 
@@ -10519,7 +10550,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (clearBtn) {
+    if (clearBtn) {
     clearBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -10530,6 +10561,51 @@ window.addEventListener('DOMContentLoaded', () => {
       refreshAfterAlbumCoverChange(albumMenuTarget.artistName, albumMenuTarget.albumName);
     };
   }
+
+  if (deleteBtn) {
+    deleteBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!requireTarget()) return;
+
+      const a = albumMenuTarget.artistName;
+      const b = albumMenuTarget.albumName;
+
+      const ok = confirm(`Delete this album from the cloud?\n\n${a} — ${b}\n\nThis removes the album files from R2.`);
+      if (!ok) return;
+
+      try {
+        hideAlbumCoverMenu();
+
+        // Delete from cloud
+        await window.deleteAlbumFromCloud(a, b);
+
+        // Remove from current in-memory library so it disappears immediately
+        try {
+          if (Array.isArray(window.libraryData)) {
+            window.libraryData = window.libraryData.filter(x =>
+              !(String(x.artistName || "") === String(a) && String(x.albumName || "") === String(b))
+            );
+          }
+        } catch (e2) {}
+
+        // Re-render UI
+        try { if (typeof renderLibrary === "function") renderLibrary(); } catch (e3) {}
+        try { if (typeof renderHome === "function") renderHome(); } catch (e4) {}
+
+        // If you were inside that album view, go back
+        try {
+          if (window.navCurrent && window.navCurrent.type === 'album' &&
+              window.navCurrent.artistName === a && window.navCurrent.albumName === b) {
+            showView('library');
+          }
+        } catch (e5) {}
+      } catch (err) {
+        alert("Delete album failed: " + (err && err.message ? err.message : String(err)));
+      }
+    };
+  }
+
 
   // Click outside closes
   window.addEventListener('click', (e) => {
