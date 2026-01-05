@@ -5978,20 +5978,24 @@ function pushNavCurrent() {
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
-    // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
 
-  // ✅ MOBILE FIX:
-  // If the Library tab is active, treat "home" as "library" for the back stack.
-  // This prevents swipe-back from jumping to Home when you came from Library.
+  // ✅ Remember which ROOT tab we were in when we entered a deep view
+  // This is the real fix for “swipe-back jumps to Home”.
   try {
-    const isMobile = window.innerWidth <= 768;
-    const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-    if (isMobile && libActive && snapshot.type === 'home') {
-      snapshot.type = 'library';
+    snapshot.rootTab = String(window.__rootTab || "").trim() || "";
+    if (!snapshot.rootTab) {
+      const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
+      const homeActive = !!document.getElementById('nav-home')?.classList?.contains('active');
+      const searchActive = !!document.getElementById('nav-search')?.classList?.contains('active');
+      const crateActive = !!document.getElementById('nav-crate')?.classList?.contains('active');
+      snapshot.rootTab = libActive ? 'library'
+        : homeActive ? 'home'
+        : searchActive ? 'search'
+        : crateActive ? 'crate'
+        : '';
     }
   } catch (e) {}
-
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
@@ -6014,12 +6018,16 @@ function goBack() {
   try {
     if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
+
     } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
+
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
+
     } else if (prev.type === 'search') {
       showView('search');
+
     } else if (prev.type === 'library') {
       showView('library');
 
@@ -6032,10 +6040,16 @@ function goBack() {
           area.scrollTop = top;
         });
       }
+
     } else if (prev.type === 'liked') {
       showView('liked');
+
     } else {
-      showView('home');
+      // ✅ CRITICAL: if this entry came from Library, go to Library (not Home)
+      if (prev.rootTab === 'library') showView('library');
+      else if (prev.rootTab === 'search') showView('search');
+      else if (prev.rootTab === 'crate') showView('crate');
+      else showView('home');
     }
   } finally {
     __isBackNav = false;
@@ -6082,7 +6096,15 @@ function initSwipeBack() {
   }
 
   function canStart(e) {
-    // Must have something to go back to
+  // Must have something to go back to
+  if (!Array.isArray(navStack) || navStack.length === 0) return false;
+
+  // ✅ Do NOT allow swipe-back on ROOT pages (prevents Library -> Home swipe)
+  const t = String(window.navCurrent?.type || '').trim();
+  if (t === 'home' || t === 'library' || t === 'search' || t === 'crate' || t === 'liked') {
+    return false;
+  }
+
     if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
     // Don’t hijack gestures on form controls / buttons
@@ -6716,22 +6738,13 @@ function onNavTap(viewType) {
     // If active tab says "library" but current view is album/playlist/etc
     if (currentType && currentType !== viewType) {
 
-      // ✅ SPECIAL CASE:
-      // Inside album/playlist → double-tap Library should go BACK
-      if (viewType === 'library') {
-        const now = Date.now();
-        const last = __navTapLast[viewType] || 0;
+            // ✅ NEW BEHAVIOR:
+      // If you're inside a deep view of a tab, tapping that tab should jump to its ROOT immediately.
+      // (Then, when you're already at root, double-tap scrolls to top.)
+      popToRootSection(viewType);
+      __navTapLast[viewType] = 0;
+      return;
 
-        if (now - last <= 350) {
-          __navTapLast[viewType] = 0;
-          goBack(); // restores Library + scroll position
-        } else {
-          __navTapLast[viewType] = now;
-        }
-        return;
-      }
-
-      // Other tabs keep old behavior
       popToRootSection(viewType);
       __navTapLast[viewType] = 0;
       return;
