@@ -6720,71 +6720,47 @@ function popToRootSection(targetViewType) {
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
 
-    const navId =
+  const navId = 
     viewType === 'home' ? 'nav-home' :
     viewType === 'search' ? 'nav-search' :
     viewType === 'library' ? 'nav-library' :
     viewType === 'crate' ? 'nav-premium' :
     null;
 
-
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
-    // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
-  // This fixes the “tap ignored while deep in album view” behavior.
-  if (isMobile && isActive) {
+  if (isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
-    // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      __navTapLast[viewType] = 0;
       return;
     }
 
-    // If active tab says "library" but current view is album/playlist/etc
+    // FIX: Instead of calling popToRootSection which is failing, 
+    // we explicitly call showView(viewType) to ensure we land on Library.
     if (currentType && currentType !== viewType) {
-
-            // ✅ NEW BEHAVIOR:
-      // If you're inside a deep view of a tab, tapping that tab should jump to its ROOT immediately.
-      // (Then, when you're already at root, double-tap scrolls to top.)
-      popToRootSection(viewType);
-      __navTapLast[viewType] = 0;
-      return;
-
-      popToRootSection(viewType);
+      showView(viewType); 
       __navTapLast[viewType] = 0;
       return;
     }
 
-    // Already at root: detect double tap to scroll-to-top
+    // Already at root: double tap to scroll to top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
-
     if (now - last <= 350) {
-      __navTapLast[viewType] = 0;
       scrollMainToTopSmooth();
+      __navTapLast[viewType] = 0;
       return;
     }
-
     __navTapLast[viewType] = now;
-    return; // wait for possible second tap
+    return;
   }
 
-  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __navTapLast[viewType] = 0;
-
-  const now = Date.now();
-  if (isMobile) {
-    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
-    __navTapLastNavType = viewType;
-    __navTapLockUntil = now + 300; // 300ms debounce window
-  }
-
-   // Normal navigation
+  // Normal navigation
   showView(viewType);
-
 }
 
 
