@@ -6451,28 +6451,26 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const list = Array.isArray(playlists) ? playlists : [];
-  let idx = playlistIndex;
+  const playlistList = Array.isArray(playlists) ? playlists : [];
+  let resolvedIndex = playlistIndex;
 
-  // If we got "12" as a string, convert to number
-  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-
-  // If we got an id string, try id -> index
-  if (typeof idx === 'string') {
-    const byId = list.findIndex(p => String(p?.id) === String(idx));
-    idx = byId;
+  if (typeof resolvedIndex === "string") {
+    if (/^\d+$/.test(resolvedIndex)) {
+      resolvedIndex = Number(resolvedIndex);
+    } else {
+      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
+    }
   }
 
-  const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+  const plForNav = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
+    ? playlistList[resolvedIndex]
+    : null;
 
-  setNavCurrent({
-    type: 'playlist',
-    playlistIndex: (Number.isInteger(idx) ? idx : null),
-    playlistId: plForNav?.id || null
-  });
-
+  setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
 } else {
   setNavCurrent({ type: viewType || 'home' });
+}
+
 }
 
 const scrollArea = document.getElementById('main-scroll-area');
@@ -6527,28 +6525,40 @@ if (scrollArea) scrollArea.scrollTop = 0;
         if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
 
-  const list = Array.isArray(playlists) ? playlists : [];
-let idx = playlistIndex;
+  // ✅ SAFETY: allow caller to pass playlist INDEX or playlist ID
+  const playlistList = Array.isArray(playlists) ? playlists : [];
+  let resolvedIndex = playlistIndex;
 
-if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
+  // If caller passed an id string, convert id -> index
+  if (typeof resolvedIndex === "string") {
+    // numeric string => index
+    if (/^\d+$/.test(resolvedIndex)) {
+      resolvedIndex = Number(resolvedIndex);
+    } else {
+      // id string => index
+      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
+    }
+  }
 
-const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+  const pl = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
+    ? playlistList[resolvedIndex]
+    : null;
 
-// ✅ If playlist is missing, do NOT return (it would leave everything hidden)
-if (!pl) {
-  console.warn('showView(playlist): missing playlist for', playlistIndex);
-  showView('library');
-  return;
-}
+  // If we can't resolve the playlist, bail to library (prevents black screen)
+  if (!pl) {
+    console.warn('showView(playlist): could not resolve playlist from:', playlistIndex);
+    showView('library');
+    return;
+  }
 
-activePlaylistIndex = idx;
-activePlaylistId = pl.id;
-
+  // Keep globals consistent
+  activePlaylistIndex = resolvedIndex;
+  activePlaylistId = pl.id;
   playContext = { type: 'playlist', label: pl.name };
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
+
     try {
       const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
 
@@ -6608,7 +6618,8 @@ const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+;
 
 
 
@@ -6619,7 +6630,8 @@ pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+
 
     }
   })();
@@ -9636,9 +9648,8 @@ function handleContextMenu(e, song) {
         if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-      } else {
+        if (id) showView('playlist', id);
+} else {
         const album = card.getAttribute('data-album');
         if (album) openAlbumByName(album);
       }
@@ -9698,11 +9709,13 @@ function handleContextMenu(e, song) {
 
     // ✅ PLAYLIST
     if (type === 'playlist') {
-      const id = card.getAttribute('data-id');
-      const idx = playlists.findIndex(pl => pl.id === id);
-      if (idx !== -1) showView('playlist', idx);
-      return;
-    }
+  const id = card.getAttribute('data-id');
+  if (id) showView('playlist', id);
+} else {
+  const album = card.getAttribute('data-album');
+  if (album) openAlbumByName(album);
+}
+
 
     // ✅ ALBUM
     if (type === 'album') {
