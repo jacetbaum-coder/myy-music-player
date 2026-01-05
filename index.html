@@ -4010,18 +4010,26 @@ window.deletePlaylistFromCloud = async function (playlistId) {
 };
 
 // ✅ Delete album in cloud (R2 folder delete)
-window.deletePlaylistFromCloud = async function (playlistId) {
-  if (!playlistId) throw new Error("Missing playlistId");
+window.deleteAlbumFromCloud = async function (artistName, albumName) {
+  if (!artistName || !albumName) throw new Error("Missing artistName/albumName");
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" + encodeURIComponent(playlistId),
-    { method: "DELETE" }
-  );
+  const url = new URL(CLOUDFLARE_WORKER_URL);
+  url.searchParams.set("path", "/api/delete-album");
+  url.searchParams.set("userId", userId);
+  url.searchParams.set("artistName", artistName);
+  url.searchParams.set("albumName", albumName);
+
+  const res = await fetch(url.toString(), { method: "POST" });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error("Delete album failed: " + res.status + " " + t);
+  }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");
   return data;
 };
+
 
 // ✅ Cross-device Now Playing (cloud)
 window.syncNowPlayingToCloud = async function (payload) {
@@ -4600,10 +4608,9 @@ function hideAlbumCoverMenu() {
 }
 
 function showAlbumCoverMenuAt(x, y, artistName, albumName) {
-  // Desktop only
-  if (window.innerWidth <= 768) return;
-
+  // ✅ Allow on mobile too (this menu is used for "Delete album" in mobile)
   const m = document.getElementById('album-cover-menu');
+
   if (!m) return;
 
   albumMenuTarget = { artistName, albumName };
@@ -10324,21 +10331,38 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
-function openPlaylistPinMenuFromHero(e) {
-  // Only works when you're inside a playlist view
-  if (!activePlaylistId) return;
+// -----------------------
+// HERO 3-DOTS MENU (playlist OR album)
+// -----------------------
+(function bindHeroMoreButtonOnce() {
+  const btn = document.getElementById('hero-more-btn');
+  if (!btn || btn.__bound) return;
+  btn.__bound = true;
 
-  e.preventDefault();
-  e.stopPropagation();
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  const btn = e.currentTarget || document.getElementById('hero-more-btn');
-  if (!btn) return;
+    // If inside a playlist → open playlist menu
+    if (typeof activePlaylistId !== 'undefined' && activePlaylistId) {
+      try { openPlaylistPinMenuFromHero(e); } catch (err) {}
+      return;
+    }
 
-  const rect = btn.getBoundingClientRect();
+    // Otherwise → album menu
+    if (!activeAlbumName || !activeAlbumArtist) return;
 
-  // Open menu just under the 3 dots
-  showPlaylistMenuAt(rect.left, rect.bottom + 8, activePlaylistId);
-}
+    const r = btn.getBoundingClientRect();
+    try {
+      showAlbumCoverMenuAt(
+        r.left,
+        r.bottom + 8,
+        activeAlbumArtist,
+        activeAlbumName
+      );
+    } catch (err) {}
+  }, { passive: false });
+})();
 
 function attachPlaylistPressHandlers(el, playlistId) {
   if (!el) return;
