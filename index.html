@@ -3718,50 +3718,35 @@ window.loadPlaylistsFromCloud = async function () {
     window.cloudPlaylists = data.playlists;
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
-try {
-  const cloudUi = data.playlists
-    .map(cloudRowToUiPlaylist)
-    .filter(pl => pl && pl.id);
+    try {
+      const localList = Array.isArray(playlists) ? playlists : [];
+      const byId = new Map(localList.map(p => [String(p?.id), p]).filter(([k]) => k && k !== "undefined"));
 
-  const localArr = Array.isArray(playlists) ? playlists : [];
-  const byId = new Map(localArr.map(p => [p.id, p]));
+      for (const c of data.playlists) {
+        if (!c || !c.id) continue;
+        const key = String(c.id);
+        const existing = byId.get(key);
+        byId.set(key, existing ? ({ ...existing, ...c }) : c);
+      }
 
-  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
-  for (const c of cloudUi) {
-    const existing = byId.get(c.id);
-    if (existing) {
-      byId.set(c.id, {
-        ...existing,
-        ...c,
-        // preserve local-only content if cloud meta doesn't include it
-        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
-        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+      playlists = Array.from(byId.values());
 
-      });
-    } else {
-      byId.set(c.id, c);
+      // Persist locally so refresh works even if offline
+      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+    } catch (e) {
+      console.warn("Failed to merge cloud playlists:", e);
     }
+
+    return data.playlists;
   }
 
-  // Keep local-only playlists that aren't in cloud yet
-  playlists = Array.from(byId.values());
-
-  // Persist locally so refresh works even if offline
-  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-} catch (e) {
-  console.warn("Failed to merge cloud playlists:", e);
-}
-
-return data.playlists;
-
-  }
-
-   window.cloudPlaylists = [];
+  window.cloudPlaylists = [];
   return [];
 };
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
+
 // -----------------------
 window.__cloudPlaylistSig = "";
 window.__cloudPlaylistSyncTimer = null;
@@ -9575,7 +9560,7 @@ function handleContextMenu(e, song) {
 
         // -----------------------
         // HOME RENDERING (Mobile Home + Desktop Home)
-        // -----------------------
+        -
 
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
@@ -10409,9 +10394,9 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
-// -----------------------
+-
 // HERO 3-DOTS MENU (playlist OR album)
-// -----------------------
+-
 (function bindHeroMoreButtonOnce() {
   const btn = document.getElementById('hero-more-btn');
   if (!btn || btn.__bound) return;
@@ -10579,9 +10564,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-  // -----------------------
+  -
 // PLAYLIST MENU buttons (bind once, after DOM exists)
-// -----------------------
+-
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
