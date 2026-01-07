@@ -3562,7 +3562,8 @@ function renderCrate() {
     return `
       <div class="crate-row" data-idx="${idx}">
         <div class="crate-bubble ${checked ? "checked" : ""}" data-hit="bubble" role="button" aria-label="Toggle"></div>
-        <div class="crate-text ${kind === "text" ? "muted" : ""}" data-hit="text" contenteditable="true" spellcheck="false">${escapeHtml(text)}</div>
+                <div class="crate-text ${kind === "text" ? "muted" : ""}" contenteditable="true" spellcheck="false">${escapeHtml(text)}</div>
+
       </div>
     `;
   }).join("");
