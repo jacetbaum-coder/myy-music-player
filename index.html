@@ -5749,7 +5749,6 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
     // Sort library alphabetically by album (Library grid)
     libraryData.sort((a, b) => (a.albumName || "").localeCompare(b.albumName || ""));
-
   } catch (error) {
     console.error("Fetch error:", error);
 
@@ -5759,19 +5758,6 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
       if (Array.isArray(cached) && cached.length) {
         libraryData = cached;
         libraryDataOriginal = cached.slice();
-
-        // rebuild tracksById so playlists can resolve trackIds -> songs
-        window.tracksById = new Map();
-        try {
-          libraryData.forEach((album) => {
-            const songs = Array.isArray(album?.songs) ? album.songs : [];
-            songs.forEach((s) => {
-              const id = String(s?.id || s?.r2Path || "").trim();
-              if (!id) return;
-              window.tracksById.set(id, { ...s, id, r2Path: id });
-            });
-          });
-        } catch (e) {}
       }
     } catch (e) {}
   } finally {
@@ -5780,6 +5766,9 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     try { window.showView && window.showView('home'); } catch (e) {}
     try { window.renderHome && window.renderHome(); } catch (e) {}
   }
+
+  // ✅ Reload button (desktop)
+
 
   // ✅ Reload button (desktop)
 
