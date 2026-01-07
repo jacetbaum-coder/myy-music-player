@@ -5751,44 +5751,46 @@ try { window.saveLibraryCache(libraryData); } catch (e) {}
 
 
     // Sort library alphabetically by album (Library grid)
-    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-    document.getElementById('loading')?.classList.add('hidden');
-    safe(window.showView, 'home');
-    safe(window.renderHome);
-    console.error("Fetch error:", error);
+document.getElementById('loading')?.classList.add('hidden');
+safe(window.showView, 'home');
+safe(window.renderHome);
 
-  // ✅ fallback to cached library so Library isn't blank on mobile
-  try {
-    const cached = (typeof window.loadLibraryCache === 'function') ? window.loadLibraryCache() : [];
-    if (Array.isArray(cached) && cached.length) {
-      libraryData = cached;
-      libraryDataOriginal = cached.slice();
+} catch (error) {
+console.error("Fetch error:", error);
 
-      // rebuild tracksById so playlists can resolve trackIds -> songs
-      window.tracksById = new Map();
-      try {
-        libraryData.forEach((album) => {
-          const songs = Array.isArray(album?.songs) ? album.songs : [];
-          songs.forEach((s) => {
-            const id = String(s?.id || s?.r2Path || "").trim();
-            if (!id) return;
-            window.tracksById.set(id, { ...s, id, r2Path: id });
-          });
+// ✅ fallback to cached library so Library isn't blank on mobile
+try {
+  const cached = (typeof window.loadLibraryCache === 'function') ? window.loadLibraryCache() : [];
+  if (Array.isArray(cached) && cached.length) {
+    libraryData = cached;
+    libraryDataOriginal = cached.slice();
+
+    // rebuild tracksById so playlists can resolve trackIds -> songs
+    window.tracksById = new Map();
+    try {
+      libraryData.forEach((album) => {
+        const songs = Array.isArray(album?.songs) ? album.songs : [];
+        songs.forEach((s) => {
+          const id = String(s?.id || s?.r2Path || "").trim();
+          if (!id) return;
+          window.tracksById.set(id, { ...s, id, r2Path: id });
         });
-      } catch (e) {}
-    }
-  } catch (e) {}
-
-  // still let the app load a view
-  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
-  try { window.showView && window.showView('home'); } catch (e) {}
-  try { window.renderHome && window.renderHome(); } catch (e) {}
-
-
-        libraryData = [];
-    safe(window.showView, 'home');
+      });
+    } catch (e) {}
   }
+} catch (e) {}
+
+// still let the app load a view
+try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
+try { window.showView && window.showView('home'); } catch (e) {}
+try { window.renderHome && window.renderHome(); } catch (e) {}
+
+libraryData = [];
+safe(window.showView, 'home');
+}
+
 
   // ✅ Reload button (desktop)
   try {
