@@ -2936,6 +2936,27 @@ let isShuffle = false;     // shuffle enabled flag
 
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
 
+// --- Library cache helpers (define-once, safe if file is merged) ---
+if (typeof window.loadLibraryCache !== 'function') {
+  window.loadLibraryCache = function () {
+    try {
+      const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
+      return Array.isArray(stored) ? stored : [];
+    } catch (e) {
+      return [];
+    }
+  };
+}
+
+if (typeof window.saveLibraryCache !== 'function') {
+  window.saveLibraryCache = function (data) {
+    try {
+      localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(Array.isArray(data) ? data : []));
+    } catch (e) {}
+  };
+}
+
+
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
 let playContext = null;
@@ -5688,7 +5709,11 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
     libraryData = await response.json();
-    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+
+// ✅ cache the last known-good library (helps mobile a LOT)
+try { window.saveLibraryCache(libraryData); } catch (e) {}
+
 
     // ✅ Build master track index: id/r2Path -> canonical track object
     // This is what playlists will reference.
@@ -5731,18 +5756,35 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
     safe(window.renderHome);
-  } catch (error) {
     console.error("Fetch error:", error);
 
-    const loading = document.getElementById('loading');
-    if (loading) {
-      loading.innerHTML = `
-        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-        <p class="text-white font-bold">Cloud Connection Failed</p>
-        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-      `;
-      loading.classList.add('hidden');
+  // ✅ fallback to cached library so Library isn't blank on mobile
+  try {
+    const cached = (typeof window.loadLibraryCache === 'function') ? window.loadLibraryCache() : [];
+    if (Array.isArray(cached) && cached.length) {
+      libraryData = cached;
+      libraryDataOriginal = cached.slice();
+
+      // rebuild tracksById so playlists can resolve trackIds -> songs
+      window.tracksById = new Map();
+      try {
+        libraryData.forEach((album) => {
+          const songs = Array.isArray(album?.songs) ? album.songs : [];
+          songs.forEach((s) => {
+            const id = String(s?.id || s?.r2Path || "").trim();
+            if (!id) return;
+            window.tracksById.set(id, { ...s, id, r2Path: id });
+          });
+        });
+      } catch (e) {}
     }
+  } catch (e) {}
+
+  // still let the app load a view
+  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
+  try { window.showView && window.showView('home'); } catch (e) {}
+  try { window.renderHome && window.renderHome(); } catch (e) {}
+
 
         libraryData = [];
     safe(window.showView, 'home');
