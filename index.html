@@ -5761,17 +5761,14 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
       }
     } catch (e) {}
   } finally {
-    // still let the app load a view
-    try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
-    try { window.showView && window.showView('home'); } catch (e) {}
-    try { window.renderHome && window.renderHome(); } catch (e) {}
-  }
+   // still let the app load a view
+  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
+  try { window.showView && window.showView('home'); } catch (e) {}
+  try { window.renderHome && window.renderHome(); } catch (e) {}
 
-  // ✅ Reload button (desktop)
-
-
-  // ✅ Reload button (desktop)
-
+  // ✅ IMPORTANT: do NOT wipe libraryData here.
+  // If the fetch failed but cache existed, libraryData is already restored above.
+  safe(window.showView, 'home');
 
 
   // ✅ Reload button (desktop)
@@ -8593,8 +8590,7 @@ function persistPlayerState(isPlayingOverride = null) {
 }
 
 function restorePlayerStateIfRecent() {
-
-  const oneHour = 3600000;
+  const ONE_HOUR = 60 * 60 * 1000;
 
   let state = null;
   try {
@@ -8603,71 +8599,75 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
-  if (!raw) {
+  // If no saved state (or missing song), hide dock on desktop; keep visible on mobile.
+  if (!state || !state.song) {
     currentSong = null;
-    toggleRightSidebar(false);
+    try { toggleRightSidebar(false); } catch (e) {}
 
     if (window.innerWidth <= 768) {
-      dock.classList.remove('dock-hidden');
+      try { dock.classList.remove('dock-hidden'); } catch (e) {}
     } else {
-      dock.classList.add('dock-hidden');
+      try { dock.classList.add('dock-hidden'); } catch (e) {}
     }
     return;
   }
 
-  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
-  const ONE_HOUR = 60 * 60 * 1000;
-  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
-    localStorage.removeItem('reson_player_state');
+  // If too old, wipe it and hide dock on desktop; keep visible on mobile.
+  const updatedAt = Number(state.updatedAt || 0);
+  if (!updatedAt || (Date.now() - updatedAt) > ONE_HOUR) {
+    try { localStorage.removeItem('lastSongState'); } catch (e) {}
+    try { localStorage.removeItem('lastPlayedTime'); } catch (e) {}
+
     currentSong = null;
-    toggleRightSidebar(false);
+    try { toggleRightSidebar(false); } catch (e) {}
 
     if (window.innerWidth <= 768) {
-      dock.classList.remove('dock-hidden');
+      try { dock.classList.remove('dock-hidden'); } catch (e) {}
     } else {
-      dock.classList.add('dock-hidden');
+      try { dock.classList.add('dock-hidden'); } catch (e) {}
     }
     return;
   }
 
-
+  // Restore current song
   currentSong = state.song;
 
   // Restore audio source + time (do NOT autoplay)
-  player.src = currentSong.url;
-  player.currentTime = Number(state.currentTime || 0);
+  try { player.src = currentSong.url; } catch (e) {}
+  try { player.currentTime = Number(state.currentTime || 0); } catch (e) {}
 
-    updateMediaSessionMetadata();
+  try { updateMediaSessionMetadata(); } catch (e) {}
 
   // Update dock UI
-  dock.classList.remove('dock-hidden');
-  document.getElementById('p-cover').src = currentSong.cover || "";
-updateAccentFromCover(currentSong.cover || "");
-
-setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
-document.getElementById('p-artist').innerText = currentSong.artist || "";
-
+  try { dock.classList.remove('dock-hidden'); } catch (e) {}
+  try { document.getElementById('p-cover').src = currentSong.cover || ""; } catch (e) {}
+  try { updateAccentFromCover(currentSong.cover || ""); } catch (e) {}
+  try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
+  try { document.getElementById('p-artist').innerText = currentSong.artist || ""; } catch (e) {}
 
   // Ensure icons show PAUSED state on refresh
-  setAllPlayIconsToPlay();
+  try { setAllPlayIconsToPlay(); } catch (e) {}
 
-    // Right sidebar metadata (safe)
-  document.getElementById('right-cover').src = currentSong.cover || "";
-  document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', '');
-  document.getElementById('right-artist').innerText = currentSong.artist || "";
+  // Right sidebar metadata (safe)
+  try { document.getElementById('right-cover').src = currentSong.cover || ""; } catch (e) {}
+  try { document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', ''); } catch (e) {}
+  try { document.getElementById('right-artist').innerText = currentSong.artist || ""; } catch (e) {}
 
   // Lyrics (desktop right sidebar)
-  updateRightLyricsForSong(currentSong);
-  updateCenterLyricsForSong(currentSong);
+  try { updateRightLyricsForSong(currentSong); } catch (e) {}
+  try { updateCenterLyricsForSong(currentSong); } catch (e) {}
 
-  updateHeartUI();
-
+  try { updateHeartUI(); } catch (e) {}
 
   // Keep lastPlayedTime consistent with restored state
-  lastPlayedTime = state.updatedAt || Date.now();
-  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+  try {
+    lastPlayedTime = updatedAt;
+    localStorage.setItem('lastPlayedTime', String(lastPlayedTime));
+  } catch (e) {}
 }
+
+function checkDockVisibility() {
+
 
 function checkDockVisibility() {
   const dock = document.getElementById('main-dock');
