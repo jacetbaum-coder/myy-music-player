@@ -3495,14 +3495,30 @@ async function pullCrateFromCloud() {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
 
-    const res = await fetch(CRATE_API_BASE + "?userId=" + encodeURIComponent(uid), {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    });
+    const qsCandidates = [
+      "userId=" + encodeURIComponent(uid),
+      "uid=" + encodeURIComponent(uid),
+      "user_id=" + encodeURIComponent(uid)
+    ];
 
-    if (!res.ok) return;
+    let res = null;
+    let data = null;
 
-    const data = await res.json();
+    for (const qs of qsCandidates) {
+      try {
+        res = await fetch(CRATE_API_BASE + "?" + qs, {
+          method: "GET",
+          headers: { "Accept": "application/json" }
+        });
+        if (res && res.ok) {
+          data = await res.json().catch(() => null);
+          break;
+        }
+      } catch (e) {}
+    }
+
+    if (!res || !res.ok || !data) return;
+
     const remote = data && (data.doc || data.crate || data.data);
     if (!remote || typeof remote !== "object") return;
 
@@ -3528,16 +3544,33 @@ async function pushCrateToCloud() {
     if (!uid) return;
     if (!crateDoc) return;
 
-    await fetch(CRATE_API_BASE, {
+    // Put the id in BOTH query + body (covers most Worker implementations)
+    const url = CRATE_API_BASE + "?userId=" + encodeURIComponent(uid);
+
+    // Try PUT first
+    let res = await fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: uid,
         doc: crateDoc
       })
-    });
+    }).catch(() => null);
+
+    if (res && res.ok) return;
+
+    // Fallback: some setups use POST instead of PUT
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: uid,
+        doc: crateDoc
+      })
+    }).catch(() => null);
   } catch (e) {}
 }
+
 
 function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
