@@ -3545,13 +3545,11 @@ async function pushCrateToCloud() {
 }
 
 function ensureCrateLoaded() {
-
-
-function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
 }
 
 function renderCrate() {
+
   ensureCrateLoaded();
 
   const titleEl = document.getElementById("crate-title");
