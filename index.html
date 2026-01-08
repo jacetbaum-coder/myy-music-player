@@ -3495,18 +3495,20 @@ async function pullCrateFromCloud() {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
 
-    const qsCandidates = [
-      "userId=" + encodeURIComponent(uid),
-      "uid=" + encodeURIComponent(uid),
-      "user_id=" + encodeURIComponent(uid)
+    // ✅ try the most likely param names + path-style
+    const urlCandidates = [
+      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "/" + encodeURIComponent(uid)
     ];
 
     let lastStatus = null;
     let lastText = "";
 
-    for (const qs of qsCandidates) {
-      const url = CRATE_API_BASE + "?" + qs;
-
+    for (const url of urlCandidates) {
       let res = null;
       try {
         res = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
@@ -3550,7 +3552,7 @@ async function pullCrateFromCloud() {
         saveCrateLocal();
       }
 
-      return; // success, stop trying candidates
+      return; // ✅ success
     }
 
     if (lastStatus) {
@@ -3561,58 +3563,65 @@ async function pullCrateFromCloud() {
   }
 }
 
-
 async function pushCrateToCloud() {
   try {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
     if (!crateDoc) return;
 
-    const url = CRATE_API_BASE + "?userId=" + encodeURIComponent(uid);
+    // ✅ try multiple URL shapes because Worker may expect different IDs
+    const urlCandidates = [
+      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "/" + encodeURIComponent(uid)
+    ];
 
-    // Try PUT
-    let res = null;
-    try {
-      res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: uid, doc: crateDoc })
-      });
-    } catch (e) {
-      console.warn("[crate] PUT failed to fetch:", e);
-      return;
+    for (const url of urlCandidates) {
+      // Try PUT
+      let res = null;
+      try {
+        res = await fetch(url, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: uid, doc: crateDoc })
+        });
+      } catch (e) {
+        console.warn("[crate] PUT failed to fetch:", url, e);
+        continue;
+      }
+
+      if (res && res.ok) return;
+
+      let text = "";
+      try { text = await res.text(); } catch (e) { text = ""; }
+      console.warn("[crate] PUT rejected:", url, "status=", res && res.status, "body=", text);
+
+      // Fallback POST
+      let res2 = null;
+      try {
+        res2 = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: uid, doc: crateDoc })
+        });
+      } catch (e) {
+        console.warn("[crate] POST failed to fetch:", url, e);
+        continue;
+      }
+
+      if (res2 && res2.ok) return;
+
+      let text2 = "";
+      try { text2 = await res2.text(); } catch (e) { text2 = ""; }
+      console.warn("[crate] POST rejected:", url, "status=", res2 && res2.status, "body=", text2);
     }
-
-    if (res && res.ok) return;
-
-    let text = "";
-    try { text = await res.text(); } catch (e) { text = ""; }
-    console.warn("[crate] PUT rejected:", "status=", res && res.status, "body=", text);
-
-    // Fallback POST
-    let res2 = null;
-    try {
-      res2 = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: uid, doc: crateDoc })
-      });
-    } catch (e) {
-      console.warn("[crate] POST failed to fetch:", e);
-      return;
-    }
-
-    if (res2 && res2.ok) return;
-
-    let text2 = "";
-    try { text2 = await res2.text(); } catch (e) { text2 = ""; }
-    console.warn("[crate] POST rejected:", "status=", res2 && res2.status, "body=", text2);
   } catch (e) {
     console.warn("[crate] pushCrateToCloud crashed:", e);
   }
 }
-
-
 
 function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
