@@ -4536,12 +4536,15 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
 
 async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   try {
+      const safeArtistName = String(artistName || "").trim();
+    const safeAlbumName = String(albumName || "").trim();
+    if (!safeArtistName || !safeAlbumName) return;
     await fetch('/api/get-songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        artistName,
-        albumName,
+        artistName: safeArtistName,
+        albumName: safeAlbumName,
         coverUrl: String(coverUrlOrDataUrl || "").trim()
       })
     });
