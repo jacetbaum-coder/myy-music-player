@@ -3495,14 +3495,22 @@ async function pullCrateFromCloud() {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
 
-    // ✅ try the most likely param names + path-style
+    // ✅ Try the most likely param names + combined forms + path form
     const urlCandidates = [
+      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+
+      // Keep your previous attempts too (in case the worker actually uses these)
       CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
       CRATE_API_BASE + "?uid=" + encodeURIComponent(uid),
       CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
       CRATE_API_BASE + "?user=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "/" + encodeURIComponent(uid)
+
+      // Path-style
+      CRATE_API_BASE + "/" + encodeURIComponent(uid),
+      CRATE_API_BASE + "/" + encodeURIComponent(uid) + "?id=" + encodeURIComponent(uid)
     ];
 
     let lastStatus = null;
@@ -3563,20 +3571,33 @@ async function pullCrateFromCloud() {
   }
 }
 
+
 async function pushCrateToCloud() {
   try {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
     if (!crateDoc) return;
 
-    // ✅ try multiple URL shapes because Worker may expect different IDs
+    const bodyObj = {
+      userId: uid,
+      id: uid,
+      uid: uid,
+      user_id: uid,
+      doc: crateDoc
+    };
+
     const urlCandidates = [
-      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid),
       CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "/" + encodeURIComponent(uid)
+      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+
+      // keep the old one too
+      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
+
+      // path-style
+      CRATE_API_BASE + "/" + encodeURIComponent(uid),
+      CRATE_API_BASE + "/" + encodeURIComponent(uid) + "?id=" + encodeURIComponent(uid)
     ];
 
     for (const url of urlCandidates) {
@@ -3586,7 +3607,7 @@ async function pushCrateToCloud() {
         res = await fetch(url, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: uid, doc: crateDoc })
+          body: JSON.stringify(bodyObj)
         });
       } catch (e) {
         console.warn("[crate] PUT failed to fetch:", url, e);
@@ -3605,7 +3626,7 @@ async function pushCrateToCloud() {
         res2 = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: uid, doc: crateDoc })
+          body: JSON.stringify(bodyObj)
         });
       } catch (e) {
         console.warn("[crate] POST failed to fetch:", url, e);
@@ -3622,6 +3643,7 @@ async function pushCrateToCloud() {
     console.warn("[crate] pushCrateToCloud crashed:", e);
   }
 }
+
 
 function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
