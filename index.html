@@ -3457,7 +3457,12 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
 const CRATE_LS_KEY = "reson_crate_doc_v1";
 const CRATE_API_BASE = "https://music-streamer.jacetbaum.workers.dev/api/crate";
 
+// ✅ TEMP: disable crate cloud sync because your Worker is not serving /api/crate as a real crate API
+// (it falls into your streaming logic and returns 400/404, which spams console/network)
+const CRATE_SYNC_ENABLED = false;
+
 let crateDoc = null;
+
 
 function defaultCrateDoc() {
   return {
@@ -3491,158 +3496,55 @@ function saveCrateLocal() {
 }
 
 async function pullCrateFromCloud() {
+  if (!CRATE_SYNC_ENABLED) return;
+
   try {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
 
-    // ✅ Try the most likely param names + combined forms + path form
-    const urlCandidates = [
-      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
+    const res = await fetch(CRATE_API_BASE + "?userId=" + encodeURIComponent(uid), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
 
-      // Keep your previous attempts too (in case the worker actually uses these)
-      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user=" + encodeURIComponent(uid),
+    if (!res.ok) return;
 
-      // Path-style
-      CRATE_API_BASE + "/" + encodeURIComponent(uid),
-      CRATE_API_BASE + "/" + encodeURIComponent(uid) + "?id=" + encodeURIComponent(uid)
-    ];
+    const data = await res.json().catch(() => null);
+    const remote = data && (data.doc || data.crate || data.data);
+    if (!remote || typeof remote !== "object") return;
 
-    let lastStatus = null;
-    let lastText = "";
+    const local = crateDoc || loadCrateLocal();
+    const rTime = Number(remote.updatedAt || 0);
+    const lTime = Number(local.updatedAt || 0);
 
-    for (const url of urlCandidates) {
-      let res = null;
-      try {
-        res = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
-      } catch (e) {
-        console.warn("[crate] GET failed to fetch:", url, e);
-        continue;
-      }
-
-      if (!res) continue;
-
-      if (!res.ok) {
-        lastStatus = res.status;
-        try { lastText = await res.text(); } catch (e) { lastText = ""; }
-        console.warn("[crate] GET rejected:", url, "status=", res.status, "body=", lastText);
-        continue;
-      }
-
-      // res.ok
-      let data = null;
-      try { data = await res.json(); } catch (e) {
-        console.warn("[crate] GET ok but JSON parse failed:", url);
-        return;
-      }
-
-      const remote = data && (data.doc || data.crate || data.data);
-      if (!remote || typeof remote !== "object") {
-        console.warn("[crate] GET ok but response has no doc/crate/data:", data);
-        return;
-      }
-
-      const local = crateDoc || loadCrateLocal();
-      const rTime = Number(remote.updatedAt || 0);
-      const lTime = Number(local.updatedAt || 0);
-
-      if (rTime > lTime) {
-        crateDoc = {
-          title: String(remote.title || "Crate"),
-          items: Array.isArray(remote.items) ? remote.items : [],
-          updatedAt: rTime || Date.now()
-        };
-        saveCrateLocal();
-      }
-
-      return; // ✅ success
+    if (rTime > lTime) {
+      crateDoc = {
+        title: String(remote.title || "Crate"),
+        items: Array.isArray(remote.items) ? remote.items : [],
+        updatedAt: rTime || Date.now()
+      };
+      saveCrateLocal();
     }
-
-    if (lastStatus) {
-      console.warn("[crate] All GET attempts failed. Last status/body:", lastStatus, lastText);
-    }
-  } catch (e) {
-    console.warn("[crate] pullCrateFromCloud crashed:", e);
-  }
+  } catch (e) {}
 }
 
-
 async function pushCrateToCloud() {
+  if (!CRATE_SYNC_ENABLED) return;
+
   try {
     const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
     if (!uid) return;
     if (!crateDoc) return;
 
-    const bodyObj = {
-      userId: uid,
-      id: uid,
-      uid: uid,
-      user_id: uid,
-      doc: crateDoc
-    };
-
-    const urlCandidates = [
-      CRATE_API_BASE + "?id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?uid=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
-      CRATE_API_BASE + "?user_id=" + encodeURIComponent(uid) + "&id=" + encodeURIComponent(uid),
-
-      // keep the old one too
-      CRATE_API_BASE + "?userId=" + encodeURIComponent(uid),
-
-      // path-style
-      CRATE_API_BASE + "/" + encodeURIComponent(uid),
-      CRATE_API_BASE + "/" + encodeURIComponent(uid) + "?id=" + encodeURIComponent(uid)
-    ];
-
-    for (const url of urlCandidates) {
-      // Try PUT
-      let res = null;
-      try {
-        res = await fetch(url, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(bodyObj)
-        });
-      } catch (e) {
-        console.warn("[crate] PUT failed to fetch:", url, e);
-        continue;
-      }
-
-      if (res && res.ok) return;
-
-      let text = "";
-      try { text = await res.text(); } catch (e) { text = ""; }
-      console.warn("[crate] PUT rejected:", url, "status=", res && res.status, "body=", text);
-
-      // Fallback POST
-      let res2 = null;
-      try {
-        res2 = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(bodyObj)
-        });
-      } catch (e) {
-        console.warn("[crate] POST failed to fetch:", url, e);
-        continue;
-      }
-
-      if (res2 && res2.ok) return;
-
-      let text2 = "";
-      try { text2 = await res2.text(); } catch (e) { text2 = ""; }
-      console.warn("[crate] POST rejected:", url, "status=", res2 && res2.status, "body=", text2);
-    }
-  } catch (e) {
-    console.warn("[crate] pushCrateToCloud crashed:", e);
-  }
+    await fetch(CRATE_API_BASE, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: uid, doc: crateDoc })
+    });
+  } catch (e) {}
 }
+
+function ensureCrateLoaded() {
 
 
 function ensureCrateLoaded() {
@@ -6800,7 +6702,8 @@ function popToRootSection(targetViewType) {
   }
 }
 
-function onNavTap(viewType) {
+window.onNavTap = function onNavTap(viewType) {
+
   const isMobile = window.innerWidth <= 768;
   if (!isMobile) return;
 
