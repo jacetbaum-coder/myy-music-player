@@ -5509,32 +5509,68 @@ window.onload = async () => {
 window.cloudPlaylists = [];
 
 // ✅ Load playlists list (meta) from Cloudflare for the current user
+// ✅ Load playlists list (meta) from Cloudflare for the current user
 // (Fallback-safe: if something else breaks earlier, app won't crash)
 if (typeof window.loadPlaylistsFromCloud !== "function") {
   window.loadPlaylistsFromCloud = async function () {
     try {
       const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-      if (!uid) return [];
+      if (!uid) {
+        window.cloudPlaylists = [];
+        try { playlists = []; } catch (e) { window.playlists = []; }
+        return [];
+      }
 
       const res = await fetch(
         "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
       );
-      const data = await res.json();
+
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
         window.cloudPlaylists = data.playlists;
+
+        // ✅ IMPORTANT:
+        // Your UI renders from `playlists` in many places.
+        // So we hydrate `playlists` from cloudPlaylists.
+        const cloudUi = data.playlists.map((p) => {
+          const id = String(p.id || p.playlist_id || p.playlistId || "").trim();
+          const name = String(p.name || p.title || "Playlist").trim();
+          return {
+            id,
+            name,
+            trackIds: Array.isArray(p.trackIds) ? p.trackIds : [],
+            songs: Array.isArray(p.songs) ? p.songs : []
+          };
+        }).filter(p => p.id);
+
+        // Merge with any existing local playlists (keep local if same id)
+        let local = [];
+        try { if (Array.isArray(playlists)) local = playlists; } catch (e) { local = []; }
+
+        const byId = new Map();
+        (Array.isArray(local) ? local : []).forEach(p => { if (p && p.id) byId.set(String(p.id), p); });
+        cloudUi.forEach(p => { if (!byId.has(String(p.id))) byId.set(String(p.id), p); });
+
+        const merged = Array.from(byId.values());
+
+        try { playlists = merged; } catch (e) { window.playlists = merged; }
+
         return data.playlists;
       }
 
       window.cloudPlaylists = [];
+      try { playlists = []; } catch (e) { window.playlists = []; }
       return [];
     } catch (e) {
       console.warn("loadPlaylistsFromCloud failed:", e);
       window.cloudPlaylists = [];
+      try { playlists = []; } catch (e2) { window.playlists = []; }
       return [];
     }
   };
 }
+
 
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
@@ -5542,6 +5578,15 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   // Never let one missing helper break app startup
 
+    // ✅ Make sure core UI functions exist on window (some versions define them as consts inside blocks)
+  try {
+    if (typeof showView === 'function' && typeof window.showView !== 'function') window.showView = showView;
+    if (typeof renderHome === 'function' && typeof window.renderHome !== 'function') window.renderHome = renderHome;
+    if (typeof renderPlaylists === 'function' && typeof window.renderPlaylists !== 'function') window.renderPlaylists = renderPlaylists;
+    if (typeof renderLibrary === 'function' && typeof window.renderLibrary !== 'function') window.renderLibrary = renderLibrary;
+  } catch (e) {}
+
+  // Never let one missing helper break app startup
   const safe = (fn, ...args) => {
     try {
       if (typeof fn === 'function') return fn(...args);
@@ -5550,11 +5595,12 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     }
   };
 
-    safe(setGreeting);
+  safe(setGreeting);
 
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
   safe(window.renderHistory);
+
 
   // You already upgrade playlist IDs elsewhere; do NOT hard-require ensurePlaylistIds()
   // safe(window.ensurePlaylistIds);
@@ -6454,24 +6500,26 @@ if (scrollArea) scrollArea.scrollTop = 0;
       document.getElementById('home-view')?.classList.remove('hidden');
       try { renderHome(); } catch (e) {}
     } else {
-      // DESKTOP: Home shows the new header + still shows your library below
-      document.getElementById('grid-view').classList.remove('hidden');
-      renderGrid(libraryData);
-      renderHistory();
+            // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view')?.classList.remove('hidden');
+      try { renderGrid(libraryData); } catch (e) {}
+      try { renderHistory(); } catch (e) {}
       try { renderHome(); } catch (e) {}
+
     }
   }
 
-  if (viewType === 'library') {
-  document.getElementById('grid-view').classList.remove('hidden');
+    if (viewType === 'library') {
+    document.getElementById('grid-view')?.classList.remove('hidden');
 
-  renderGrid(getLibraryGridData());
-  renderHistory();
+    try { renderGrid(getLibraryGridData()); } catch (e) {}
+    try { renderHistory(); } catch (e) {}
 
-  if (window.innerWidth <= 768) {
-    renderMobileRecents();
+    if (window.innerWidth <= 768) {
+      try { renderMobileRecents(); } catch (e) {}
+    }
   }
-}
+
 
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
