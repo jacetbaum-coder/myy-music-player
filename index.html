@@ -5943,7 +5943,19 @@ function __stripIds(root) {
   } catch (e) {}
 }
 
+// -----------------------
+// NAV STATE (MUST be initialized BEFORE pushNavCurrent/goBack runs)
+// -----------------------
+var navStack = Array.isArray(navStack) ? navStack : [];
+var navCurrent = (navCurrent && typeof navCurrent === 'object') ? navCurrent : { type: 'home' };
+var __isBackNav = (typeof __isBackNav === 'boolean') ? __isBackNav : false;
+
+window.navStack = navStack;
+window.navCurrent = navCurrent;
+window.__isBackNav = __isBackNav;
+
 window.captureSwipeBackUnderlay = function captureSwipeBackUnderlay() {
+
   const area = document.getElementById('main-scroll-area');
   if (!area) return;
 
@@ -5995,7 +6007,8 @@ function setNavCurrent(state) {
 }
 
 function pushNavCurrent() {
-  if (__isBackNav) return;
+  if (window.__isBackNav) return;
+
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
@@ -6040,6 +6053,8 @@ function goBack() {
   if (!prev || !prev.type) return;
 
   __isBackNav = true;
+  window.__isBackNav = true;
+
 
   try {
     if (prev.type === 'album' && prev.albumName) {
@@ -6078,7 +6093,10 @@ function goBack() {
       else showView('home');
     }
   } finally {
-    __isBackNav = false;
+  __isBackNav = false;
+  window.__isBackNav = false;
+}
+
   }
 }
 
