@@ -5438,52 +5438,6 @@ function initLibrarySearchBox() {
 }
 
 
-// Patch renderGrid to support Library "List" view (only when you're in Library)
-const __renderGridOriginal = renderGrid;
-renderGrid = function(data) {
-  const isLibrary = (navCurrent && navCurrent.type === 'library');
-
-  // If not library, keep your existing behavior
-  if (!isLibrary || libraryViewMode === 'grid') {
-    return __renderGridOriginal(data);
-  }
-
-  // Library list view
-  const grid = document.getElementById('album-grid');
-  if (!grid) return;
-
-  grid.className = 'space-y-2'; // list
-  grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
-    const safeName = String(album.albumName || '').replace(/'/g, "\\'");
-    const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
-
-    return `
-      <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
-           onclick="openAlbumByName('${safeName}')">
-        <img src="${cover}" class="w-12 h-12 rounded object-cover">
-        <div class="min-w-0 flex-1">
-          <div class="text-white font-bold truncate">${album.albumName || ''}</div>
-          <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
-        </div>
-        <i class="fas fa-chevron-right text-zinc-500"></i>
-      </div>
-    `;
-  }).join('');
-};
-
-const __showViewOriginal = showView;
-showView = function(viewType, playlistIndex = null) {
-  __showViewOriginal(viewType, playlistIndex);
-
-  // Toggle library controls visibility after view switch
-  setLibraryControlsVisibility();
-
-  // If we entered Library, apply sort immediately
-  if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridData());
-  }
-};
-
 // -----------------------
 // MOBILE: double-tap active bottom nav => smooth scroll to top
 // -----------------------
@@ -6824,6 +6778,52 @@ function renderGrid(data) {
     });
   });
 }
+
+// Patch renderGrid to support Library "List" view (only when you're in Library)
+const __renderGridOriginal = renderGrid;
+renderGrid = function(data) {
+  const isLibrary = (navCurrent && navCurrent.type === 'library');
+
+  // If not library, keep your existing behavior
+  if (!isLibrary || libraryViewMode === 'grid') {
+    return __renderGridOriginal(data);
+  }
+
+  // Library list view
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+
+  grid.className = 'space-y-2'; // list
+  grid.innerHTML = (Array.isArray(data) ? data : []).map((album) => {
+    const safeName = String(album.albumName || '').replace(/'/g, "\\'");
+    const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+
+    return `
+      <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 cursor-pointer"
+           onclick="openAlbumByName('${safeName}')">
+        <img src="${cover}" class="w-12 h-12 rounded object-cover">
+        <div class="min-w-0 flex-1">
+          <div class="text-white font-bold truncate">${album.albumName || ''}</div>
+          <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
+        </div>
+        <i class="fas fa-chevron-right text-zinc-500"></i>
+      </div>
+    `;
+  }).join('');
+};
+
+const __showViewOriginal = showView;
+showView = function(viewType, playlistIndex = null) {
+  __showViewOriginal(viewType, playlistIndex);
+
+  // Toggle library controls visibility after view switch
+  setLibraryControlsVisibility();
+
+  // If we entered Library, apply sort immediately
+  if (navCurrent && navCurrent.type === 'library') {
+    renderGrid(getLibraryGridData());
+  }
+};
 
 
 function openAlbumByName(name) {
