@@ -5895,9 +5895,17 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 // -----------------------
 // MOBILE BACK STACK (swipe-right to go back)
 // -----------------------
-let navStack = [];
-let navCurrent = { type: 'home' };
-let __isBackNav = false;
+
+// ✅ IMPORTANT: do NOT redeclare these (they may already be declared earlier).
+// Just ensure they exist and stay synced on window.
+navStack = window.navStack || navStack || [];
+navCurrent = window.navCurrent || navCurrent || { type: 'home' };
+__isBackNav = (typeof window.__isBackNav === 'boolean') ? window.__isBackNav : (__isBackNav || false);
+
+window.navStack = navStack;
+window.navCurrent = navCurrent;
+window.__isBackNav = __isBackNav;
+
         window.navStack = navStack;
 window.navCurrent = navCurrent;
 
