@@ -3501,42 +3501,66 @@ async function pullCrateFromCloud() {
       "user_id=" + encodeURIComponent(uid)
     ];
 
-    let res = null;
-    let data = null;
+    let lastStatus = null;
+    let lastText = "";
 
     for (const qs of qsCandidates) {
+      const url = CRATE_API_BASE + "?" + qs;
+
+      let res = null;
       try {
-        res = await fetch(CRATE_API_BASE + "?" + qs, {
-          method: "GET",
-          headers: { "Accept": "application/json" }
-        });
-        if (res && res.ok) {
-          data = await res.json().catch(() => null);
-          break;
-        }
-      } catch (e) {}
+        res = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
+      } catch (e) {
+        console.warn("[crate] GET failed to fetch:", url, e);
+        continue;
+      }
+
+      if (!res) continue;
+
+      if (!res.ok) {
+        lastStatus = res.status;
+        try { lastText = await res.text(); } catch (e) { lastText = ""; }
+        console.warn("[crate] GET rejected:", url, "status=", res.status, "body=", lastText);
+        continue;
+      }
+
+      // res.ok
+      let data = null;
+      try { data = await res.json(); } catch (e) {
+        console.warn("[crate] GET ok but JSON parse failed:", url);
+        return;
+      }
+
+      const remote = data && (data.doc || data.crate || data.data);
+      if (!remote || typeof remote !== "object") {
+        console.warn("[crate] GET ok but response has no doc/crate/data:", data);
+        return;
+      }
+
+      const local = crateDoc || loadCrateLocal();
+      const rTime = Number(remote.updatedAt || 0);
+      const lTime = Number(local.updatedAt || 0);
+
+      if (rTime > lTime) {
+        crateDoc = {
+          title: String(remote.title || "Crate"),
+          items: Array.isArray(remote.items) ? remote.items : [],
+          updatedAt: rTime || Date.now()
+        };
+        saveCrateLocal();
+      }
+
+      return; // success, stop trying candidates
     }
 
-    if (!res || !res.ok || !data) return;
-
-    const remote = data && (data.doc || data.crate || data.data);
-    if (!remote || typeof remote !== "object") return;
-
-    // Prefer the newer doc
-    const local = crateDoc || loadCrateLocal();
-    const rTime = Number(remote.updatedAt || 0);
-    const lTime = Number(local.updatedAt || 0);
-
-    if (rTime > lTime) {
-      crateDoc = {
-        title: String(remote.title || "Crate"),
-        items: Array.isArray(remote.items) ? remote.items : [],
-        updatedAt: rTime || Date.now()
-      };
-      saveCrateLocal();
+    if (lastStatus) {
+      console.warn("[crate] All GET attempts failed. Last status/body:", lastStatus, lastText);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn("[crate] pullCrateFromCloud crashed:", e);
+  }
 }
+
 
 async function pushCrateToCloud() {
   try {
@@ -3544,32 +3568,50 @@ async function pushCrateToCloud() {
     if (!uid) return;
     if (!crateDoc) return;
 
-    // Put the id in BOTH query + body (covers most Worker implementations)
     const url = CRATE_API_BASE + "?userId=" + encodeURIComponent(uid);
 
-    // Try PUT first
-    let res = await fetch(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: uid,
-        doc: crateDoc
-      })
-    }).catch(() => null);
+    // Try PUT
+    let res = null;
+    try {
+      res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: uid, doc: crateDoc })
+      });
+    } catch (e) {
+      console.warn("[crate] PUT failed to fetch:", e);
+      return;
+    }
 
     if (res && res.ok) return;
 
-    // Fallback: some setups use POST instead of PUT
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: uid,
-        doc: crateDoc
-      })
-    }).catch(() => null);
-  } catch (e) {}
+    let text = "";
+    try { text = await res.text(); } catch (e) { text = ""; }
+    console.warn("[crate] PUT rejected:", "status=", res && res.status, "body=", text);
+
+    // Fallback POST
+    let res2 = null;
+    try {
+      res2 = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: uid, doc: crateDoc })
+      });
+    } catch (e) {
+      console.warn("[crate] POST failed to fetch:", e);
+      return;
+    }
+
+    if (res2 && res2.ok) return;
+
+    let text2 = "";
+    try { text2 = await res2.text(); } catch (e) { text2 = ""; }
+    console.warn("[crate] POST rejected:", "status=", res2 && res2.status, "body=", text2);
+  } catch (e) {
+    console.warn("[crate] pushCrateToCloud crashed:", e);
+  }
 }
+
 
 
 function ensureCrateLoaded() {
