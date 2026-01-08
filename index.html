@@ -6754,7 +6754,16 @@ window.onNavTap = function onNavTap(viewType) {
           * ---------------------------------------------------------------------
           */
 
+function renderHistory() {
+  // ✅ Safety shim:
+  // Your showView() calls renderHistory() on desktop Home + Library,
+  // but some versions of the file don't include the renderer.
+  // Keeping this as a no-op prevents hard crashes.
+  return;
+}
+
 function renderGrid(data) {
+
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
