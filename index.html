@@ -3851,21 +3851,51 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       continue;
     }
 
-    out.push({
+        out.push({
       id: key,
       r2Path: key,
       key: key,
-      title: key.split("/").pop() || key,
-      name: key.split("/").pop() || key,
-      artist: "",
-      album: "",
-      artistName: "",
-      albumName: "",
+
+      // Parse "Artist/Album/Track.mp3" OR "Artist/Track.mp3"
+      title: (() => {
+        const parts = String(key).split("/");
+        const file = parts[parts.length - 1] || key;
+        return String(file).replace(/\.mp3$/i, "");
+      })(),
+
+      name: (() => {
+        const parts = String(key).split("/");
+        const file = parts[parts.length - 1] || key;
+        return String(file).replace(/\.mp3$/i, "");
+      })(),
+
+      artist: (() => {
+        const parts = String(key).split("/");
+        return String(parts[0] || "").trim();
+      })(),
+
+      album: (() => {
+        const parts = String(key).split("/");
+        // Only treat the 2nd segment as album if format is Artist/Album/Track
+        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
+      })(),
+
+      artistName: (() => {
+        const parts = String(key).split("/");
+        return String(parts[0] || "").trim();
+      })(),
+
+      albumName: (() => {
+        const parts = String(key).split("/");
+        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
+      })(),
+
       cover: "",
       coverArt: "",
       url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
       link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
     });
+
   }
 
   return out;
