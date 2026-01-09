@@ -2625,7 +2625,7 @@ body.qs-lock {
     <!-- Queue (desktop right sidebar) -->
     <section id="right-queue-card" class="lyrics-card hidden">
       <div class="lyrics-header" style="justify-content: space-between;">
-                <div class="lyrics-title">Queue</div>
+        <div class="lyrics-title">Queue</div
         <button id="right-queue-clear"
                 style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
           Clear
@@ -2935,27 +2935,6 @@ let isAutoNav = false;     // true only when Next/Prev triggers playback
 let isShuffle = false;     // shuffle enabled flag
 
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
-
-// --- Library cache helpers (define-once, safe if file is merged) ---
-if (typeof window.loadLibraryCache !== 'function') {
-  window.loadLibraryCache = function () {
-    try {
-      const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
-      return Array.isArray(stored) ? stored : [];
-    } catch (e) {
-      return [];
-    }
-  };
-}
-
-if (typeof window.saveLibraryCache !== 'function') {
-  window.saveLibraryCache = function (data) {
-    try {
-      localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(Array.isArray(data) ? data : []));
-    } catch (e) {}
-  };
-}
-
 
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
@@ -3739,35 +3718,50 @@ window.loadPlaylistsFromCloud = async function () {
     window.cloudPlaylists = data.playlists;
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
-    try {
-      const localList = Array.isArray(playlists) ? playlists : [];
-      const byId = new Map(localList.map(p => [String(p?.id), p]).filter(([k]) => k && k !== "undefined"));
+try {
+  const cloudUi = data.playlists
+    .map(cloudRowToUiPlaylist)
+    .filter(pl => pl && pl.id);
 
-      for (const c of data.playlists) {
-        if (!c || !c.id) continue;
-        const key = String(c.id);
-        const existing = byId.get(key);
-        byId.set(key, existing ? ({ ...existing, ...c }) : c);
-      }
+  const localArr = Array.isArray(playlists) ? playlists : [];
+  const byId = new Map(localArr.map(p => [p.id, p]));
 
-      playlists = Array.from(byId.values());
+  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
+  for (const c of cloudUi) {
+    const existing = byId.get(c.id);
+    if (existing) {
+      byId.set(c.id, {
+        ...existing,
+        ...c,
+        // preserve local-only content if cloud meta doesn't include it
+        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
+        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
 
-      // Persist locally so refresh works even if offline
-      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-    } catch (e) {
-      console.warn("Failed to merge cloud playlists:", e);
+      });
+    } else {
+      byId.set(c.id, c);
     }
-
-    return data.playlists;
   }
 
-  window.cloudPlaylists = [];
+  // Keep local-only playlists that aren't in cloud yet
+  playlists = Array.from(byId.values());
+
+  // Persist locally so refresh works even if offline
+  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+} catch (e) {
+  console.warn("Failed to merge cloud playlists:", e);
+}
+
+return data.playlists;
+
+  }
+
+   window.cloudPlaylists = [];
   return [];
 };
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
-
 // -----------------------
 window.__cloudPlaylistSig = "";
 window.__cloudPlaylistSyncTimer = null;
@@ -5696,15 +5690,13 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   safe(window.initSearchSwipeDownClose);
 
 
-    // Fetch library
+  // Fetch library
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(
-      'https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(),
-      { signal: controller.signal }
-    );
+    const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(), { signal: controller.signal });
+
 
     clearTimeout(timeoutId);
 
@@ -5713,11 +5705,10 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     libraryData = await response.json();
     if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
-    // ✅ cache the last known-good library (helps mobile a LOT)
-    try { window.saveLibraryCache(libraryData); } catch (e) {}
-
     // ✅ Build master track index: id/r2Path -> canonical track object
+    // This is what playlists will reference.
     window.tracksById = new Map();
+
     try {
       libraryData.forEach((album) => {
         const songs = Array.isArray(album?.songs) ? album.songs : [];
@@ -5725,6 +5716,7 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
           const id = String(s?.id || s?.r2Path || "").trim();
           if (!id) return;
 
+          // Normalize a consistent object shape for the UI
           const track = {
             ...s,
             id,
@@ -5747,29 +5739,29 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     // Keep original order for "Recently added"
     libraryDataOriginal = libraryData.slice();
 
+
     // Sort library alphabetically by album (Library grid)
-    libraryData.sort((a, b) => (a.albumName || "").localeCompare(b.albumName || ""));
+    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+
+    document.getElementById('loading')?.classList.add('hidden');
+    safe(window.showView, 'home');
+    safe(window.renderHome);
   } catch (error) {
     console.error("Fetch error:", error);
 
-    // ✅ fallback to cached library so Library isn't blank
-    try {
-      const cached = (typeof window.loadLibraryCache === 'function') ? window.loadLibraryCache() : [];
-      if (Array.isArray(cached) && cached.length) {
-        libraryData = cached;
-        libraryDataOriginal = cached.slice();
-      }
-    } catch (e) {}
-  } finally {
-   // still let the app load a view
-  try { document.getElementById('loading')?.classList.add('hidden'); } catch (e) {}
-  try { window.showView && window.showView('home'); } catch (e) {}
-  try { window.renderHome && window.renderHome(); } catch (e) {}
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.innerHTML = `
+        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+        <p class="text-white font-bold">Cloud Connection Failed</p>
+        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
+      `;
+      loading.classList.add('hidden');
+    }
 
-  // ✅ IMPORTANT: do NOT wipe libraryData here.
-  // If the fetch failed but cache existed, libraryData is already restored above.
-  safe(window.showView, 'home');
-
+        libraryData = [];
+    safe(window.showView, 'home');
+  }
 
   // ✅ Reload button (desktop)
   try {
@@ -5888,8 +5880,6 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
-        window.navStack = navStack;
-window.navCurrent = navCurrent;
 
 // -----------------------
 // SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
@@ -5981,7 +5971,6 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
-    window.navCurrent = navCurrent;
 }
 
 function pushNavCurrent() {
@@ -5989,29 +5978,20 @@ function pushNavCurrent() {
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
+    // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
 
-  // ✅ Remember which ROOT tab we were in when we entered a deep view
-  // This is the real fix for “swipe-back jumps to Home”.
+  // ✅ MOBILE FIX:
+  // If the Library tab is active, treat "home" as "library" for the back stack.
+  // This prevents swipe-back from jumping to Home when you came from Library.
   try {
-    snapshot.rootTab = String(window.__rootTab || "").trim() || "";
-    if (!snapshot.rootTab) {
-      const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-      const homeActive = !!document.getElementById('nav-home')?.classList?.contains('active');
-      const searchActive = !!document.getElementById('nav-search')?.classList?.contains('active');
-      const crateActive = !!document.getElementById('nav-premium')?.classList?.contains('active');
-      snapshot.rootTab = libActive ? 'library'
-        : homeActive ? 'home'
-        : searchActive ? 'search'
-        : crateActive ? 'crate'
-        : '';
+    const isMobile = window.innerWidth <= 768;
+    const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
+    if (isMobile && libActive && snapshot.type === 'home') {
+      snapshot.type = 'library';
     }
   } catch (e) {}
-// ✅ If the active root tab isn't Home, but navCurrent is stale, align it.
-  // This prevents Library deep views from back-swiping to Home.
-  if (snapshot.rootTab && snapshot.rootTab !== 'home' && snapshot.type === 'home') {
-    snapshot.type = snapshot.rootTab;
-  }
+
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
@@ -6034,16 +6014,12 @@ function goBack() {
   try {
     if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
-
     } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
-
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
-
     } else if (prev.type === 'search') {
       showView('search');
-
     } else if (prev.type === 'library') {
       showView('library');
 
@@ -6056,16 +6032,10 @@ function goBack() {
           area.scrollTop = top;
         });
       }
-
     } else if (prev.type === 'liked') {
       showView('liked');
-
     } else {
-      // ✅ CRITICAL: if this entry came from Library, go to Library (not Home)
-      if (prev.rootTab === 'library') showView('library');
-      else if (prev.rootTab === 'search') showView('search');
-      else if (prev.rootTab === 'crate') showView('crate');
-      else showView('home');
+      showView('home');
     }
   } finally {
     __isBackNav = false;
@@ -6112,24 +6082,16 @@ function initSwipeBack() {
   }
 
   function canStart(e) {
-  // Must have something to go back to
-  if (!Array.isArray(navStack) || navStack.length === 0) return false;
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
-  // ✅ Do NOT allow swipe-back on ROOT pages (prevents Library -> Home swipe)
-  const current = navCurrent || window.navCurrent;
-  const t = String(current?.type || '').trim();
-  if (t === 'home' || t === 'library' || t === 'search' || t === 'crate' || t === 'liked') {
-    return false;
-  }
-
-        // Don’t hijack gestures on form controls / buttons
-    const targetEl = e.target;
-    if (targetEl && (targetEl.closest('input, textarea, select, button') || targetEl.closest('[data-no-swipe-back="1"]'))) {
+    // Don’t hijack gestures on form controls / buttons
+    const t = e.target;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
       return false;
     }
 
     // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
-
     const { y } = getXY(e);
     if (y > (window.innerHeight * 0.75)) return false;
 
@@ -6443,7 +6405,7 @@ function showView(viewType, playlistIndex = null) {
   // ✅ Remember which bottom tab is the current "root" section on mobile.
   // This is what prevents deep Library views (playlist/album) from flipping to Home.
   try {
-    if (viewType === 'home' || viewType === 'library' || viewType === 'search' || viewType === 'crate') {
+    if (viewType === 'home' || viewType === 'library' || viewType === 'search') {
       window.__rootTab = viewType;
     }
     if (!window.__rootTab) window.__rootTab = 'home';
@@ -6459,29 +6421,33 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const playlistList = Array.isArray(playlists) ? playlists : [];
-  let resolvedIndex = playlistIndex;
+  const list = Array.isArray(playlists) ? playlists : [];
+  let idx = playlistIndex;
 
-  if (typeof resolvedIndex === "string") {
-    if (/^\d+$/.test(resolvedIndex)) {
-      resolvedIndex = Number(resolvedIndex);
-    } else {
-      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
-    }
+  // If we got "12" as a string, convert to number
+  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+
+  // If we got an id string, try id -> index
+  if (typeof idx === 'string') {
+    const byId = list.findIndex(p => String(p?.id) === String(idx));
+    idx = byId;
   }
 
-  const plForNav = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
-    ? playlistList[resolvedIndex]
-    : null;
+  const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
-   setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
+  setNavCurrent({
+    type: 'playlist',
+    playlistIndex: (Number.isInteger(idx) ? idx : null),
+    playlistId: plForNav?.id || null
+  });
+
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
 
 const scrollArea = document.getElementById('main-scroll-area');
-if (scrollArea) scrollArea.scrollTop = 0;
 
+if (scrollArea) scrollArea.scrollTop = 0;
 
 
         if (viewType === 'home') {
@@ -6531,40 +6497,28 @@ if (scrollArea) scrollArea.scrollTop = 0;
         if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
 
-  // ✅ SAFETY: allow caller to pass playlist INDEX or playlist ID
-  const playlistList = Array.isArray(playlists) ? playlists : [];
-  let resolvedIndex = playlistIndex;
+  const list = Array.isArray(playlists) ? playlists : [];
+let idx = playlistIndex;
 
-  // If caller passed an id string, convert id -> index
-  if (typeof resolvedIndex === "string") {
-    // numeric string => index
-    if (/^\d+$/.test(resolvedIndex)) {
-      resolvedIndex = Number(resolvedIndex);
-    } else {
-      // id string => index
-      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
-    }
-  }
+if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
 
-  const pl = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
-    ? playlistList[resolvedIndex]
-    : null;
+const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
-  // If we can't resolve the playlist, bail to library (prevents black screen)
-  if (!pl) {
-    console.warn('showView(playlist): could not resolve playlist from:', playlistIndex);
-    showView('library');
-    return;
-  }
+// ✅ If playlist is missing, do NOT return (it would leave everything hidden)
+if (!pl) {
+  console.warn('showView(playlist): missing playlist for', playlistIndex);
+  showView('library');
+  return;
+}
 
-  // Keep globals consistent
-  activePlaylistIndex = resolvedIndex;
-  activePlaylistId = pl.id;
+activePlaylistIndex = idx;
+activePlaylistId = pl.id;
+
   playContext = { type: 'playlist', label: pl.name };
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
-
     try {
       const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
 
@@ -6624,8 +6578,7 @@ const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, resolvedIndex);
-;
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
 
 
@@ -6636,8 +6589,7 @@ pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
-renderCollection(pl.name, playlistSongs, true, resolvedIndex);
-
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
     }
   })();
@@ -6667,7 +6619,7 @@ renderCollection(pl.name, playlistSongs, true, resolvedIndex);
     if (!window.__rootTab) window.__rootTab = 'home';
 
     // If we're at a root, update rootTab
-    if (viewType === 'home' || viewType === 'search' || viewType === 'library' || viewType === 'crate') {
+    if (viewType === 'home' || viewType === 'search' || viewType === 'library') {
       window.__rootTab = viewType;
       tabType = viewType;
     } else {
@@ -6677,7 +6629,7 @@ renderCollection(pl.name, playlistSongs, true, resolvedIndex);
   }
 
   // Mobile Nav
-  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library', crate: 'nav-premium' };
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
   Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
   if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
 
@@ -6738,47 +6690,80 @@ function popToRootSection(targetViewType) {
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
-  if (!isMobile) return;
 
-  const navId = 
+    const navId =
     viewType === 'home' ? 'nav-home' :
     viewType === 'search' ? 'nav-search' :
     viewType === 'library' ? 'nav-library' :
     viewType === 'crate' ? 'nav-premium' :
     null;
 
+
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
-  if (isActive) {
+    // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
+  // This fixes the “tap ignored while deep in album view” behavior.
+  if (isMobile && isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
+    // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      return;
-    }
-
-    // FIX: Instead of calling popToRootSection which is failing, 
-    // we explicitly call showView(viewType) to ensure we land on Library.
-    if (currentType && currentType !== viewType) {
-      showView(viewType); 
       __navTapLast[viewType] = 0;
       return;
     }
 
-    // Already at root: double tap to scroll to top
+    // If active tab says "library" but current view is album/playlist/etc
+    if (currentType && currentType !== viewType) {
+
+      // ✅ SPECIAL CASE:
+      // Inside album/playlist → double-tap Library should go BACK
+      if (viewType === 'library') {
+        const now = Date.now();
+        const last = __navTapLast[viewType] || 0;
+
+        if (now - last <= 350) {
+          __navTapLast[viewType] = 0;
+          goBack(); // restores Library + scroll position
+        } else {
+          __navTapLast[viewType] = now;
+        }
+        return;
+      }
+
+      // Other tabs keep old behavior
+      popToRootSection(viewType);
+      __navTapLast[viewType] = 0;
+      return;
+    }
+
+    // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
+
     if (now - last <= 350) {
-      scrollMainToTopSmooth();
       __navTapLast[viewType] = 0;
+      scrollMainToTopSmooth();
       return;
     }
+
     __navTapLast[viewType] = now;
-    return;
+    return; // wait for possible second tap
   }
 
-  // Normal navigation
+  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
+  __navTapLast[viewType] = 0;
+
+  const now = Date.now();
+  if (isMobile) {
+    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
+    __navTapLastNavType = viewType;
+    __navTapLockUntil = now + 300; // 300ms debounce window
+  }
+
+   // Normal navigation
   showView(viewType);
+
 }
 
 
@@ -8590,7 +8575,8 @@ function persistPlayerState(isPlayingOverride = null) {
 }
 
 function restorePlayerStateIfRecent() {
-  const ONE_HOUR = 60 * 60 * 1000;
+
+  const oneHour = 3600000;
 
   let state = null;
   try {
@@ -8599,75 +8585,71 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-  // If no saved state (or missing song), hide dock on desktop; keep visible on mobile.
-  if (!state || !state.song) {
+   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
+  if (!raw) {
     currentSong = null;
-    try { toggleRightSidebar(false); } catch (e) {}
+    toggleRightSidebar(false);
 
     if (window.innerWidth <= 768) {
-      try { dock.classList.remove('dock-hidden'); } catch (e) {}
+      dock.classList.remove('dock-hidden');
     } else {
-      try { dock.classList.add('dock-hidden'); } catch (e) {}
+      dock.classList.add('dock-hidden');
     }
     return;
   }
 
-  // If too old, wipe it and hide dock on desktop; keep visible on mobile.
-  const updatedAt = Number(state.updatedAt || 0);
-  if (!updatedAt || (Date.now() - updatedAt) > ONE_HOUR) {
-    try { localStorage.removeItem('lastSongState'); } catch (e) {}
-    try { localStorage.removeItem('lastPlayedTime'); } catch (e) {}
-
+  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
+    localStorage.removeItem('reson_player_state');
     currentSong = null;
-    try { toggleRightSidebar(false); } catch (e) {}
+    toggleRightSidebar(false);
 
     if (window.innerWidth <= 768) {
-      try { dock.classList.remove('dock-hidden'); } catch (e) {}
+      dock.classList.remove('dock-hidden');
     } else {
-      try { dock.classList.add('dock-hidden'); } catch (e) {}
+      dock.classList.add('dock-hidden');
     }
     return;
   }
 
-  // Restore current song
+
   currentSong = state.song;
 
   // Restore audio source + time (do NOT autoplay)
-  try { player.src = currentSong.url; } catch (e) {}
-  try { player.currentTime = Number(state.currentTime || 0); } catch (e) {}
+  player.src = currentSong.url;
+  player.currentTime = Number(state.currentTime || 0);
 
-  try { updateMediaSessionMetadata(); } catch (e) {}
+    updateMediaSessionMetadata();
 
   // Update dock UI
-  try { dock.classList.remove('dock-hidden'); } catch (e) {}
-  try { document.getElementById('p-cover').src = currentSong.cover || ""; } catch (e) {}
-  try { updateAccentFromCover(currentSong.cover || ""); } catch (e) {}
-  try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
-  try { document.getElementById('p-artist').innerText = currentSong.artist || ""; } catch (e) {}
+  dock.classList.remove('dock-hidden');
+  document.getElementById('p-cover').src = currentSong.cover || "";
+updateAccentFromCover(currentSong.cover || "");
+
+setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
+document.getElementById('p-artist').innerText = currentSong.artist || "";
+
 
   // Ensure icons show PAUSED state on refresh
-  try { setAllPlayIconsToPlay(); } catch (e) {}
+  setAllPlayIconsToPlay();
 
-  // Right sidebar metadata (safe)
-  try { document.getElementById('right-cover').src = currentSong.cover || ""; } catch (e) {}
-  try { document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', ''); } catch (e) {}
-  try { document.getElementById('right-artist').innerText = currentSong.artist || ""; } catch (e) {}
+    // Right sidebar metadata (safe)
+  document.getElementById('right-cover').src = currentSong.cover || "";
+  document.getElementById('right-title').innerText = (currentSong.title || "").replace('.mp3', '');
+  document.getElementById('right-artist').innerText = currentSong.artist || "";
 
   // Lyrics (desktop right sidebar)
-  try { updateRightLyricsForSong(currentSong); } catch (e) {}
-  try { updateCenterLyricsForSong(currentSong); } catch (e) {}
+  updateRightLyricsForSong(currentSong);
+  updateCenterLyricsForSong(currentSong);
 
-  try { updateHeartUI(); } catch (e) {}
+  updateHeartUI();
+
 
   // Keep lastPlayedTime consistent with restored state
-  try {
-    lastPlayedTime = updatedAt;
-    localStorage.setItem('lastPlayedTime', String(lastPlayedTime));
-  } catch (e) {}
+  lastPlayedTime = state.updatedAt || Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
 }
-
-function checkDockVisibility() {
-
 
 function checkDockVisibility() {
   const dock = document.getElementById('main-dock');
@@ -9584,7 +9566,7 @@ function handleContextMenu(e, song) {
 
         // -----------------------
         // HOME RENDERING (Mobile Home + Desktop Home)
-        -
+        // -----------------------
 
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
@@ -9657,8 +9639,9 @@ function handleContextMenu(e, song) {
         if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-        if (id) showView('playlist', id);
-} else {
+        const idx = playlists.findIndex(pl => pl.id === id);
+        if (idx !== -1) showView('playlist', idx);
+      } else {
         const album = card.getAttribute('data-album');
         if (album) openAlbumByName(album);
       }
@@ -9718,13 +9701,11 @@ function handleContextMenu(e, song) {
 
     // ✅ PLAYLIST
     if (type === 'playlist') {
-  const id = card.getAttribute('data-id');
-  if (id) showView('playlist', id);
-} else {
-  const album = card.getAttribute('data-album');
-  if (album) openAlbumByName(album);
-}
-
+      const id = card.getAttribute('data-id');
+      const idx = playlists.findIndex(pl => pl.id === id);
+      if (idx !== -1) showView('playlist', idx);
+      return;
+    }
 
     // ✅ ALBUM
     if (type === 'album') {
@@ -10418,9 +10399,9 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
--
+// -----------------------
 // HERO 3-DOTS MENU (playlist OR album)
--
+// -----------------------
 (function bindHeroMoreButtonOnce() {
   const btn = document.getElementById('hero-more-btn');
   if (!btn || btn.__bound) return;
@@ -10588,9 +10569,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-  -
+  // -----------------------
 // PLAYLIST MENU buttons (bind once, after DOM exists)
--
+// -----------------------
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
