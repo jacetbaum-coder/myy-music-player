@@ -9773,15 +9773,87 @@ let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mo
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
     renderHomeRecentsRow('home-recents-row');
+    try { window.__applyHomeChipFilter?.(); } catch (e) {}
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
+  try { window.__applyHomeChipFilter?.(); } catch (e) {}
 }
 
-        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+// ------------------------------
+// Home chips: All / Music / Playlists / Audio
+// (Only implement what you asked: Playlists shows ONLY playlists)
+// ------------------------------
+if (!window.__homeChipsBound) {
+  window.__homeChipsBound = true;
+
+  window.__homeChip = window.__homeChip || 'all';
+
+  window.__applyHomeChipStyles = function () {
+    const ids = ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'];
+    ids.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const key = btn.getAttribute('data-homechip');
+
+      if (key === window.__homeChip) {
+        btn.classList.remove('bg-white/10', 'text-white');
+        btn.classList.add('bg-[#1db954]', 'text-black');
+      } else {
+        btn.classList.remove('bg-[#1db954]', 'text-black');
+        btn.classList.add('bg-white/10', 'text-white');
+      }
+    });
+  };
+
+  window.__applyHomeChipFilter = function () {
+    const onlyPlaylists = (window.__homeChip === 'playlists');
+
+    // Desktop: hide Recents row + its H2
+    const dRecentsRow = document.getElementById('desktop-recents-row');
+    if (dRecentsRow) {
+      const h2 = dRecentsRow.previousElementSibling;
+      if (h2 && h2.tagName === 'H2') h2.style.display = onlyPlaylists ? 'none' : '';
+      dRecentsRow.style.display = onlyPlaylists ? 'none' : '';
+    }
+
+    // Desktop: hide the big album grid section (your library cards) when Playlists is selected
+    const albumGrid = document.getElementById('album-grid');
+    if (albumGrid) albumGrid.style.display = onlyPlaylists ? 'none' : '';
+
+    // Mobile: hide the whole Recents section container (the parent of #home-recents-row)
+    const mRecentsRow = document.getElementById('home-recents-row');
+    if (mRecentsRow && mRecentsRow.parentElement) {
+      mRecentsRow.parentElement.style.display = onlyPlaylists ? 'none' : '';
+    }
+  };
+
+  function bindHomeChip(id) {
+    const btn = document.getElementById(id);
+    if (!btn || btn.__bound) return;
+    btn.__bound = true;
+
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-homechip') || 'all';
+      window.__homeChip = key;
+
+      try { window.__applyHomeChipStyles(); } catch (e) {}
+      try { window.__applyHomeChipFilter(); } catch (e) {}
+    });
+  }
+
+  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'].forEach(bindHomeChip);
+
+  // initial apply
+  try { window.__applyHomeChipStyles(); } catch (e) {}
+  try { window.__applyHomeChipFilter(); } catch (e) {}
+}
+
+const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+
 if (homeRecentsShowAllBtn) {
   homeRecentsShowAllBtn.addEventListener('click', () => {
     mobileRecentsExpanded = !mobileRecentsExpanded;
