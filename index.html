@@ -1508,12 +1508,28 @@ body.qs-lock{
   margin-bottom: 18px;
 }
 
-        .home-recents-grid {
+       .home-recents-grid {
   display: flex;
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 8px;
 }
+
+/* ✅ Home "Playlists" row scrolls horizontally on mobile (same feel as Recents) */
+@media (max-width: 768px) {
+  #home-recent-grid {
+    display: flex !important;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #home-recent-grid .mobile-recent-card {
+    flex: 0 0 260px;
+  }
+}
+
 
         
 .recent-tile {
@@ -9613,15 +9629,16 @@ function handleContextMenu(e, song) {
 
   const isMobile = (window.innerWidth <= 768);
 
-// Default slots: 4 (mobile) / 8 (desktop). If "Show all" is toggled, show everything.
-const defaultSlots = isMobile ? 4 : 8;
-const slotCount = homePlaylistsExpanded ? orderedPlaylists.length : defaultSlots;
-
 const pinnedIds = loadPinnedPlaylists();
 const pinnedSet = new Set(pinnedIds);
 const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
 const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
 const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+
+// ✅ Mobile: show ALL playlists (scroll horizontally instead of "only 4")
+const defaultSlots = isMobile ? orderedPlaylists.length : 8;
+const slotCount = homePlaylistsExpanded ? orderedPlaylists.length : defaultSlots;
+
 const filled = orderedPlaylists.slice(0, slotCount);
 
 
