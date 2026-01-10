@@ -2293,10 +2293,8 @@ body.qs-lock {
 
 
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
-  <!-- (Removed on mobile Library) -->
+  <div id="mobile-library-header" class="hidden md:hidden mb-4">
 
-                        <!-- MOBILE: Library header (Spotify-ish) -->
-<div id="mobile-library-header" class="md:hidden mb-4">
   <!-- Top row -->
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -5703,10 +5701,18 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
+            const userId = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "");
+    const url =
+      'https://music-streamer.jacetbaum.workers.dev/api/get-songs?userId=' +
+      encodeURIComponent(userId) +
+      '&t=' + Date.now();
+
     const response = await fetch(
-      'https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(),
+      url,
       { signal: controller.signal }
     );
+
+
 
     clearTimeout(timeoutId);
 
@@ -5719,11 +5725,14 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     window.libraryData = fresh;
 
     // ✅ DEBUG: prove we pulled from Cloudflare
-    window.__lastLibraryFetch = {
+        window.__lastLibraryFetch = {
       ok: true,
+      url,
+      status: response.status,
       count: Array.isArray(fresh) ? fresh.length : 0,
       at: Date.now()
     };
+
 
     // ✅ Save cache for next time (instant mobile Library)
 
@@ -6429,10 +6438,12 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu?.(); } catch (e) {}
   try { closeContextMenu?.(); } catch (e) {}
 
-  // Hide all main views first
-  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
-  });
+   });
+
+  // Also hide library-only UI when leaving Library
+  try { document.getElementById('mobile-library-header')?.classList.add('hidden'); } catch (e) {}
+  try { document.getElementById('library-search-overlay')?.classList.add('hidden'); } catch (e) {}
+
 
   // Show the requested view
   if (viewType === 'home') {
@@ -6440,8 +6451,10 @@ function showView(viewType, playlistIndex = null) {
     try { window.renderHome?.(); } catch (e) {}
   }
 
-    if (viewType === 'library') {
+        if (viewType === 'library') {
     try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (e) {}
+    try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
+
 
     const isMobile = window.innerWidth <= 768;
 
