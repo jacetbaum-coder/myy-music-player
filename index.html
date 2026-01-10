@@ -2220,9 +2220,13 @@ body.qs-lock {
 
         <div class="flex gap-2 overflow-x-auto no-scrollbar">
       <button id="home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button id="home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button id="home-chip-music" data-homechip="music"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition">Artists</button>
+
       <button id="home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-      <button id="home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+      <button id="home-chip-audio" data-homechip="audio"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition">Albums</button>
+
     </div>
 
   </div>
@@ -2268,10 +2272,13 @@ body.qs-lock {
 
             <div class="flex gap-2 overflow-x-auto">
         <button id="desktop-home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button id="desktop-home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button id="desktop-home-chip-music" data-homechip="music"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition">Artists</button>
+
         <button id="desktop-home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-        <button id="desktop-home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
-      </div>
+        <button id="desktop-home-chip-audio" data-homechip="audio"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition">Albums</button>
+
 
     </div>
 
@@ -9795,7 +9802,11 @@ if (!window.__homeChipsBound) {
   window.__homeChip = window.__homeChip || 'all';
 
   window.__applyHomeChipStyles = function () {
-    const ids = ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'];
+    const ids = [
+  'home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio',
+  'desktop-home-chip-all', 'desktop-home-chip-music', 'desktop-home-chip-playlists', 'desktop-home-chip-audio'
+];
+
     ids.forEach(id => {
       const btn = document.getElementById(id);
       if (!btn) return;
