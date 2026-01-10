@@ -2218,12 +2218,13 @@ body.qs-lock {
 </button>
 
 
-    <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button id="home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button id="home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button id="home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+      <button id="home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
     </div>
+
   </div>
 
     <!-- Playlists -->
@@ -2265,12 +2266,13 @@ body.qs-lock {
         <i class="fas fa-user text-white/70"></i>
       </div>
 
-      <div class="flex gap-2 overflow-x-auto">
-        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+            <div class="flex gap-2 overflow-x-auto">
+        <button id="desktop-home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button id="desktop-home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button id="desktop-home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+        <button id="desktop-home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
       </div>
+
     </div>
 
         <!-- Playlists -->
@@ -9809,11 +9811,32 @@ if (!window.__homeChipsBound) {
     });
   };
 
-  window.__applyHomeChipFilter = function () {
+   window.__applyHomeChipFilter = function () {
+    // ✅ Only hide/show Home sections while you are on Home.
+    // If you leave Home (ex: go to Library), force everything back on.
+    const isHome = (typeof navCurrent === 'object' && navCurrent && navCurrent.type === 'home');
+
+    const dRecentsRow = document.getElementById('desktop-recents-row');
+    const albumGrid = document.getElementById('album-grid');
+    const mRecentsRow = document.getElementById('home-recents-row');
+
+    if (!isHome) {
+      // restore anything the Home chip may have hidden
+      if (dRecentsRow) {
+        const h2 = dRecentsRow.previousElementSibling;
+        if (h2 && h2.tagName === 'H2') h2.style.display = '';
+        dRecentsRow.style.display = '';
+      }
+      if (albumGrid) albumGrid.style.display = '';
+      if (mRecentsRow && mRecentsRow.parentElement) {
+        mRecentsRow.parentElement.style.display = '';
+      }
+      return;
+    }
+
     const onlyPlaylists = (window.__homeChip === 'playlists');
 
     // Desktop: hide Recents row + its H2
-    const dRecentsRow = document.getElementById('desktop-recents-row');
     if (dRecentsRow) {
       const h2 = dRecentsRow.previousElementSibling;
       if (h2 && h2.tagName === 'H2') h2.style.display = onlyPlaylists ? 'none' : '';
@@ -9821,11 +9844,9 @@ if (!window.__homeChipsBound) {
     }
 
     // Desktop: hide the big album grid section (your library cards) when Playlists is selected
-    const albumGrid = document.getElementById('album-grid');
     if (albumGrid) albumGrid.style.display = onlyPlaylists ? 'none' : '';
 
     // Mobile: hide the whole Recents section container (the parent of #home-recents-row)
-    const mRecentsRow = document.getElementById('home-recents-row');
     if (mRecentsRow && mRecentsRow.parentElement) {
       mRecentsRow.parentElement.style.display = onlyPlaylists ? 'none' : '';
     }
@@ -9845,7 +9866,8 @@ if (!window.__homeChipsBound) {
     });
   }
 
-  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'].forEach(bindHomeChip);
+  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio', 'desktop-home-chip-all', 'desktop-home-chip-music', 'desktop-home-chip-playlists', 'desktop-home-chip-audio'].forEach(bindHomeChip);
+
 
   // initial apply
   try { window.__applyHomeChipStyles(); } catch (e) {}
