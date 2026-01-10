@@ -6515,12 +6515,17 @@ if (scrollArea) scrollArea.scrollTop = 0;
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  renderGrid(getLibraryGridData());
-  renderHistory();
-
   if (window.innerWidth <= 768) {
-    renderMobileRecents();
+    // MOBILE: Albums + Playlists together, alphabetical, 3 across
+    renderMobileLibraryGrid();
+  } else {
+    // DESKTOP: keep your existing Library behavior
+    renderGrid(getLibraryGridData());
   }
+
+  renderHistory();
+}
+
 }
 
     if (viewType === 'search') {
@@ -6822,7 +6827,104 @@ function onNavTap(viewType) {
           * ---------------------------------------------------------------------
           */
 
+function renderMobileLibraryGrid() {
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+
+  // Build combined items list (albums + playlists)
+  const albums = (Array.isArray(libraryData) ? libraryData : []).map(a => ({
+    type: 'album',
+    albumName: String(a.albumName || ''),
+    artistName: String(a.artistName || ''),
+    coverArt: a.coverArt
+  }));
+
+  const pls = (Array.isArray(playlists) ? playlists : []).map(pl => ({
+    type: 'playlist',
+    id: String(pl?.id || ''),
+    name: String(pl?.name || 'Playlist'),
+    cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
+  }));
+
+  const items = [...albums, ...pls].filter(x => (x.type === 'album' ? x.albumName : x.name));
+
+  // Alphabetical by display name
+  items.sort((a, b) => {
+    const an = (a.type === 'album' ? a.albumName : a.name);
+    const bn = (b.type === 'album' ? b.albumName : b.name);
+    return an.localeCompare(bn, undefined, { sensitivity: 'base' });
+  });
+
+  // Force 3 columns on mobile library
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+  grid.style.gap = '12px';
+
+  grid.innerHTML = items.map((item) => {
+    if (item.type === 'playlist') {
+      const safeId = String(item.id).replace(/"/g, '&quot;');
+      const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cover = item.cover ? String(item.cover) : '';
+      return `
+        <div class="album-card p-2"
+             data-type="playlist"
+             data-id="${safeId}">
+          <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
+            ${
+              cover
+                ? `<img src="${cover}" class="w-full h-full object-cover">`
+                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
+                     <i class="fas fa-music text-zinc-400"></i>
+                   </div>`
+            }
+          </div>
+          <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
+          <div class="text-xs text-zinc-400 truncate">Playlist</div>
+        </div>
+      `;
+    }
+
+    // album
+    const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
+    const cover = (typeof getAlbumCover === 'function')
+      ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
+      : '';
+    const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    return `
+      <div class="album-card p-2"
+           data-type="album"
+           data-album="${safeAlbum}">
+        <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
+          <img src="${cover}" class="w-full h-full object-cover">
+        </div>
+        <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
+        <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Click handling
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const type = card.getAttribute('data-type');
+
+      if (type === 'playlist') {
+        const id = card.getAttribute('data-id');
+        const idx = (Array.isArray(playlists) ? playlists : []).findIndex(pl => String(pl?.id) === String(id));
+        if (idx !== -1) showView('playlist', idx);
+        return;
+      }
+
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
+  });
+}
+
 function renderGrid(data) {
+
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
