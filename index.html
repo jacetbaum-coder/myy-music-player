@@ -5752,10 +5752,13 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
-    libraryData = await response.json();
-window.libraryData = libraryData;
+        libraryData = await response.json();
 
-if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+    // ✅ Expose albums to mobile renderers (they read window.libraryData)
+    window.libraryData = libraryData;
+
+    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+
 
 
 // ✅ Mark library as ready for rendering
@@ -6488,37 +6491,50 @@ const scrollArea = document.getElementById('main-scroll-area');
 if (scrollArea) scrollArea.scrollTop = 0;
 
 
-        if (viewType === 'home') {
-  // MOBILE: show the real Home screen
-  if (window.innerWidth <= 768) {
-    document.getElementById('home-view')?.classList.remove('hidden');
-    try { renderHome(); } catch (e) {}
-  } else {
-    // DESKTOP: Home shows the new header + still shows your library below
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
-    renderHistory();
-    try { renderHome(); } catch (e) {}
+         if (viewType === 'home') {
+    // MOBILE: show the real Home screen
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
+    } else {
+      // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+      try { renderHome(); } catch (e) {}
+    }
   }
-}
 
-if (viewType === 'library') {
-  document.getElementById('grid-view').classList.remove('hidden');
+  if (viewType === 'library') {
+    document.getElementById('grid-view').classList.remove('hidden');
 
-  // MOBILE: show Albums + Playlists A–Z, 3 across
-  if (window.innerWidth <= 768) {
+    // DESKTOP: unchanged
+    if (window.innerWidth > 768) {
+      renderGrid(getLibraryGridData());
+      renderHistory();
+      return;
+    }
+
+    // MOBILE: wait until fetch finished
+    if (!libraryReady) {
+      const grid = document.getElementById('album-grid');
+      if (grid) {
+        grid.innerHTML = `
+          <div class="text-zinc-400 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
+            Loading library…
+          </div>
+        `;
+      }
+      return;
+    }
+
+    // MOBILE: Albums + Playlists together A–Z, 3 across
     renderMobileLibraryGrid();
     renderHistory();
     return;
   }
 
-  // DESKTOP: keep your existing Library behavior
-  renderGrid(getLibraryGridData());
-  renderHistory();
-  return;
-}
-
-
+  if (viewType === 'search') {
 
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
