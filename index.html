@@ -6831,6 +6831,20 @@ function onNavTap(viewType) {
           */
 
 function renderMobileLibraryGrid() {
+      const dbg = document.createElement('div');
+  dbg.style.position = 'fixed';
+  dbg.style.top = '120px';
+  dbg.style.left = '0';
+  dbg.style.right = '0';
+  dbg.style.zIndex = '9999';
+  dbg.style.background = '#1db954';
+  dbg.style.color = 'black';
+  dbg.style.fontSize = '12px';
+  dbg.style.padding = '6px 10px';
+  dbg.style.fontWeight = 'bold';
+  dbg.textContent = 'renderMobileLibraryGrid() CALLED';
+  document.body.appendChild(dbg);
+
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
