@@ -6515,18 +6515,19 @@ if (scrollArea) scrollArea.scrollTop = 0;
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  // Treat iPad / “mobile-ish” widths as mobile Library too
-  const isNarrow = window.innerWidth <= 1024;
-
-  if (isNarrow) {
-    // MOBILE: Albums + Playlists together, alphabetical, 3 across
-    renderMobileLibraryGrid();
-  } else {
-    // DESKTOP: keep your existing Library behavior
+  // ✅ Desktop: keep your existing desktop library renderer
+  if (window.innerWidth > 768) {
     renderGrid(getLibraryGridData());
+    renderHistory();
+    return;
   }
 
-  renderHistory();
+  // ✅ Mobile: render Albums + Playlists together (3 across), then refresh mobile recents
+  try { renderMobileLibraryGrid(); } catch (e) { console.warn('renderMobileLibraryGrid failed:', e); }
+  try { renderMobileRecents(); } catch (e) {}
+
+  try { renderHistory(); } catch (e) {}
+  return;
 }
 
 
@@ -6850,10 +6851,19 @@ function renderMobileLibraryGrid() {
 
   try {
     // ✅ Albums: use the SAME source desktop uses (already sorted modes etc.)
-    const albumRows =
-      (typeof getLibraryGridData === 'function')
-        ? (getLibraryGridData() || [])
-        : (Array.isArray(window.libraryData) ? window.libraryData : []);
+        // ✅ Albums: prefer the filtered/sorted source if it has data,
+    // otherwise fall back to the raw libraryData (this is what desktop Home uses)
+    let albumRows = [];
+
+    if (typeof getLibraryGridData === 'function') {
+      try { albumRows = getLibraryGridData() || []; } catch (e) { albumRows = []; }
+    }
+
+    // If the "smart" source is empty on mobile, use the real library data
+    if (!Array.isArray(albumRows) || albumRows.length === 0) {
+      albumRows = Array.isArray(window.libraryData) ? window.libraryData : [];
+    }
+
 
     // Dedupe albums by "artist|album"
     const seen = new Set();
