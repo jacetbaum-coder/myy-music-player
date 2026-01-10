@@ -6502,14 +6502,6 @@ function showView(viewType, playlistIndex = null) {
   // Make the tab highlight update
   try { updateActiveStates?.(viewType); } catch (e) {}
 }
-
-
-
-  updateActiveStates(viewType);
-}
-
-
-
         function updateActiveStates(viewType) {
   const isMobile = window.innerWidth <= 768;
 
