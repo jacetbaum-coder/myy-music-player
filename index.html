@@ -6515,7 +6515,10 @@ if (scrollArea) scrollArea.scrollTop = 0;
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  if (window.innerWidth <= 768) {
+  // Treat iPad / “mobile-ish” widths as mobile Library too
+  const isNarrow = window.innerWidth <= 1024;
+
+  if (isNarrow) {
     // MOBILE: Albums + Playlists together, alphabetical, 3 across
     renderMobileLibraryGrid();
   } else {
@@ -6525,6 +6528,7 @@ if (scrollArea) scrollArea.scrollTop = 0;
 
   renderHistory();
 }
+
 
 
     if (viewType === 'search') {
@@ -6838,12 +6842,13 @@ function renderMobileLibraryGrid() {
     coverArt: a.coverArt
   }));
 
-  const pls = (Array.isArray(playlists) ? playlists : []).map(pl => ({
-    type: 'playlist',
-    id: String(pl?.id || ''),
-    name: String(pl?.name || 'Playlist'),
-    cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
-  }));
+  const pls = ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []).map(pl => ({
+  type: 'playlist',
+  id: String(pl?.id || ''),
+  name: String(pl?.name || 'Playlist'),
+  cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
+}));
+
 
   const items = [...albums, ...pls].filter(x => (x.type === 'album' ? x.albumName : x.name));
 
