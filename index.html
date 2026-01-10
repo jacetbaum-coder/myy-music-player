@@ -6887,6 +6887,17 @@ function renderMobileLibraryGrid() {
     })).filter(p => p.name);
 
     const items = [...albums, ...pls];
+const items = [...albums, ...pls];
+
+// ✅ DEBUG: show counts on-screen (temporary)
+try {
+  dbg.textContent =
+    'renderMobileLibraryGrid CALLED | ' +
+    'albumRows=' + (albumRows ? albumRows.length : 0) + ' | ' +
+    'albums=' + albums.length + ' | ' +
+    'playlists=' + pls.length + ' | ' +
+    'items=' + items.length;
+} catch (e) {}
 
     // Alphabetical A–Z by display name (albumName or playlist name)
     items.sort((a, b) => {
