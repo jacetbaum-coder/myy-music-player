@@ -6834,97 +6834,140 @@ function renderMobileLibraryGrid() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  // Build combined items list (albums + playlists)
-  const albums = (Array.isArray(libraryData) ? libraryData : []).map(a => ({
-    type: 'album',
-    albumName: String(a.albumName || ''),
-    artistName: String(a.artistName || ''),
-    coverArt: a.coverArt
-  }));
+  try {
+    // ✅ Albums: use the SAME source desktop uses (already sorted modes etc.)
+    const albumRows =
+      (typeof getLibraryGridData === 'function')
+        ? (getLibraryGridData() || [])
+        : (Array.isArray(window.libraryData) ? window.libraryData : []);
 
-  const pls = ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []).map(pl => ({
-  type: 'playlist',
-  id: String(pl?.id || ''),
-  name: String(pl?.name || 'Playlist'),
-  cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
-}));
-
-
-  const items = [...albums, ...pls].filter(x => (x.type === 'album' ? x.albumName : x.name));
-
-  // Alphabetical by display name
-  items.sort((a, b) => {
-    const an = (a.type === 'album' ? a.albumName : a.name);
-    const bn = (b.type === 'album' ? b.albumName : b.name);
-    return an.localeCompare(bn, undefined, { sensitivity: 'base' });
-  });
-
-  // Force 3 columns on mobile library
-  grid.style.display = 'grid';
-  grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
-  grid.style.gap = '12px';
-
-  grid.innerHTML = items.map((item) => {
-    if (item.type === 'playlist') {
-      const safeId = String(item.id).replace(/"/g, '&quot;');
-      const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const cover = item.cover ? String(item.cover) : '';
-      return `
-        <div class="album-card p-2"
-             data-type="playlist"
-             data-id="${safeId}">
-          <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-            ${
-              cover
-                ? `<img src="${cover}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
-                     <i class="fas fa-music text-zinc-400"></i>
-                   </div>`
-            }
-          </div>
-          <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
-          <div class="text-xs text-zinc-400 truncate">Playlist</div>
-        </div>
-      `;
+    // Dedupe albums by "artist|album"
+    const seen = new Set();
+    const albums = [];
+    for (const a of albumRows) {
+      const artist = String(a?.artistName || '');
+      const album = String(a?.albumName || '');
+      if (!album) continue;
+      const key = (artist + '|' + album).toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      albums.push({
+        type: 'album',
+        albumName: album,
+        artistName: artist,
+        coverArt: a?.coverArt
+      });
     }
 
-    // album
-    const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
-    const cover = (typeof getAlbumCover === 'function')
-      ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
-      : '';
-    const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // ✅ Playlists: prefer cloudPlaylists if present, else fallback to playlists, else []
+    const plSource =
+      (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
+        ? window.cloudPlaylists
+        : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
 
-    return `
-      <div class="album-card p-2"
-           data-type="album"
-           data-album="${safeAlbum}">
-        <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover">
+    const pls = plSource.map(pl => ({
+      type: 'playlist',
+      id: String(pl?.id || ''),
+      name: String(pl?.name || 'Playlist'),
+      cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
+    })).filter(p => p.name);
+
+    const items = [...albums, ...pls];
+
+    // Alphabetical A–Z by display name (albumName or playlist name)
+    items.sort((a, b) => {
+      const an = (a.type === 'album' ? a.albumName : a.name);
+      const bn = (b.type === 'album' ? b.albumName : b.name);
+      return String(an).localeCompare(String(bn), undefined, { sensitivity: 'base' });
+    });
+
+    // Force 3 columns on mobile Library
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+    grid.style.gap = '12px';
+
+    if (!items.length) {
+      grid.innerHTML = `
+        <div class="text-zinc-400 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
+          Nothing to show yet (albums/playlists list is empty).
         </div>
-        <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
-        <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
-      </div>
-    `;
-  }).join('');
+      `;
+      return;
+    }
 
-  // Click handling
-  [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
-
-      if (type === 'playlist') {
-        const id = card.getAttribute('data-id');
-        const idx = (Array.isArray(playlists) ? playlists : []).findIndex(pl => String(pl?.id) === String(id));
-        if (idx !== -1) showView('playlist', idx);
-        return;
+    grid.innerHTML = items.map((item) => {
+      if (item.type === 'playlist') {
+        const safeId = String(item.id).replace(/"/g, '&quot;');
+        const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const cover = item.cover ? String(item.cover) : '';
+        return `
+          <div class="album-card p-2"
+               data-type="playlist"
+               data-id="${safeId}">
+            <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
+              ${
+                cover
+                  ? `<img src="${cover}" class="w-full h-full object-cover">`
+                  : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
+                       <i class="fas fa-music text-zinc-400"></i>
+                     </div>`
+              }
+            </div>
+            <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
+            <div class="text-xs text-zinc-400 truncate">Playlist</div>
+          </div>
+        `;
       }
 
-      const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
+      // album card
+      const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
+      const cover = (typeof getAlbumCover === 'function')
+        ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
+        : '';
+      const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      return `
+        <div class="album-card p-2"
+             data-type="album"
+             data-album="${safeAlbum}">
+          <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
+            <img src="${cover}" class="w-full h-full object-cover">
+          </div>
+          <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
+          <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
+        </div>
+      `;
+    }).join('');
+
+    // Click handling
+    [...grid.querySelectorAll('.album-card')].forEach(card => {
+      card.addEventListener('click', () => {
+        const type = card.getAttribute('data-type');
+
+        if (type === 'playlist') {
+          const id = card.getAttribute('data-id');
+          const source =
+            (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
+              ? window.cloudPlaylists
+              : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
+          const idx = source.findIndex(pl => String(pl?.id) === String(id));
+          if (idx !== -1) showView('playlist', idx);
+          return;
+        }
+
+        const album = card.getAttribute('data-album');
+        if (album) openAlbumByName(album);
+      });
     });
-  });
+  } catch (e) {
+    console.error('renderMobileLibraryGrid failed:', e);
+    grid.innerHTML = `
+      <div class="text-red-300 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
+        Library grid failed to render. Check console for "renderMobileLibraryGrid failed".
+      </div>
+    `;
+  }
 }
 
 function renderGrid(data) {
