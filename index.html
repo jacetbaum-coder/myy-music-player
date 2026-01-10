@@ -6500,12 +6500,12 @@ if (scrollArea) scrollArea.scrollTop = 0;
 if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-    // ✅ MOBILE: Spotify-ish Library layout
+  // ✅ MOBILE: Spotify-ish Library layout
   if (window.innerWidth <= 768) {
     // show the mobile header (visual)
     try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
 
-       // render combined playlists + albums A–Z into #album-grid
+    // render combined playlists + albums A–Z into #album-grid
     try { renderMobileLibraryGrid(); } catch (e) { console.error(e); }
 
     // ✅ If the cloud library is still loading when you tap Library,
@@ -6520,14 +6520,16 @@ if (viewType === 'library') {
 
     try { renderHistory(); } catch (e) {}
     return;
-
-
+  }
 
   // DESKTOP: keep your existing Library behavior
   renderGrid(getLibraryGridData());
   renderHistory();
   return;
 }
+
+if (viewType === 'search') {
+
 
 
 
