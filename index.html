@@ -2295,11 +2295,63 @@ body.qs-lock {
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
   <!-- (Removed on mobile Library) -->
 
-                        <!-- MOBILE LIBRARY RESET (temporary) -->
-        <div id="mobile-library-reset" class="md:hidden mb-4">
-          <div class="text-3xl font-black leading-none">My Library</div>
-          <div class="text-zinc-400 text-sm mt-2">Library: empty</div>
-        </div>
+                        <!-- MOBILE: Library header (Spotify-ish) -->
+<div id="mobile-library-header" class="md:hidden mb-4">
+  <!-- Top row -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <!-- placeholder profile pic -->
+      <button type="button"
+              class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+              aria-label="Profile">
+        <i class="fas fa-user text-white/70 text-sm"></i>
+      </button>
+
+      <div class="text-3xl font-black leading-none">Your Library</div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <!-- search icon -->
+      <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white" aria-label="Search">
+        <i class="fas fa-search text-xl"></i>
+      </button>
+
+      <!-- plus icon (keeps your existing createNewPlaylist behavior) -->
+      <button id="library-plus-btn" type="button" class="text-white/90 hover:text-white" aria-label="Add"
+              onclick="createNewPlaylist()">
+        <i class="fas fa-plus text-2xl"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter chips row (visual only for now) -->
+  <div class="flex items-center gap-2 mt-4 overflow-x-auto no-scrollbar">
+    <button id="lib-chip-playlists" type="button"
+            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+      Playlists
+    </button>
+    <button id="lib-chip-podcasts" type="button"
+            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+      Podcasts
+    </button>
+    <button id="lib-chip-audiobooks" type="button"
+            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+      Audiobooks
+    </button>
+  </div>
+
+  <!-- Sort / layout row -->
+  <div class="flex items-center justify-between mt-4">
+    <div class="flex items-center gap-2 text-white/90">
+      <i class="fas fa-sort-alpha-down"></i>
+      <div class="font-extrabold">Alphabetical</div>
+    </div>
+
+    <button id="lib-grid-icon-btn" type="button" class="text-white/80 hover:text-white" aria-label="Grid">
+      <i class="fas fa-th-large text-lg"></i>
+    </button>
+  </div>
+</div>
 
 
     <!-- Albums header (temporarily removed during mobile library reset) -->
@@ -6383,20 +6435,18 @@ if (scrollArea) scrollArea.scrollTop = 0;
 if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  // ✅ MOBILE RESET (temporary): show placeholder only
+    // ✅ MOBILE: Spotify-ish Library layout
   if (window.innerWidth <= 768) {
-    const grid = document.getElementById('album-grid');
-    if (grid) {
-      grid.style.display = 'block';
-      grid.innerHTML = `
-        <div style="padding:16px 6px; color:#a1a1aa; font-weight:800;">
-          Library: empty
-        </div>
-      `;
-    }
+    // show the mobile header (visual)
+    try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
+
+    // render combined playlists + albums A–Z into #album-grid
+    try { renderMobileLibraryGrid(); } catch (e) { console.error(e); }
+
     try { renderHistory(); } catch (e) {}
     return;
   }
+
 
   // DESKTOP: keep your existing Library behavior
   renderGrid(getLibraryGridData());
@@ -6707,19 +6757,8 @@ function onNavTap(viewType) {
           */
 
 function renderMobileLibraryGrid() {
-      const dbg = document.createElement('div');
-  dbg.style.position = 'fixed';
-  dbg.style.top = '120px';
-  dbg.style.left = '0';
-  dbg.style.right = '0';
-  dbg.style.zIndex = '9999';
-  dbg.style.background = '#1db954';
-  dbg.style.color = 'black';
-  dbg.style.fontSize = '12px';
-  dbg.style.padding = '6px 10px';
-  dbg.style.fontWeight = 'bold';
-  dbg.textContent = 'renderMobileLibraryGrid() CALLED';
-  document.body.appendChild(dbg);
+        // (debug banner removed)
+
 
   const grid = document.getElementById('album-grid');
   if (!grid) return;
@@ -6773,15 +6812,6 @@ function renderMobileLibraryGrid() {
 
 const items = [...albums, ...pls];
 
-// ✅ DEBUG: show counts on-screen (temporary)
-try {
-  dbg.textContent =
-    'renderMobileLibraryGrid CALLED | ' +
-    'albumRows=' + (albumRows ? albumRows.length : 0) + ' | ' +
-    'albums=' + albums.length + ' | ' +
-    'playlists=' + pls.length + ' | ' +
-    'items=' + items.length;
-} catch (e) {}
 
     // Alphabetical A–Z by display name (albumName or playlist name)
     items.sort((a, b) => {
@@ -6792,8 +6822,9 @@ try {
 
     // Force 3 columns on mobile Library
     grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
-    grid.style.gap = '12px';
+        grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+    grid.style.gap = '16px';
+
 
     if (!items.length) {
       grid.innerHTML = `
