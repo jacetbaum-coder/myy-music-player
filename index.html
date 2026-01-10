@@ -6512,23 +6512,34 @@ if (scrollArea) scrollArea.scrollTop = 0;
     }
   }
 
-  if (viewType === 'library') {
+ if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  // ✅ Desktop: keep your existing desktop library renderer
+  // ✅ Desktop: unchanged
   if (window.innerWidth > 768) {
     renderGrid(getLibraryGridData());
     renderHistory();
     return;
   }
 
-  // ✅ Mobile: render Albums + Playlists together (3 across), then refresh mobile recents
-  try { renderMobileLibraryGrid(); } catch (e) { console.warn('renderMobileLibraryGrid failed:', e); }
-  try { renderMobileRecents(); } catch (e) {}
+  // ✅ MOBILE FIX:
+  // If albums were never built yet, build them using the same path desktop uses
+  if (
+    (!Array.isArray(window.libraryData) || window.libraryData.length === 0) &&
+    typeof renderHome === 'function'
+  ) {
+    try {
+      renderHome(); // builds window.libraryData
+    } catch (e) {}
+  }
+
+  // Now render the mobile library grid
+  try { renderMobileLibraryGrid(); } catch (e) {}
 
   try { renderHistory(); } catch (e) {}
   return;
 }
+
 
 
 
