@@ -6419,247 +6419,91 @@ function initSearchSwipeDownClose() {
 
 function showView(viewType, playlistIndex = null) {
 
-    // Capture what's currently on screen so swipe-back shows it behind
-  window.captureSwipeBackUnderlay?.();
+  // Capture what's currently on screen so swipe-back shows it behind
+  try { window.captureSwipeBackUnderlay?.(); } catch (e) {}
+
   // BACK STACK: push the current state before switching views
-  pushNavCurrent();
+  try { window.pushNavCurrent?.(); } catch (e) {}
+  try { pushNavCurrent?.(); } catch (e) {}
 
-  try { hidePlaylistMenu(); } catch (e) {}
-  try { closeContextMenu(); } catch (e) {}
+  try { hidePlaylistMenu?.(); } catch (e) {}
+  try { closeContextMenu?.(); } catch (e) {}
 
-      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
+  // Hide all main views first
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
   });
 
-
-    activePlaylistIndex = playlistIndex;
-  activePlaylistId = null;
-
-  // ✅ Remember which bottom tab is the current "root" section on mobile.
-  // This is what prevents deep Library views (playlist/album) from flipping to Home.
-  try {
-    if (viewType === 'home' || viewType === 'library' || viewType === 'search') {
-      window.__rootTab = viewType;
-    }
-    if (!window.__rootTab) window.__rootTab = 'home';
-  } catch (e) {}
-
-
-// BACK STACK: set new current view
-if (viewType === 'home') setNavCurrent({ type: 'home' });
-else if (viewType === 'library') setNavCurrent({ type: 'library' });
-else if (viewType === 'search') setNavCurrent({ type: 'search' });
-else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
-else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-else if (viewType === 'playlist') {
-
-  const list = Array.isArray(playlists) ? playlists : [];
-  let idx = playlistIndex;
-
-  // If we got "12" as a string, convert to number
-  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-
-  // If we got an id string, try id -> index
-  if (typeof idx === 'string') {
-    const byId = list.findIndex(p => String(p?.id) === String(idx));
-    idx = byId;
+  // Show the requested view
+  if (viewType === 'home') {
+    try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (e) {}
+    try { window.renderHome?.(); } catch (e) {}
   }
 
-  const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+  if (viewType === 'library') {
+    try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (e) {}
 
-  setNavCurrent({
-    type: 'playlist',
-    playlistIndex: (Number.isInteger(idx) ? idx : null),
-    playlistId: plForNav?.id || null
-  });
+    // Use the same source desktop uses (whatever you already load into memory)
+    // Common candidates in your codebase: window.libraryData / window.albumData / window.allAlbums / libraryData
+    const lib =
+      (Array.isArray(window.libraryData) && window.libraryData) ||
+      (Array.isArray(window.albumData) && window.albumData) ||
+      (Array.isArray(window.allAlbums) && window.allAlbums) ||
+      (typeof libraryData !== 'undefined' && Array.isArray(libraryData) && libraryData) ||
+      [];
 
-} else {
-  setNavCurrent({ type: viewType || 'home' });
-}
-
-const scrollArea = document.getElementById('main-scroll-area');
-
-if (scrollArea) scrollArea.scrollTop = 0;
-
-
-        if (viewType === 'home') {
-  // MOBILE: show the real Home screen
-  if (window.innerWidth <= 768) {
-    document.getElementById('home-view')?.classList.remove('hidden');
-    try { renderHome(); } catch (e) {}
-  } else {
-    // DESKTOP: Home shows the new header + still shows your library below
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
-    renderHistory();
-    try { renderHome(); } catch (e) {}
-  }
-}
-
-if (viewType === 'library') {
-  document.getElementById('grid-view').classList.remove('hidden');
-
-  // ✅ MOBILE: Spotify-ish Library layout
-  if (window.innerWidth <= 768) {
-    // show the mobile header (visual)
-    try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
-
-    // render combined playlists + albums A–Z into #album-grid
-    try { renderMobileLibraryGrid(); } catch (e) { console.error(e); }
-
-    // ✅ If the cloud library is still loading when you tap Library,
-    // re-render shortly so the grid fills in (prevents “blank library”).
-    setTimeout(() => {
-      try {
-        if (navCurrent && navCurrent.type === 'library' && window.innerWidth <= 768) {
-          renderMobileLibraryGrid();
-        }
-      } catch (e) {}
-    }, 600);
-
-    try { renderHistory(); } catch (e) {}
-    return;
+    try { window.renderGrid?.(lib); } catch (e) {}
   }
 
-  // DESKTOP: keep your existing Library behavior
-  renderGrid(getLibraryGridData());
-  renderHistory();
-  return;
-}
-
-if (viewType === 'search') {
-
-
-
-
-
-    if (viewType === 'search') {
-    document.getElementById('search-view').classList.remove('hidden');
-    document.getElementById('global-search').focus();
+  if (viewType === 'search') {
+    try { document.getElementById('search-view')?.classList.remove('hidden'); } catch (e) {}
   }
 
   if (viewType === 'crate') {
-    document.getElementById('crate-view')?.classList.remove('hidden');
-    try { initCrateUIOnce(); } catch (e) {}
-    try { renderCrate(); } catch (e) {}
-    // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
+    try { document.getElementById('crate-view')?.classList.remove('hidden'); } catch (e) {}
+    try { window.renderCrate?.(); } catch (e) {}
   }
 
-
-
-  if (viewType === 'liked') {
-    document.getElementById('album-view').classList.remove('hidden');
-    renderCollection("Liked Songs", likedSongs);
+  // NOTE: In your app, playlists/albums often reuse the same "album-view" container.
+  if (viewType === 'album') {
+    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
   }
 
-        if (viewType === 'playlist') {
-  document.getElementById('album-view').classList.remove('hidden');
+  if (viewType === 'playlist') {
+    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
 
-  const list = Array.isArray(playlists) ? playlists : [];
-let idx = playlistIndex;
-
-if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
-
-const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
-
-// ✅ If playlist is missing, do NOT return (it would leave everything hidden)
-if (!pl) {
-  console.warn('showView(playlist): missing playlist for', playlistIndex);
-  showView('library');
-  return;
-}
-
-activePlaylistIndex = idx;
-activePlaylistId = pl.id;
-
-  playContext = { type: 'playlist', label: pl.name };
-
-  // 🔒 wrap async work so `await` is legal
-  (async () => {
+    // If a playlist exists in memory, render it. Otherwise fall back to Library (so you never get a blank screen).
     try {
-      const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
+      const list = Array.isArray(window.playlists) ? window.playlists : (Array.isArray(playlists) ? playlists : []);
+      let idx = playlistIndex;
 
-// Accept either:
-// - ["Artist/Album/Song.mp3", ...]
-// - [{ track_id:"Artist/Album/Song.mp3" }, ...]
-// - [{ key:"Artist/Album/Song.mp3" }, ...]
-// - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
-function canonTrackId(v) {
-  let s = String(v || "").trim();
-  if (!s) return "";
+      if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+      if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
 
-  // If we were given a full URL, pull out ?id=
-  try {
-    if (s.includes("://")) {
-      const u = new URL(s);
-      const id = u.searchParams.get("id");
-      if (id) s = id;
+      const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
+
+      if (!pl) {
+        showView('library');
+      } else {
+        // If your existing renderer expects (name, songs, isPlaylist, playlistIndex)
+        const ids = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+        const songs = (typeof resolveTrackIdsToSongs === 'function') ? resolveTrackIdsToSongs(ids) : [];
+        if (typeof renderCollection === 'function') renderCollection(pl.name || 'Playlist', songs, true, idx);
+      }
+    } catch (e) {
+      try { showView('library'); } catch (e2) {}
     }
-  } catch (e) {}
-
-  // If we were given just a query-ish string
-  if (s.includes("?id=")) {
-    try {
-      const part = s.split("?id=")[1] || "";
-      s = part.split("&")[0] || part;
-    } catch (e) {}
   }
-
-  // Decode %2F etc
-  try { s = decodeURIComponent(s); } catch (e) {}
-
-  // Strip leading slash if present
-  s = s.replace(/^\/+/, "").trim();
-
-  return s;
-}
-
-const itemsArr = Array.isArray(rawItems) ? rawItems : [];
-
-const normalizedIds = itemsArr
-  .map((x) => {
-    if (typeof x === "string") return canonTrackId(x);
-    if (x && typeof x === "object") {
-      return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
-    }
-    return "";
-  })
-  .filter(Boolean);
-
-// ✅ Always keep playlist as IDs-only
-pl.trackIds = normalizedIds;
-
-// ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
-
-// covers & render
-try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
-try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
-
-
-
-
-    } catch (err) {
-      console.warn(err);
-pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
-
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
-
-    }
-  })();
-}
-
-
-
 
   if (viewType === 'artist') {
-    document.getElementById('artist-view').classList.remove('hidden');
+    try { document.getElementById('artist-view')?.classList.remove('hidden'); } catch (e) {}
   }
+
+  // Make the tab highlight update
+  try { updateActiveStates?.(viewType); } catch (e) {}
+}
+
+
 
   updateActiveStates(viewType);
 }
