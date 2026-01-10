@@ -6544,11 +6544,14 @@ function showView(viewType, playlistIndex = null) {
    - Debounce rapid taps to prevent flicker / race conditions
    --------------------------------------------------------------------- */
 
-const __navTapLast = { home: 0, search: 0, library: 0 };
+const __dbgNavTapLast = { home: 0, search: 0, library: 0 };
+
 
 // Debounce for navigation (prevents multiple showView() calls fighting each other)
-let __navTapLockUntil = 0;
-let __navTapLastNavType = null;
+let __dbgNavTapLockUntil = 0;
+
+let __dbgNavTapLastNavType = null;
+
 
 function scrollMainToTopSmooth() {
   const area = document.getElementById('main-scroll-area');
@@ -6604,7 +6607,7 @@ function onNavTap(viewType) {
     // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       return;
     }
 
@@ -6615,45 +6618,45 @@ function onNavTap(viewType) {
       // Inside album/playlist → double-tap Library should go BACK
       if (viewType === 'library') {
         const now = Date.now();
-        const last = __navTapLast[viewType] || 0;
+        const last = __dbgNavTapLast[viewType] || 0;
 
         if (now - last <= 350) {
-          __navTapLast[viewType] = 0;
+          __dbgNavTapLast[viewType] = 0;
           goBack(); // restores Library + scroll position
         } else {
-          __navTapLast[viewType] = now;
+          __dbgNavTapLast[viewType] = now;
         }
         return;
       }
 
       // Other tabs keep old behavior
       popToRootSection(viewType);
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       return;
     }
 
     // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
-    const last = __navTapLast[viewType] || 0;
+    const last = __dbgNavTapLast[viewType] || 0;
 
     if (now - last <= 350) {
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       scrollMainToTopSmooth();
       return;
     }
 
-    __navTapLast[viewType] = now;
+    __dbgNavTapLast[viewType] = now;
     return; // wait for possible second tap
   }
 
   // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __navTapLast[viewType] = 0;
+  __dbgNavTapLast[viewType] = 0;
 
   const now = Date.now();
   if (isMobile) {
-    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
-    __navTapLastNavType = viewType;
-    __navTapLockUntil = now + 300; // 300ms debounce window
+    if (now < __dbgNavTapLockUntil && __dbgNavTapLastNavType === viewType) return;
+    __dbgNavTapLastNavType = viewType;
+    __dbgNavTapLockUntil = now + 300; // 300ms debounce window
   }
 
    // Normal navigation
@@ -6846,8 +6849,8 @@ function onNavTap(viewType) {
 const __navTapLast = { home: 0, search: 0, library: 0 };
 
 // Debounce for navigation (prevents multiple showView() calls fighting each other)
-let __navTapLockUntil = 0;
-let __navTapLastNavType = null;
+let __dbgNavTapLockUntil = 0;
+let __dbgNavTapLastNavType = null;
 
 function scrollMainToTopSmooth() {
   const area = document.getElementById('main-scroll-area');
@@ -6910,17 +6913,17 @@ function onNavTap(viewType) {
       } catch (err) {
         window.__dbgLog && window.__dbgLog(`❌ showView("crate") threw: ${err?.message || err}`);
       }
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       return;
     }
 
     if (currentType && currentType !== viewType) {
       if (viewType === 'library') {
         const now = Date.now();
-        const last = __navTapLast[viewType] || 0;
+        const last = __dbgNavTapLast[viewType] || 0;
 
         if (now - last <= 350) {
-          __navTapLast[viewType] = 0;
+          __dbgNavTapLast[viewType] = 0;
           try {
             window.__dbgLog && window.__dbgLog(`↩️ goBack() (double-tap Library while deep)`);
             goBack();
@@ -6928,22 +6931,22 @@ function onNavTap(viewType) {
             window.__dbgLog && window.__dbgLog(`❌ goBack() threw: ${err?.message || err}`);
           }
         } else {
-          __navTapLast[viewType] = now;
+          __dbgNavTapLast[viewType] = now;
         }
         return;
       }
 
       popToRootSection(viewType);
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       return;
     }
 
     // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
-    const last = __navTapLast[viewType] || 0;
+    const last = __dbgNavTapLast[viewType] || 0;
 
     if (now - last <= 350) {
-      __navTapLast[viewType] = 0;
+      __dbgNavTapLast[viewType] = 0;
       try {
         window.__dbgLog && window.__dbgLog(`⬆️ scrollMainToTopSmooth() (double-tap at root)`);
         scrollMainToTopSmooth();
@@ -6953,21 +6956,21 @@ function onNavTap(viewType) {
       return;
     }
 
-    __navTapLast[viewType] = now;
+    __dbgNavTapLast[viewType] = now;
     return; // wait for possible second tap
   }
 
   // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __navTapLast[viewType] = 0;
+  __dbgNavTapLast[viewType] = 0;
 
   const now = Date.now();
   if (isMobile) {
-    if (now < __navTapLockUntil && __navTapLastNavType === viewType) {
+    if (now < __dbgNavTapLockUntil && __dbgNavTapLastNavType === viewType) {
       try { window.__dbgLog && window.__dbgLog(`⏳ Debounced repeat tap: "${viewType}"`); } catch (e) {}
       return;
     }
-    __navTapLastNavType = viewType;
-    __navTapLockUntil = now + 300;
+    __dbgNavTapLastNavType = viewType;
+    __dbgNavTapLockUntil = now + 300;
   }
 
   // Normal navigation (wrapped)
