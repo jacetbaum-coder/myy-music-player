@@ -5715,10 +5715,18 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     const fresh = await response.json();
     if (!Array.isArray(fresh)) throw new Error('Invalid library response');
 
-    libraryData = fresh;
+        libraryData = fresh;
     window.libraryData = fresh;
 
+    // ✅ DEBUG: prove we pulled from Cloudflare
+    window.__lastLibraryFetch = {
+      ok: true,
+      count: Array.isArray(fresh) ? fresh.length : 0,
+      at: Date.now()
+    };
+
     // ✅ Save cache for next time (instant mobile Library)
+
     try {
       localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(fresh));
     } catch (e) {}
@@ -5751,7 +5759,15 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   } catch (error) {
     console.error("Fetch error:", error);
 
+    // ✅ DEBUG: record failure reason (so Library can show it)
+    window.__lastLibraryFetch = {
+      ok: false,
+      error: String(error && (error.message || error) || "unknown"),
+      at: Date.now()
+    };
+
     // ✅ IMPORTANT: Do NOT wipe libraryData here.
+
     // If cache existed, it remains usable for mobile Library.
     const loading = document.getElementById('loading');
     if (loading) {
@@ -6489,12 +6505,22 @@ if (viewType === 'library') {
     // show the mobile header (visual)
     try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
 
-    // render combined playlists + albums A–Z into #album-grid
+       // render combined playlists + albums A–Z into #album-grid
     try { renderMobileLibraryGrid(); } catch (e) { console.error(e); }
+
+    // ✅ If the cloud library is still loading when you tap Library,
+    // re-render shortly so the grid fills in (prevents “blank library”).
+    setTimeout(() => {
+      try {
+        if (navCurrent && navCurrent.type === 'library' && window.innerWidth <= 768) {
+          renderMobileLibraryGrid();
+        }
+      } catch (e) {}
+    }, 600);
 
     try { renderHistory(); } catch (e) {}
     return;
-  }
+
 
 
   // DESKTOP: keep your existing Library behavior
@@ -6806,27 +6832,46 @@ function onNavTap(viewType) {
           */
 
 function renderMobileLibraryGrid() {
-        // (debug banner removed)
-
-
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
+  // Always show *something* so we know the function ran
+  const fetchInfo = window.__lastLibraryFetch || null;
+  const albumsCount = Array.isArray(window.libraryData) ? window.libraryData.length : 0;
+  const plsCount = Array.isArray(window.cloudPlaylists)
+    ? window.cloudPlaylists.length
+    : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists.length : 0);
+
+  // If we truly have nothing yet, show a loading message (normal on slow mobile)
+  if (!albumsCount && !plsCount) {
+    grid.style.display = 'block';
+    grid.style.gridTemplateColumns = '';
+    grid.style.gap = '';
+    grid.innerHTML = `
+      <div class="text-zinc-300 text-sm" style="padding: 12px 4px;">
+        <div class="font-extrabold text-white mb-1">Loading your cloud library…</div>
+        <div class="text-zinc-400">Albums: ${albumsCount} • Playlists: ${plsCount}</div>
+        ${
+          fetchInfo
+            ? `<div class="text-zinc-500 mt-1">Cloudflare fetch: ${fetchInfo.ok ? 'OK' : 'FAILED'}${(fetchInfo.count != null) ? (' • ' + fetchInfo.count + ' albums') : ''}</div>`
+            : `<div class="text-zinc-500 mt-1">Cloudflare fetch: (no status yet)</div>`
+        }
+      </div>
+    `;
+    return;
+  }
+
   try {
-    // ✅ Albums: use the SAME source desktop uses (already sorted modes etc.)
-        // ✅ Albums: prefer the filtered/sorted source if it has data,
-    // otherwise fall back to the raw libraryData (this is what desktop Home uses)
+    // Albums: use desktop source if available; fallback to raw cloud library
     let albumRows = [];
 
     if (typeof getLibraryGridData === 'function') {
       try { albumRows = getLibraryGridData() || []; } catch (e) { albumRows = []; }
     }
 
-    // If the "smart" source is empty on mobile, use the real library data
     if (!Array.isArray(albumRows) || albumRows.length === 0) {
       albumRows = Array.isArray(window.libraryData) ? window.libraryData : [];
     }
-
 
     // Dedupe albums by "artist|album"
     const seen = new Set();
@@ -6846,7 +6891,7 @@ function renderMobileLibraryGrid() {
       });
     }
 
-    // ✅ Playlists: prefer cloudPlaylists if present, else fallback to playlists, else []
+    // Playlists: prefer cloudPlaylists if present, else fallback to playlists, else []
     const plSource =
       (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
         ? window.cloudPlaylists
@@ -6859,8 +6904,7 @@ function renderMobileLibraryGrid() {
       cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
     })).filter(p => p.name);
 
-const items = [...albums, ...pls];
-
+    const items = [...albums, ...pls];
 
     // Alphabetical A–Z by display name (albumName or playlist name)
     items.sort((a, b) => {
@@ -6869,11 +6913,10 @@ const items = [...albums, ...pls];
       return String(an).localeCompare(String(bn), undefined, { sensitivity: 'base' });
     });
 
-    // Force 3 columns on mobile Library
+    // Force 2 columns on mobile Library
     grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+    grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
     grid.style.gap = '16px';
-
 
     if (!items.length) {
       grid.innerHTML = `
@@ -6884,11 +6927,17 @@ const items = [...albums, ...pls];
       return;
     }
 
-    grid.innerHTML = items.map((item) => {
+    const debugLine = `
+      <div class="text-zinc-500 text-xs" style="grid-column: 1 / -1; margin: -4px 0 4px;">
+        Debug: albums=${albums.length} • playlists=${pls.length} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}
+      </div>
+    `;
+
+    grid.innerHTML = debugLine + items.map((item) => {
       if (item.type === 'playlist') {
         const safeId = String(item.id).replace(/"/g, '&quot;');
         const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const cover = item.cover ? String(item.cover) : '';
+        const cover = item.cover ? String(item.cover).replace(/"/g, '&quot;') : '';
         return `
           <div class="album-card p-2"
                data-type="playlist"
@@ -6908,11 +6957,19 @@ const items = [...albums, ...pls];
         `;
       }
 
-      // album card
+      // album card (with placeholder if cover missing)
       const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
-      const cover = (typeof getAlbumCover === 'function')
-        ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
-        : '';
+
+      let cover = '';
+      try {
+        cover = (typeof getAlbumCover === 'function')
+          ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
+          : '';
+      } catch (e) {
+        cover = '';
+      }
+      cover = cover ? String(cover).replace(/"/g, '&quot;') : '';
+
       const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -6921,7 +6978,13 @@ const items = [...albums, ...pls];
              data-type="album"
              data-album="${safeAlbum}">
           <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-            <img src="${cover}" class="w-full h-full object-cover">
+            ${
+              cover
+                ? `<img src="${cover}" class="w-full h-full object-cover">`
+                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
+                     <i class="fas fa-compact-disc text-zinc-400"></i>
+                   </div>`
+            }
           </div>
           <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
           <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
@@ -6958,6 +7021,7 @@ const items = [...albums, ...pls];
     `;
   }
 }
+
 
 function renderGrid(data) {
 
