@@ -6440,20 +6440,63 @@ function showView(viewType, playlistIndex = null) {
     try { window.renderHome?.(); } catch (e) {}
   }
 
-  if (viewType === 'library') {
+    if (viewType === 'library') {
     try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (e) {}
 
-    // Use the same source desktop uses (whatever you already load into memory)
-    // Common candidates in your codebase: window.libraryData / window.albumData / window.allAlbums / libraryData
-    const lib =
+    const isMobile = window.innerWidth <= 768;
+
+    // Source candidates (tracks or albums)
+    const raw =
       (Array.isArray(window.libraryData) && window.libraryData) ||
       (Array.isArray(window.albumData) && window.albumData) ||
       (Array.isArray(window.allAlbums) && window.allAlbums) ||
       (typeof libraryData !== 'undefined' && Array.isArray(libraryData) && libraryData) ||
       [];
 
-    try { window.renderGrid?.(lib); } catch (e) {}
+    // Derive albums if the library is actually track rows
+    let albums = [];
+    try {
+      albums = (typeof __resonGetAlbumRowsForLibrary === 'function')
+        ? __resonGetAlbumRowsForLibrary(raw)
+        : [];
+    } catch (e) {
+      albums = [];
+    }
+
+    // Mobile gets the Spotify-ish combined grid (albums + playlists)
+    if (isMobile && typeof renderMobileLibraryGrid === 'function') {
+      try {
+        const fetchInfo = window.__lastLibraryFetch || null;
+        const plsCount = Array.isArray(window.cloudPlaylists)
+          ? window.cloudPlaylists.length
+          : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists.length : 0);
+
+        try {
+          if (typeof __resonDbg === 'function') {
+            __resonDbg(
+              `Library: raw=${raw.length} • albums=${albums.length} • playlists=${plsCount} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}`
+            );
+          }
+        } catch (e) {}
+
+        renderMobileLibraryGrid();
+      } catch (e) {}
+      return;
+    }
+
+    // Desktop (or fallback): render albums-only grid
+    try {
+      const fetchInfo = window.__lastLibraryFetch || null;
+      if (typeof __resonDbg === 'function') {
+        __resonDbg(
+          `Library (desktop/fallback): raw=${raw.length} • albums=${albums.length} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}`
+        );
+      }
+    } catch (e) {}
+
+    try { window.renderGrid?.(albums); } catch (e) {}
   }
+
 
   if (viewType === 'search') {
     try { document.getElementById('search-view')?.classList.remove('hidden'); } catch (e) {}
@@ -6669,8 +6712,97 @@ function onNavTap(viewType) {
    RENDERERS
 --------------------------------------------------------------------- */
 
+/**
+ * Mobile-visible debug toast (since you don't have console on phone)
+ */
+function __resonDbg(msg) {
+  try {
+    window.__resonDbgLog = window.__resonDbgLog || [];
+    window.__resonDbgLog.push({ t: Date.now(), msg: String(msg) });
+
+    let el = document.getElementById('reson-debug-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'reson-debug-toast';
+      el.style.cssText =
+        'position:fixed;left:12px;right:12px;bottom:84px;z-index:999999;' +
+        'background:rgba(0,0,0,0.78);color:#fff;padding:10px 12px;border-radius:14px;' +
+        'font-size:12px;line-height:1.35;backdrop-filter:blur(6px);' +
+        'border:1px solid rgba(255,255,255,0.12);';
+      document.body.appendChild(el);
+    }
+
+    el.textContent = String(msg);
+
+    try { clearTimeout(window.__resonDbgTimer); } catch (e) {}
+    window.__resonDbgTimer = setTimeout(() => {
+      try { el.remove(); } catch (e) {}
+    }, 3500);
+  } catch (e) {}
+}
+
+/**
+ * If Cloudflare returns TRACK rows, derive ALBUM rows:
+ * group by (artist + album).
+ *
+ * Accepts track shapes like:
+ *  - { artist, album, title, ... }
+ *  - { artistName, albumName, title, ... }
+ */
+function __resonDeriveAlbumsFromSongs(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const map = new Map();
+
+  for (const r of list) {
+    const artist = String(r?.artistName || r?.artist || '').trim();
+    const album = String(r?.albumName || r?.album || '').trim();
+    if (!album) continue;
+
+    const key = (artist + '|' + album).toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, {
+        artistName: artist,
+        albumName: album,
+        coverArt: r?.coverArt || r?.cover || r?.albumArt || r?.art || null
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    String(a.albumName || '').localeCompare(String(b.albumName || ''), undefined, { sensitivity: 'base' })
+  );
+}
+
+/**
+ * Returns ALBUM rows no matter what `window.libraryData` contains.
+ * - If rows already look like albums (albumName exists), keep them.
+ * - Otherwise derive from track rows.
+ */
+function __resonGetAlbumRowsForLibrary(rawRows) {
+  const rows = Array.isArray(rawRows) ? rawRows : [];
+
+  // If it already looks like album rows, keep it
+  const looksLikeAlbums = rows.length && rows.some(x => x && (x.albumName || x.artistName));
+  if (looksLikeAlbums) return rows;
+
+  // Otherwise derive albums from track list
+  const derived = __resonDeriveAlbumsFromSongs(rows);
+
+  // Keep a debug breadcrumb
+  try {
+    window.__lastLibraryDerive = {
+      ok: true,
+      rawCount: rows.length,
+      albumCount: derived.length,
+      at: Date.now()
+    };
+  } catch (e) {}
+
+  return derived;
+}
 
 function renderMobileLibraryGrid() {
+
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
@@ -6708,11 +6840,15 @@ function renderMobileLibraryGrid() {
       try { albumRows = getLibraryGridData() || []; } catch (e) { albumRows = []; }
     }
 
-    if (!Array.isArray(albumRows) || albumRows.length === 0) {
-      albumRows = Array.isArray(window.libraryData) ? window.libraryData : [];
+        if (!Array.isArray(albumRows) || albumRows.length === 0) {
+      const raw = Array.isArray(window.libraryData) ? window.libraryData : [];
+      albumRows = (typeof __resonGetAlbumRowsForLibrary === 'function')
+        ? __resonGetAlbumRowsForLibrary(raw)
+        : raw;
     }
 
     // Dedupe albums by "artist|album"
+
     const seen = new Set();
     const albums = [];
     for (const a of albumRows) {
