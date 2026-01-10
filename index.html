@@ -5758,15 +5758,26 @@ if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 // ✅ Mark library as ready for rendering
 libraryReady = true;
 
+// If user is already on Library (mobile), render it now that data exists
+try {
+  if (
+    window.navCurrent &&
+    window.navCurrent.type === 'library' &&
+    window.innerWidth <= 768
+  ) {
+    renderMobileLibraryGrid();
+  }
+} catch (e) {}
+
 // Keep original order for "Recently added"
 libraryDataOriginal = libraryData.slice();
 
 // Sort library alphabetically by album (Library grid)
+libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+document.getElementById('loading')?.classList.add('hidden');
+safe(window.showView, 'home');
 
-    document.getElementById('loading')?.classList.add('hidden');
-    safe(window.showView, 'home');
     safe(window.renderHome);
   } catch (error) {
     console.error("Fetch error:", error);
