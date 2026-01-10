@@ -5729,10 +5729,11 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     // If user is already on Library (mobile), render it now that data exists
     try {
       if (
-        window.navCurrent &&
-        window.navCurrent.type === 'library' &&
+        navCurrent &&
+        navCurrent.type === 'library' &&
         window.innerWidth <= 768
       ) {
+
         renderMobileLibraryGrid();
       }
     } catch (e) {}
@@ -5984,7 +5985,10 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
+  // ✅ Keep a window-visible copy (async code reads this)
+  window.navCurrent = navCurrent;
 }
+
 
 function pushNavCurrent() {
   if (__isBackNav) return;
