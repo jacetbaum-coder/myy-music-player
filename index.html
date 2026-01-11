@@ -2438,7 +2438,8 @@ body.qs-lock {
   <!-- Albums header -->
 
   <div class="mb-4">
-    <h2 class="text-3xl font-black">Albums</h2>
+    <h2 id="library-section-title" class="text-3xl font-black">Albums</h2>
+
   </div>
 
   <!-- ONE album grid only -->
@@ -6880,6 +6881,15 @@ function renderLibraryPlaylists() {
 // -----------------------
 let libraryTopTab = localStorage.getItem('libraryTopTab') || 'albums';
 
+function updateLibrarySectionTitle() {
+  const el = document.getElementById('library-section-title');
+  if (!el) return;
+  el.textContent = (libraryTopTab === 'playlists') ? 'Playlists' : 'Albums';
+}
+
+function updateMobileLibraryTabUI() {
+
+
 function updateMobileLibraryTabUI() {
   const btnP = document.getElementById('mobile-lib-tab-playlists');
   const btnA = document.getElementById('mobile-lib-tab-albums');
@@ -6897,7 +6907,9 @@ function setLibraryTopTab(tab) {
   libraryTopTab = tab;
   localStorage.setItem('libraryTopTab', tab);
 
-  updateMobileLibraryTabUI();
+    updateMobileLibraryTabUI();
+  updateLibrarySectionTitle();
+
 
   // If we're currently in Library, re-render immediately
   if (navCurrent && navCurrent.type === 'library') {
@@ -6915,7 +6927,9 @@ function initMobileLibraryTabsOnce() {
   if (btnP) btnP.addEventListener('click', () => setLibraryTopTab('playlists'));
   if (btnA) btnA.addEventListener('click', () => setLibraryTopTab('albums'));
 
-  updateMobileLibraryTabUI();
+    updateMobileLibraryTabUI();
+  updateLibrarySectionTitle();
+
 }
 
 function renderLibraryPlaylists() {
