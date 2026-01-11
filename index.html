@@ -4903,6 +4903,7 @@ function getLibraryGridData() {
     return m;
   })(librarySortMode);
 
+
   if (mode === 'Recently added') {
     return original;
   }
@@ -5036,13 +5037,48 @@ function initLibraryControls() {
 
   // Set initial label
   const label = document.getElementById('library-sort-label');
-  if (label) label.textContent = librarySortMode;
+  updateLibrarySortUIForTopTab();
+
 
   // Ensure slider state is correct on startup
   applyLibraryGridCols();
 }
 
+function updateLibrarySortUIForTopTab() {
+  const label = document.getElementById('library-sort-label');
+  const menu = document.getElementById('library-sort-menu');
+  const isAll = (libraryTopTab === 'all');
+
+  // Label: "Alphabetical" for everything except All
+  if (label) label.textContent = isAll ? librarySortMode : 'Alphabetical';
+
+  if (!menu) return;
+
+  // The first header is "Sort by", the second is "View as"
+  const headers = menu.querySelectorAll('div.px-4.py-3.text-xs');
+  const sortHeader = headers && headers[0] ? headers[0] : null;
+
+  // The divider between Sort-by and View-as
+  const divider = menu.querySelector('div.h-px.bg-white\\/10.my-2');
+
+  // Sort-by buttons
+  const sortItems = menu.querySelectorAll('.lib-sort-item');
+
+  if (!isAll) {
+    // Hide the entire "Sort by" section (keep View-as + slider)
+    if (sortHeader) sortHeader.classList.add('hidden');
+    sortItems.forEach(btn => btn.classList.add('hidden'));
+    if (divider) divider.classList.add('hidden');
+  } else {
+    // Restore normal menu on All tab
+    if (sortHeader) sortHeader.classList.remove('hidden');
+    sortItems.forEach(btn => btn.classList.remove('hidden'));
+    if (divider) divider.classList.remove('hidden');
+  }
+}
+
 function highlightSongInAlbum(songTitle) {
+
   const wanted = String(songTitle || '').replace('.mp3', '').trim().toLowerCase();
   if (!wanted) return;
 
@@ -6447,7 +6483,13 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const list = Array.isArray(playlists) ? playlists : [];
+  const list = (Array.isArray(playlists) ? playlists.slice() : [])
+    .sort((a, b) => {
+      const an = String(a?.name || a?.title || '').toLowerCase();
+      const bn = String(b?.name || b?.title || '').toLowerCase();
+      return an.localeCompare(bn);
+    });
+
   let idx = playlistIndex;
 
   // If we got "12" as a string, convert to number
@@ -7112,6 +7154,12 @@ function renderLibraryAll() {
 
 function renderLibraryMain() {
   initMobileLibraryTabsOnce();
+
+  // ✅ For every tab EXCEPT "All": force alphabetical behavior
+  window.__librarySortModeOverride = (libraryTopTab === 'all') ? null : 'Alphabetical by artist';
+
+  // ✅ Update dropdown label + which sort options are visible
+  updateLibrarySortUIForTopTab();
 
   if (libraryTopTab === 'playlists') {
     renderLibraryPlaylists();
