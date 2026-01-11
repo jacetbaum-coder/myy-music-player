@@ -7522,7 +7522,11 @@ async function getArtistHeroImageUrl(artistName) {
 // POST /api/artist-crop  { userId, name, crop }
 async function fetchArtistCropFromCloud(artistName) {
   const uid = getAppUserId();
-  const u = `${ARTIST_API_BASE}/api/artist-crop?userId=${encodeURIComponent(uid)}&name=${encodeURIComponent(artistName)}`;
+  const u =
+    `${ARTIST_API_BASE}/api/artist-crop` +
+    `?userId=${encodeURIComponent(uid)}` +
+    `&artist=${encodeURIComponent(artistName)}`;
+
   try {
     const res = await fetch(u, { method: "GET" });
     const data = await res.json().catch(() => null);
@@ -7535,18 +7539,33 @@ async function fetchArtistCropFromCloud(artistName) {
 
 async function saveArtistCropToCloud(artistName, crop) {
   const uid = getAppUserId();
+
+  // If crop is null, we treat it as "reset" by saving defaults.
+  // (If you later prefer true DELETE, we can wire that too.)
+  const x = crop && crop.x != null ? Number(crop.x) : 50;
+  const y = crop && crop.y != null ? Number(crop.y) : 50;
+  const zoom = crop && crop.zoom != null ? Number(crop.zoom) : 100;
+
   try {
     const res = await fetch(`${ARTIST_API_BASE}/api/artist-crop`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: uid, name: artistName, crop }),
+      body: JSON.stringify({
+        userId: uid,
+        artist: artistName,
+        x,
+        y,
+        zoom
+      }),
     });
+
     const data = await res.json().catch(() => null);
     return !!(data && data.ok);
   } catch (e) {
     return false;
   }
 }
+
 
 // ✅ Apply crop to the hero bg element
 async function applyArtistCropToBg(artistName) {
@@ -7678,11 +7697,25 @@ function showArtistCropModal(artistName) {
   })();
 }
 
-function clearArtistCrop(artistName) {
-  // Save null crop by POSTing crop:null (your worker can treat this as delete)
-  // If your worker requires a DELETE instead, tell me and I’ll match it.
-  return saveArtistCropToCloud(artistName, null);
+async function clearArtistCrop(artistName) {
+  const uid = getAppUserId();
+  const u =
+    `${ARTIST_API_BASE}/api/artist-crop` +
+    `?userId=${encodeURIComponent(uid)}` +
+    `&artist=${encodeURIComponent(artistName)}`;
+
+  try {
+    await fetch(u, { method: "DELETE" });
+  } catch (e) {}
+
+  // also reset the hero immediately
+  const bg = document.getElementById("artist-hero-bg");
+  if (bg) {
+    bg.style.backgroundPosition = "50% 50%";
+    bg.style.backgroundSize = "cover";
+  }
 }
+
 
 function openArtistByName(artistName) {
 
