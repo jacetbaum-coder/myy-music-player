@@ -2581,17 +2581,8 @@ body.qs-lock {
   <div id="artist-hero" class="mb-8"></div>
 
 
-  <!-- ARTIST CONTROLS (Shuffle + Play) -->
-  <div id="artist-controls" class="mb-8 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <button id="artist-shuffle-btn"
-              class="text-xl text-zinc-300 hover:text-white transition"
-              onclick="toggleShuffle()"
-              aria-label="Shuffle">
-        <i id="artist-shuffle-icon" class="fas fa-shuffle"></i>
-      </button>
-    </div>
-
+    <!-- ARTIST CONTROLS (Play only) -->
+  <div id="artist-controls" class="mb-8 flex items-center justify-end">
     <button id="artist-play-btn"
             class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg"
             aria-label="Play">
@@ -2599,8 +2590,27 @@ body.qs-lock {
     </button>
   </div>
 
-  <!-- DISCOGRAPHY -->
-  <h2 class="text-2xl font-black mb-4">Albums</h2>
+  <!-- DISCOGRAPHY HEADER (Albums + Shuffle + 3-dots) -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-2xl font-black">Albums</h2>
+
+    <div class="flex items-center gap-4">
+      <button id="artist-shuffle-btn"
+              class="text-xl text-zinc-300 hover:text-white transition"
+              onclick="toggleShuffle()"
+              aria-label="Shuffle">
+        <i id="artist-shuffle-icon" class="fas fa-shuffle"></i>
+      </button>
+
+      <button id="artist-more-btn"
+              class="text-2xl text-zinc-300 hover:text-white transition"
+              type="button"
+              aria-label="Artist menu">
+        <i class="fas fa-ellipsis-h"></i>
+      </button>
+    </div>
+  </div>
+
   <div id="artist-album-grid"
        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
   </div>
@@ -5851,8 +5861,11 @@ clearTimeout(timeoutId);
   const inside =
     e.target.closest('#context-menu') ||
     e.target.closest('#playlist-menu') ||
-    e.target.closest('#album-cover-menu') ||
+        e.target.closest('#album-cover-menu') ||
+    e.target.closest('#artist-menu') ||
+    e.target.closest('#artist-crop-modal') ||
     e.target.closest('#library-sort-menu') ||
+
     e.target.closest('#playlist-submenu') ||
     e.target.closest('#library-search-popover') ||
     e.target.closest('.search-container') ||
@@ -5862,10 +5875,13 @@ clearTimeout(timeoutId);
 
 
         // Close desktop/mobile menus
-        try { if (typeof hidePlaylistMenu === 'function') hidePlaylistMenu(); } catch (err) {}
+                try { if (typeof hidePlaylistMenu === 'function') hidePlaylistMenu(); } catch (err) {}
         try { if (typeof closeContextMenu === 'function') closeContextMenu(); } catch (err) {}
+        try { if (typeof hideArtistMenu === 'function') hideArtistMenu(); } catch (err) {}
+        try { if (typeof hideArtistCropModal === 'function') hideArtistCropModal(); } catch (err) {}
 
         // Close album cover menu (if you use one)
+
         try {
           const acm = document.getElementById('album-cover-menu');
           if (acm) acm.classList.add('hidden');
@@ -7414,20 +7430,155 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
     });
 }
 
-async function getArtistHeroImageUrl(artistName) {
-  try {
-    const endpoint =
-      "https://music-streamer.jacetbaum.workers.dev/api/artist-image?name=" +
-      encodeURIComponent(artistName);
+// -----------------------
+// ARTIST MENU + CROP (per-artist saved)
+// -----------------------
+function artistCropKey(name) {
+  return "artistCrop::" + String(name || "");
+}
 
-    // This endpoint serves the SAVED (R2) image bytes,
-    // so the URL is stable forever on mobile + desktop.
-    const res = await fetch(endpoint, { method: "GET" });
-    if (!res.ok) return "";
-    return endpoint;
+function getArtistCrop(name) {
+  try {
+    const raw = localStorage.getItem(artistCropKey(name));
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : null;
   } catch (e) {
-    return "";
+    return null;
   }
+}
+
+function setArtistCrop(name, crop) {
+  try {
+    localStorage.setItem(artistCropKey(name), JSON.stringify(crop || null));
+  } catch (e) {}
+}
+
+function clearArtistCrop(name) {
+  try {
+    localStorage.removeItem(artistCropKey(name));
+  } catch (e) {}
+}
+
+function applyArtistCropToBg(name) {
+  const bg = document.getElementById('artist-hero-bg');
+  if (!bg) return;
+
+  const c = getArtistCrop(name);
+  if (!c) {
+    bg.style.backgroundPosition = 'center';
+    bg.style.backgroundSize = 'cover';
+    return;
+  }
+
+  const x = Number.isFinite(c.x) ? c.x : 50;
+  const y = Number.isFinite(c.y) ? c.y : 50;
+  const z = Number.isFinite(c.zoom) ? c.zoom : 100;
+
+  bg.style.backgroundPosition = `${x}% ${y}%`;
+  bg.style.backgroundSize = (z && z !== 100) ? `${z}%` : 'cover';
+}
+
+let artistMenuTargetName = null;
+
+function hideArtistMenu() {
+  const m = document.getElementById('artist-menu');
+  if (m) m.classList.add('hidden');
+  artistMenuTargetName = null;
+}
+
+function showArtistMenuFromButton(btnEl, artistName) {
+  const m = document.getElementById('artist-menu');
+  if (!m || !btnEl) return;
+
+  artistMenuTargetName = artistName;
+
+  // prevent immediate outside-dismiss
+  window.__outsideDismissSkipUntil = Date.now() + 350;
+
+  const r = btnEl.getBoundingClientRect();
+  const menuW = 280;
+  const x = Math.max(12, Math.min(r.left, window.innerWidth - menuW - 12));
+  const y = r.bottom + 8;
+
+  m.style.left = `${x}px`;
+  m.style.top = `${y}px`;
+  m.classList.remove('hidden');
+}
+
+function hideArtistCropModal() {
+  const modal = document.getElementById('artist-crop-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function showArtistCropModal(artistName) {
+  const modal = document.getElementById('artist-crop-modal');
+  const preview = document.getElementById('artist-crop-preview');
+  const bg = document.getElementById('artist-hero-bg');
+
+  const rx = document.getElementById('artist-crop-x');
+  const ry = document.getElementById('artist-crop-y');
+  const rz = document.getElementById('artist-crop-zoom');
+
+  if (!modal || !preview || !rx || !ry || !rz) return;
+
+  const c = getArtistCrop(artistName) || { x: 50, y: 50, zoom: 100 };
+
+  rx.value = String(Number.isFinite(c.x) ? c.x : 50);
+  ry.value = String(Number.isFinite(c.y) ? c.y : 50);
+  rz.value = String(Number.isFinite(c.zoom) ? c.zoom : 100);
+
+  // use the currently-loaded hero image
+  try {
+    const img = bg ? (bg.style.backgroundImage || "") : "";
+    preview.style.backgroundImage = img;
+  } catch (e) {}
+
+  const applyLive = () => {
+    const next = {
+      x: parseInt(rx.value, 10),
+      y: parseInt(ry.value, 10),
+      zoom: parseInt(rz.value, 10)
+    };
+    setArtistCrop(artistName, next);
+
+    // apply to hero background
+    applyArtistCropToBg(artistName);
+
+    // apply to preview
+    preview.style.backgroundPosition = `${next.x}% ${next.y}%`;
+    preview.style.backgroundSize = (next.zoom && next.zoom !== 100) ? `${next.zoom}%` : 'cover';
+  };
+
+  rx.oninput = applyLive;
+  ry.oninput = applyLive;
+  rz.oninput = applyLive;
+
+  // initialize preview
+  preview.style.backgroundPosition = `${rx.value}% ${ry.value}%`;
+  preview.style.backgroundSize = (parseInt(rz.value, 10) !== 100) ? `${rz.value}%` : 'cover';
+
+  modal.classList.remove('hidden');
+
+  // wire buttons (safe to rewire)
+  const closeBtn = document.getElementById('artist-crop-close');
+  const doneBtn = document.getElementById('artist-crop-done');
+  const resetBtn = document.getElementById('artist-crop-reset');
+
+  if (closeBtn) closeBtn.onclick = () => hideArtistCropModal();
+  if (doneBtn) doneBtn.onclick = () => hideArtistCropModal();
+
+  if (resetBtn) resetBtn.onclick = () => {
+    clearArtistCrop(artistName);
+    rx.value = "50";
+    ry.value = "50";
+    rz.value = "100";
+    applyArtistCropToBg(artistName);
+
+    preview.style.backgroundPosition = `50% 50%`;
+    preview.style.backgroundSize = 'cover';
+  };
+}
 }
 
 
@@ -7481,20 +7632,54 @@ function openArtistByName(artistName) {
     // fallback: if wikipedia had nothing, use your library cover so it never looks blank
     if (!imgUrl && heroCover) imgUrl = heroCover;
 
-    if (imgUrl) {
+        if (imgUrl) {
       const bg = document.getElementById('artist-hero-bg');
-      if (bg) bg.style.backgroundImage = `url("${imgUrl}")`;
+      if (bg) {
+        bg.style.backgroundImage = `url("${imgUrl}")`;
+      }
+      // apply saved crop (if any)
+      try { applyArtistCropToBg(artistName); } catch (e) {}
     }
   })();
 
 
 
 
-  // Bind Artist green Play button (plays all songs by the artist)
+
+    // Bind Artist green Play button (plays all songs by the artist)
   const artistPlayBtn = document.getElementById('artist-play-btn');
   if (artistPlayBtn) {
     artistPlayBtn.onclick = () => playArtistByName(artistName);
   }
+
+  // Bind Artist 3-dots menu
+  const moreBtn = document.getElementById('artist-more-btn');
+  if (moreBtn) {
+    moreBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { showArtistMenuFromButton(moreBtn, artistName); } catch (err) {}
+    };
+  }
+
+  // Bind Artist menu actions
+  const cropBtn = document.getElementById('am-adjust-crop');
+  if (cropBtn) cropBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!artistName) return;
+    try { hideArtistMenu(); } catch (err) {}
+    try { showArtistCropModal(artistName); } catch (err) {}
+  };
+
+  const resetCropBtn = document.getElementById('am-reset-crop');
+  if (resetCropBtn) resetCropBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!artistName) return;
+    try { clearArtistCrop(artistName); } catch (err) {}
+    try { applyArtistCropToBg(artistName); } catch (err) {}
+    try { hideArtistMenu(); } catch (err) {}
+  };
+
 
   // ALBUM GRID (with green play overlay)
   const grid = document.getElementById('artist-album-grid');
@@ -11737,30 +11922,7 @@ function resetShuffleForQueue() {
     shufflePos = 0;
 }
 function toggleShuffle() {
-    const desktopBtn = document.getElementById('btn-shuffle');
-    const mobileIcon = document.getElementById('np-shuffle-icon');
-    const albumIcon = document.getElementById('album-shuffle-icon');
 
-    // Determine current state (check any UI)
-    const currentlyOn =
-        desktopBtn?.classList.contains('active-green') ||
-        mobileIcon?.classList.contains('active-green') ||
-        albumIcon?.classList.contains('active-green');
-
-    const nextState = !currentlyOn;
-    isShuffle = nextState;
-
-    // Update ALL UIs (desktop + now-playing + album)
-    if (desktopBtn) desktopBtn.classList.toggle('active-green', nextState);
-    if (mobileIcon) mobileIcon.classList.toggle('active-green', nextState);
-    if (albumIcon) albumIcon.classList.toggle('active-green', nextState);
-
-    // If turning shuffle on/off while a queue exists, rebuild shuffle order
-    if (currentQueue && currentQueue.length > 0 && currentIndex >= 0) {
-        resetShuffleForQueue();
-        playedStack = [currentIndex];
-    }
-}
 function bindActionShuffleButton() {
   const actionButtons = Array.from(document.querySelectorAll('.action-btn'));
   const shuffleBtn = actionButtons.find(btn => btn.querySelector('.fa-shuffle'));
@@ -11783,7 +11945,8 @@ function isShuffleOn() {
   return (
     document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
     document.getElementById('np-shuffle-icon')?.classList.contains('active-green') ||
-    document.getElementById('album-shuffle-icon')?.classList.contains('active-green')
+    document.getElementById('album-shuffle-icon')?.classList.contains('active-green') ||
+    document.getElementById('artist-shuffle-icon')?.classList.contains('active-green')
   );
 }
 
@@ -12340,8 +12503,68 @@ player.addEventListener('ended', () => {
   <button id="acm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
 </div>
 
+<!-- ARTIST MENU (3-dots on Artist page) -->
+<div id="artist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[260px]">
+  <div class="px-3 py-2 text-xs text-zinc-400 font-bold uppercase tracking-widest">Artist</div>
+  <button id="am-adjust-crop" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">
+    Adjust photo crop
+  </button>
+  <button id="am-reset-crop" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">
+    Reset photo crop
+  </button>
+</div>
+
+<!-- ARTIST CROP MODAL -->
+<div id="artist-crop-modal" class="hidden fixed inset-0 z-[60]">
+  <div class="absolute inset-0 bg-black/70"></div>
+
+  <div class="relative w-[92vw] max-w-[520px] mx-auto mt-24 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-lg font-black">Adjust artist photo crop</div>
+      <button id="artist-crop-close" class="text-zinc-300 hover:text-white text-xl" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="text-sm text-zinc-400 mb-4">
+      Move the crop until the face looks right. This saves per-artist on this device.
+    </div>
+
+    <div class="rounded-xl overflow-hidden border border-white/10 mb-4">
+      <div id="artist-crop-preview" class="h-[220px] bg-zinc-900" style="background-size: cover; background-position: 50% 50%; background-repeat:no-repeat;"></div>
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Horizontal</div>
+        <input id="artist-crop-x" type="range" min="0" max="100" value="50" class="w-full">
+      </div>
+
+      <div>
+        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Vertical</div>
+        <input id="artist-crop-y" type="range" min="0" max="100" value="50" class="w-full">
+      </div>
+
+      <div>
+        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Zoom</div>
+        <input id="artist-crop-zoom" type="range" min="100" max="170" value="100" class="w-full">
+      </div>
+    </div>
+
+    <div class="mt-5 flex items-center justify-end gap-3">
+      <button id="artist-crop-reset" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm">
+        Reset
+      </button>
+      <button id="artist-crop-done" class="px-4 py-2 rounded-lg bg-[#1db954] hover:opacity-90 text-black font-bold text-sm">
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- hidden file input used by album “upload file” -->
 <input id="album-cover-file" type="file" accept="image/*" class="hidden">
+
 
 <script>
       // ✅ Link flow (Phase 1): share the same userId across devices
