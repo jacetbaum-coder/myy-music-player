@@ -2590,7 +2590,25 @@ body.qs-lock {
     </button>
   </div>
 
+  <!-- FEATURED IN (shows playlists that contain this artist) -->
+  <div id="artist-featured-wrap" class="mt-10 hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-black">Featured in…</h2>
+
+      <button id="artist-featured-showall"
+              class="text-sm font-extrabold text-zinc-400 hover:text-white hidden"
+              type="button">
+        Show all
+      </button>
+    </div>
+
+    <div id="artist-playlist-grid"
+         class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    </div>
+  </div>
+
   <!-- DISCOGRAPHY HEADER (Albums + Shuffle + 3-dots) -->
+
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-2xl font-black">Albums</h2>
 
@@ -2612,12 +2630,6 @@ body.qs-lock {
   </div>
 
   <div id="artist-album-grid"
-       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-  </div>
-
-  <!-- FEATURED IN -->
-  <h2 id="artist-featured-title" class="text-2xl font-black mt-10 mb-4 hidden">Featured in…</h2>
-  <div id="artist-playlist-grid"
        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
   </div>
 
@@ -7862,26 +7874,102 @@ function openArtistByName(artistName) {
 
 
   // FEATURED IN… (Playlists containing songs by this artist)
-  const featuredTitle = document.getElementById('artist-featured-title');
+  const featuredWrap = document.getElementById('artist-featured-wrap');
   const plGrid = document.getElementById('artist-playlist-grid');
+  const showAllBtn = document.getElementById('artist-featured-showall');
 
-  const pls = (Array.isArray(playlists) ? playlists : []).filter(pl => {
-    const songs = Array.isArray(pl.songs) ? pl.songs : [];
-    return songs.some(s => {
-      const a = (s.artist || s.artistName || '');
-      return a === artistName;
+  // Reset per-artist open (default collapsed)
+  window.__artistFeaturedExpanded = false;
+
+  // Count "most listened" using historyLog (playlist entries)
+  const getPlaylistListenCount = (playlistId) => {
+    let hist = [];
+    try { hist = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { hist = []; }
+    if (!Array.isArray(hist)) hist = [];
+    let n = 0;
+    for (const h of hist) {
+      if (h && h.type === 'playlist' && String(h.id) === String(playlistId)) n++;
+    }
+    return n;
+  };
+
+  // Find playlists that contain songs by this artist.
+  // If a playlist doesn't have songs loaded, we try cloud items (if available).
+  const computeFeaturedPlaylists = async () => {
+    const arr = Array.isArray(playlists) ? playlists : [];
+
+    const matches = [];
+    for (const pl of arr) {
+      if (!pl || !pl.id) continue;
+
+      const songsLocal = Array.isArray(pl.songs) ? pl.songs : [];
+      let hasArtist = songsLocal.some(s => String(s?.artist || s?.artistName || '') === String(artistName));
+
+      // Fallback: if no local songs, try cloud playlist-items
+      if (!hasArtist && songsLocal.length === 0 && typeof window.loadPlaylistItemsFromCloud === "function") {
+        try {
+          const items = await window.loadPlaylistItemsFromCloud(pl.id);
+          if (Array.isArray(items) && items.length) {
+            hasArtist = items.some(it => String(it?.artist || it?.artistName || '') === String(artistName));
+            // Optional: cache minimal songs so next time it's instant
+            if (hasArtist) {
+              pl.songs = items.map(it => ({
+                title: it.title || it.name || '',
+                artist: it.artist || it.artistName || '',
+                album: it.album || it.albumName || '',
+                cover: it.coverUrl || it.cover || it.coverArt || ''
+              }));
+              try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (hasArtist) matches.push(pl);
+    }
+
+    // Sort by "most listened" (historyLog count), then name
+    matches.sort((a, b) => {
+      const ca = getPlaylistListenCount(a.id);
+      const cb = getPlaylistListenCount(b.id);
+      if (cb !== ca) return cb - ca;
+      return String(a.name || '').localeCompare(String(b.name || ''));
     });
-  });
 
-  if (featuredTitle) featuredTitle.classList.toggle('hidden', pls.length === 0);
+    return matches;
+  };
 
-  if (plGrid) {
-    plGrid.innerHTML = pls.map(pl => {
+  const renderFeatured = (pls) => {
+    if (!featuredWrap || !plGrid) return;
+
+    const hasAny = Array.isArray(pls) && pls.length > 0;
+    featuredWrap.classList.toggle('hidden', !hasAny);
+    if (!hasAny) {
+      if (plGrid) plGrid.innerHTML = '';
+      if (showAllBtn) showAllBtn.classList.add('hidden');
+      return;
+    }
+
+    const expanded = !!window.__artistFeaturedExpanded;
+    const visible = expanded ? pls : pls.slice(0, 3);
+
+    if (showAllBtn) {
+      if (pls.length > 3) {
+        showAllBtn.classList.remove('hidden');
+        showAllBtn.textContent = expanded ? 'Show less' : 'Show all';
+      } else {
+        showAllBtn.classList.add('hidden');
+      }
+    }
+
+    plGrid.innerHTML = visible.map(pl => {
       const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
       const cover = getEffectivePlaylistCover(pl) || pl.cover || '';
       const safeName = String(pl.name || 'Playlist').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
       return `
         <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
+             data-no-swipe-back="1"
              onclick="if (${idx} !== -1) showView('playlist', ${idx});">
           ${cover
             ? `<img src="${cover}" class="w-full aspect-square rounded-md mb-3 object-cover">`
@@ -7899,14 +7987,37 @@ function openArtistByName(artistName) {
             <i class="fas fa-play text-black text-lg ml-1"></i>
           </button>
 
-
           <div class="text-white font-bold truncate">${safeName}</div>
           <div class="text-sm text-zinc-400">Playlist</div>
         </div>
       `;
     }).join('');
-  }
-}
+
+    // Bind play overlays in this grid too
+    plGrid.querySelectorAll('.js-green-play').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const value = btn.getAttribute('data-value');
+        if (value) return playPlaylistById(value);
+      });
+    });
+  };
+
+  (async () => {
+    const pls = await computeFeaturedPlaylists();
+    renderFeatured(pls);
+
+    if (showAllBtn) {
+      showAllBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.__artistFeaturedExpanded = !window.__artistFeaturedExpanded;
+        renderFeatured(pls);
+      };
+    }
+  })();
+
 
 // Plays ALL songs by this artist (respects shuffle)
 function playArtistByName(artistName) {
