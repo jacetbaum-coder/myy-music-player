@@ -6374,27 +6374,19 @@ const normalizedIds = itemsArr
 
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
-
-// ✅ Derive songs only for rendering (do not store on playlist)
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+pl.songs = resolveTrackIdsToSongs(pl.trackIds);
 
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
-
+renderCollection(pl.name, pl.songs, true, playlistIndex);
 
 
     } catch (err) {
       console.warn(err);
       pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-
-// ✅ Derive songs only for rendering (do not store on playlist)
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
-
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
-
+      pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
+      renderCollection(pl.name, pl.songs, true, playlistIndex);
     }
   })();
 }
@@ -10606,7 +10598,10 @@ function renderPlaylists() {
     pl.trackIds.push(trackId);
   }
 
-    // ✅ Playlists are IDs-only: do NOT store song objects on playlist
+  pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+    ? window.resolveTrackIdsToSongs(pl.trackIds)
+    : [];
+
   savePlaylists();
 
   // Update auto cover after adding
