@@ -2578,7 +2578,8 @@ body.qs-lock {
   </button>
 
   <!-- ARTIST HERO -->
-  <div id="artist-hero" class="flex items-end gap-6 mb-10"></div>
+  <div id="artist-hero" class="mb-8"></div>
+
 
   <!-- ARTIST CONTROLS (Shuffle + Play) -->
   <div id="artist-controls" class="mb-8 flex items-center justify-between">
@@ -7413,7 +7414,21 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
     });
 }
 
+async function getArtistHeroImageUrl(artistName) {
+  try {
+    const endpoint = "https://music-streamer.jacetbaum.workers.dev/api/artist-image?name=" + encodeURIComponent(artistName);
+    // IMPORTANT: this endpoint will return the SAVED (R2) image bytes
+    // so using it as a URL is stable on all devices forever.
+    const res = await fetch(endpoint, { method: "GET" });
+    if (!res.ok) return "";
+    return endpoint;
+  } catch (e) {
+    return "";
+  }
+}
+
 function openArtistByName(artistName) {
+
   // BACK STACK: push current view before entering artist
   pushNavCurrent();
   setNavCurrent({ type: 'artist', artistName: artistName });
@@ -7432,18 +7447,42 @@ function openArtistByName(artistName) {
   const heroCover = getAlbumCover(albums[0].artistName, albums[0].albumName, albums[0].coverArt);
 
   // HERO
-    document.getElementById('artist-hero').innerHTML = `
-    <div class="flex flex-col md:flex-row md:items-end gap-4 md:gap-6 w-full min-w-0">
-      <img src="${heroCover}"
-           class="w-44 h-44 md:w-48 md:h-48 rounded-full object-cover shadow-2xl flex-none">
-      <div class="min-w-0">
-        <p class="text-xs font-bold uppercase tracking-widest mb-2 text-white/80">Artist</p>
-        <h1 class="text-4xl sm:text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
-          ${artistName}
-        </h1>
+      // HERO (Spotify-style header: background image + text overlay)
+  (async () => {
+    const heroEl = document.getElementById('artist-hero');
+    if (!heroEl) return;
+
+    // 1) Immediately render the correct layout (with a dark fallback)
+    heroEl.innerHTML = `
+      <div class="relative w-full overflow-hidden rounded-2xl">
+        <div id="artist-hero-bg"
+             class="absolute inset-0 bg-zinc-900"
+             style="background-size: cover; background-position: center; filter: saturate(1.05);">
+        </div>
+
+        <!-- dark overlay like Spotify -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10"></div>
+
+        <div class="relative h-[240px] md:h-[320px] flex flex-col justify-end p-6 md:p-10">
+          <div class="text-xs font-extrabold uppercase tracking-[0.35em] text-white/80">Artist</div>
+          <div class="mt-2 text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
+            ${artistName}
+          </div>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+
+    // 2) Ask Cloudflare for the artist image (this will fetch from Wikipedia ONCE,
+    //    store to R2 forever, and then serve the stored image on every device)
+    const imgUrl = await getArtistHeroImageUrl(artistName);
+
+    // 3) If we got one, set it as the background
+    if (imgUrl) {
+      const bg = document.getElementById('artist-hero-bg');
+      if (bg) bg.style.backgroundImage = `url("${imgUrl}")`;
+    }
+  })();
+
 
 
   // Bind Artist green Play button (plays all songs by the artist)
