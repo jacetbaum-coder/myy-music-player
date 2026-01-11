@@ -6124,11 +6124,19 @@ function goBack() {
           area.scrollTop = top;
         });
       }
-    } else if (prev.type === 'liked') {
+        } else if (prev.type === 'liked') {
       showView('liked');
     } else {
-      showView('home');
+      // ✅ Fallback: respect the active root tab (prevents Library -> Home on back)
+      try {
+        if (window.__rootTab === 'library') showView('library');
+        else if (window.__rootTab === 'search') showView('search');
+        else showView('home');
+      } catch (e) {
+        showView('home');
+      }
     }
+
   } finally {
     __isBackNav = false;
     try { window.__isBackNav = false; } catch (e) {}
