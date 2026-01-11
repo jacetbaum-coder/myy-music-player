@@ -6920,10 +6920,16 @@ function setLibraryTopTab(tab) {
   updateMobileLibraryTabUI();
   updateMobileLibrarySectionTitle();
 
-  if (navCurrent && navCurrent.type === 'library') {
-    renderLibraryMain();
+  // ✅ Re-render immediately if we're currently looking at Library
+  const shouldRerender =
+    (window.__rootTab === 'library') ||
+    (navCurrent && navCurrent.type === 'library');
+
+  if (shouldRerender) {
+    try { renderLibraryMain(); } catch (e) {}
   }
 }
+
 
 function initMobileLibraryTabsOnce() {
   if (window.__mobileLibTabsInit) return;
