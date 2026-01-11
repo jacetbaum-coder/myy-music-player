@@ -6099,11 +6099,12 @@ function goBack() {
   if (!prev || !prev.type) return;
 
   __withBackNav(() => {
-    if (prev.type === 'album' && prev.albumName) {
+        if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
-    } else if (prev.type === '.type === 'artist' && prev.artistName) {
+    } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
+
       showView('playlist', prev.playlistIndex);
     } else if (prev.type === 'search') {
       showView('search');
