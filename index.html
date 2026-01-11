@@ -2213,10 +2213,8 @@ body.qs-lock {
     <!-- Playlists -->
   <div class="flex items-center justify-between mb-3">
     <h2 class="text-xl font-black">Playlists</h2>
-    <button id="home-playlists-showall" class="text-sm font-extrabold text-zinc-400 hover:text-white" type="button">
-      Show all
-    </button>
   </div>
+
 
   <div id="home-recent-grid"
        class="grid grid-cols-2 gap-3 mb-5">
@@ -9958,12 +9956,14 @@ function handleContextMenu(e, song) {
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-  const pinnedIds = loadPinnedPlaylists();
-  const pinnedSet = new Set(pinnedIds);
-  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-  const filled = orderedPlaylists.slice(0, slotCount);
+ const pinnedIds = loadPinnedPlaylists();
+const pinnedPlaylists = pinnedIds
+  .map(id => playlists.find(pl => pl.id === id))
+  .filter(Boolean);
+
+// ✅ Home should ONLY show pinned playlists
+const filled = pinnedPlaylists.slice(0, slotCount);
+
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
