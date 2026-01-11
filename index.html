@@ -4844,15 +4844,6 @@ function setLibrarySortMode(mode) {
   }
 }
 
-// Update dropdown label + which items are visible
-  updateLibrarySortUIForTopTab();
-
-  // Re-render whichever Library tab is active
-  if (navCurrent && navCurrent.type === 'library') {
-    try { renderLibraryMain(); } catch (e) {}
-  }
-}
-
 function setLibraryViewMode(mode) {
   libraryViewMode = mode;
   localStorage.setItem('libraryViewMode', mode);
