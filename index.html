@@ -2407,7 +2407,15 @@ body.qs-lock {
           </div>
         </div>
 
+    <!-- Playlists header -->
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-xl font-black">Playlists</h2>
+  </div>
+
+  <div id="library-playlists-grid" class="grid grid-cols-2 gap-3 mb-6"></div>
+
   <!-- Albums header -->
+
   <div class="mb-4">
     <h2 class="text-3xl font-black">Albums</h2>
   </div>
@@ -6467,6 +6475,9 @@ if (scrollArea) scrollArea.scrollTop = 0;
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
+  // ✅ NEW: render playlists section (if container exists)
+  try { renderLibraryPlaylists(); } catch (e) {}
+
   renderGrid(getLibraryGridData());
   renderHistory();
 
@@ -6474,6 +6485,7 @@ if (scrollArea) scrollArea.scrollTop = 0;
     renderMobileRecents();
   }
 }
+
 
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
@@ -6810,7 +6822,45 @@ function renderGrid(data) {
 }
 
 
+function renderLibraryPlaylists() {
+  const grid = document.getElementById('library-playlists-grid');
+  if (!grid) return;
+
+  const list = Array.isArray(playlists) ? playlists : [];
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="text-sm text-zinc-400">No playlists yet.</div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((pl, idx) => {
+    const title = (pl && (pl.name || pl.title)) ? (pl.name || pl.title) : `Playlist ${idx + 1}`;
+    const safeTitle = String(title).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    return `
+      <div class="p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer flex items-center gap-3"
+           data-pl-index="${idx}">
+        <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
+          <i class="fas fa-music text-white/70"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="font-extrabold text-white truncate">${safeTitle}</div>
+          <div class="text-xs text-zinc-400">Playlist</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  [...grid.querySelectorAll('[data-pl-index]')].forEach(card => {
+    card.addEventListener('click', () => {
+      const idx = Number(card.getAttribute('data-pl-index'));
+      if (!Number.isNaN(idx)) showView('playlist', idx);
+    });
+  });
+}
+
 function openAlbumByName(name) {
+
 
     if (!__isBackNav && window.innerWidth <= 768) {
     window.captureSwipeBackUnderlay?.();
