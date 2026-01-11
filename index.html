@@ -7430,157 +7430,7 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
     });
 }
 
-// -----------------------
-// ARTIST MENU + CROP (per-artist saved)
-// -----------------------
-function artistCropKey(name) {
-  return "artistCrop::" + String(name || "");
-}
-
-function getArtistCrop(name) {
-  try {
-    const raw = localStorage.getItem(artistCropKey(name));
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    return obj && typeof obj === "object" ? obj : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-function setArtistCrop(name, crop) {
-  try {
-    localStorage.setItem(artistCropKey(name), JSON.stringify(crop || null));
-  } catch (e) {}
-}
-
-function clearArtistCrop(name) {
-  try {
-    localStorage.removeItem(artistCropKey(name));
-  } catch (e) {}
-}
-
-function applyArtistCropToBg(name) {
-  const bg = document.getElementById('artist-hero-bg');
-  if (!bg) return;
-
-  const c = getArtistCrop(name);
-  if (!c) {
-    bg.style.backgroundPosition = 'center';
-    bg.style.backgroundSize = 'cover';
-    return;
-  }
-
-  const x = Number.isFinite(c.x) ? c.x : 50;
-  const y = Number.isFinite(c.y) ? c.y : 50;
-  const z = Number.isFinite(c.zoom) ? c.zoom : 100;
-
-  bg.style.backgroundPosition = `${x}% ${y}%`;
-  bg.style.backgroundSize = (z && z !== 100) ? `${z}%` : 'cover';
-}
-
-let artistMenuTargetName = null;
-
-function hideArtistMenu() {
-  const m = document.getElementById('artist-menu');
-  if (m) m.classList.add('hidden');
-  artistMenuTargetName = null;
-}
-
-function showArtistMenuFromButton(btnEl, artistName) {
-  const m = document.getElementById('artist-menu');
-  if (!m || !btnEl) return;
-
-  artistMenuTargetName = artistName;
-
-  // prevent immediate outside-dismiss
-  window.__outsideDismissSkipUntil = Date.now() + 350;
-
-  const r = btnEl.getBoundingClientRect();
-  const menuW = 280;
-  const x = Math.max(12, Math.min(r.left, window.innerWidth - menuW - 12));
-  const y = r.bottom + 8;
-
-  m.style.left = `${x}px`;
-  m.style.top = `${y}px`;
-  m.classList.remove('hidden');
-}
-
-function hideArtistCropModal() {
-  const modal = document.getElementById('artist-crop-modal');
-  if (modal) modal.classList.add('hidden');
-}
-
-function showArtistCropModal(artistName) {
-  const modal = document.getElementById('artist-crop-modal');
-  const preview = document.getElementById('artist-crop-preview');
-  const bg = document.getElementById('artist-hero-bg');
-
-  const rx = document.getElementById('artist-crop-x');
-  const ry = document.getElementById('artist-crop-y');
-  const rz = document.getElementById('artist-crop-zoom');
-
-  if (!modal || !preview || !rx || !ry || !rz) return;
-
-  const c = getArtistCrop(artistName) || { x: 50, y: 50, zoom: 100 };
-
-  rx.value = String(Number.isFinite(c.x) ? c.x : 50);
-  ry.value = String(Number.isFinite(c.y) ? c.y : 50);
-  rz.value = String(Number.isFinite(c.zoom) ? c.zoom : 100);
-
-  // use the currently-loaded hero image
-  try {
-    const img = bg ? (bg.style.backgroundImage || "") : "";
-    preview.style.backgroundImage = img;
-  } catch (e) {}
-
-  const applyLive = () => {
-    const next = {
-      x: parseInt(rx.value, 10),
-      y: parseInt(ry.value, 10),
-      zoom: parseInt(rz.value, 10)
-    };
-    setArtistCrop(artistName, next);
-
-    // apply to hero background
-    applyArtistCropToBg(artistName);
-
-    // apply to preview
-    preview.style.backgroundPosition = `${next.x}% ${next.y}%`;
-    preview.style.backgroundSize = (next.zoom && next.zoom !== 100) ? `${next.zoom}%` : 'cover';
-  };
-
-  rx.oninput = applyLive;
-  ry.oninput = applyLive;
-  rz.oninput = applyLive;
-
-  // initialize preview
-  preview.style.backgroundPosition = `${rx.value}% ${ry.value}%`;
-  preview.style.backgroundSize = (parseInt(rz.value, 10) !== 100) ? `${rz.value}%` : 'cover';
-
-  modal.classList.remove('hidden');
-
-  // wire buttons (safe to rewire)
-  const closeBtn = document.getElementById('artist-crop-close');
-  const doneBtn = document.getElementById('artist-crop-done');
-  const resetBtn = document.getElementById('artist-crop-reset');
-
-  if (closeBtn) closeBtn.onclick = () => hideArtistCropModal();
-  if (doneBtn) doneBtn.onclick = () => hideArtistCropModal();
-
-  if (resetBtn) resetBtn.onclick = () => {
-    clearArtistCrop(artistName);
-    rx.value = "50";
-    ry.value = "50";
-    rz.value = "100";
-    applyArtistCropToBg(artistName);
-
-    preview.style.backgroundPosition = `50% 50%`;
-    preview.style.backgroundSize = 'cover';
-  };
-}
-}
-
+ARTIST MENU + CROP (per-artist saved)
 
 function openArtistByName(artistName) {
 
@@ -7638,7 +7488,8 @@ function openArtistByName(artistName) {
         bg.style.backgroundImage = `url("${imgUrl}")`;
       }
       // apply saved crop (if any)
-      try { applyArtistCropToBg(artistName); } catch (e) {}
+      try { await applyArtistCropToBg(artistName); } catch (e) {}
+
     }
   })();
 
