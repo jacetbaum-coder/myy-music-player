@@ -8,7 +8,7 @@
 
     <!-- App / tab icon -->
     <link rel="icon" href="favicon.ico">
-
+    
     <!-- iOS Home Screen icon -->
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
@@ -7262,7 +7262,50 @@ function renderLibraryMain() {
 
 
 
+// ===============================
+// ✅ QUEUE BUILDER SHIM (fixes: buildQueueFromSongs is not defined)
+// This guarantees buildQueueFromSongs exists BEFORE album clicks call openAlbumByName.
+// ===============================
+(function ensureQueueBuilderShim() {
+  // If normalizeSong is missing for any reason, create a safe minimal version.
+  if (typeof window.normalizeSong !== "function") {
+    window.normalizeSong = function (song, fallback = {}) {
+      if (!song) return null;
+
+      // Try the common fields you use elsewhere in the app
+      const url = song.url || song.link || song.src || "";
+      const title = song.title || song.name || fallback.title || "Unknown Title";
+      const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
+      const album = song.album || song.albumName || fallback.album || "Unknown Album";
+      const cover = song.cover || song.coverArt || fallback.cover || "";
+
+      return { url, title, artist, album, cover };
+    };
+  }
+
+  // If buildQueueFromSongs is missing, define it (and attach to window).
+  if (typeof window.buildQueueFromSongs !== "function") {
+    window.buildQueueFromSongs = function (songs, fallback) {
+      const arr = Array.isArray(songs) ? songs : [];
+      return arr.map((s) => window.normalizeSong(s, fallback)).filter(Boolean);
+    };
+  }
+
+  // ALSO expose as a plain global identifier (so `buildQueueFromSongs(...)` works)
+  // (Using var so it becomes a real global in classic script scope)
+  try {
+    // Only define if it truly doesn't exist
+    if (typeof buildQueueFromSongs !== "function") {
+      var buildQueueFromSongs = window.buildQueueFromSongs; // eslint-disable-line no-var
+      window.buildQueueFromSongs = buildQueueFromSongs;
+    }
+  } catch (e) {
+    // ignore
+  }
+})();
+
 function openAlbumByName(name) {
+
 
   // ✅ Never let swipe-underlay capture break album navigation
   try {
