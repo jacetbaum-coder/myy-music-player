@@ -6043,15 +6043,18 @@ function pushNavCurrent() {
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
 
   // ✅ MOBILE FIX:
-  // If the Library tab is active, treat "home" as "library" for the back stack.
-  // This prevents swipe-back from jumping to Home when you came from Library.
+  // If the user is currently in the Library tab (even if navCurrent still says "home"),
+  // store "library" in the back stack so swipe-back returns to Library.
   try {
     const isMobile = window.innerWidth <= 768;
     const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-    if (isMobile && libActive && snapshot.type === 'home') {
+    const rootIsLibrary = (window.__rootTab === 'library');
+
+    if (isMobile && snapshot.type === 'home' && (libActive || rootIsLibrary)) {
       snapshot.type = 'library';
     }
   } catch (e) {}
+
 
 
   // ✅ If we're leaving Library, capture the current scroll position
