@@ -6473,7 +6473,29 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
+// ✅ Keeps the bottom nav highlight consistent with the current view
+// (Fixes cases where Library "activates" but Home content is still what's visible)
+(function () {
+  if (window.__resonSetActiveNav) return;
+  window.__resonSetActiveNav = function (viewType) {
+    const wantId =
+      viewType === 'crate' ? 'nav-premium' :
+      viewType === 'home' ? 'nav-home' :
+      viewType === 'search' ? 'nav-search' :
+      viewType === 'library' ? 'nav-library' :
+      null;
+
+    ['nav-home', 'nav-search', 'nav-library', 'nav-premium'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (wantId && id === wantId) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+  };
+})();
+
 function showView(viewType, playlistIndex = null) {
+
 
   // --- DEBUG: show every navigation as a toast (mobile) + console (desktop)
   try {
@@ -6490,12 +6512,14 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-  // ✅ CRITICAL: hide ALL root views so we never stack Home + Library on one scroll
+    // ✅ CRITICAL: hide ALL root views so we never stack Home + Library on one scroll
   ['home-view', 'library-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-  try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
-});
+    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
+  });
 
-  // Also hide mobile library header/overlay by default (we'll re-show when needed)
+  // ✅ Make sure the bottom nav matches the view we just navigated to
+  try { window.__resonSetActiveNav && window.__resonSetActiveNav(viewType); } catch (e) {}
+
   try { document.getElementById('mobile-library-header')?.classList.add('hidden'); } catch (e) {}
   try { document.getElementById('mobile-library-overlay')?.classList.add('hidden'); } catch (e) {}
 
@@ -6763,7 +6787,24 @@ function __resonGetAlbumRowsForLibrary(rawRows) {
   return derived;
 }
 
+// ✅ Normalizes Cloudflare library rows so album detection works even if your JSON uses
+// "album" / "artist" instead of "albumName" / "artistName".
+if (typeof window.__resonGetAlbumRowsForLibrary !== 'function') {
+  window.__resonGetAlbumRowsForLibrary = function (raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((t) => ({
+      albumName:
+        t?.albumName || t?.album || t?.album_title || t?.albumTitle || '',
+      artistName:
+        t?.artistName || t?.artist || t?.artist_title || t?.artistTitle || '',
+      coverArt:
+        t?.coverArt || t?.cover || t?.albumArt || t?.art || t?.image || ''
+    }));
+  };
+}
+
 function renderMobileLibraryGrid() {
+
 
   const grid = document.getElementById('album-grid');
   if (!grid) return;
