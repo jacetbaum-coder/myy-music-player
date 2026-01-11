@@ -4807,21 +4807,49 @@ if (dockLeft) {
 // LIBRARY: Sort + View + Desktop "Search in Your Library"
 // -----------------------
 let librarySortMode = localStorage.getItem('librarySortMode') || 'Recently added';
+
 let libraryViewMode = localStorage.getItem('libraryViewMode') || 'grid';
 
 // Used for "Recently added"
 libraryDataOriginal = window.libraryDataOriginal || libraryDataOriginal || [];
 
 function setLibrarySortMode(mode) {
-  librarySortMode = mode;
-  localStorage.setItem('librarySortMode', mode);
+  const tab = (typeof libraryTopTab === 'string' ? libraryTopTab : (localStorage.getItem('libraryTopTab') || 'albums'));
+  const isAll = (tab === 'all');
 
-  const label = document.getElementById('library-sort-label');
-  if (label) label.textContent = mode;
+  if (isAll) {
+    librarySortMode = mode;
+    localStorage.setItem('librarySortMode', mode);
+  } else {
+    // Non-All tabs only allow: Recent / Recently added / Alphabetical
+    let m = String(mode || '').trim();
 
-  // If you're currently in Library, re-render the grid
+    // Back-compat / safety: if we ever get passed the old alpha-by strings, treat as Alphabetical
+    if (m === 'Alphabetical by artist' || m === 'Alphabetical by album') m = 'Alphabetical';
+
+    if (m !== 'Recent' && m !== 'Recently added' && m !== 'Alphabetical') {
+      m = 'Alphabetical';
+    }
+
+    librarySortModeNonAll = m;
+    localStorage.setItem('librarySortModeNonAll', m);
+  }
+
+  // Update dropdown label + which items are visible
+  updateLibrarySortUIForTopTab();
+
+  // Re-render whichever Library tab is active
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridData());
+    try { renderLibraryMain(); } catch (e) {}
+  }
+}
+
+// Update dropdown label + which items are visible
+  updateLibrarySortUIForTopTab();
+
+  // Re-render whichever Library tab is active
+  if (navCurrent && navCurrent.type === 'library') {
+    try { renderLibraryMain(); } catch (e) {}
   }
 }
 
@@ -5047,10 +5075,14 @@ function initLibraryControls() {
 function updateLibrarySortUIForTopTab() {
   const label = document.getElementById('library-sort-label');
   const menu = document.getElementById('library-sort-menu');
-  const isAll = (libraryTopTab === 'all');
 
-  // Label: "Alphabetical" for everything except All
-  if (label) label.textContent = isAll ? librarySortMode : 'Alphabetical';
+  const tab = (typeof libraryTopTab === 'string' ? libraryTopTab : (localStorage.getItem('libraryTopTab') || 'albums'));
+  const isAll = (tab === 'all');
+
+  // Label text
+  if (label) {
+    label.textContent = isAll ? librarySortMode : librarySortModeNonAll;
+  }
 
   if (!menu) return;
 
@@ -5062,20 +5094,61 @@ function updateLibrarySortUIForTopTab() {
   const divider = menu.querySelector('div.h-px.bg-white\\/10.my-2');
 
   // Sort-by buttons
-  const sortItems = menu.querySelectorAll('.lib-sort-item');
+  const btnRecent = menu.querySelector('.lib-sort-item[data-sort="Recent"]');
+  const btnAdded = menu.querySelector('.lib-sort-item[data-sort="Recently added"]');
+  const btnAlphaArtist = menu.querySelector('.lib-sort-item[data-sort="Alphabetical by artist"]');
+  const btnAlphaAlbum = menu.querySelector('.lib-sort-item[data-sort="Alphabetical by album"]');
 
-  if (!isAll) {
-    // Hide the entire "Sort by" section (keep View-as + slider)
-    if (sortHeader) sortHeader.classList.add('hidden');
-    sortItems.forEach(btn => btn.classList.add('hidden'));
-    if (divider) divider.classList.add('hidden');
+  // Always keep Sort-by section visible (even on non-All)
+  if (sortHeader) sortHeader.classList.remove('hidden');
+  if (divider) divider.classList.remove('hidden');
+
+  if (isAll) {
+    // Restore All tab (full menu)
+    if (btnRecent) btnRecent.classList.remove('hidden');
+    if (btnAdded) btnAdded.classList.remove('hidden');
+
+    if (btnAlphaArtist) {
+      btnAlphaArtist.classList.remove('hidden');
+      btnAlphaArtist.textContent = 'Alphabetical by artist';
+      btnAlphaArtist.setAttribute('data-sort', 'Alphabetical by artist');
+    }
+
+    if (btnAlphaAlbum) {
+      btnAlphaAlbum.classList.remove('hidden');
+      btnAlphaAlbum.textContent = 'Alphabetical by album';
+      btnAlphaAlbum.setAttribute('data-sort', 'Alphabetical by album');
+    }
+
+    return;
+  }
+
+  // Non-All tabs: show Recent, Recently added, Alphabetical (single)
+  if (btnRecent) btnRecent.classList.remove('hidden');
+  if (btnAdded) btnAdded.classList.remove('hidden');
+
+  // Use ONE of the alpha buttons as the generic "Alphabetical"
+  // - Albums tab: use "Alphabetical by album"
+  // - Artists/Playlists tab: use "Alphabetical by artist"
+  if (tab === 'albums') {
+    if (btnAlphaArtist) btnAlphaArtist.classList.add('hidden');
+
+    if (btnAlphaAlbum) {
+      btnAlphaAlbum.classList.remove('hidden');
+      btnAlphaAlbum.textContent = 'Alphabetical';
+      btnAlphaAlbum.setAttribute('data-sort', 'Alphabetical');
+    }
   } else {
-    // Restore normal menu on All tab
-    if (sortHeader) sortHeader.classList.remove('hidden');
-    sortItems.forEach(btn => btn.classList.remove('hidden'));
-    if (divider) divider.classList.remove('hidden');
+    if (btnAlphaAlbum) btnAlphaAlbum.classList.add('hidden');
+
+    if (btnAlphaArtist) {
+      btnAlphaArtist.classList.remove('hidden');
+      btnAlphaArtist.textContent = 'Alphabetical';
+      btnAlphaArtist.setAttribute('data-sort', 'Alphabetical');
+    }
   }
 }
+
 
 function highlightSongInAlbum(songTitle) {
 
@@ -6879,7 +6952,27 @@ function renderLibraryPlaylists() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  const list = Array.isArray(playlists) ? playlists : [];
+  const tab = (typeof libraryTopTab === 'string' ? libraryTopTab : (localStorage.getItem('libraryTopTab') || 'albums'));
+  const mode = (tab === 'all') ? librarySortMode : librarySortModeNonAll;
+
+  let list = Array.isArray(playlists) ? playlists.slice() : [];
+
+  // Apply sorting for Playlists tab
+  if (mode === 'Alphabetical') {
+    list.sort((a, b) => {
+      const an = String(a?.name || a?.title || '').toLowerCase();
+      const bn = String(b?.name || b?.title || '').toLowerCase();
+      return an.localeCompare(bn);
+    });
+  } else if (mode === 'Recent') {
+    // Best-effort: if playlist objects ever include lastPlayed/updatedAt, use it; otherwise keep order
+    list.sort((a, b) => {
+      const at = a?.lastPlayed || a?.updatedAt || a?.updated_at || 0;
+      const bt = b?.lastPlayed || b?.updatedAt || b?.updated_at || 0;
+      if (!at && !bt) return 0;
+      return (bt ? new Date(bt).getTime() : 0) - (at ? new Date(at).getTime() : 0);
+    });
+  } // Recently added = keep natural order
 
   if (!list.length) {
     grid.innerHTML = `
@@ -6917,10 +7010,11 @@ function renderLibraryPlaylists() {
     card.addEventListener('click', () => {
       const plKey = card.getAttribute('data-pl');
       if (!plKey) return;
-      showView('playlist', plKey); // supports id OR index
+      showView('playlist', plKey);
     });
   });
 }
+
 
 // -----------------------
 // LIBRARY: Mobile top tabs (Playlists / Albums / Artists / All)
@@ -7001,7 +7095,11 @@ function renderLibraryArtists() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
+  const tab = (typeof libraryTopTab === 'string' ? libraryTopTab : (localStorage.getItem('libraryTopTab') || 'albums'));
+  const mode = (tab === 'all') ? librarySortMode : librarySortModeNonAll;
+
   const albums = Array.isArray(libraryData) ? libraryData : [];
+  const albumsOriginal = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : albums;
 
   // Build unique artist list (artistName -> first album object)
   const firstAlbumByArtist = new Map();
@@ -7011,7 +7109,7 @@ function renderLibraryArtists() {
     if (!firstAlbumByArtist.has(artist)) firstAlbumByArtist.set(artist, a);
   });
 
-  const artists = [...firstAlbumByArtist.keys()].sort((a, b) => a.localeCompare(b));
+  let artists = [...firstAlbumByArtist.keys()];
 
   if (!artists.length) {
     grid.innerHTML = `
@@ -7020,6 +7118,35 @@ function renderLibraryArtists() {
       </div>
     `;
     return;
+  }
+
+  if (mode === 'Alphabetical') {
+    artists.sort((a, b) => a.localeCompare(b));
+  } else if (mode === 'Recently added') {
+    // Use first appearance in the ORIGINAL array order as "recently added" ordering
+    const order = new Map();
+    albumsOriginal.forEach((a, idx) => {
+      const artist = String(a?.artistName || '').trim();
+      if (!artist) return;
+      if (!order.has(artist)) order.set(artist, idx);
+    });
+    artists.sort((a, b) => (order.get(a) ?? 999999) - (order.get(b) ?? 999999));
+  } else if (mode === 'Recent') {
+    // Use listening history rank across any album by that artist
+    const rank = getLibraryRecentsRank(); // album-level
+    const bestArtistRank = new Map();
+
+    albums.forEach(a => {
+      const artist = String(a?.artistName || '').trim();
+      if (!artist) return;
+      const key = `${a.artistName || ''}__${a.albumName || ''}`;
+      const r = rank.has(key) ? rank.get(key) : 999999;
+
+      const prev = bestArtistRank.get(artist);
+      if (prev == null || r < prev) bestArtistRank.set(artist, r);
+    });
+
+    artists.sort((a, b) => (bestArtistRank.get(a) ?? 999999) - (bestArtistRank.get(b) ?? 999999));
   }
 
   grid.innerHTML = artists.map((artistName) => {
@@ -7057,6 +7184,7 @@ function renderLibraryArtists() {
     });
   });
 }
+
 
 function renderLibraryAll() {
   const grid = document.getElementById('album-grid');
