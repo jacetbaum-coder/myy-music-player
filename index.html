@@ -5939,6 +5939,8 @@ clearTimeout(timeoutId);
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
+window.__isBackNav = false;
+
 
 
 // Expose for debugging + global access
@@ -6048,48 +6050,47 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
-  window.navCurrent = navCurrent;
-  if (!window.navStack) window.navStack = navStack;
+  // keep a visible debug mirror
+  try { window.navCurrent = navCurrent; } catch (e) {}
 }
-
 
 function pushNavCurrent() {
-  if (__isBackNav === true) {
-  return;
-}
+  // IMPORTANT: use the global flag so it’s consistent everywhere
+  try {
+    if (window.__isBackNav) return;
+  } catch (e) {}
+
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
-    // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
 
   // ✅ MOBILE FIX:
-  // If the user is currently in the Library tab (even if navCurrent still says "home"),
-  // store "library" in the back stack so swipe-back returns to Library.
+  // If the Library tab is active, treat "home" as "library" for the back stack.
+  // This prevents swipe-back from jumping to Home when you came from Library.
   try {
     const isMobile = window.innerWidth <= 768;
     const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-    const rootIsLibrary = (window.__rootTab === 'library');
-
-    if (isMobile && snapshot.type === 'home' && (libActive || rootIsLibrary)) {
+    if (isMobile && libActive && snapshot.type === 'home') {
       snapshot.type = 'library';
     }
   } catch (e) {}
 
-
-
-    // ✅ If we're leaving Library, capture the current scroll position
+  // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
     const area = document.getElementById('main-scroll-area');
     snapshot.scrollTop = area ? area.scrollTop : 0;
-
-    // ✅ ALSO remember which Library top tab was active (albums/artists/playlists/all)
-    try {
-      snapshot.libraryTopTab = (typeof libraryTopTab === 'string' ? libraryTopTab : null);
-    } catch (e) {}
   }
 
+  // ✅ THIS is the missing piece that makes swipe/back work:
+  // actually push the snapshot onto the stack
+  navStack.push(snapshot);
+
+  // cap size
   if (navStack.length > 80) navStack.shift();
+
+  // keep a visible debug mirror (same array reference)
+  try { window.navStack = navStack; } catch (e) {}
 }
 
 function goBack() {
@@ -6098,29 +6099,40 @@ function goBack() {
   const prev = navStack.pop();
   if (!prev || !prev.type) return;
 
-  __withBackNav(() => {
-        if (prev.type === 'album' && prev.albumName) {
+  // set BOTH local + window flags so everything agrees
+  try { window.__isBackNav = true; } catch (e) {}
+  __isBackNav = true;
+
+  try {
+    if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
     } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
-
       showView('playlist', prev.playlistIndex);
     } else if (prev.type === 'search') {
       showView('search');
     } else if (prev.type === 'library') {
       showView('library');
 
+      // ✅ Restore where you were in Library before entering the album
       const area = document.getElementById('main-scroll-area');
-      if (area && Number.isFinite(prev.scrollTop)) {
+      const top = Number.isFinite(prev.scrollTop) ? prev.scrollTop : 0;
+
+      if (area) {
         requestAnimationFrame(() => {
-          area.scrollTop = prev.scrollTop;
+          area.scrollTop = top;
         });
       }
+    } else if (prev.type === 'liked') {
+      showView('liked');
     } else {
       showView('home');
     }
-  });
+  } finally {
+    __isBackNav = false;
+    try { window.__isBackNav = false; } catch (e) {}
+  }
 }
 
 
@@ -8983,7 +8995,8 @@ function restorePlayerStateIfRecent() {
   }
 
    // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
-  if (!raw) {
+  if (!state) {
+
     currentSong = null;
     toggleRightSidebar(false);
 
