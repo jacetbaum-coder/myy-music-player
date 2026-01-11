@@ -6063,13 +6063,17 @@ function pushNavCurrent() {
 
 
 
-  // ✅ If we're leaving Library, capture the current scroll position
+    // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
     const area = document.getElementById('main-scroll-area');
     snapshot.scrollTop = area ? area.scrollTop : 0;
+
+    // ✅ ALSO remember which Library top tab was active (albums/artists/playlists/all)
+    try {
+      snapshot.libraryTopTab = (typeof libraryTopTab === 'string' ? libraryTopTab : null);
+    } catch (e) {}
   }
 
-  navStack.push(snapshot);
   if (navStack.length > 80) navStack.shift();
 }
 
@@ -6090,8 +6094,20 @@ function goBack() {
       showView('playlist', prev.playlistIndex);
     } else if (prev.type === 'search') {
       showView('search');
-    } else if (prev.type === 'library') {
+        } else if (prev.type === 'library') {
+
+      // ✅ Restore Library top tab first, so renderLibraryMain() shows the right section
+      try {
+        if (prev.libraryTopTab) {
+          libraryTopTab = prev.libraryTopTab;
+          localStorage.setItem('libraryTopTab', libraryTopTab);
+          updateMobileLibraryTabUI();
+          updateMobileLibrarySectionTitle();
+        }
+      } catch (e) {}
+
       showView('library');
+
 
       // ✅ Restore where you were in Library before entering the album
       const area = document.getElementById('main-scroll-area');
@@ -6491,7 +6507,7 @@ function showView(viewType, playlistIndex = null) {
 
 // BACK STACK: set new current view
 if (viewType === 'home') setNavCurrent({ type: 'home' });
-else if (viewType === 'library') setNavCurrent({ type: 'library' });
+else if (viewType === 'library') setNavCurrent({ type: 'library', libraryTopTab: (typeof libraryTopTab === 'string' ? libraryTopTab : null) });
 else if (viewType === 'search') setNavCurrent({ type: 'search' });
 else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
 else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
