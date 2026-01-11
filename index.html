@@ -5936,11 +5936,14 @@ clearTimeout(timeoutId);
 // (album/artist view state is declared above in the album override block)
 
 // -----------------------
-// MOBILE BACK STACK (swipe-right to go back)
-// -----------------------
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
+
+// Expose for debugging + any code that reads window.navCurrent / window.navStack
+window.navStack = navStack;
+window.navCurrent = navCurrent;
+
 
 // -----------------------
 // SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
@@ -6032,7 +6035,10 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
+  window.navCurrent = navCurrent;
+  if (!window.navStack) window.navStack = navStack;
 }
+
 
 function pushNavCurrent() {
   if (__isBackNav) return;
