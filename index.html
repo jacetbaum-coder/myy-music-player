@@ -6102,11 +6102,18 @@ function goBack() {
           area.scrollTop = top;
         });
       }
-    } else if (prev.type === 'liked') {
+        } else if (prev.type === 'liked') {
       showView('liked');
     } else {
-      showView('home');
+      // ✅ Fallback: if you came from the Library tab, never fall back to Home
+      try {
+        if (window.__rootTab === 'library') showView('library');
+        else showView('home');
+      } catch (e) {
+        showView('home');
+      }
     }
+
   } finally {
     __isBackNav = false;
   }
