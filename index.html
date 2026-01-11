@@ -7030,58 +7030,111 @@ function renderLibraryPlaylists() {
 }
 
 function renderLibraryMain() {
+  // ✅ CRITICAL: attach tab click handlers (only once)
+  initMobileLibraryTabsOnce();
+
+  // ✅ Always sync UI with current tab state
+  updateMobileLibraryTabUI();
+  applyLibraryTopTabVisibility();
+  updateLibrarySectionTitle();
+
   // Always clear artists grid unless we're on artists
   const artistsGrid = document.getElementById('library-artists-grid');
   if (artistsGrid && libraryTopTab !== 'artists') artistsGrid.innerHTML = '';
 
+  // -----------------------
+  // PLAYLISTS
+  // -----------------------
   if (libraryTopTab === 'playlists') {
     renderLibraryPlaylists();
     return;
   }
 
+  // -----------------------
+  // ARTISTS
+  // -----------------------
   if (libraryTopTab === 'artists') {
     if (!artistsGrid) return;
 
     const albums = getLibraryGridData() || [];
     const map = new Map();
 
+    // Build unique artist list from your album grid data
     for (const a of albums) {
-      const name = a.artistName || '';
-      if (!name) continue;
-      if (!map.has(name)) {
-        map.set(name, {
-          artistName: name,
-          art: a.fallbackArt || a.coverArt || ''
-        });
-      }
+      const artist = String(a?.artistName || '').trim();
+      if (!artist) continue;
+      if (!map.has(artist)) map.set(artist, { artistName: artist, coverArt: a?.coverArt || '' });
     }
 
-    const artists = Array.from(map.values()).sort((x, y) =>
-      (x.artistName || '').localeCompare((y.artistName || ''), undefined, { sensitivity: 'base' })
+    const artists = [...map.values()].sort((x, y) =>
+      x.artistName.localeCompare(y.artistName, undefined, { sensitivity: 'base' })
     );
 
-    artistsGrid.innerHTML = artists.map(ar => `
-      <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-        <div class="w-12 h-12 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-          ${ar.art ? `<img src="${ar.art}" class="w-full h-full object-cover" />` : `<i class="fas fa-user text-white/60"></i>`}
+    if (!artists.length) {
+      artistsGrid.innerHTML = `
+        <div class="text-zinc-400 font-bold p-4">
+          No artists yet.
         </div>
-        <div class="min-w-0">
-          <div class="text-white font-extrabold truncate">${ar.artistName}</div>
-          <div class="text-white/60 text-sm">Artist</div>
+      `;
+      return;
+    }
+
+    artistsGrid.innerHTML = artists.map((a) => {
+      const artistName = String(a.artistName || '');
+      const safeArtist = artistName.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      // Use your existing cover helper if present; fall back safely
+      const img = (typeof getArtistCover === "function")
+        ? getArtistCover(artistName)
+        : (typeof getAlbumCover === "function"
+            ? getAlbumCover(artistName, "", a.coverArt)
+            : "");
+
+      const bg = img ? `style="background-image:url('${img}'); background-size:cover; background-position:center;"` : "";
+
+      return `
+        <div class="album-card p-4" data-artist="${safeArtist}">
+          <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center" ${bg}>
+            ${img ? "" : `<i class="fas fa-user text-white/50 text-3xl"></i>`}
+          </div>
+
+          <div class="font-bold text-white truncate text-base mb-1">
+            ${safeArtist}
+          </div>
+
+          <div class="text-sm text-zinc-400 truncate">
+            Artist
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+
+    // Click an artist → open your artist view (you already have openArtistByName in this file)
+    [...artistsGrid.querySelectorAll('.album-card')].forEach(card => {
+      card.addEventListener('click', () => {
+        const artist = card.getAttribute('data-artist');
+        if (!artist) return;
+        if (typeof openArtistByName === "function") openArtistByName(artist);
+      });
+    });
 
     return;
   }
 
-  // albums OR all
+  // -----------------------
+  // ALBUMS / ALL
+  // -----------------------
+  // "All" = playlists + albums (playlists first, then the album grid)
   if (libraryTopTab === 'all') {
     renderLibraryPlaylists();
   }
 
   renderGrid(getLibraryGridData());
 }
+
+
+function openAlbumByName(name) {
+
 
 
 function openAlbumByName(name) {
