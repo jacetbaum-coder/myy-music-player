@@ -2315,17 +2315,18 @@ body.qs-lock {
               Albums
             </button>
 
-            <button type="button"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
-                    disabled>
-              Podcasts
-            </button>
+            <button id="mobile-lib-tab-artists"
+        type="button"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+  Artists
+</button>
 
-            <button type="button"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
-                    disabled>
-              Audiobooks
-            </button>
+<button id="mobile-lib-tab-all"
+        type="button"
+        class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+  All
+</button>
+
           </div>
         </div>
 
@@ -2436,9 +2437,10 @@ body.qs-lock {
 
   <!-- Albums header -->
 
-  <div class="mb-4">
-    <h2 class="text-3xl font-black">Albums</h2>
-  </div>
+  <div id="mobile-library-section-header" class="mb-4">
+  <h2 id="mobile-library-section-title" class="text-3xl font-black">Albums</h2>
+</div>
+
 
   <!-- ONE album grid only -->
     <!-- CENTER LYRICS (toggle from dock mic) -->
@@ -6873,21 +6875,42 @@ function renderLibraryPlaylists() {
 }
 
 // -----------------------
-// LIBRARY: Mobile top tabs (Playlists / Albums)
+// LIBRARY: Mobile top tabs (Playlists / Albums / Artists / All)
 // -----------------------
 let libraryTopTab = localStorage.getItem('libraryTopTab') || 'albums';
+
+function getLibraryTabLabel(tab) {
+  if (tab === 'playlists') return 'Playlists';
+  if (tab === 'albums') return 'Albums';
+  if (tab === 'artists') return 'Artists';
+  if (tab === 'all') return 'All';
+  return 'Albums';
+}
+
+function updateMobileLibrarySectionTitle() {
+  if (window.innerWidth > 768) return;
+
+  const titleEl = document.getElementById('mobile-library-section-title');
+  if (titleEl) {
+    titleEl.textContent = getLibraryTabLabel(libraryTopTab);
+  }
+}
 
 function updateMobileLibraryTabUI() {
   const btnP = document.getElementById('mobile-lib-tab-playlists');
   const btnA = document.getElementById('mobile-lib-tab-albums');
-  if (!btnP || !btnA) return;
+  const btnR = document.getElementById('mobile-lib-tab-artists');
+  const btnAll = document.getElementById('mobile-lib-tab-all');
+  if (!btnP || !btnA || !btnR || !btnAll) return;
 
   const base = "px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap";
   const onCls = "bg-[#1db954] text-black";
   const offCls = "bg-white/10 text-white";
 
-  btnP.className = base + " " + (libraryTopTab === 'playlists' ? onCls : offCls);
-  btnA.className = base + " " + (libraryTopTab === 'albums' ? onCls : offCls);
+  btnP.className   = base + " " + (libraryTopTab === 'playlists' ? onCls : offCls);
+  btnA.className   = base + " " + (libraryTopTab === 'albums' ? onCls : offCls);
+  btnR.className   = base + " " + (libraryTopTab === 'artists' ? onCls : offCls);
+  btnAll.className = base + " " + (libraryTopTab === 'all' ? onCls : offCls);
 }
 
 function setLibraryTopTab(tab) {
@@ -6895,8 +6918,8 @@ function setLibraryTopTab(tab) {
   localStorage.setItem('libraryTopTab', tab);
 
   updateMobileLibraryTabUI();
+  updateMobileLibrarySectionTitle();
 
-  // If we're currently in Library, re-render immediately
   if (navCurrent && navCurrent.type === 'library') {
     renderLibraryMain();
   }
@@ -6906,77 +6929,22 @@ function initMobileLibraryTabsOnce() {
   if (window.__mobileLibTabsInit) return;
   window.__mobileLibTabsInit = true;
 
-  const btnP = document.getElementById('mobile-lib-tab-playlists');
-  const btnA = document.getElementById('mobile-lib-tab-albums');
+  document.getElementById('mobile-lib-tab-playlists')
+    ?.addEventListener('click', () => setLibraryTopTab('playlists'));
 
-  if (btnP) btnP.addEventListener('click', () => setLibraryTopTab('playlists'));
-  if (btnA) btnA.addEventListener('click', () => setLibraryTopTab('albums'));
+  document.getElementById('mobile-lib-tab-albums')
+    ?.addEventListener('click', () => setLibraryTopTab('albums'));
+
+  document.getElementById('mobile-lib-tab-artists')
+    ?.addEventListener('click', () => setLibraryTopTab('artists'));
+
+  document.getElementById('mobile-lib-tab-all')
+    ?.addEventListener('click', () => setLibraryTopTab('all'));
 
   updateMobileLibraryTabUI();
+  updateMobileLibrarySectionTitle();
 }
 
-function renderLibraryPlaylists() {
-  const grid = document.getElementById('album-grid');
-  if (!grid) return;
-
-  const list = Array.isArray(playlists) ? playlists : [];
-
-  if (!list.length) {
-    grid.innerHTML = `
-      <div class="text-zinc-400 font-bold p-4">
-        No playlists yet.
-      </div>
-    `;
-    return;
-  }
-
-  grid.innerHTML = list.map((pl, idx) => {
-    const name = String(pl?.name || "Untitled Playlist");
-    const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
-
-    return `
-      <div class="album-card p-4"
-           data-pl="${idOrIdx}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          <i class="fas fa-music text-white/50 text-3xl"></i>
-        </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${safeName}
-        </div>
-
-        <div class="text-sm text-zinc-400 truncate">
-          Playlist
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const plKey = card.getAttribute('data-pl');
-      if (!plKey) return;
-      showView('playlist', plKey); // ✅ your showView already supports id OR index
-    });
-  });
-}
-
-function renderLibraryMain() {
-  initMobileLibraryTabsOnce();
-
-  if (libraryTopTab === 'playlists') {
-    renderLibraryPlaylists();
-  } else {
-    renderGrid(getLibraryGridData()); // Albums
-  }
-
-  renderHistory();
-
-  if (window.innerWidth <= 768) {
-    renderMobileRecents();
-  }
-}
 
 function openAlbumByName(name) {
 
