@@ -2254,8 +2254,54 @@ body.qs-lock {
 
 </div>
 
+<div id="library-view" class="hidden">
+  <!-- MOBILE: Library header (Spotify-ish) -->
+  <div id="mobile-library-header" class="md:hidden mb-4">
+    <!-- Top row -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+          <i class="fas fa-user text-white/70 text-sm"></i>
+        </div>
+        <div class="text-3xl font-black leading-none">Your Library</div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white">
+          <i class="fas fa-search text-xl"></i>
+        </button>
+        <button type="button" class="text-white/90 hover:text-white" onclick="createNewPlaylist()">
+          <i class="fas fa-plus text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs row (visual only) -->
+    <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
+    </div>
+  </div>
+
+  <!-- Sort row -->
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3 text-white/90 font-black">
+      <i class="fas fa-sort-alpha-down text-lg"></i>
+      <div class="text-2xl">Alphabetical</div>
+    </div>
+    <button type="button" class="text-white/80 hover:text-white">
+      <i class="fas fa-th-large text-xl"></i>
+    </button>
+  </div>
+
+  <!-- Grid target that renderMobileLibraryGrid() fills -->
+  <div id="album-grid" class="grid grid-cols-2 gap-4 pb-28"></div>
+</div>
+
 
 <div id="grid-view" class="hidden">
+
 
     <!-- DESKTOP Home header (Spotify-ish) -->
   <div id="desktop-home-header" class="hidden md:block mb-10">
@@ -5702,6 +5748,7 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
             const userId = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "");
+
     const url =
       'https://music-streamer.jacetbaum.workers.dev/api/get-songs?userId=' +
       encodeURIComponent(userId) +
@@ -6444,9 +6491,9 @@ function showView(viewType, playlistIndex = null) {
   try { closeContextMenu(); } catch (e) {}
 
   // ✅ CRITICAL: hide ALL root views so we never stack Home + Library on one scroll
-  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
-  });
+  ['home-view', 'library-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+  try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
+});
 
   // Also hide mobile library header/overlay by default (we'll re-show when needed)
   try { document.getElementById('mobile-library-header')?.classList.add('hidden'); } catch (e) {}
@@ -6492,67 +6539,37 @@ function showView(viewType, playlistIndex = null) {
   }
 
   if (viewType === 'library') {
-    try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (e) {}
+  // Show the dedicated Library view
+  try { document.getElementById('library-view')?.classList.remove('hidden'); } catch (e) {}
 
-    // Mobile: show the Spotify-ish library header if it exists
-    try {
-      if (window.innerWidth <= 768) {
-        document.getElementById('mobile-library-header')?.classList.remove('hidden');
-      }
-    } catch (e) {}
-
-    // Render library grid
-    try {
-      let data = null;
-
-      // Prefer your existing function if it exists
-      if (typeof getLibraryGridData === "function") {
-        data = getLibraryGridData();
-      } else {
-        // Fallback: derive album rows from whatever we have
-        const raw = (typeof libraryData !== "undefined") ? libraryData : (window.libraryData || []);
-        data = (typeof __resonGetAlbumRowsForLibrary === "function")
-          ? __resonGetAlbumRowsForLibrary(raw)
-          : (Array.isArray(raw) ? raw : []);
-      }
-
-      renderGrid(data);
-      try { renderHistory(); } catch (e) {}
-
-      // Extra debug: counts
-      try {
-        const raw = (typeof libraryData !== "undefined") ? libraryData : (window.libraryData || []);
-        const rawCount = Array.isArray(raw) ? raw.length : 0;
-        const albumCount = (typeof __resonGetAlbumRowsForLibrary === "function")
-          ? __resonGetAlbumRowsForLibrary(raw).length
-          : 0;
-        const plCount = (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists.length : (Array.isArray(playlists) ? playlists.length : 0));
-
-        if (typeof __resonDbg === "function") __resonDbg(`LIBRARY ✅ raw=${rawCount} • albums=${albumCount} • playlists=${plCount}`);
-        console.log("LIBRARY counts:", { rawCount, albumCount, plCount });
-      } catch (e) {}
-
-      // If you have mobile recents renderer, keep it
-      try {
-        if (window.innerWidth <= 768 && typeof renderMobileRecents === "function") renderMobileRecents();
-      } catch (e) {}
-
-    } catch (e) {
-      try { console.warn("Library render failed:", e); } catch (_) {}
-      try { if (typeof __resonDbg === "function") __resonDbg(`LIBRARY ❌ render failed: ${e?.message || e}`); } catch (_) {}
+  // Mobile: ensure the header is visible (it lives inside library-view now)
+  try {
+    if (window.innerWidth <= 768) {
+      document.getElementById('mobile-library-header')?.classList.remove('hidden');
     }
+  } catch (e) {}
 
-    return;
+  // Render library grid (mobile + desktop both use the same #album-grid now)
+  try {
+    renderMobileLibraryGrid();
+  } catch (e) {
+    try { console.error("Library render failed:", e); } catch (_) {}
+    try { if (typeof __resonDbg === "function") __resonDbg("LIBRARY ❌ renderMobileLibraryGrid crashed"); } catch (_) {}
   }
 
-  if (viewType === 'search') {
-    try { document.getElementById('search-view')?.classList.remove('hidden'); } catch (e) {}
-    try { document.getElementById('global-search')?.focus(); } catch (e) {}
-    try { if (typeof __resonDbg === "function") __resonDbg(`SEARCH ✅ (search-view visible)`); } catch (e) {}
-    return;
-  }
+  // Debug toast: confirm data counts
+  try {
+    const raw = Array.isArray(window.libraryData) ? window.libraryData : [];
+    const rawCount = raw.length;
+    const plsCount = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists.length : 0;
+    if (typeof __resonDbg === "function") __resonDbg(`Library: raw=${rawCount} • playlists=${plsCount} • userId=${window.APP_USER_ID || localStorage.getItem("app_user_id") || ""}`);
+  } catch (e) {}
 
-  if (viewType === 'crate') {
+  return;
+}
+
+if (viewType === 'crate') {
+
     try { document.getElementById('crate-view')?.classList.remove('hidden'); } catch (e) {}
     try { initCrateUIOnce(); } catch (e) {}
     try { renderCrate(); } catch (e) {}
@@ -12529,142 +12546,8 @@ try {
     </div>
   </div>
 
-<!--
-==============================
-SAVED FOR LATER: Library header + search + plus + profile + filters
-(removed during “mobile library reset”)
-==============================
+<!-- (removed) Saved-for-later block was breaking DOM because HTML comments can't be nested -->
 
-                <!-- MOBILE: Library header (Spotify-ish) -->
-        <div id="mobile-library-header" class="md:hidden mb-4">
-          <!-- Top row -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <!-- placeholder profile pic -->
-              <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-                <i class="fas fa-user text-white/70 text-sm"></i>
-              </div>
-              <div class="text-3xl font-black leading-none">My Library</div>
-            </div>
-
-            <div class="flex items-center gap-4">
-              <!-- search icon -->
-              <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white">
-                <i class="fas fa-search text-xl"></i>
-              </button>
-              <!-- plus icon (keeps your existing createNewPlaylist behavior) -->
-              <button type="button" class="text-white/90 hover:text-white" onclick="createNewPlaylist()">
-                <i class="fas fa-plus text-xl"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Tabs row (visual only, like your Home tabs) -->
-          <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
-          </div>
-        </div>
-
-                <!-- MOBILE: Library Search overlay (Spotify-like) -->
-        <div id="library-search-overlay" class="hidden md:hidden fixed inset-0 bg-black z-[9999]">
-          <!-- top bar -->
-          <div class="px-4 pt-4" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px);">
-            <div class="flex items-center gap-3">
-              <div class="flex-1 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2">
-                <i class="fas fa-search text-white/70"></i>
-                <input id="library-search-overlay-input"
-                       type="text"
-                       inputmode="search"
-                       autocomplete="off"
-                       autocapitalize="none"
-                       spellcheck="false"
-                       placeholder="Search Your Library"
-                       class="w-full bg-transparent outline-none text-white placeholder-white/40 font-bold" />
-              </div>
-              <button id="library-search-overlay-cancel"
-                      type="button"
-                      class="text-white/90 font-extrabold">
-                Cancel
-              </button>
-            </div>
-          </div>
-
-          <!-- results / recents / empty state -->
-          <div id="library-search-results-overlay" class="mt-2"></div>
-        </div>
-
-        <!-- Library controls (Sort + View as) -->
-        <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
-          <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
-          <div class="relative">
-            <button id="library-sort-btn"
-                    class="flex items-center gap-2 px-0 py-1 text-white font-extrabold text-sm hover:opacity-90"
-                    type="button">
-              <span id="library-sort-label">Recents</span>
-              <i class="fas fa-chevron-down text-xs opacity-80"></i>
-            </button>
-
-            <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
-              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
-
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
-
-              <div class="h-px bg-white/10 my-2"></div>
-
-              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">View as</div>
-              <div class="px-3 pb-3 flex items-center gap-2">
-                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
-                        data-view="grid" type="button">
-                  <i class="fas fa-th-large mr-2"></i>Grid
-                </button>
-                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
-                        data-view="list" type="button">
-                  <i class="fas fa-list mr-2"></i>List
-                </button>
-              </div>
-
-              <!-- Mobile-only: Grid density slider (1–6 columns) -->
-              <div id="library-grid-cols-wrap" class="px-4 pb-4 hidden">
-                <div class="text-xs font-black text-zinc-400 uppercase tracking-widest mb-2">Albums per row</div>
-                <input id="library-grid-cols"
-                       type="range"
-                       min="1"
-                       max="6"
-                       step="1"
-                       value="2"
-                       class="w-full"
-                       aria-label="Albums per row">
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Mobile Library Search (icon only like Spotify) -->
-          <div class="relative md:hidden">
-            <div id="library-search-popover" class="hidden absolute right-0 mt-2 w-72 max-w-[86vw] rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50 p-3">
-              <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/5">
-                <i class="fas fa-search text-white/70 text-sm"></i>
-                <input id="library-search-mobile"
-                       type="text"
-                       class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
-                       placeholder="Search in Your Library"
-                       autocomplete="off">
-              </div>
-
-              <div id="library-search-results-mobile"
-                   class="hidden mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden">
-              </div>
-            </div>
-          </div>
-        </div>
-
-END SAVED FOR LATER
-==============================
--->
 
 </body>
 </html>
