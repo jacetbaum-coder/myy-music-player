@@ -6076,14 +6076,19 @@ function pushNavCurrent() {
     }
   } catch (e) {}
 
-    // ✅ If we're leaving Library, capture the current scroll position
+      // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
     const area = document.getElementById('main-scroll-area');
     snapshot.scrollTop = area ? area.scrollTop : 0;
 
-    // ✅ ALSO capture which Library top tab you were on (albums/artists/playlists/all)
-    try { snapshot.libraryTopTab = libraryTopTab; } catch (e) {}
+    // ✅ Also capture which Library top tab was active (albums/artists/playlists/all)
+    try {
+      snapshot.libraryTopTab = localStorage.getItem('libraryTopTab') || libraryTopTab || 'albums';
+    } catch (e) {
+      snapshot.libraryTopTab = libraryTopTab || 'albums';
+    }
   }
+
 
   // ✅ THIS is the missing piece that makes swipe/back work:
   // actually push the snapshot onto the stack
@@ -6116,30 +6121,29 @@ function goBack() {
     } else if (prev.type === 'search') {
       showView('search');
         } else if (prev.type === 'library') {
-      // ✅ Restore which Library top tab you were on (Albums / Artists / Playlists / All)
-      try {
-        if (prev.libraryTopTab) {
-          libraryTopTab = prev.libraryTopTab;
-          localStorage.setItem('libraryTopTab', libraryTopTab);
+  // ✅ Restore which Library top-tab we were on before re-rendering Library
+  try {
+    if (prev.libraryTopTab) {
+      libraryTopTab = prev.libraryTopTab;
+      localStorage.setItem('libraryTopTab', libraryTopTab);
+      window.libraryTopTab = libraryTopTab;
+    } else {
+      libraryTopTab = localStorage.getItem('libraryTopTab') || libraryTopTab || 'albums';
+      window.libraryTopTab = libraryTopTab;
+    }
+  } catch (e) {}
 
-          if (typeof updateMobileLibraryTabUI === 'function') updateMobileLibraryTabUI();
-          if (typeof updateMobileLibrarySectionTitle === 'function') updateMobileLibrarySectionTitle();
-          if (typeof updateLibrarySortUIForTopTab === 'function') updateLibrarySortUIForTopTab();
-        }
-      } catch (e) {}
+  showView('library');
 
-      showView('library');
+  // Restore scroll position inside Library list
+  try {
+    const area = document.getElementById('main-scroll-area');
+    if (area) {
+      area.scrollTop = (typeof prev.scrollTop === 'number') ? prev.scrollTop : 0;
+    }
+  } catch (e) {}
+        } else if (prev.type === 'liked') {
 
-
-      // ✅ Restore where you were in Library before entering the album
-      const area = document.getElementById('main-scroll-area');
-      const top = Number.isFinite(prev.scrollTop) ? prev.scrollTop : 0;
-
-      if (area) {
-        requestAnimationFrame(() => {
-          area.scrollTop = top;
-        });
-      }
         } else if (prev.type === 'liked') {
       showView('liked');
     } else {
@@ -6982,7 +6986,8 @@ function renderLibraryPlaylists() {
 // LIBRARY: Mobile top tabs (Playlists / Albums / Artists / All)
 // -----------------------
 let libraryTopTab = localStorage.getItem('libraryTopTab') || 'albums';
-
+window.libraryTopTab = libraryTopTab;
+        
 function getLibraryTabLabel(tab) {
   if (tab === 'playlists') return 'Playlists';
   if (tab === 'albums') return 'Albums';
@@ -7020,8 +7025,9 @@ function updateMobileLibraryTabUI() {
 function setLibraryTopTab(tab) {
   libraryTopTab = tab;
   localStorage.setItem('libraryTopTab', tab);
+window.libraryTopTab = tab;
+updateMobileLibraryTabUI();
 
-  updateMobileLibraryTabUI();
   updateMobileLibrarySectionTitle();
 
   // ✅ Always re-render immediately on mobile when a top Library tab is clicked.
