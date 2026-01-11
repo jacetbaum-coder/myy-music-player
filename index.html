@@ -594,9 +594,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
   /* ✅ IMPORTANT: prevent any horizontal “peek” during swipe/back gestures */
   overflow-x: hidden;
-  overflow-y: auto;
+    /* ✅ extra bottom space so the last song can scroll above the player/dock */
+  padding: 32px 32px 190px;
 
-  padding: 32px; 
   position: relative; 
   scrollbar-width: thin;
   scrollbar-color: #555 transparent;
@@ -2661,7 +2661,8 @@ body.qs-lock {
 
 
 
-    <div id="main-dock" class="player-bar dock-hidden">
+    <div id="main-dock" class="player-bar">
+
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
   <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
   <div class="overflow-hidden">
@@ -3977,20 +3978,22 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 
 
 // ✅ Create playlist in cloud
+// ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
   const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) throw new Error("Missing id");
 
   const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: uid, name: String(name || "Playlist") })
+    body: JSON.stringify({ id: uid, name: String(name || "Playlist") })
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Create playlist failed");
   return data;
 };
+
 
 // ✅ Delete playlist in cloud
 window.deletePlaylistFromCloud = async function (playlistId) {
@@ -4434,7 +4437,43 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
-        async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
+/* -----------------------
+   ✅ SINGLE SOURCE OF TRUTH for covers
+   - Uses override only if non-empty
+   - Auto-clears empty overrides that hide covers
+   - Falls back to library coverArt
+   - Final fallback: computed R2 cover.jpg
+------------------------ */
+function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
+  const a = String(artistName || "").trim();
+  const b = String(albumName || "").trim();
+
+  // 1) Try local override (but ONLY if non-empty)
+  const key = albumKey(a, b);
+  const map = loadAlbumCoverOverrides();
+
+  if (Object.prototype.hasOwnProperty.call(map, key)) {
+    const override = String(map[key] || "").trim();
+
+    if (override) return override;
+
+    // If override exists but is empty, it hides covers.
+    // Auto-delete it so covers come back.
+    delete map[key];
+    saveAlbumCoverOverrides(map);
+  }
+
+  // 2) Use coverArt from the library (Worker JSON)
+  const libCover = String(coverArtFromLibrary || "").trim();
+  if (libCover) return libCover;
+
+  // 3) Final fallback: build a cover.jpg URL in R2
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+  const albumCoverPath = `${a}/${b}/cover.jpg`;
+  return `${r2Base}${encodeURIComponent(albumCoverPath)}`;
+}
+
+async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   try {
     await fetch('/api/get-songs', {
       method: 'POST',
@@ -4449,6 +4488,7 @@ function saveAlbumCoverOverrides(obj) {
     console.warn('Failed to sync album cover override:', e);
   }
 }
+
 
 function reconcileAlbumCoverOverridesFromLibrary(data) {
   const map = loadAlbumCoverOverrides();
@@ -4471,19 +4511,16 @@ function reconcileAlbumCoverOverridesFromLibrary(data) {
   if (changed) saveAlbumCoverOverrides(map);
 }
 
-function getAlbumCover(artistName, albumName, fallbackCover) {
-  const map = loadAlbumCoverOverrides();
-  const key = albumKey(artistName, albumName);
-  const v = map[key];
-  return (v && String(v).trim()) ? v : fallbackCover;
-}
-
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
   map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
+  
+  // SAFE CHECK: Only run sync if the function actually exists
+  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl);
+  }
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -4491,7 +4528,11 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
+  
+  // SAFE CHECK: Only run sync if the function actually exists
+  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, "");
+  }
 }
 
 /* -----------------------
@@ -5555,7 +5596,8 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch('/api/get-songs', { signal: controller.signal });
+    const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(), { signal: controller.signal });
+
 
     clearTimeout(timeoutId);
 
@@ -6374,19 +6416,28 @@ const normalizedIds = itemsArr
 
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
-pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+
+// ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, pl.songs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
+
 
 
     } catch (err) {
       console.warn(err);
       pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-      pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
-      renderCollection(pl.name, pl.songs, true, playlistIndex);
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+
+// ✅ Derive songs only for rendering (do not store on playlist)
+const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
+
     }
   })();
 }
@@ -8334,24 +8385,35 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-  // If no saved state, hide dock
-  if (!state || !state.song || !state.song.url) {
+   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
+  if (!raw) {
     currentSong = null;
-      toggleRightSidebar(false);
-    dock.classList.add('dock-hidden');
+    toggleRightSidebar(false);
+
+    if (window.innerWidth <= 768) {
+      dock.classList.remove('dock-hidden');
+    } else {
+      dock.classList.add('dock-hidden');
+    }
     return;
   }
 
-  // If older than 1 hour, wipe it and hide dock
-  if ((Date.now() - (state.updatedAt || 0)) >= oneHour) {
-    localStorage.removeItem('lastSongState');
+  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
+    localStorage.removeItem('reson_player_state');
     currentSong = null;
-      toggleRightSidebar(false);
-    dock.classList.add('dock-hidden');
+    toggleRightSidebar(false);
+
+    if (window.innerWidth <= 768) {
+      dock.classList.remove('dock-hidden');
+    } else {
+      dock.classList.add('dock-hidden');
+    }
     return;
   }
 
-  // Restore song into memory
+
   currentSong = state.song;
 
   // Restore audio source + time (do NOT autoplay)
@@ -8390,7 +8452,18 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 }
 
 function checkDockVisibility() {
-  const oneHour = 3600000;
+  const dock = document.getElementById('main-dock');
+  if (!dock) return;
+
+  // ✅ Mobile: dock is ALWAYS visible (home, search, library, album, playlist, etc.)
+  if (window.innerWidth <= 768) {
+    dock.classList.remove('dock-hidden');
+    return;
+  }
+
+  // Desktop behavior (unchanged): only show dock when something is loaded / recently played
+  const lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime'), 10);
+  const currentTime = Date.now();
 
   // If nothing is loaded / no current song => NO dock
   if (!currentSong) {
@@ -8398,18 +8471,14 @@ function checkDockVisibility() {
     return;
   }
 
-  // If playing, always show
-  if (!player.paused) {
+  // If last played time exists and is within 1 hour => show dock
+  if (!isNaN(lastPlayedTime) && currentTime - lastPlayedTime < 3600000) {
     dock.classList.remove('dock-hidden');
-    return;
+  } else {
+    dock.classList.add('dock-hidden');
   }
-
-  // If paused: only show if last interaction within 1 hour
-  const isRecent = (Date.now() - lastPlayedTime) < oneHour;
-
-  if (isRecent) dock.classList.remove('dock-hidden');
-  else dock.classList.add('dock-hidden');
 }
+
 
        function toggleRightSidebar(show) {
   if (window.innerWidth < 1024) return;
@@ -9489,12 +9558,27 @@ if (homeRecentsShowAllBtn) {
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
+
+    // ✅ Always compute album covers from Artist + Album (ignores stale h.cover)
+    let cover = "";
+    if (h.type === 'playlist') {
+      cover = String(h.cover || "").trim();
+    } else {
+      const artistName = String(h.artist || "").trim();
+      const albumName  = String(h.album || "").trim();
+      cover = getAlbumCover(artistName, albumName, "");
+    }
+
     return `
       <div class="mobile-recent-card"
            data-type="${h.type}"
            data-id="${safeId}"
            data-album="${safeAlbum}">
-        <img src="${h.cover || ''}" alt="">
+        ${
+          cover
+            ? `<img src="${cover}" alt="">`
+            : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>`
+        }
         <div class="min-w-0">
           <div class="title">${title}</div>
           <div class="sub">${sub}</div>
@@ -9505,18 +9589,21 @@ if (homeRecentsShowAllBtn) {
 
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
+      const type = card.dataset.type;
+      const id = card.dataset.id;
+
       if (type === 'playlist') {
-        const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-      } else {
-        const album = card.getAttribute('data-album');
-        if (album) openAlbumByName(album);
+        const idx = playlists.findIndex(p => String(p.id) === String(id));
+        if (idx >= 0) showView('playlist', idx);
+        return;
       }
+
+      const albumName = card.dataset.album || '';
+      if (albumName) openAlbumByName(albumName);
     });
   });
 }
+
 
 function renderHistory() {
   const historyEl = document.getElementById('history-container');
@@ -9614,14 +9701,14 @@ function renderHistory() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: window.APP_USER_ID || localStorage.getItem("app_user_id"),
+          id: window.APP_USER_ID || localStorage.getItem("app_user_id"),
           name: name.trim()
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        throw new Error("Failed to create playlist");
+        throw new Error(data?.error || "Failed to create playlist");
       }
 
       // Reload cloud playlists and re-render
@@ -9633,6 +9720,7 @@ function renderHistory() {
     }
   })();
 }
+
 
 
 // ---------------- PINNED PLAYLISTS ----------------
@@ -9798,8 +9886,12 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
     return `<img src="${explicit}" class="${sc} object-cover" alt="">`;
   }
 
-  // 2) build from song covers
-  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+    // 2) build from song covers
+  const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs
     .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
     .map(x => String(x || '').trim())
@@ -9831,8 +9923,12 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
 
 function playlistAutoCoverSignature(pl) {
 
-  // Signature determines when we need to rebuild the auto cover
-  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
+    // Signature determines when we need to rebuild the auto cover
+  const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) return "none";
@@ -9914,7 +10010,11 @@ async function updatePlaylistAutoCoverById(playlistId) {
     return; // already up to date
   }
 
-  const songs = Array.isArray(pl.songs) ? pl.songs : [];
+    const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) {
@@ -10444,8 +10544,41 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', hideAlbumCoverMenu, true);
 });
 
+// ✅ Canonical track id helper (global)
+// Turns URLs or encoded ids into the stable R2 path: "Artist/Album/Song.mp3"
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+
+  // If we were given a full URL, pull out ?id=
+  try {
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
+    }
+  } catch (e) {}
+
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
+    try {
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
+  }
+
+  // Decode %2F etc
+  try { s = decodeURIComponent(s); } catch (e) {}
+
+  // Strip leading slash if present
+  s = s.replace(/^\/+/, "").trim();
+
+  return s;
+}
+
 function renderPlaylists() {
   const list = document.getElementById('dynamic-playlists-list');
+
   const sub = document.getElementById('playlist-submenu');
   if (!list || !sub) return;
 
@@ -10598,10 +10731,7 @@ function renderPlaylists() {
     pl.trackIds.push(trackId);
   }
 
-  pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
-    ? window.resolveTrackIdsToSongs(pl.trackIds)
-    : [];
-
+    // ✅ Playlists are IDs-only: do NOT store song objects on playlist
   savePlaylists();
 
   // Update auto cover after adding
@@ -10717,10 +10847,11 @@ if (pl) {
   const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
   __plBeforeIds = arr.slice();
 
-  pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
-  pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+    pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
 
+  // ✅ IDs-only: do NOT store song objects on playlist
   savePlaylists();
+
 
   try { updatePlaylistAutoCoverById(activePlaylistId); } catch (e) {}
   try { renderPlaylists(); } catch (e) {}
