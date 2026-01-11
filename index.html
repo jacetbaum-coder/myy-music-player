@@ -5938,10 +5938,24 @@ clearTimeout(timeoutId);
 // -----------------------
 let navStack = [];
 let navCurrent = { type: 'home' };
+let navStack = [];
+let navCurrent = { type: 'home' };
 let __isBackNav = false;
 
-// Expose for debugging + any code that reads window.navCurrent / window.navStack
+// Expose for debugging + global access
 window.navStack = navStack;
+window.navCurrent = navCurrent;
+
+// HARD SAFETY: never allow __isBackNav to stay true accidentally
+function __withBackNav(fn) {
+  __isBackNav = true;
+  try {
+    fn();
+  } finally {
+    __isBackNav = false;
+  }
+}
+
 window.navCurrent = navCurrent;
 
 
@@ -6041,7 +6055,9 @@ function setNavCurrent(state) {
 
 
 function pushNavCurrent() {
-  if (__isBackNav) return;
+  if (__isBackNav === true) {
+  return;
+}
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
@@ -6078,62 +6094,35 @@ function pushNavCurrent() {
 }
 
 function goBack() {
-  if (navStack.length === 0) return;
+  if (!Array.isArray(navStack) || navStack.length === 0) return;
 
   const prev = navStack.pop();
   if (!prev || !prev.type) return;
 
-  __isBackNav = true;
-
-  try {
+  __withBackNav(() => {
     if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
-    } else if (prev.type === 'artist' && prev.artistName) {
+    } else if (prev.type === '.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
     } else if (prev.type === 'search') {
       showView('search');
-        } else if (prev.type === 'library') {
-
-      // ✅ Restore Library top tab first, so renderLibraryMain() shows the right section
-      try {
-        if (prev.libraryTopTab) {
-          libraryTopTab = prev.libraryTopTab;
-          localStorage.setItem('libraryTopTab', libraryTopTab);
-          updateMobileLibraryTabUI();
-          updateMobileLibrarySectionTitle();
-        }
-      } catch (e) {}
-
+    } else if (prev.type === 'library') {
       showView('library');
 
-
-      // ✅ Restore where you were in Library before entering the album
       const area = document.getElementById('main-scroll-area');
-      const top = Number.isFinite(prev.scrollTop) ? prev.scrollTop : 0;
-
-      if (area) {
+      if (area && Number.isFinite(prev.scrollTop)) {
         requestAnimationFrame(() => {
-          area.scrollTop = top;
+          area.scrollTop = prev.scrollTop;
         });
       }
-        } else if (prev.type === 'liked') {
-      showView('liked');
     } else {
-      // ✅ Fallback: if you came from the Library tab, never fall back to Home
-      try {
-        if (window.__rootTab === 'library') showView('library');
-        else showView('home');
-      } catch (e) {
-        showView('home');
-      }
+      showView('home');
     }
-
-  } finally {
-    __isBackNav = false;
-  }
+  });
 }
+
 
 
 function initSwipeBack() {
