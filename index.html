@@ -6076,10 +6076,13 @@ function pushNavCurrent() {
     }
   } catch (e) {}
 
-  // ✅ If we're leaving Library, capture the current scroll position
+    // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
     const area = document.getElementById('main-scroll-area');
     snapshot.scrollTop = area ? area.scrollTop : 0;
+
+    // ✅ ALSO capture which Library top tab you were on (albums/artists/playlists/all)
+    try { snapshot.libraryTopTab = libraryTopTab; } catch (e) {}
   }
 
   // ✅ THIS is the missing piece that makes swipe/back work:
@@ -6112,8 +6115,21 @@ function goBack() {
       showView('playlist', prev.playlistIndex);
     } else if (prev.type === 'search') {
       showView('search');
-    } else if (prev.type === 'library') {
+        } else if (prev.type === 'library') {
+      // ✅ Restore which Library top tab you were on (Albums / Artists / Playlists / All)
+      try {
+        if (prev.libraryTopTab) {
+          libraryTopTab = prev.libraryTopTab;
+          localStorage.setItem('libraryTopTab', libraryTopTab);
+
+          if (typeof updateMobileLibraryTabUI === 'function') updateMobileLibraryTabUI();
+          if (typeof updateMobileLibrarySectionTitle === 'function') updateMobileLibrarySectionTitle();
+          if (typeof updateLibrarySortUIForTopTab === 'function') updateLibrarySortUIForTopTab();
+        }
+      } catch (e) {}
+
       showView('library');
+
 
       // ✅ Restore where you were in Library before entering the album
       const area = document.getElementById('main-scroll-area');
