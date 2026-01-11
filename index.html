@@ -1508,28 +1508,12 @@ body.qs-lock{
   margin-bottom: 18px;
 }
 
-       .home-recents-grid {
+        .home-recents-grid {
   display: flex;
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 8px;
 }
-
-/* ✅ Home "Playlists" row scrolls horizontally on mobile (same feel as Recents) */
-@media (max-width: 768px) {
-  #home-recent-grid {
-    display: flex !important;
-    gap: 16px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #home-recent-grid .mobile-recent-card {
-    flex: 0 0 260px;
-  }
-}
-
 
         
 .recent-tile {
@@ -2218,13 +2202,12 @@ body.qs-lock {
 </button>
 
 
-        <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button id="home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button id="home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button id="home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-      <button id="home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
     </div>
-
   </div>
 
     <!-- Playlists -->
@@ -2266,13 +2249,12 @@ body.qs-lock {
         <i class="fas fa-user text-white/70"></i>
       </div>
 
-            <div class="flex gap-2 overflow-x-auto">
-        <button id="desktop-home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button id="desktop-home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-        <button id="desktop-home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-        <button id="desktop-home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+      <div class="flex gap-2 overflow-x-auto">
+        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
       </div>
-
     </div>
 
         <!-- Playlists -->
@@ -3869,51 +3851,21 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       continue;
     }
 
-        out.push({
+    out.push({
       id: key,
       r2Path: key,
       key: key,
-
-      // Parse "Artist/Album/Track.mp3" OR "Artist/Track.mp3"
-      title: (() => {
-        const parts = String(key).split("/");
-        const file = parts[parts.length - 1] || key;
-        return String(file).replace(/\.mp3$/i, "");
-      })(),
-
-      name: (() => {
-        const parts = String(key).split("/");
-        const file = parts[parts.length - 1] || key;
-        return String(file).replace(/\.mp3$/i, "");
-      })(),
-
-      artist: (() => {
-        const parts = String(key).split("/");
-        return String(parts[0] || "").trim();
-      })(),
-
-      album: (() => {
-        const parts = String(key).split("/");
-        // Only treat the 2nd segment as album if format is Artist/Album/Track
-        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
-      })(),
-
-      artistName: (() => {
-        const parts = String(key).split("/");
-        return String(parts[0] || "").trim();
-      })(),
-
-      albumName: (() => {
-        const parts = String(key).split("/");
-        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
-      })(),
-
+      title: key.split("/").pop() || key,
+      name: key.split("/").pop() || key,
+      artist: "",
+      album: "",
+      artistName: "",
+      albumName: "",
       cover: "",
       coverArt: "",
       url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
       link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
     });
-
   }
 
   return out;
@@ -6515,17 +6467,12 @@ if (scrollArea) scrollArea.scrollTop = 0;
   if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  if (window.innerWidth <= 768) {
-    // MOBILE: Albums + Playlists together, alphabetical, 3 across
-    renderMobileLibraryGrid();
-  } else {
-    // DESKTOP: keep your existing Library behavior
-    renderGrid(getLibraryGridData());
-  }
-
+  renderGrid(getLibraryGridData());
   renderHistory();
-}
 
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
+  }
 }
 
     if (viewType === 'search') {
@@ -6827,104 +6774,7 @@ function onNavTap(viewType) {
           * ---------------------------------------------------------------------
           */
 
-function renderMobileLibraryGrid() {
-  const grid = document.getElementById('album-grid');
-  if (!grid) return;
-
-  // Build combined items list (albums + playlists)
-  const albums = (Array.isArray(libraryData) ? libraryData : []).map(a => ({
-    type: 'album',
-    albumName: String(a.albumName || ''),
-    artistName: String(a.artistName || ''),
-    coverArt: a.coverArt
-  }));
-
-  const pls = (Array.isArray(playlists) ? playlists : []).map(pl => ({
-    type: 'playlist',
-    id: String(pl?.id || ''),
-    name: String(pl?.name || 'Playlist'),
-    cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
-  }));
-
-  const items = [...albums, ...pls].filter(x => (x.type === 'album' ? x.albumName : x.name));
-
-  // Alphabetical by display name
-  items.sort((a, b) => {
-    const an = (a.type === 'album' ? a.albumName : a.name);
-    const bn = (b.type === 'album' ? b.albumName : b.name);
-    return an.localeCompare(bn, undefined, { sensitivity: 'base' });
-  });
-
-  // Force 3 columns on mobile library
-  grid.style.display = 'grid';
-  grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
-  grid.style.gap = '12px';
-
-  grid.innerHTML = items.map((item) => {
-    if (item.type === 'playlist') {
-      const safeId = String(item.id).replace(/"/g, '&quot;');
-      const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const cover = item.cover ? String(item.cover) : '';
-      return `
-        <div class="album-card p-2"
-             data-type="playlist"
-             data-id="${safeId}">
-          <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-            ${
-              cover
-                ? `<img src="${cover}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
-                     <i class="fas fa-music text-zinc-400"></i>
-                   </div>`
-            }
-          </div>
-          <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
-          <div class="text-xs text-zinc-400 truncate">Playlist</div>
-        </div>
-      `;
-    }
-
-    // album
-    const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
-    const cover = (typeof getAlbumCover === 'function')
-      ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
-      : '';
-    const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    return `
-      <div class="album-card p-2"
-           data-type="album"
-           data-album="${safeAlbum}">
-        <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover">
-        </div>
-        <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
-        <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
-      </div>
-    `;
-  }).join('');
-
-  // Click handling
-  [...grid.querySelectorAll('.album-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
-
-      if (type === 'playlist') {
-        const id = card.getAttribute('data-id');
-        const idx = (Array.isArray(playlists) ? playlists : []).findIndex(pl => String(pl?.id) === String(id));
-        if (idx !== -1) showView('playlist', idx);
-        return;
-      }
-
-      const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
-    });
-  });
-}
-
 function renderGrid(data) {
-
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
@@ -9732,19 +9582,14 @@ function handleContextMenu(e, song) {
   if (!grid) return;
 
   const isMobile = (window.innerWidth <= 768);
+  const slotCount = isMobile ? 4 : 8;
 
-const pinnedIds = loadPinnedPlaylists();
-const pinnedSet = new Set(pinnedIds);
-const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-
-// ✅ Mobile: show ALL playlists (scroll horizontally instead of "only 4")
-const defaultSlots = isMobile ? orderedPlaylists.length : 8;
-const slotCount = homePlaylistsExpanded ? orderedPlaylists.length : defaultSlots;
-
-const filled = orderedPlaylists.slice(0, slotCount);
-
+  const pinnedIds = loadPinnedPlaylists();
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+  const filled = orderedPlaylists.slice(0, slotCount);
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
@@ -9804,8 +9649,7 @@ const filled = orderedPlaylists.slice(0, slotCount);
   });
 }
 
-        let mobileRecentsExpanded = false;
-let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mobile + desktop)
+         let mobileRecentsExpanded = false;
 
         function renderHomeRecentsRow(containerId) {
           const row = document.getElementById(containerId);
@@ -9877,107 +9721,15 @@ let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mo
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
     renderHomeRecentsRow('home-recents-row');
-    try { window.__applyHomeChipFilter?.(); } catch (e) {}
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
-  try { window.__applyHomeChipFilter?.(); } catch (e) {}
 }
 
-// ------------------------------
-// Home chips: All / Music / Playlists / Audio
-// (Only implement what you asked: Playlists shows ONLY playlists)
-// ------------------------------
-if (!window.__homeChipsBound) {
-  window.__homeChipsBound = true;
-
-  window.__homeChip = window.__homeChip || 'all';
-
-  window.__applyHomeChipStyles = function () {
-    const ids = ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'];
-    ids.forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      const key = btn.getAttribute('data-homechip');
-
-      if (key === window.__homeChip) {
-        btn.classList.remove('bg-white/10', 'text-white');
-        btn.classList.add('bg-[#1db954]', 'text-black');
-      } else {
-        btn.classList.remove('bg-[#1db954]', 'text-black');
-        btn.classList.add('bg-white/10', 'text-white');
-      }
-    });
-  };
-
-   window.__applyHomeChipFilter = function () {
-    // ✅ Only hide/show Home sections while you are on Home.
-    // If you leave Home (ex: go to Library), force everything back on.
-    const isHome = (typeof navCurrent === 'object' && navCurrent && navCurrent.type === 'home');
-
-    const dRecentsRow = document.getElementById('desktop-recents-row');
-    const albumGrid = document.getElementById('album-grid');
-    const mRecentsRow = document.getElementById('home-recents-row');
-
-    if (!isHome) {
-      // restore anything the Home chip may have hidden
-      if (dRecentsRow) {
-        const h2 = dRecentsRow.previousElementSibling;
-        if (h2 && h2.tagName === 'H2') h2.style.display = '';
-        dRecentsRow.style.display = '';
-      }
-      if (albumGrid) albumGrid.style.display = '';
-      if (mRecentsRow && mRecentsRow.parentElement) {
-        mRecentsRow.parentElement.style.display = '';
-      }
-      return;
-    }
-
-    const onlyPlaylists = (window.__homeChip === 'playlists');
-
-    // Desktop: hide Recents row + its H2
-    if (dRecentsRow) {
-      const h2 = dRecentsRow.previousElementSibling;
-      if (h2 && h2.tagName === 'H2') h2.style.display = onlyPlaylists ? 'none' : '';
-      dRecentsRow.style.display = onlyPlaylists ? 'none' : '';
-    }
-
-    // Desktop: hide the big album grid section (your library cards) when Playlists is selected
-    if (albumGrid) albumGrid.style.display = onlyPlaylists ? 'none' : '';
-
-    // Mobile: hide the whole Recents section container (the parent of #home-recents-row)
-    if (mRecentsRow && mRecentsRow.parentElement) {
-      mRecentsRow.parentElement.style.display = onlyPlaylists ? 'none' : '';
-    }
-  };
-
-  function bindHomeChip(id) {
-    const btn = document.getElementById(id);
-    if (!btn || btn.__bound) return;
-    btn.__bound = true;
-
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-homechip') || 'all';
-      window.__homeChip = key;
-
-      try { window.__applyHomeChipStyles(); } catch (e) {}
-      try { window.__applyHomeChipFilter(); } catch (e) {}
-    });
-  }
-
-  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio', 'desktop-home-chip-all', 'desktop-home-chip-music', 'desktop-home-chip-playlists', 'desktop-home-chip-audio'].forEach(bindHomeChip);
-
-
-  // initial apply
-  try { window.__applyHomeChipStyles(); } catch (e) {}
-  try { window.__applyHomeChipFilter(); } catch (e) {}
-}
-
-const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
-
+        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
 if (homeRecentsShowAllBtn) {
   homeRecentsShowAllBtn.addEventListener('click', () => {
     mobileRecentsExpanded = !mobileRecentsExpanded;
