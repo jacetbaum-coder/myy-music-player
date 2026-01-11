@@ -6920,15 +6920,13 @@ function setLibraryTopTab(tab) {
   updateMobileLibraryTabUI();
   updateMobileLibrarySectionTitle();
 
-  // ✅ Re-render immediately if we're currently looking at Library
-  const shouldRerender =
-    (window.__rootTab === 'library') ||
-    (navCurrent && navCurrent.type === 'library');
-
-  if (shouldRerender) {
+  // ✅ Always re-render immediately on mobile when a top Library tab is clicked.
+  // This avoids getting "stuck" when navCurrent / __rootTab is stale.
+  if (window.innerWidth <= 768) {
     try { renderLibraryMain(); } catch (e) {}
   }
 }
+
 
 
 function initMobileLibraryTabsOnce() {
