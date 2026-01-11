@@ -2301,25 +2301,32 @@ body.qs-lock {
             </div>
           </div>
 
-                              <!-- Tabs row (All / Playlists / Albums / Artists) -->
+                    <!-- Tabs row (NOW functional) -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-            <button id="mobile-lib-tab-all"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-                    type="button">All</button>
-
             <button id="mobile-lib-tab-playlists"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-                    type="button">Playlists</button>
+                    type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+              Playlists
+            </button>
 
             <button id="mobile-lib-tab-albums"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-                    type="button">Albums</button>
+                    type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+              Albums
+            </button>
 
-            <button id="mobile-lib-tab-artists"
-                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap"
-                    type="button">Artists</button>
+            <button type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
+                    disabled>
+              Podcasts
+            </button>
+
+            <button type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
+                    disabled>
+              Audiobooks
+            </button>
           </div>
-
         </div>
 
         <!-- MOBILE: Library Search overlay (Spotify-like) -->
@@ -2349,7 +2356,6 @@ body.qs-lock {
           <!-- results / recents / empty state -->
           <div id="library-search-results-overlay" class="mt-2"></div>
         </div>
-
 
         <!-- Library controls (Sort + View as) -->
 
@@ -2421,20 +2427,17 @@ body.qs-lock {
           </div>
         </div>
 
-      <!-- Playlists header -->
-  <div id="library-playlists-header" class="flex items-center justify-between mb-3">
+   <!-- Playlists header -->
+  <div class="flex items-center justify-between mb-3">
     <h2 class="text-xl font-black">Playlists</h2>
   </div>
 
   <div id="library-playlists-grid" class="grid grid-cols-2 gap-3 mb-6"></div>
 
-
   <!-- Albums header -->
 
-  <div id="library-albums-header" class="mb-4">
-
-    <h2 id="library-section-title" class="text-3xl font-black">Albums</h2>
-
+  <div class="mb-4">
+    <h2 class="text-3xl font-black">Albums</h2>
   </div>
 
   <!-- ONE album grid only -->
@@ -2454,10 +2457,7 @@ body.qs-lock {
   </div>
 </div>
 
-       <div id="library-artists-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-
     <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"></div>
-
 
 </div>
 
@@ -5720,14 +5720,12 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   // Fetch library
   try {
-     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
+const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
 
-    clearTimeout(timeoutId);
-
-
+clearTimeout(timeoutId);
 
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
@@ -6502,8 +6500,6 @@ if (scrollArea) scrollArea.scrollTop = 0;
   }
 
 
-
-
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
     document.getElementById('global-search').focus();
@@ -6879,110 +6875,45 @@ function renderLibraryPlaylists() {
 // -----------------------
 // LIBRARY: Mobile top tabs (Playlists / Albums)
 // -----------------------
-let libraryTopTab = localStorage.getItem('library_top_tab') || 'all';
-
-
-function updateLibrarySectionTitle() {
-  const titleEl = document.getElementById('library-section-title');
-  if (!titleEl) return;
-
-  if (libraryTopTab === 'playlists') titleEl.textContent = 'Playlists';
-  else if (libraryTopTab === 'albums') titleEl.textContent = 'Albums';
-  else if (libraryTopTab === 'artists') titleEl.textContent = 'Artists';
-  else titleEl.textContent = 'Albums'; // "All" view still shows Albums section title
-}
-
+let libraryTopTab = localStorage.getItem('libraryTopTab') || 'albums';
 
 function updateMobileLibraryTabUI() {
-  const btnAll = document.getElementById('mobile-lib-tab-all');
   const btnP = document.getElementById('mobile-lib-tab-playlists');
   const btnA = document.getElementById('mobile-lib-tab-albums');
-  const btnR = document.getElementById('mobile-lib-tab-artists');
+  if (!btnP || !btnA) return;
 
-  const setActive = (btn, active) => {
-    if (!btn) return;
-    if (active) {
-      btn.classList.remove('bg-white/10', 'text-white');
-      btn.classList.add('bg-[#1db954]', 'text-black');
-    } else {
-      btn.classList.remove('bg-[#1db954]', 'text-black');
-      btn.classList.add('bg-white/10', 'text-white');
-    }
-  };
+  const base = "px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap";
+  const onCls = "bg-[#1db954] text-black";
+  const offCls = "bg-white/10 text-white";
 
-  setActive(btnAll, libraryTopTab === 'all');
-  setActive(btnP, libraryTopTab === 'playlists');
-  setActive(btnA, libraryTopTab === 'albums');
-  setActive(btnR, libraryTopTab === 'artists');
-}
-
-function applyLibraryTopTabVisibility() {
-  const playlistsHeader = document.getElementById('library-playlists-header');
-  const playlistsGrid = document.getElementById('library-playlists-grid');
-  const albumsHeader = document.getElementById('library-albums-header');
-  const albumGrid = document.getElementById('album-grid');
-  const artistsGrid = document.getElementById('library-artists-grid');
-
-  const show = (el) => el && el.classList.remove('hidden');
-  const hide = (el) => el && el.classList.add('hidden');
-
-  if (libraryTopTab === 'all') {
-    show(playlistsHeader);
-    show(playlistsGrid);
-    show(albumsHeader);
-    show(albumGrid);
-    hide(artistsGrid);
-  } else if (libraryTopTab === 'playlists') {
-    hide(playlistsHeader);      // avoid duplicate "Playlists" heading
-    show(playlistsGrid);
-    show(albumsHeader);         // we reuse the big title area
-    hide(albumGrid);
-    hide(artistsGrid);
-  } else if (libraryTopTab === 'albums') {
-    hide(playlistsHeader);
-    hide(playlistsGrid);
-    show(albumsHeader);
-    show(albumGrid);
-    hide(artistsGrid);
-  } else if (libraryTopTab === 'artists') {
-    hide(playlistsHeader);
-    hide(playlistsGrid);
-    show(albumsHeader);         // we reuse the big title area
-    hide(albumGrid);
-    show(artistsGrid);
-  }
+  btnP.className = base + " " + (libraryTopTab === 'playlists' ? onCls : offCls);
+  btnA.className = base + " " + (libraryTopTab === 'albums' ? onCls : offCls);
 }
 
 function setLibraryTopTab(tab) {
   libraryTopTab = tab;
-  localStorage.setItem('library_top_tab', tab);
+  localStorage.setItem('libraryTopTab', tab);
 
   updateMobileLibraryTabUI();
-  updateLibrarySectionTitle();
-  applyLibraryTopTabVisibility();
-  renderLibraryMain();
+
+  // If we're currently in Library, re-render immediately
+  if (navCurrent && navCurrent.type === 'library') {
+    renderLibraryMain();
+  }
 }
 
 function initMobileLibraryTabsOnce() {
-  if (window.__mobileLibraryTabsInited) return;
-  window.__mobileLibraryTabsInited = true;
+  if (window.__mobileLibTabsInit) return;
+  window.__mobileLibTabsInit = true;
 
-  const btnAll = document.getElementById('mobile-lib-tab-all');
   const btnP = document.getElementById('mobile-lib-tab-playlists');
   const btnA = document.getElementById('mobile-lib-tab-albums');
-  const btnR = document.getElementById('mobile-lib-tab-artists');
 
-  btnAll && btnAll.addEventListener('click', () => setLibraryTopTab('all'));
-  btnP && btnP.addEventListener('click', () => setLibraryTopTab('playlists'));
-  btnA && btnA.addEventListener('click', () => setLibraryTopTab('albums'));
-  btnR && btnR.addEventListener('click', () => setLibraryTopTab('artists'));
+  if (btnP) btnP.addEventListener('click', () => setLibraryTopTab('playlists'));
+  if (btnA) btnA.addEventListener('click', () => setLibraryTopTab('albums'));
 
-  // apply current state immediately
   updateMobileLibraryTabUI();
-  updateLibrarySectionTitle();
-  applyLibraryTopTabVisibility();
 }
-
 
 function renderLibraryPlaylists() {
   const grid = document.getElementById('album-grid');
@@ -7032,118 +6963,27 @@ function renderLibraryPlaylists() {
 }
 
 function renderLibraryMain() {
-  // ✅ CRITICAL: attach tab click handlers (only once)
   initMobileLibraryTabsOnce();
 
-  // ✅ Always sync UI with current tab state
-  updateMobileLibraryTabUI();
-  applyLibraryTopTabVisibility();
-  updateLibrarySectionTitle();
-
-  // Always clear artists grid unless we're on artists
-  const artistsGrid = document.getElementById('library-artists-grid');
-  if (artistsGrid && libraryTopTab !== 'artists') artistsGrid.innerHTML = '';
-
-  // -----------------------
-  // PLAYLISTS
-  // -----------------------
   if (libraryTopTab === 'playlists') {
     renderLibraryPlaylists();
-    return;
+  } else {
+    renderGrid(getLibraryGridData()); // Albums
   }
 
-  // -----------------------
-  // ARTISTS
-  // -----------------------
-  if (libraryTopTab === 'artists') {
-    if (!artistsGrid) return;
+  renderHistory();
 
-    const albums = getLibraryGridData() || [];
-    const map = new Map();
-
-    // Build unique artist list from your album grid data
-    for (const a of albums) {
-      const artist = String(a?.artistName || '').trim();
-      if (!artist) continue;
-      if (!map.has(artist)) map.set(artist, { artistName: artist, coverArt: a?.coverArt || '' });
-    }
-
-    const artists = [...map.values()].sort((x, y) =>
-      x.artistName.localeCompare(y.artistName, undefined, { sensitivity: 'base' })
-    );
-
-    if (!artists.length) {
-      artistsGrid.innerHTML = `
-        <div class="text-zinc-400 font-bold p-4">
-          No artists yet.
-        </div>
-      `;
-      return;
-    }
-
-    artistsGrid.innerHTML = artists.map((a) => {
-      const artistName = String(a.artistName || '');
-      const safeArtist = artistName.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-      // Use your existing cover helper if present; fall back safely
-      const img = (typeof getArtistCover === "function")
-        ? getArtistCover(artistName)
-        : (typeof getAlbumCover === "function"
-            ? getAlbumCover(artistName, "", a.coverArt)
-            : "");
-
-      const bg = img ? `style="background-image:url('${img}'); background-size:cover; background-position:center;"` : "";
-
-      return `
-        <div class="album-card p-4" data-artist="${safeArtist}">
-          <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center" ${bg}>
-            ${img ? "" : `<i class="fas fa-user text-white/50 text-3xl"></i>`}
-          </div>
-
-          <div class="font-bold text-white truncate text-base mb-1">
-            ${safeArtist}
-          </div>
-
-          <div class="text-sm text-zinc-400 truncate">
-            Artist
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // Click an artist → open your artist view (you already have openArtistByName in this file)
-    [...artistsGrid.querySelectorAll('.album-card')].forEach(card => {
-      card.addEventListener('click', () => {
-        const artist = card.getAttribute('data-artist');
-        if (!artist) return;
-        if (typeof openArtistByName === "function") openArtistByName(artist);
-      });
-    });
-
-    return;
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
   }
-
-  // -----------------------
-  // ALBUMS / ALL
-  // -----------------------
-  // "All" = playlists + albums (playlists first, then the album grid)
-  if (libraryTopTab === 'all') {
-    renderLibraryPlaylists();
-  }
-
-  renderGrid(getLibraryGridData());
 }
-
-
-function openAlbumByName(name) {
-
-
 
 function openAlbumByName(name) {
 
     if (!__isBackNav && window.innerWidth <= 768) {
     window.captureSwipeBackUnderlay?.();
   }
+
 
 
   // BACK STACK: push current view before entering album
@@ -9907,70 +9747,44 @@ function handleContextMenu(e, song) {
           return src.slice(-limit).reverse();
         }
 
-     function renderHomeRecents(containerId) {
+        function renderHomeRecents(containerId) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-  // ✅ Use local playlists if present; otherwise fall back to Cloud playlists
-  const localList = Array.isArray(playlists) ? playlists : [];
-
-  const cloudList = Array.isArray(window.cloudPlaylists)
-    ? window.cloudPlaylists.map(p => ({
-        id: p.playlist_id ?? p.id ?? "",
-        name: p.name ?? p.title ?? "Playlist",
-        songs: Array.isArray(p.songs) ? p.songs : [],
-        cover: p.cover_url ?? p.cover ?? ""
-      }))
-    : [];
-
-  // Merge by id (prefer local version if it exists)
-  const byId = new Map();
-  for (const pl of cloudList) if (pl && pl.id) byId.set(String(pl.id), pl);
-  for (const pl of localList) if (pl && pl.id) byId.set(String(pl.id), pl);
-
-  const merged = [...byId.values()];
-
-  // If local playlists exist (even empty ids), prefer them; otherwise use merged cloud set
-  const sourcePlaylists = (localList && localList.length) ? localList : merged;
-
   const pinnedIds = loadPinnedPlaylists();
-  const pinnedSet = new Set(pinnedIds.map(x => String(x)));
-
-  const pinnedPlaylists = pinnedIds
-    .map(id => sourcePlaylists.find(pl => String(pl.id) === String(id)))
-    .filter(Boolean);
-
-  const unpinnedPlaylists = sourcePlaylists.filter(pl => !pinnedSet.has(String(pl.id)));
-
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
   const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
   const filled = orderedPlaylists.slice(0, slotCount);
 
+  // Build fixed slots (real items first, then placeholders)
   const tiles = [];
 
   for (let i = 0; i < slotCount; i++) {
-    const pl = filled[i];
+     const pl = filled[i];
 
-    // ✅ Safe placeholder tile (NO broken HTML)
+    // Placeholder tile (keeps the “imaginary rectangle” space)
     if (!pl) {
-      tiles.push(`<div class="min-w-0 flex-1"></div>`);
+      tiles.push(`
+        <div class="min-w-0 flex-1"></div>
+        </div>
+      `);
       continue;
     }
 
-    const cover = (typeof getEffectivePlaylistCover === "function")
-      ? getEffectivePlaylistCover(pl)
-      : (pl.cover || "");
-
+    const cover = getEffectivePlaylistCover(pl);
     const title = pl.name || 'Playlist';
     const safeId = String(pl.id || '').replace(/"/g,'&quot;');
 
     tiles.push(`
       <div class="mobile-recent-card"
-           data-type="playlist"
+            data-type="playlist"
            data-id="${safeId}"
-           data-album="">
+                      data-album="">
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -9988,25 +9802,18 @@ function handleContextMenu(e, song) {
 
   grid.innerHTML = tiles.join('');
 
-  // Click opens playlist
+  // Click opens playlist/album (placeholders have pointer-events none)
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
-      if (!type) return;
-
+        if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-
-        // Try local first
-        let idx = Array.isArray(playlists) ? playlists.findIndex(pl => String(pl.id) === String(id)) : -1;
-
-        // If not found locally, try cloud list by mapping id → index-like position
-        if (idx === -1 && Array.isArray(window.cloudPlaylists)) {
-          const cloudIdx = window.cloudPlaylists.findIndex(p => String(p.playlist_id ?? p.id) === String(id));
-          if (cloudIdx !== -1) idx = cloudIdx;
-        }
-
+        const idx = playlists.findIndex(pl => pl.id === id);
         if (idx !== -1) showView('playlist', idx);
+      } else {
+        const album = card.getAttribute('data-album');
+        if (album) openAlbumByName(album);
       }
     });
   });
@@ -12182,12 +11989,11 @@ player.addEventListener('ended', () => {
 
 // Auto-hide dock interval
 
-               setInterval(checkDockVisibility, 30000);
+        // Auto-hide dock interval
+        setInterval(checkDockVisibility, 30000);
 
-}
+    </script>
 
-</script>
-    
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
 
