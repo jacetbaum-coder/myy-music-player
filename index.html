@@ -789,7 +789,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             right: 0;
             height: var(--nav-height);
             background: linear-gradient(to top, #000 80%, transparent);
-            z-index: 200;
+            z-index: 9999;
             justify-content: space-around;
             align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
@@ -2625,7 +2625,7 @@ body.qs-lock {
     <!-- Queue (desktop right sidebar) -->
     <section id="right-queue-card" class="lyrics-card hidden">
       <div class="lyrics-header" style="justify-content: space-between;">
-        <div class="lyrics-title">Queue</div
+                <div class="lyrics-title">Queue</div>
         <button id="right-queue-clear"
                 style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
           Clear
@@ -3718,50 +3718,35 @@ window.loadPlaylistsFromCloud = async function () {
     window.cloudPlaylists = data.playlists;
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
-try {
-  const cloudUi = data.playlists
-    .map(cloudRowToUiPlaylist)
-    .filter(pl => pl && pl.id);
+    try {
+      const localList = Array.isArray(playlists) ? playlists : [];
+      const byId = new Map(localList.map(p => [String(p?.id), p]).filter(([k]) => k && k !== "undefined"));
 
-  const localArr = Array.isArray(playlists) ? playlists : [];
-  const byId = new Map(localArr.map(p => [p.id, p]));
+      for (const c of data.playlists) {
+        if (!c || !c.id) continue;
+        const key = String(c.id);
+        const existing = byId.get(key);
+        byId.set(key, existing ? ({ ...existing, ...c }) : c);
+      }
 
-  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
-  for (const c of cloudUi) {
-    const existing = byId.get(c.id);
-    if (existing) {
-      byId.set(c.id, {
-        ...existing,
-        ...c,
-        // preserve local-only content if cloud meta doesn't include it
-        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
-        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+      playlists = Array.from(byId.values());
 
-      });
-    } else {
-      byId.set(c.id, c);
+      // Persist locally so refresh works even if offline
+      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+    } catch (e) {
+      console.warn("Failed to merge cloud playlists:", e);
     }
+
+    return data.playlists;
   }
 
-  // Keep local-only playlists that aren't in cloud yet
-  playlists = Array.from(byId.values());
-
-  // Persist locally so refresh works even if offline
-  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-} catch (e) {
-  console.warn("Failed to merge cloud playlists:", e);
-}
-
-return data.playlists;
-
-  }
-
-   window.cloudPlaylists = [];
+  window.cloudPlaylists = [];
   return [];
 };
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
+
 // -----------------------
 window.__cloudPlaylistSig = "";
 window.__cloudPlaylistSyncTimer = null;
@@ -4009,7 +3994,61 @@ window.deletePlaylistFromCloud = async function (playlistId) {
   return data;
 };
 
+// ✅ Delete album in cloud (R2 folder delete)
+window.deleteAlbumFromCloud = async function (artistName, albumName) {
+  if (!artistName || !albumName) throw new Error("Missing artistName/albumName");
+
+  const url = new URL(CLOUDFLARE_WORKER_URL);
+  url.searchParams.set("path", "/api/delete-album");
+  url.searchParams.set("userId", userId);
+  url.searchParams.set("artistName", artistName);
+  url.searchParams.set("albumName", albumName);
+
+  const res = await fetch(url.toString(), { method: "POST" });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error("Delete album failed: " + res.status + " " + t);
+  }
+
+  const data = await res.json().catch(() => ({}));
+  return data;
+};
+
+
+// ✅ Cross-device Now Playing (cloud)
+window.syncNowPlayingToCloud = async function (payload) {
+  if (!payload || !payload.userId || !payload.trackId) return;
+  try {
+    await fetch("https://music-streamer.jacetbaum.workers.dev/api/now-playing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("now-playing sync failed", e);
+  }
+};
+
+window.loadNowPlayingFromCloud = async function () {
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (!uid) return null;
+
+    const res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/now-playing?userId=" + encodeURIComponent(uid)
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data && data.ok) return data.data || null;
+    return null;
+  } catch (e) {
+    console.warn("load now-playing failed", e);
+    return null;
+  }
+};
+
 const makeId = () => {
+
   try {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   } catch (e) {}
@@ -4554,10 +4593,9 @@ function hideAlbumCoverMenu() {
 }
 
 function showAlbumCoverMenuAt(x, y, artistName, albumName) {
-  // Desktop only
-  if (window.innerWidth <= 768) return;
-
+  // ✅ Allow on mobile too (this menu is used for "Delete album" in mobile)
   const m = document.getElementById('album-cover-menu');
+
   if (!m) return;
 
   albumMenuTarget = { artistName, albumName };
@@ -5476,20 +5514,11 @@ function initMobileDoubleTapScrollToTop(){
 
 
 window.onload = async () => {
-  // ✅ Identity (Phase 1): persist a userId in localStorage
-  // Later, Desktop will generate a link code and Mobile will redeem it to share the same userId.
-  const makeUserId = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  // ✅ Identity (Phase 1): use the SAME numeric userId everywhere
+  const userId = localStorage.getItem("app_user_id") || "23";
+  localStorage.setItem("app_user_id", userId);
+  window.APP_USER_ID = userId;
 
-  let userId = localStorage.getItem("app_user_id");
-  if (!userId) {
-    userId = makeUserId();
-    localStorage.setItem("app_user_id", userId);
-  }
-    window.APP_USER_ID = userId;
 
   // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
 window.cloudPlaylists = [];
@@ -5571,7 +5600,62 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   safe(window.updateCounts);
 
-  safe(window.restorePlayerStateIfRecent);
+    // ✅ Prefer cloud “now playing” across devices (last hour)
+  try {
+    if (typeof window.loadNowPlayingFromCloud === "function") {
+      const np = await window.loadNowPlayingFromCloud();
+      if (np && np.track_id) {
+        // Build a playable URL from the track_id (R2 key)
+        const trackId = String(np.track_id);
+        const parts = trackId.split("/");
+        const artist = parts[0] || "";
+        const album = parts[1] || "";
+        const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
+        const cover = artist && album
+          ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/" + album + "/cover.jpg"))
+          : "";
+
+        currentSong = {
+          url: "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(trackId),
+          title: title,
+          artist: artist,
+          album: album,
+          cover: cover
+        };
+
+        // Load audio + restore position (do NOT autoplay)
+        player.src = currentSong.url;
+        player.currentTime = Number(np.position_sec || 0);
+
+        try { updateMediaSessionMetadata(); } catch (e) {}
+
+        // Update dock UI (safe)
+        try {
+          const dock = document.getElementById('main-dock');
+          if (dock) dock.classList.remove('dock-hidden');
+
+          const coverEl = document.getElementById('p-cover');
+          if (coverEl) coverEl.src = currentSong.cover || "";
+
+          try { updateAccentFromCover(currentSong.cover || ""); } catch (e) {}
+
+          try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
+          const artistEl = document.getElementById('p-artist');
+          if (artistEl) artistEl.innerText = currentSong.artist || "";
+
+          try { setAllPlayIconsToPlay(); } catch (e) {}
+        } catch (e) {}
+      } else {
+        // Cloud had nothing recent -> fall back to local
+        safe(window.restorePlayerStateIfRecent);
+      }
+    } else {
+      safe(window.restorePlayerStateIfRecent);
+    }
+  } catch (e) {
+    safe(window.restorePlayerStateIfRecent);
+  }
+
   safe(window.checkDockVisibility);
 
   safe(window.initResizers);
@@ -5781,6 +5865,8 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
+        window.navStack = navStack;
+window.navCurrent = navCurrent;
 
 // -----------------------
 // SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
@@ -5872,6 +5958,7 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
+    window.navCurrent = navCurrent;
 }
 
 function pushNavCurrent() {
@@ -5880,6 +5967,28 @@ function pushNavCurrent() {
 
   // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
+
+  // ✅ Remember which ROOT tab we were in when we entered a deep view
+  // This is the real fix for “swipe-back jumps to Home”.
+  try {
+    snapshot.rootTab = String(window.__rootTab || "").trim() || "";
+    if (!snapshot.rootTab) {
+      const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
+      const homeActive = !!document.getElementById('nav-home')?.classList?.contains('active');
+      const searchActive = !!document.getElementById('nav-search')?.classList?.contains('active');
+      const crateActive = !!document.getElementById('nav-premium')?.classList?.contains('active');
+      snapshot.rootTab = libActive ? 'library'
+        : homeActive ? 'home'
+        : searchActive ? 'search'
+        : crateActive ? 'crate'
+        : '';
+    }
+  } catch (e) {}
+// ✅ If the active root tab isn't Home, but navCurrent is stale, align it.
+  // This prevents Library deep views from back-swiping to Home.
+  if (snapshot.rootTab && snapshot.rootTab !== 'home' && snapshot.type === 'home') {
+    snapshot.type = snapshot.rootTab;
+  }
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
@@ -5902,12 +6011,16 @@ function goBack() {
   try {
     if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
+
     } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
+
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
+
     } else if (prev.type === 'search') {
       showView('search');
+
     } else if (prev.type === 'library') {
       showView('library');
 
@@ -5920,10 +6033,16 @@ function goBack() {
           area.scrollTop = top;
         });
       }
+
     } else if (prev.type === 'liked') {
       showView('liked');
+
     } else {
-      showView('home');
+      // ✅ CRITICAL: if this entry came from Library, go to Library (not Home)
+      if (prev.rootTab === 'library') showView('library');
+      else if (prev.rootTab === 'search') showView('search');
+      else if (prev.rootTab === 'crate') showView('crate');
+      else showView('home');
     }
   } finally {
     __isBackNav = false;
@@ -5970,16 +6089,24 @@ function initSwipeBack() {
   }
 
   function canStart(e) {
-    // Must have something to go back to
-    if (!Array.isArray(navStack) || navStack.length === 0) return false;
+  // Must have something to go back to
+  if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
-    // Don’t hijack gestures on form controls / buttons
-    const t = e.target;
-    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
+  // ✅ Do NOT allow swipe-back on ROOT pages (prevents Library -> Home swipe)
+  const current = navCurrent || window.navCurrent;
+  const t = String(current?.type || '').trim();
+  if (t === 'home' || t === 'library' || t === 'search' || t === 'crate' || t === 'liked') {
+    return false;
+  }
+
+        // Don’t hijack gestures on form controls / buttons
+    const targetEl = e.target;
+    if (targetEl && (targetEl.closest('input, textarea, select, button') || targetEl.closest('[data-no-swipe-back="1"]'))) {
       return false;
     }
 
     // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
+
     const { y } = getXY(e);
     if (y > (window.innerHeight * 0.75)) return false;
 
@@ -6287,8 +6414,18 @@ function showView(viewType, playlistIndex = null) {
   });
 
 
-  activePlaylistIndex = playlistIndex;
-activePlaylistId = null;
+    activePlaylistIndex = playlistIndex;
+  activePlaylistId = null;
+
+  // ✅ Remember which bottom tab is the current "root" section on mobile.
+  // This is what prevents deep Library views (playlist/album) from flipping to Home.
+  try {
+    if (viewType === 'home' || viewType === 'library' || viewType === 'search' || viewType === 'crate') {
+      window.__rootTab = viewType;
+    }
+    if (!window.__rootTab) window.__rootTab = 'home';
+  } catch (e) {}
+
 
 // BACK STACK: set new current view
 if (viewType === 'home') setNavCurrent({ type: 'home' });
@@ -6299,15 +6436,30 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const plForNav = playlists[playlistIndex];
-  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+  const playlistList = Array.isArray(playlists) ? playlists : [];
+  let resolvedIndex = playlistIndex;
+
+  if (typeof resolvedIndex === "string") {
+    if (/^\d+$/.test(resolvedIndex)) {
+      resolvedIndex = Number(resolvedIndex);
+    } else {
+      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
+    }
+  }
+
+  const plForNav = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
+    ? playlistList[resolvedIndex]
+    : null;
+
+   setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
 
-
 const scrollArea = document.getElementById('main-scroll-area');
-  scrollArea.scrollTop = 0;
+if (scrollArea) scrollArea.scrollTop = 0;
+
+
 
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
@@ -6356,14 +6508,40 @@ const scrollArea = document.getElementById('main-scroll-area');
         if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
 
-  const pl = playlists[playlistIndex];
-  if (!pl) return;
+  // ✅ SAFETY: allow caller to pass playlist INDEX or playlist ID
+  const playlistList = Array.isArray(playlists) ? playlists : [];
+  let resolvedIndex = playlistIndex;
 
+  // If caller passed an id string, convert id -> index
+  if (typeof resolvedIndex === "string") {
+    // numeric string => index
+    if (/^\d+$/.test(resolvedIndex)) {
+      resolvedIndex = Number(resolvedIndex);
+    } else {
+      // id string => index
+      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
+    }
+  }
+
+  const pl = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
+    ? playlistList[resolvedIndex]
+    : null;
+
+  // If we can't resolve the playlist, bail to library (prevents black screen)
+  if (!pl) {
+    console.warn('showView(playlist): could not resolve playlist from:', playlistIndex);
+    showView('library');
+    return;
+  }
+
+  // Keep globals consistent
+  activePlaylistIndex = resolvedIndex;
   activePlaylistId = pl.id;
   playContext = { type: 'playlist', label: pl.name };
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
+
     try {
       const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
 
@@ -6423,20 +6601,20 @@ const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+;
 
 
 
 
     } catch (err) {
       console.warn(err);
-      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
-// ✅ Derive songs only for rendering (do not store on playlist)
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
+renderCollection(pl.name, playlistSongs, true, resolvedIndex);
+
 
     }
   })();
@@ -6455,18 +6633,39 @@ renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
 
         function updateActiveStates(viewType) {
-  // Mobile Nav
-  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
-  Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
-  if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
+  const isMobile = window.innerWidth <= 768;
 
-  // Desktop Sidebar
-  document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
-  document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
-  document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
-  document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
-  document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
+  // On mobile, keep the bottom tab "root" active even when you're in deep views
+  // like playlist/album/artist. This stops the UI from snapping back to Home.
+  let tabType = viewType;
+
+  if (isMobile) {
+    // Initialize root tab if missing
+    if (!window.__rootTab) window.__rootTab = 'home';
+
+    // If we're at a root, update rootTab
+    if (viewType === 'home' || viewType === 'search' || viewType === 'library' || viewType === 'crate') {
+      window.__rootTab = viewType;
+      tabType = viewType;
+    } else {
+      // Deep views should keep whatever root tab we came from
+      tabType = window.__rootTab;
+    }
+  }
+
+  // Mobile Nav
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library', crate: 'nav-premium' };
+  Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
+  if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
+
+  // Desktop Sidebar (unchanged behavior, but key off tabType for consistency)
+  document.getElementById('side-nav-home')?.classList.toggle('text-white', tabType === 'home' || tabType === 'library');
+  document.getElementById('side-nav-home')?.classList.toggle('text-zinc-400', !(tabType === 'home' || tabType === 'library'));
+  document.getElementById('side-nav-search')?.classList.toggle('text-white', tabType === 'search');
+  document.getElementById('side-nav-search')?.classList.toggle('text-zinc-400', tabType !== 'search');
+  document.getElementById('side-nav-liked')?.classList.toggle('bg-zinc-900', viewType === 'liked');
 }
+
 
 /* ---------------------------------------------------------------------
    Mobile: active-tab taps
@@ -6516,80 +6715,47 @@ function popToRootSection(targetViewType) {
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
 
-    const navId =
+  const navId = 
     viewType === 'home' ? 'nav-home' :
     viewType === 'search' ? 'nav-search' :
     viewType === 'library' ? 'nav-library' :
     viewType === 'crate' ? 'nav-premium' :
     null;
 
-
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
-    // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
-  // This fixes the “tap ignored while deep in album view” behavior.
-  if (isMobile && isActive) {
+  if (isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
-    // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      __navTapLast[viewType] = 0;
       return;
     }
 
-    // If active tab says "library" but current view is album/playlist/etc
+    // FIX: Instead of calling popToRootSection which is failing, 
+    // we explicitly call showView(viewType) to ensure we land on Library.
     if (currentType && currentType !== viewType) {
-
-      // ✅ SPECIAL CASE:
-      // Inside album/playlist → double-tap Library should go BACK
-      if (viewType === 'library') {
-        const now = Date.now();
-        const last = __navTapLast[viewType] || 0;
-
-        if (now - last <= 350) {
-          __navTapLast[viewType] = 0;
-          goBack(); // restores Library + scroll position
-        } else {
-          __navTapLast[viewType] = now;
-        }
-        return;
-      }
-
-      // Other tabs keep old behavior
-      popToRootSection(viewType);
+      showView(viewType); 
       __navTapLast[viewType] = 0;
       return;
     }
 
-    // Already at root: detect double tap to scroll-to-top
+    // Already at root: double tap to scroll to top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
-
     if (now - last <= 350) {
-      __navTapLast[viewType] = 0;
       scrollMainToTopSmooth();
+      __navTapLast[viewType] = 0;
       return;
     }
-
     __navTapLast[viewType] = now;
-    return; // wait for possible second tap
+    return;
   }
 
-  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __navTapLast[viewType] = 0;
-
-  const now = Date.now();
-  if (isMobile) {
-    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
-    __navTapLastNavType = viewType;
-    __navTapLockUntil = now + 300; // 300ms debounce window
-  }
-
-   // Normal navigation
+  // Normal navigation
   showView(viewType);
-
 }
 
 
@@ -8373,9 +8539,35 @@ function persistPlayerState(isPlayingOverride = null) {
   // Also keep your existing lastPlayedTime “freshness” timestamp aligned
   lastPlayedTime = state.updatedAt;
   localStorage.setItem('lastPlayedTime', lastPlayedTime);
+
+  // ✅ Cloud sync (cross-device dock) — best-effort
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (uid && typeof window.syncNowPlayingToCloud === "function") {
+      // convert currentSong.url -> trackId (id param) when possible
+      let trackId = "";
+      try {
+        const u = new URL(currentSong.url, window.location.origin);
+        trackId = String(u.searchParams.get("id") || "").trim();
+      } catch (e) {
+        trackId = "";
+      }
+
+      if (trackId) {
+        window.syncNowPlayingToCloud({
+          userId: uid,
+          trackId: trackId,
+          contextType: null,
+          contextId: null,
+          positionSec: Number(state.currentTime || 0)
+        });
+      }
+    }
+  } catch (e) {}
 }
 
 function restorePlayerStateIfRecent() {
+
   const oneHour = 3600000;
 
   let state = null;
@@ -9366,7 +9558,7 @@ function handleContextMenu(e, song) {
 
         // -----------------------
         // HOME RENDERING (Mobile Home + Desktop Home)
-        // -----------------------
+        -
 
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
@@ -9439,9 +9631,8 @@ function handleContextMenu(e, song) {
         if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
-        if (idx !== -1) showView('playlist', idx);
-      } else {
+        if (id) showView('playlist', id);
+} else {
         const album = card.getAttribute('data-album');
         if (album) openAlbumByName(album);
       }
@@ -9501,11 +9692,13 @@ function handleContextMenu(e, song) {
 
     // ✅ PLAYLIST
     if (type === 'playlist') {
-      const id = card.getAttribute('data-id');
-      const idx = playlists.findIndex(pl => pl.id === id);
-      if (idx !== -1) showView('playlist', idx);
-      return;
-    }
+  const id = card.getAttribute('data-id');
+  if (id) showView('playlist', id);
+} else {
+  const album = card.getAttribute('data-album');
+  if (album) openAlbumByName(album);
+}
+
 
     // ✅ ALBUM
     if (type === 'album') {
@@ -10199,21 +10392,38 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
-function openPlaylistPinMenuFromHero(e) {
-  // Only works when you're inside a playlist view
-  if (!activePlaylistId) return;
+-
+// HERO 3-DOTS MENU (playlist OR album)
+-
+(function bindHeroMoreButtonOnce() {
+  const btn = document.getElementById('hero-more-btn');
+  if (!btn || btn.__bound) return;
+  btn.__bound = true;
 
-  e.preventDefault();
-  e.stopPropagation();
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  const btn = e.currentTarget || document.getElementById('hero-more-btn');
-  if (!btn) return;
+    // If inside a playlist → open playlist menu
+    if (typeof activePlaylistId !== 'undefined' && activePlaylistId) {
+      try { openPlaylistPinMenuFromHero(e); } catch (err) {}
+      return;
+    }
 
-  const rect = btn.getBoundingClientRect();
+    // Otherwise → album menu
+    if (!activeAlbumName || !activeAlbumArtist) return;
 
-  // Open menu just under the 3 dots
-  showPlaylistMenuAt(rect.left, rect.bottom + 8, activePlaylistId);
-}
+    const r = btn.getBoundingClientRect();
+    try {
+      showAlbumCoverMenuAt(
+        r.left,
+        r.bottom + 8,
+        activeAlbumArtist,
+        activeAlbumName
+      );
+    } catch (err) {}
+  }, { passive: false });
+})();
 
 function attachPlaylistPressHandlers(el, playlistId) {
   if (!el) return;
@@ -10301,7 +10511,7 @@ window.addEventListener('DOMContentLoaded', () => {
     hidePlaylistMenu();
   };
 
-  // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
+    // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
   if (delBtn && !delBtn.__bound) {
     delBtn.__bound = true;
 
@@ -10312,16 +10522,23 @@ window.addEventListener('DOMContentLoaded', () => {
       const id = playlistMenuTargetId;
       if (!id) { hidePlaylistMenu(); return; }
 
-      // 1) Try cloud delete if you have it
-      try {
-        if (typeof deletePlaylistFromCloud === 'function') {
+      // 1) Cloud delete MUST succeed (otherwise it will reappear on refresh)
+      if (typeof deletePlaylistFromCloud === 'function') {
+        try {
           await deletePlaylistFromCloud(id);
+        } catch (err) {
+          console.warn('Cloud delete failed:', err);
+          alert('Cloud delete failed. Playlist was NOT deleted.\n\n' + (err?.message || String(err)));
+          hidePlaylistMenu();
+          return;
         }
-      } catch (err) {
-        console.warn('Cloud delete failed, continuing local delete:', err);
+      } else {
+        alert('Cloud delete function is missing (deletePlaylistFromCloud). Playlist was NOT deleted.');
+        hidePlaylistMenu();
+        return;
       }
 
-      // 2) Always delete locally so UI updates immediately
+      // 2) Delete locally so UI updates immediately
       const idx = findPlaylistIndexById(id);
       if (idx !== -1) playlists.splice(idx, 1);
 
@@ -10344,9 +10561,10 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 
-  // -----------------------
+
+  -
 // PLAYLIST MENU buttons (bind once, after DOM exists)
-// -----------------------
+-
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
@@ -10468,8 +10686,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('album-cover-menu');
   const urlBtn = document.getElementById('acm-cover-url');
   const uploadBtn = document.getElementById('acm-cover-upload');
-  const clearBtn = document.getElementById('acm-cover-clear');
+    const clearBtn = document.getElementById('acm-cover-clear');
+  const deleteBtn = document.getElementById('acm-delete-album');
   const fileInput = document.getElementById('album-cover-file');
+
 
   if (!menu) return;
 
@@ -10521,7 +10741,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (clearBtn) {
+    if (clearBtn) {
     clearBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -10532,6 +10752,51 @@ window.addEventListener('DOMContentLoaded', () => {
       refreshAfterAlbumCoverChange(albumMenuTarget.artistName, albumMenuTarget.albumName);
     };
   }
+
+  if (deleteBtn) {
+    deleteBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!requireTarget()) return;
+
+      const a = albumMenuTarget.artistName;
+      const b = albumMenuTarget.albumName;
+
+      const ok = confirm(`Delete this album from the cloud?\n\n${a} — ${b}\n\nThis removes the album files from R2.`);
+      if (!ok) return;
+
+      try {
+        hideAlbumCoverMenu();
+
+        // Delete from cloud
+        await window.deleteAlbumFromCloud(a, b);
+
+        // Remove from current in-memory library so it disappears immediately
+        try {
+          if (Array.isArray(window.libraryData)) {
+            window.libraryData = window.libraryData.filter(x =>
+              !(String(x.artistName || "") === String(a) && String(x.albumName || "") === String(b))
+            );
+          }
+        } catch (e2) {}
+
+        // Re-render UI
+        try { if (typeof renderLibrary === "function") renderLibrary(); } catch (e3) {}
+        try { if (typeof renderHome === "function") renderHome(); } catch (e4) {}
+
+        // If you were inside that album view, go back
+        try {
+          if (window.navCurrent && window.navCurrent.type === 'album' &&
+              window.navCurrent.artistName === a && window.navCurrent.albumName === b) {
+            showView('library');
+          }
+        } catch (e5) {}
+      } catch (err) {
+        alert("Delete album failed: " + (err && err.message ? err.message : String(err)));
+      }
+    };
+  }
+
 
   // Click outside closes
   window.addEventListener('click', (e) => {
