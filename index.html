@@ -6925,8 +6925,9 @@ function renderGrid(data) {
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
     return `
-      <div class="album-card p-4"
-           data-album="${safeName}">
+  <div class="album-card p-4"
+       data-album="${safeName}"
+       data-no-swipe-back="1">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
           <img src="${cover}" class="w-full h-full object-cover">
@@ -7263,9 +7264,17 @@ function renderLibraryMain() {
 
 function openAlbumByName(name) {
 
+  // ✅ Never let swipe-underlay capture break album navigation
+  try {
     if (!__isBackNav && window.innerWidth <= 768) {
-    window.captureSwipeBackUnderlay?.();
-  }
+      if (typeof window.captureSwipeBackUnderlay === "function") {
+        window.captureSwipeBackUnderlay();
+      }
+    }
+  } catch (e) {}
+
+  // BACK STACK: push current view before entering album
+
 
 
 
@@ -7539,7 +7548,8 @@ function openArtistByName(artistName) {
     const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
     const safeAlbum = a.albumName.replace(/'/g, "\\'");
     return `
-      <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
+            <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition" data-no-swipe-back="1"
+
            onclick="openAlbumByName('${safeAlbum}')">
         <img src="${cover}"
              class="w-full aspect-square rounded-md mb-3 object-cover">
