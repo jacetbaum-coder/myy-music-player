@@ -6834,38 +6834,48 @@ function renderGrid(data) {
 
 
 function renderLibraryPlaylists() {
-  const grid = document.getElementById('library-playlists-grid');
+  const grid = document.getElementById('album-grid');
   if (!grid) return;
 
   const list = Array.isArray(playlists) ? playlists : [];
 
   if (!list.length) {
-    grid.innerHTML = `<div class="text-sm text-zinc-400">No playlists yet.</div>`;
+    grid.innerHTML = `
+      <div class="text-zinc-400 font-bold p-4">
+        No playlists yet.
+      </div>
+    `;
     return;
   }
 
   grid.innerHTML = list.map((pl, idx) => {
-    const title = (pl && (pl.name || pl.title)) ? (pl.name || pl.title) : `Playlist ${idx + 1}`;
-    const safeTitle = String(title).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const name = String(pl?.name || pl?.title || "Untitled Playlist");
+    const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
 
     return `
-      <div class="p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer flex items-center gap-3"
-           data-pl-index="${idx}">
-        <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center">
-          <i class="fas fa-music text-white/70"></i>
+      <div class="album-card p-4"
+           data-pl="${idOrIdx}">
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+          <i class="fas fa-music text-white/50 text-3xl"></i>
         </div>
-        <div class="min-w-0">
-          <div class="font-extrabold text-white truncate">${safeTitle}</div>
-          <div class="text-xs text-zinc-400">Playlist</div>
+
+        <div class="font-bold text-white truncate text-base mb-1">
+          ${safeName}
+        </div>
+
+        <div class="text-sm text-zinc-400 truncate">
+          Playlist
         </div>
       </div>
     `;
   }).join('');
 
-  [...grid.querySelectorAll('[data-pl-index]')].forEach(card => {
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
-      const idx = Number(card.getAttribute('data-pl-index'));
-      if (!Number.isNaN(idx)) showView('playlist', idx);
+      const plKey = card.getAttribute('data-pl');
+      if (!plKey) return;
+      showView('playlist', plKey); // supports id OR index
     });
   });
 }
