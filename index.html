@@ -5693,11 +5693,12 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   // Fetch library
   try {
     const controller = new AbortController();
-        const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
+const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
 
+clearTimeout(timeoutId);
 
-    clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
