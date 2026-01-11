@@ -2938,8 +2938,6 @@ body.qs-lock {
          * ---------------------------------------------------------------------
          */
        let libraryData = [];
-let libraryReady = false;
-
 let libraryDataOriginal = [];
 let currentSong = null;
 let currentQueue = [];
@@ -5753,34 +5751,48 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
     libraryData = await response.json();
-window.libraryData = libraryData;
+    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
-if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
+    // ✅ Build master track index: id/r2Path -> canonical track object
+    // This is what playlists will reference.
+    window.tracksById = new Map();
+
+    try {
+      libraryData.forEach((album) => {
+        const songs = Array.isArray(album?.songs) ? album.songs : [];
+        songs.forEach((s) => {
+          const id = String(s?.id || s?.r2Path || "").trim();
+          if (!id) return;
+
+          // Normalize a consistent object shape for the UI
+          const track = {
+            ...s,
+            id,
+            r2Path: id,
+            title: s?.title || s?.name || id.split("/").pop() || id,
+            name: s?.name || s?.title || id.split("/").pop() || id,
+            artistName: s?.artistName || album?.artistName || "",
+            albumName: s?.albumName || album?.albumName || "",
+            link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
+            url: s?.url || s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`
+          };
+
+          window.tracksById.set(id, track);
+        });
+      });
+    } catch (e) {
+      console.warn("tracksById build failed:", e);
+    }
+
+    // Keep original order for "Recently added"
+    libraryDataOriginal = libraryData.slice();
 
 
-// ✅ Mark library as ready for rendering
-libraryReady = true;
+    // Sort library alphabetically by album (Library grid)
+    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
-// If user is already on Library (mobile), render it now that data exists
-try {
-  if (
-    window.navCurrent &&
-    window.navCurrent.type === 'library' &&
-    window.innerWidth <= 768
-  ) {
-    renderMobileLibraryGrid();
-  }
-} catch (e) {}
-
-// Keep original order for "Recently added"
-libraryDataOriginal = libraryData.slice();
-
-// Sort library alphabetically by album (Library grid)
-libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
-
-document.getElementById('loading')?.classList.add('hidden');
-safe(window.showView, 'home');
-
+    document.getElementById('loading')?.classList.add('hidden');
+    safe(window.showView, 'home');
     safe(window.renderHome);
   } catch (error) {
     console.error("Fetch error:", error);
@@ -5796,9 +5808,7 @@ safe(window.showView, 'home');
     }
 
         libraryData = [];
-window.libraryData = [];
-safe(window.showView, 'home');
-
+    safe(window.showView, 'home');
   }
 
   // ✅ Reload button (desktop)
@@ -6489,36 +6499,34 @@ if (scrollArea) scrollArea.scrollTop = 0;
 
 
         if (viewType === 'home') {
-  // MOBILE: show the real Home screen
-  if (window.innerWidth <= 768) {
-    document.getElementById('home-view')?.classList.remove('hidden');
-    try { renderHome(); } catch (e) {}
-  } else {
-    // DESKTOP: Home shows the new header + still shows your library below
-    document.getElementById('grid-view').classList.remove('hidden');
-    renderGrid(libraryData);
-    renderHistory();
-    try { renderHome(); } catch (e) {}
+    // MOBILE: show the real Home screen
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
+    } else {
+      // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+      try { renderHome(); } catch (e) {}
+    }
   }
-}
 
-if (viewType === 'library') {
+  if (viewType === 'library') {
   document.getElementById('grid-view').classList.remove('hidden');
 
-  // MOBILE: show Albums + Playlists A–Z, 3 across
   if (window.innerWidth <= 768) {
+    // MOBILE: Albums + Playlists together, alphabetical, 3 across
     renderMobileLibraryGrid();
-    renderHistory();
-    return;
+  } else {
+    // DESKTOP: keep your existing Library behavior
+    renderGrid(getLibraryGridData());
   }
 
-  // DESKTOP: keep your existing Library behavior
-  renderGrid(getLibraryGridData());
   renderHistory();
-  return;
 }
 
-
+}
 
     if (viewType === 'search') {
     document.getElementById('search-view').classList.remove('hidden');
@@ -6820,176 +6828,99 @@ function onNavTap(viewType) {
           */
 
 function renderMobileLibraryGrid() {
-      const dbg = document.createElement('div');
-  dbg.style.position = 'fixed';
-  dbg.style.top = '120px';
-  dbg.style.left = '0';
-  dbg.style.right = '0';
-  dbg.style.zIndex = '9999';
-  dbg.style.background = '#1db954';
-  dbg.style.color = 'black';
-  dbg.style.fontSize = '12px';
-  dbg.style.padding = '6px 10px';
-  dbg.style.fontWeight = 'bold';
-  dbg.textContent = 'renderMobileLibraryGrid() CALLED';
-  document.body.appendChild(dbg);
-
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  try {
-    // ✅ Albums: use the SAME source desktop uses (already sorted modes etc.)
-        // ✅ Albums: prefer the filtered/sorted source if it has data,
-    // otherwise fall back to the raw libraryData (this is what desktop Home uses)
-    let albumRows = [];
+  // Build combined items list (albums + playlists)
+  const albums = (Array.isArray(libraryData) ? libraryData : []).map(a => ({
+    type: 'album',
+    albumName: String(a.albumName || ''),
+    artistName: String(a.artistName || ''),
+    coverArt: a.coverArt
+  }));
 
-    if (typeof getLibraryGridData === 'function') {
-      try { albumRows = getLibraryGridData() || []; } catch (e) { albumRows = []; }
-    }
+  const pls = (Array.isArray(playlists) ? playlists : []).map(pl => ({
+    type: 'playlist',
+    id: String(pl?.id || ''),
+    name: String(pl?.name || 'Playlist'),
+    cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
+  }));
 
-    // If the "smart" source is empty on mobile, use the real library data
-    if (!Array.isArray(albumRows) || albumRows.length === 0) {
-      albumRows = Array.isArray(window.libraryData) ? window.libraryData : [];
-    }
+  const items = [...albums, ...pls].filter(x => (x.type === 'album' ? x.albumName : x.name));
 
+  // Alphabetical by display name
+  items.sort((a, b) => {
+    const an = (a.type === 'album' ? a.albumName : a.name);
+    const bn = (b.type === 'album' ? b.albumName : b.name);
+    return an.localeCompare(bn, undefined, { sensitivity: 'base' });
+  });
 
-    // Dedupe albums by "artist|album"
-    const seen = new Set();
-    const albums = [];
-    for (const a of albumRows) {
-      const artist = String(a?.artistName || '');
-      const album = String(a?.albumName || '');
-      if (!album) continue;
-      const key = (artist + '|' + album).toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      albums.push({
-        type: 'album',
-        albumName: album,
-        artistName: artist,
-        coverArt: a?.coverArt
-      });
-    }
+  // Force 3 columns on mobile library
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+  grid.style.gap = '12px';
 
-    // ✅ Playlists: prefer cloudPlaylists if present, else fallback to playlists, else []
-    const plSource =
-      (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-        ? window.cloudPlaylists
-        : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
-
-    const pls = plSource.map(pl => ({
-      type: 'playlist',
-      id: String(pl?.id || ''),
-      name: String(pl?.name || 'Playlist'),
-      cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
-    })).filter(p => p.name);
-
-const items = [...albums, ...pls];
-
-// ✅ DEBUG: show counts on-screen (temporary)
-try {
-  dbg.textContent =
-    'renderMobileLibraryGrid CALLED | ' +
-    'albumRows=' + (albumRows ? albumRows.length : 0) + ' | ' +
-    'albums=' + albums.length + ' | ' +
-    'playlists=' + pls.length + ' | ' +
-    'items=' + items.length;
-} catch (e) {}
-
-    // Alphabetical A–Z by display name (albumName or playlist name)
-    items.sort((a, b) => {
-      const an = (a.type === 'album' ? a.albumName : a.name);
-      const bn = (b.type === 'album' ? b.albumName : b.name);
-      return String(an).localeCompare(String(bn), undefined, { sensitivity: 'base' });
-    });
-
-    // Force 3 columns on mobile Library
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
-    grid.style.gap = '12px';
-
-    if (!items.length) {
-      grid.innerHTML = `
-        <div class="text-zinc-400 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
-          Nothing to show yet (albums/playlists list is empty).
-        </div>
-      `;
-      return;
-    }
-
-    grid.innerHTML = items.map((item) => {
-      if (item.type === 'playlist') {
-        const safeId = String(item.id).replace(/"/g, '&quot;');
-        const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const cover = item.cover ? String(item.cover) : '';
-        return `
-          <div class="album-card p-2"
-               data-type="playlist"
-               data-id="${safeId}">
-            <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-              ${
-                cover
-                  ? `<img src="${cover}" class="w-full h-full object-cover">`
-                  : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
-                       <i class="fas fa-music text-zinc-400"></i>
-                     </div>`
-              }
-            </div>
-            <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
-            <div class="text-xs text-zinc-400 truncate">Playlist</div>
-          </div>
-        `;
-      }
-
-      // album card
-      const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
-      const cover = (typeof getAlbumCover === 'function')
-        ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
-        : '';
-      const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
+  grid.innerHTML = items.map((item) => {
+    if (item.type === 'playlist') {
+      const safeId = String(item.id).replace(/"/g, '&quot;');
+      const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cover = item.cover ? String(item.cover) : '';
       return `
         <div class="album-card p-2"
-             data-type="album"
-             data-album="${safeAlbum}">
+             data-type="playlist"
+             data-id="${safeId}">
           <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-            <img src="${cover}" class="w-full h-full object-cover">
+            ${
+              cover
+                ? `<img src="${cover}" class="w-full h-full object-cover">`
+                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
+                     <i class="fas fa-music text-zinc-400"></i>
+                   </div>`
+            }
           </div>
-          <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
-          <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
+          <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
+          <div class="text-xs text-zinc-400 truncate">Playlist</div>
         </div>
       `;
-    }).join('');
+    }
 
-    // Click handling
-    [...grid.querySelectorAll('.album-card')].forEach(card => {
-      card.addEventListener('click', () => {
-        const type = card.getAttribute('data-type');
+    // album
+    const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
+    const cover = (typeof getAlbumCover === 'function')
+      ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
+      : '';
+    const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        if (type === 'playlist') {
-          const id = card.getAttribute('data-id');
-          const source =
-            (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-              ? window.cloudPlaylists
-              : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
-          const idx = source.findIndex(pl => String(pl?.id) === String(id));
-          if (idx !== -1) showView('playlist', idx);
-          return;
-        }
-
-        const album = card.getAttribute('data-album');
-        if (album) openAlbumByName(album);
-      });
-    });
-  } catch (e) {
-    console.error('renderMobileLibraryGrid failed:', e);
-    grid.innerHTML = `
-      <div class="text-red-300 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
-        Library grid failed to render. Check console for "renderMobileLibraryGrid failed".
+    return `
+      <div class="album-card p-2"
+           data-type="album"
+           data-album="${safeAlbum}">
+        <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
+          <img src="${cover}" class="w-full h-full object-cover">
+        </div>
+        <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
+        <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
       </div>
     `;
-  }
+  }).join('');
+
+  // Click handling
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const type = card.getAttribute('data-type');
+
+      if (type === 'playlist') {
+        const id = card.getAttribute('data-id');
+        const idx = (Array.isArray(playlists) ? playlists : []).findIndex(pl => String(pl?.id) === String(id));
+        if (idx !== -1) showView('playlist', idx);
+        return;
+      }
+
+      const album = card.getAttribute('data-album');
+      if (album) openAlbumByName(album);
+    });
+  });
 }
 
 function renderGrid(data) {
