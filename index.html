@@ -594,9 +594,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
   /* ✅ IMPORTANT: prevent any horizontal “peek” during swipe/back gestures */
   overflow-x: hidden;
-    /* ✅ extra bottom space so the last song can scroll above the player/dock */
-  padding: 32px 32px 190px;
+  overflow-y: auto;
 
+  padding: 32px; 
   position: relative; 
   scrollbar-width: thin;
   scrollbar-color: #555 transparent;
@@ -789,7 +789,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             right: 0;
             height: var(--nav-height);
             background: linear-gradient(to top, #000 80%, transparent);
-            z-index: 9999;
+            z-index: 200;
             justify-content: space-around;
             align-items: center;
             padding-bottom: env(safe-area-inset-bottom);
@@ -1508,28 +1508,12 @@ body.qs-lock{
   margin-bottom: 18px;
 }
 
-       .home-recents-grid {
+        .home-recents-grid {
   display: flex;
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 8px;
 }
-
-/* ✅ Home "Playlists" row scrolls horizontally on mobile (same feel as Recents) */
-@media (max-width: 768px) {
-  #home-recent-grid {
-    display: flex !important;
-    gap: 16px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #home-recent-grid .mobile-recent-card {
-    flex: 0 0 260px;
-  }
-}
-
 
         
 .recent-tile {
@@ -2218,13 +2202,12 @@ body.qs-lock {
 </button>
 
 
-        <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button id="home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button id="home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button id="home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-      <button id="home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
     </div>
-
   </div>
 
     <!-- Playlists -->
@@ -2254,54 +2237,8 @@ body.qs-lock {
 
 </div>
 
-<div id="library-view" class="hidden">
-  <!-- MOBILE: Library header (Spotify-ish) -->
-  <div id="mobile-library-header" class="md:hidden mb-4">
-    <!-- Top row -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-          <i class="fas fa-user text-white/70 text-sm"></i>
-        </div>
-        <div class="text-3xl font-black leading-none">Your Library</div>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white">
-          <i class="fas fa-search text-xl"></i>
-        </button>
-        <button type="button" class="text-white/90 hover:text-white" onclick="createNewPlaylist()">
-          <i class="fas fa-plus text-xl"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Tabs row (visual only) -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
-    </div>
-  </div>
-
-  <!-- Sort row -->
-  <div class="flex items-center justify-between mb-4">
-    <div class="flex items-center gap-3 text-white/90 font-black">
-      <i class="fas fa-sort-alpha-down text-lg"></i>
-      <div class="text-2xl">Alphabetical</div>
-    </div>
-    <button type="button" class="text-white/80 hover:text-white">
-      <i class="fas fa-th-large text-xl"></i>
-    </button>
-  </div>
-
-  <!-- Grid target that renderMobileLibraryGrid() fills -->
-  <div id="album-grid" class="grid grid-cols-2 gap-4 pb-28"></div>
-</div>
-
 
 <div id="grid-view" class="hidden">
-
 
     <!-- DESKTOP Home header (Spotify-ish) -->
   <div id="desktop-home-header" class="hidden md:block mb-10">
@@ -2312,13 +2249,12 @@ body.qs-lock {
         <i class="fas fa-user text-white/70"></i>
       </div>
 
-            <div class="flex gap-2 overflow-x-auto">
-        <button id="desktop-home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button id="desktop-home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-        <button id="desktop-home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-        <button id="desktop-home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+      <div class="flex gap-2 overflow-x-auto">
+        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
       </div>
-
     </div>
 
         <!-- Playlists -->
@@ -2339,72 +2275,144 @@ body.qs-lock {
 
 
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
-  <div id="mobile-library-header" class="hidden md:hidden mb-4">
+  <!-- (Removed on mobile Library) -->
 
-  <!-- Top row -->
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <!-- placeholder profile pic -->
-      <button type="button"
-              class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
-              aria-label="Profile">
-        <i class="fas fa-user text-white/70 text-sm"></i>
-      </button>
+                <!-- MOBILE: Library header (Spotify-ish) -->
+        <div id="mobile-library-header" class="md:hidden mb-4">
+          <!-- Top row -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- placeholder profile pic -->
+              <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                <i class="fas fa-user text-white/70 text-sm"></i>
+              </div>
+              <div class="text-3xl font-black leading-none">My Library</div>
+            </div>
 
-      <div class="text-3xl font-black leading-none">Your Library</div>
-    </div>
+            <div class="flex items-center gap-4">
+              <!-- search icon -->
+              <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white">
+                <i class="fas fa-search text-xl"></i>
+              </button>
+              <!-- plus icon (keeps your existing createNewPlaylist behavior) -->
+              <button type="button" class="text-white/90 hover:text-white" onclick="createNewPlaylist()">
+                <i class="fas fa-plus text-xl"></i>
+              </button>
+            </div>
+          </div>
 
-    <div class="flex items-center gap-4">
-      <!-- search icon -->
-      <button id="library-search-icon-btn" type="button" class="text-white/90 hover:text-white" aria-label="Search">
-        <i class="fas fa-search text-xl"></i>
-      </button>
+          <!-- Tabs row (visual only, like your Home tabs) -->
+          <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
+            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
+          </div>
+        </div>
 
-      <!-- plus icon (keeps your existing createNewPlaylist behavior) -->
-      <button id="library-plus-btn" type="button" class="text-white/90 hover:text-white" aria-label="Add"
-              onclick="createNewPlaylist()">
-        <i class="fas fa-plus text-2xl"></i>
-      </button>
-    </div>
-  </div>
+                <!-- MOBILE: Library Search overlay (Spotify-like) -->
+        <div id="library-search-overlay" class="hidden md:hidden fixed inset-0 bg-black z-[9999]">
+          <!-- top bar -->
+          <div class="px-4 pt-4" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px);">
+            <div class="flex items-center gap-3">
+              <div class="flex-1 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2">
+                <i class="fas fa-search text-white/70"></i>
+                <input id="library-search-overlay-input"
+                       type="text"
+                       inputmode="search"
+                       autocomplete="off"
+                       autocapitalize="none"
+                       spellcheck="false"
+                       placeholder="Search Your Library"
+                       class="w-full bg-transparent outline-none text-white placeholder-white/40 font-bold" />
+              </div>
+              <button id="library-search-overlay-cancel"
+                      type="button"
+                      class="text-white/90 font-extrabold">
+                Cancel
+              </button>
+            </div>
+          </div>
 
-  <!-- Filter chips row (visual only for now) -->
-  <div class="flex items-center gap-2 mt-4 overflow-x-auto no-scrollbar">
-    <button id="lib-chip-playlists" type="button"
-            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
-      Playlists
-    </button>
-    <button id="lib-chip-podcasts" type="button"
-            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
-      Podcasts
-    </button>
-    <button id="lib-chip-audiobooks" type="button"
-            class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
-      Audiobooks
-    </button>
-  </div>
+          <!-- results / recents / empty state -->
+          <div id="library-search-results-overlay" class="mt-2"></div>
+        </div>
 
-  <!-- Sort / layout row -->
-  <div class="flex items-center justify-between mt-4">
-    <div class="flex items-center gap-2 text-white/90">
-      <i class="fas fa-sort-alpha-down"></i>
-      <div class="font-extrabold">Alphabetical</div>
-    </div>
+        <!-- Library controls (Sort + View as) -->
 
-    <button id="lib-grid-icon-btn" type="button" class="text-white/80 hover:text-white" aria-label="Grid">
-      <i class="fas fa-th-large text-lg"></i>
-    </button>
-  </div>
-</div>
+        <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
+          <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
+          <div class="relative">
+            <button id="library-sort-btn"
+                    class="flex items-center gap-2 px-0 py-1 text-white font-extrabold text-sm hover:opacity-90"
+                    type="button">
+              <span id="library-sort-label">Recents</span>
+              <i class="fas fa-chevron-down text-xs opacity-80"></i>
+            </button>
 
+            <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
 
-    <!-- Albums header (temporarily removed during mobile library reset) -->
-  <div id="albums-header" class="mb-4 hidden">
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
+              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
+
+              <div class="h-px bg-white/10 my-2"></div>
+
+              <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">View as</div>
+                            <div class="px-3 pb-3 flex items-center gap-2">
+                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
+                        data-view="grid" type="button">
+                  <i class="fas fa-th-large mr-2"></i>Grid
+                </button>
+                <button class="lib-view-btn flex-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-bold"
+                        data-view="list" type="button">
+                  <i class="fas fa-list mr-2"></i>List
+                </button>
+              </div>
+
+              <!-- Mobile-only: Grid density slider (1–6 columns) -->
+              <div id="library-grid-cols-wrap" class="px-4 pb-4 hidden">
+                <div class="text-xs font-black text-zinc-400 uppercase tracking-widest mb-2">Albums per row</div>
+                <input id="library-grid-cols"
+                       type="range"
+                       min="1"
+                       max="6"
+                       step="1"
+                       value="2"
+                       class="w-full"
+                       aria-label="Albums per row">
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Mobile Library Search (icon only like Spotify) -->
+
+          <div class="relative md:hidden">
+            <!-- We keep your SAME input + results IDs so your existing JS still works -->
+            <div id="library-search-popover" class="hidden absolute right-0 mt-2 w-72 max-w-[86vw] rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50 p-3">
+              <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/5">
+                <i class="fas fa-search text-white/70 text-sm"></i>
+                <input id="library-search-mobile"
+                       type="text"
+                       class="w-full bg-transparent outline-none text-sm text-white placeholder-zinc-500"
+                       placeholder="Search in Your Library"
+                       autocomplete="off">
+              </div>
+
+              <div id="library-search-results-mobile"
+                   class="hidden mt-2 w-full rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden">
+              </div>
+            </div>
+          </div>
+        </div>
+
+  <!-- Albums header -->
+  <div class="mb-4">
     <h2 class="text-3xl font-black">Albums</h2>
   </div>
 
   <!-- ONE album grid only -->
-
     <!-- CENTER LYRICS (toggle from dock mic) -->
 <div id="lyrics-center-view" class="lyrics-center hidden">
   <div class="lyrics-center-inner">
@@ -2653,8 +2661,7 @@ body.qs-lock {
 
 
 
-    <div id="main-dock" class="player-bar">
-
+    <div id="main-dock" class="player-bar dock-hidden">
         <div class="flex items-center gap-4 overflow-hidden" id="dock-left">
   <img id="p-cover" class="w-14 h-14 rounded-md shadow-lg bg-zinc-800 object-cover">
   <div class="overflow-hidden">
@@ -2912,8 +2919,6 @@ body.qs-lock {
          * ---------------------------------------------------------------------
          */
        let libraryData = [];
-let libraryReady = false;
-
 let libraryDataOriginal = [];
 let currentSong = null;
 let currentQueue = [];
@@ -3845,51 +3850,21 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       continue;
     }
 
-        out.push({
+    out.push({
       id: key,
       r2Path: key,
       key: key,
-
-      // Parse "Artist/Album/Track.mp3" OR "Artist/Track.mp3"
-      title: (() => {
-        const parts = String(key).split("/");
-        const file = parts[parts.length - 1] || key;
-        return String(file).replace(/\.mp3$/i, "");
-      })(),
-
-      name: (() => {
-        const parts = String(key).split("/");
-        const file = parts[parts.length - 1] || key;
-        return String(file).replace(/\.mp3$/i, "");
-      })(),
-
-      artist: (() => {
-        const parts = String(key).split("/");
-        return String(parts[0] || "").trim();
-      })(),
-
-      album: (() => {
-        const parts = String(key).split("/");
-        // Only treat the 2nd segment as album if format is Artist/Album/Track
-        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
-      })(),
-
-      artistName: (() => {
-        const parts = String(key).split("/");
-        return String(parts[0] || "").trim();
-      })(),
-
-      albumName: (() => {
-        const parts = String(key).split("/");
-        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
-      })(),
-
+      title: key.split("/").pop() || key,
+      name: key.split("/").pop() || key,
+      artist: "",
+      album: "",
+      artistName: "",
+      albumName: "",
       cover: "",
       coverArt: "",
       url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
       link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
     });
-
   }
 
   return out;
@@ -4002,22 +3977,20 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 
 
 // ✅ Create playlist in cloud
-// ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
   const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing id");
+  if (!uid) throw new Error("Missing userId");
 
   const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: uid, name: String(name || "Playlist") })
+    body: JSON.stringify({ userId: uid, name: String(name || "Playlist") })
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Create playlist failed");
   return data;
 };
-
 
 // ✅ Delete playlist in cloud
 window.deletePlaylistFromCloud = async function (playlistId) {
@@ -4033,61 +4006,7 @@ window.deletePlaylistFromCloud = async function (playlistId) {
   return data;
 };
 
-// ✅ Delete album in cloud (R2 folder delete)
-window.deleteAlbumFromCloud = async function (artistName, albumName) {
-  if (!artistName || !albumName) throw new Error("Missing artistName/albumName");
-
-  const url = new URL(CLOUDFLARE_WORKER_URL);
-  url.searchParams.set("path", "/api/delete-album");
-  url.searchParams.set("userId", userId);
-  url.searchParams.set("artistName", artistName);
-  url.searchParams.set("albumName", albumName);
-
-  const res = await fetch(url.toString(), { method: "POST" });
-
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error("Delete album failed: " + res.status + " " + t);
-  }
-
-  const data = await res.json().catch(() => ({}));
-  return data;
-};
-
-
-// ✅ Cross-device Now Playing (cloud)
-window.syncNowPlayingToCloud = async function (payload) {
-  if (!payload || !payload.userId || !payload.trackId) return;
-  try {
-    await fetch("https://music-streamer.jacetbaum.workers.dev/api/now-playing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    console.warn("now-playing sync failed", e);
-  }
-};
-
-window.loadNowPlayingFromCloud = async function () {
-  try {
-    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-    if (!uid) return null;
-
-    const res = await fetch(
-      "https://music-streamer.jacetbaum.workers.dev/api/now-playing?userId=" + encodeURIComponent(uid)
-    );
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data && data.ok) return data.data || null;
-    return null;
-  } catch (e) {
-    console.warn("load now-playing failed", e);
-    return null;
-  }
-};
-
 const makeId = () => {
-
   try {
     if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   } catch (e) {}
@@ -4515,43 +4434,7 @@ function saveAlbumCoverOverrides(obj) {
   localStorage.setItem('albumCoverOverrides', JSON.stringify(obj || {}));
 }
 
-/* -----------------------
-   ✅ SINGLE SOURCE OF TRUTH for covers
-   - Uses override only if non-empty
-   - Auto-clears empty overrides that hide covers
-   - Falls back to library coverArt
-   - Final fallback: computed R2 cover.jpg
------------------------- */
-function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
-  const a = String(artistName || "").trim();
-  const b = String(albumName || "").trim();
-
-  // 1) Try local override (but ONLY if non-empty)
-  const key = albumKey(a, b);
-  const map = loadAlbumCoverOverrides();
-
-  if (Object.prototype.hasOwnProperty.call(map, key)) {
-    const override = String(map[key] || "").trim();
-
-    if (override) return override;
-
-    // If override exists but is empty, it hides covers.
-    // Auto-delete it so covers come back.
-    delete map[key];
-    saveAlbumCoverOverrides(map);
-  }
-
-  // 2) Use coverArt from the library (Worker JSON)
-  const libCover = String(coverArtFromLibrary || "").trim();
-  if (libCover) return libCover;
-
-  // 3) Final fallback: build a cover.jpg URL in R2
-  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-  const albumCoverPath = `${a}/${b}/cover.jpg`;
-  return `${r2Base}${encodeURIComponent(albumCoverPath)}`;
-}
-
-async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
+        async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   try {
     await fetch('/api/get-songs', {
       method: 'POST',
@@ -4566,7 +4449,6 @@ async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) 
     console.warn('Failed to sync album cover override:', e);
   }
 }
-
 
 function reconcileAlbumCoverOverridesFromLibrary(data) {
   const map = loadAlbumCoverOverrides();
@@ -4589,16 +4471,19 @@ function reconcileAlbumCoverOverridesFromLibrary(data) {
   if (changed) saveAlbumCoverOverrides(map);
 }
 
+function getAlbumCover(artistName, albumName, fallbackCover) {
+  const map = loadAlbumCoverOverrides();
+  const key = albumKey(artistName, albumName);
+  const v = map[key];
+  return (v && String(v).trim()) ? v : fallbackCover;
+}
+
 function setAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   const map = loadAlbumCoverOverrides();
   const key = albumKey(artistName, albumName);
   map[key] = String(coverUrlOrDataUrl || "").trim();
   saveAlbumCoverOverrides(map);
-  
-  // SAFE CHECK: Only run sync if the function actually exists
-  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl);
-  }
 }
 
 function clearAlbumCoverOverride(artistName, albumName) {
@@ -4606,11 +4491,7 @@ function clearAlbumCoverOverride(artistName, albumName) {
   const key = albumKey(artistName, albumName);
   delete map[key];
   saveAlbumCoverOverrides(map);
-  
-  // SAFE CHECK: Only run sync if the function actually exists
-  if (typeof syncAlbumCoverOverride === 'function') {
     syncAlbumCoverOverride(artistName, albumName, "");
-  }
 }
 
 /* -----------------------
@@ -4632,9 +4513,10 @@ function hideAlbumCoverMenu() {
 }
 
 function showAlbumCoverMenuAt(x, y, artistName, albumName) {
-  // ✅ Allow on mobile too (this menu is used for "Delete album" in mobile)
-  const m = document.getElementById('album-cover-menu');
+  // Desktop only
+  if (window.innerWidth <= 768) return;
 
+  const m = document.getElementById('album-cover-menu');
   if (!m) return;
 
   albumMenuTarget = { artistName, albumName };
@@ -5553,11 +5435,20 @@ function initMobileDoubleTapScrollToTop(){
 
 
 window.onload = async () => {
-  // ✅ Identity (Phase 1): use the SAME numeric userId everywhere
-  const userId = localStorage.getItem("app_user_id") || "23";
-  localStorage.setItem("app_user_id", userId);
-  window.APP_USER_ID = userId;
+  // ✅ Identity (Phase 1): persist a userId in localStorage
+  // Later, Desktop will generate a link code and Mobile will redeem it to share the same userId.
+  const makeUserId = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 
+  let userId = localStorage.getItem("app_user_id");
+  if (!userId) {
+    userId = makeUserId();
+    localStorage.setItem("app_user_id", userId);
+  }
+    window.APP_USER_ID = userId;
 
   // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
 window.cloudPlaylists = [];
@@ -5639,62 +5530,7 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   safe(window.updateCounts);
 
-    // ✅ Prefer cloud “now playing” across devices (last hour)
-  try {
-    if (typeof window.loadNowPlayingFromCloud === "function") {
-      const np = await window.loadNowPlayingFromCloud();
-      if (np && np.track_id) {
-        // Build a playable URL from the track_id (R2 key)
-        const trackId = String(np.track_id);
-        const parts = trackId.split("/");
-        const artist = parts[0] || "";
-        const album = parts[1] || "";
-        const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
-        const cover = artist && album
-          ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/" + album + "/cover.jpg"))
-          : "";
-
-        currentSong = {
-          url: "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(trackId),
-          title: title,
-          artist: artist,
-          album: album,
-          cover: cover
-        };
-
-        // Load audio + restore position (do NOT autoplay)
-        player.src = currentSong.url;
-        player.currentTime = Number(np.position_sec || 0);
-
-        try { updateMediaSessionMetadata(); } catch (e) {}
-
-        // Update dock UI (safe)
-        try {
-          const dock = document.getElementById('main-dock');
-          if (dock) dock.classList.remove('dock-hidden');
-
-          const coverEl = document.getElementById('p-cover');
-          if (coverEl) coverEl.src = currentSong.cover || "";
-
-          try { updateAccentFromCover(currentSong.cover || ""); } catch (e) {}
-
-          try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
-          const artistEl = document.getElementById('p-artist');
-          if (artistEl) artistEl.innerText = currentSong.artist || "";
-
-          try { setAllPlayIconsToPlay(); } catch (e) {}
-        } catch (e) {}
-      } else {
-        // Cloud had nothing recent -> fall back to local
-        safe(window.restorePlayerStateIfRecent);
-      }
-    } else {
-      safe(window.restorePlayerStateIfRecent);
-    }
-  } catch (e) {
-    safe(window.restorePlayerStateIfRecent);
-  }
-
+  safe(window.restorePlayerStateIfRecent);
   safe(window.checkDockVisibility);
 
   safe(window.initResizers);
@@ -5715,139 +5551,76 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
 
   // Fetch library
-  // ✅ Mobile-safe approach:
-  // 1) Load cached library immediately (so Library isn't blank on slow mobile)
-  // 2) Fetch latest from Cloudflare with a longer timeout
-  // 3) On failure, KEEP cached data (do NOT wipe libraryData)
   try {
-    // --- (1) Load cache first ---
-    try {
-      const cachedRaw = localStorage.getItem(LIBRARY_CACHE_KEY);
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw);
-        if (Array.isArray(cached) && cached.length) {
-          libraryData = cached;
-          window.libraryData = cached;
-
-          // Keep original order for "Recently added"
-          libraryDataOriginal = cached.slice();
-
-          // Sort library alphabetically by album (Library grid)
-          libraryData.sort((a, b) => String(a.albumName || "").localeCompare(String(b.albumName || "")));
-
-          // Mark ready so Library can render immediately if tapped
-          libraryReady = true;
-        }
-      }
-    } catch (e) {
-      // ignore cache read errors
-    }
-
-    // --- (2) Fetch latest from Cloudflare (longer timeout for mobile) ---
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const userId = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "");
-
-    const url =
-      'https://music-streamer.jacetbaum.workers.dev/api/get-songs?userId=' +
-      encodeURIComponent(userId) +
-      '&t=' + Date.now();
-
-    const response = await fetch(
-      url,
-      { signal: controller.signal }
-    );
-
-
+    const response = await fetch('/api/get-songs', { signal: controller.signal });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
-    const fresh = await response.json();
-    if (!Array.isArray(fresh)) throw new Error('Invalid library response');
+    libraryData = await response.json();
+    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
 
-        libraryData = fresh;
-    window.libraryData = fresh;
-
-    // ✅ DEBUG: prove we pulled from Cloudflare
-        window.__lastLibraryFetch = {
-      ok: true,
-      url,
-      status: response.status,
-      count: Array.isArray(fresh) ? fresh.length : 0,
-      at: Date.now()
-    };
-
-
-    // ✅ Save cache for next time (instant mobile Library)
+    // ✅ Build master track index: id/r2Path -> canonical track object
+    // This is what playlists will reference.
+    window.tracksById = new Map();
 
     try {
-      localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(fresh));
-    } catch (e) {}
+      libraryData.forEach((album) => {
+        const songs = Array.isArray(album?.songs) ? album.songs : [];
+        songs.forEach((s) => {
+          const id = String(s?.id || s?.r2Path || "").trim();
+          if (!id) return;
 
-    // ✅ Mark library as ready for rendering
-    libraryReady = true;
+          // Normalize a consistent object shape for the UI
+          const track = {
+            ...s,
+            id,
+            r2Path: id,
+            title: s?.title || s?.name || id.split("/").pop() || id,
+            name: s?.name || s?.title || id.split("/").pop() || id,
+            artistName: s?.artistName || album?.artistName || "",
+            albumName: s?.albumName || album?.albumName || "",
+            link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
+            url: s?.url || s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`
+          };
 
-    // If user is already on Library (mobile), render it now that data exists
-    try {
-      if (
-        navCurrent &&
-        navCurrent.type === 'library' &&
-        window.innerWidth <= 768
-      ) {
-
-        renderMobileLibraryGrid();
-      }
-    } catch (e) {}
+          window.tracksById.set(id, track);
+        });
+      });
+    } catch (e) {
+      console.warn("tracksById build failed:", e);
+    }
 
     // Keep original order for "Recently added"
-    libraryDataOriginal = fresh.slice();
+    libraryDataOriginal = libraryData.slice();
+
 
     // Sort library alphabetically by album (Library grid)
-    libraryData.sort((a, b) => String(a.albumName || "").localeCompare(String(b.albumName || "")));
+    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
 
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
     safe(window.renderHome);
-
   } catch (error) {
     console.error("Fetch error:", error);
 
-    // ✅ DEBUG: record failure reason (so Library can show it)
-    window.__lastLibraryFetch = {
-      ok: false,
-      error: String(error && (error.message || error) || "unknown"),
-      at: Date.now()
-    };
-
-    // ✅ IMPORTANT: Do NOT wipe libraryData here.
-
-    // If cache existed, it remains usable for mobile Library.
     const loading = document.getElementById('loading');
     if (loading) {
       loading.innerHTML = `
         <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
         <p class="text-white font-bold">Cloud Connection Failed</p>
-        <p class="text-zinc-500 text-sm mt-2">Using offline cache (if available).</p>
+        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
       `;
       loading.classList.add('hidden');
     }
 
-    // If we have cached data already loaded, keep it and still let the app run
-    try {
-      if (Array.isArray(libraryData) && libraryData.length) {
-        window.libraryData = libraryData;
-        libraryReady = true;
-      }
-    } catch (e) {}
-
+        libraryData = [];
     safe(window.showView, 'home');
   }
-
-  // ✅ Reload button (desktop)
-
 
   // ✅ Reload button (desktop)
   try {
@@ -6057,30 +5830,14 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
-  // ✅ Keep a window-visible copy (async code reads this)
-  window.navCurrent = navCurrent;
 }
-
 
 function pushNavCurrent() {
   if (__isBackNav) return;
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
-    // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
-
-  // ✅ MOBILE FIX:
-  // If the Library tab is active, treat "home" as "library" for the back stack.
-  // This prevents swipe-back from jumping to Home when you came from Library.
-  try {
-    const isMobile = window.innerWidth <= 768;
-    const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-    if (isMobile && libActive && snapshot.type === 'home') {
-      snapshot.type = 'library';
-    }
-  } catch (e) {}
-
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
@@ -6473,147 +6230,238 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
-// ✅ Keeps the bottom nav highlight consistent with the current view
-// (Fixes cases where Library "activates" but Home content is still what's visible)
-(function () {
-  if (window.__resonSetActiveNav) return;
-  window.__resonSetActiveNav = function (viewType) {
-    const wantId =
-      viewType === 'crate' ? 'nav-premium' :
-      viewType === 'home' ? 'nav-home' :
-      viewType === 'search' ? 'nav-search' :
-      viewType === 'library' ? 'nav-library' :
-      null;
-
-    ['nav-home', 'nav-search', 'nav-library', 'nav-premium'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (wantId && id === wantId) el.classList.add('active');
-      else el.classList.remove('active');
-    });
-  };
-})();
-
 function showView(viewType, playlistIndex = null) {
 
-
-  // --- DEBUG: show every navigation as a toast (mobile) + console (desktop)
-  try {
-    if (typeof __resonDbg === "function") __resonDbg(`showView(${viewType})`);
-  } catch (e) {}
-  try { console.log("showView(", viewType, ", playlistIndex=", playlistIndex, ")"); } catch (e) {}
-
-  // Capture what's currently on screen so swipe-back shows it behind
-  try { window.captureSwipeBackUnderlay?.(); } catch (e) {}
-
+    // Capture what's currently on screen so swipe-back shows it behind
+  window.captureSwipeBackUnderlay?.();
   // BACK STACK: push the current state before switching views
-  try { pushNavCurrent(); } catch (e) {}
+  pushNavCurrent();
 
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-    // ✅ CRITICAL: hide ALL root views so we never stack Home + Library on one scroll
-  ['home-view', 'library-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
-    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
+      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
   });
 
-  // ✅ Make sure the bottom nav matches the view we just navigated to
-  try { window.__resonSetActiveNav && window.__resonSetActiveNav(viewType); } catch (e) {}
 
-  try { document.getElementById('mobile-library-header')?.classList.add('hidden'); } catch (e) {}
-  try { document.getElementById('mobile-library-overlay')?.classList.add('hidden'); } catch (e) {}
+  activePlaylistIndex = playlistIndex;
+activePlaylistId = null;
 
-  // Reset active playlist pointers
-  try { activePlaylistIndex = playlistIndex; } catch (e) {}
-  try { activePlaylistId = null; } catch (e) {}
+// BACK STACK: set new current view
+if (viewType === 'home') setNavCurrent({ type: 'home' });
+else if (viewType === 'library') setNavCurrent({ type: 'library' });
+else if (viewType === 'search') setNavCurrent({ type: 'search' });
+else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
+else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+else if (viewType === 'playlist') {
 
-  // BACK STACK: set new current view
-  try {
-    if (viewType === 'home') setNavCurrent({ type: 'home' });
-    else if (viewType === 'library') setNavCurrent({ type: 'library' });
-    else if (viewType === 'search') setNavCurrent({ type: 'search' });
-    else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
-    else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
-    else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
-    else if (viewType === 'playlist') {
-      const plForNav = (Array.isArray(playlists) ? playlists[playlistIndex] : null);
-      setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+  const plForNav = playlists[playlistIndex];
+  setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+} else {
+  setNavCurrent({ type: viewType || 'home' });
+}
+
+
+const scrollArea = document.getElementById('main-scroll-area');
+  scrollArea.scrollTop = 0;
+
+        if (viewType === 'home') {
+    // MOBILE: show the real Home screen
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
     } else {
-      setNavCurrent({ type: viewType || 'home' });
+      // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+      try { renderHome(); } catch (e) {}
     }
-  } catch (e) {}
-
-  // Always reset main scroll to top when switching root views
-  try {
-    const scrollArea = document.getElementById('main-scroll-area');
-    if (scrollArea) scrollArea.scrollTop = 0;
-  } catch (e) {}
-
-  // -------------------------
-  // SHOW THE REQUESTED VIEW
-  // -------------------------
-
-  if (viewType === 'home') {
-    try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (e) {}
-    try { renderHome(); } catch (e) {}
-    try {
-      if (typeof __resonDbg === "function") __resonDbg(`HOME ✅ (home-view visible)`);
-    } catch (e) {}
-    return;
   }
 
   if (viewType === 'library') {
-  // Show the dedicated Library view
-  try { document.getElementById('library-view')?.classList.remove('hidden'); } catch (e) {}
+  document.getElementById('grid-view').classList.remove('hidden');
 
-  // Mobile: ensure the header is visible (it lives inside library-view now)
+  renderGrid(getLibraryGridData());
+  renderHistory();
+
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
+  }
+}
+
+    if (viewType === 'search') {
+    document.getElementById('search-view').classList.remove('hidden');
+    document.getElementById('global-search').focus();
+  }
+
+  if (viewType === 'crate') {
+    document.getElementById('crate-view')?.classList.remove('hidden');
+    try { initCrateUIOnce(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
+    // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
+  }
+
+
+
+  if (viewType === 'liked') {
+    document.getElementById('album-view').classList.remove('hidden');
+    renderCollection("Liked Songs", likedSongs);
+  }
+
+        if (viewType === 'playlist') {
+  document.getElementById('album-view').classList.remove('hidden');
+
+  const pl = playlists[playlistIndex];
+  if (!pl) return;
+
+  activePlaylistId = pl.id;
+  playContext = { type: 'playlist', label: pl.name };
+
+  // 🔒 wrap async work so `await` is legal
+  (async () => {
+    try {
+      const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
+
+// Accept either:
+// - ["Artist/Album/Song.mp3", ...]
+// - [{ track_id:"Artist/Album/Song.mp3" }, ...]
+// - [{ key:"Artist/Album/Song.mp3" }, ...]
+// - ["https://.../?id=Artist%2FAlbum%2FSong.mp3", ...]
+function canonTrackId(v) {
+  let s = String(v || "").trim();
+  if (!s) return "";
+
+  // If we were given a full URL, pull out ?id=
   try {
-    if (window.innerWidth <= 768) {
-      document.getElementById('mobile-library-header')?.classList.remove('hidden');
+    if (s.includes("://")) {
+      const u = new URL(s);
+      const id = u.searchParams.get("id");
+      if (id) s = id;
     }
   } catch (e) {}
 
-  // Render library grid (mobile + desktop both use the same #album-grid now)
+  // If we were given just a query-ish string
+  if (s.includes("?id=")) {
+    try {
+      const part = s.split("?id=")[1] || "";
+      s = part.split("&")[0] || part;
+    } catch (e) {}
+  }
+
+  // Decode %2F etc
+  try { s = decodeURIComponent(s); } catch (e) {}
+
+  // Strip leading slash if present
+  s = s.replace(/^\/+/, "").trim();
+
+  return s;
+}
+
+const itemsArr = Array.isArray(rawItems) ? rawItems : [];
+
+const normalizedIds = itemsArr
+  .map((x) => {
+    if (typeof x === "string") return canonTrackId(x);
+    if (x && typeof x === "object") {
+      return canonTrackId(x.track_id || x.r2_key || x.id || x.key || x.r2Path || "");
+    }
+    return "";
+  })
+  .filter(Boolean);
+
+// ✅ Always keep playlist as IDs-only
+pl.trackIds = normalizedIds;
+pl.songs = resolveTrackIdsToSongs(pl.trackIds);
+
+// covers & render
+try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+try { renderPlaylists(); } catch (e) {}
+renderCollection(pl.name, pl.songs, true, playlistIndex);
+
+
+    } catch (err) {
+      console.warn(err);
+      pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+      pl.songs = Array.isArray(pl.songs) ? pl.songs : [];
+      renderCollection(pl.name, pl.songs, true, playlistIndex);
+    }
+  })();
+}
+
+
+
+
+  if (viewType === 'artist') {
+    document.getElementById('artist-view').classList.remove('hidden');
+  }
+
+  updateActiveStates(viewType);
+}
+
+
+
+        function updateActiveStates(viewType) {
+  // Mobile Nav
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
+  Object.values(navIds).forEach(id => document.getElementById(id).classList.remove('active'));
+  if (navIds[viewType]) document.getElementById(navIds[viewType]).classList.add('active');
+
+  // Desktop Sidebar
+  document.getElementById('side-nav-home').classList.toggle('text-white', viewType === 'home' || viewType === 'library');
+  document.getElementById('side-nav-home').classList.toggle('text-zinc-400', !(viewType === 'home' || viewType === 'library'));
+  document.getElementById('side-nav-search').classList.toggle('text-white', viewType === 'search');
+  document.getElementById('side-nav-search').classList.toggle('text-zinc-400', viewType !== 'search');
+  document.getElementById('side-nav-liked').classList.toggle('bg-zinc-900', viewType === 'liked');
+}
+
+/* ---------------------------------------------------------------------
+   Mobile: active-tab taps
+   - Tap active tab while deep (album/playlist/etc): Pop-to-root of that tab
+   - Double-tap active tab while already at root: Smooth scroll-to-top
+   - Debounce rapid taps to prevent flicker / race conditions
+   --------------------------------------------------------------------- */
+
+const __navTapLast = { home: 0, search: 0, library: 0 };
+
+// Debounce for navigation (prevents multiple showView() calls fighting each other)
+let __navTapLockUntil = 0;
+let __navTapLastNavType = null;
+
+function scrollMainToTopSmooth() {
+  const area = document.getElementById('main-scroll-area');
+  if (!area) return;
+
+  // Mobile only
+  if (window.innerWidth > 768) {
+    area.scrollTop = 0;
+    return;
+  }
+
   try {
-    renderMobileLibraryGrid();
+    area.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
-    try { console.error("Library render failed:", e); } catch (_) {}
-    try { if (typeof __resonDbg === "function") __resonDbg("LIBRARY ❌ renderMobileLibraryGrid crashed"); } catch (_) {}
+    area.scrollTop = 0;
   }
-
-  // Debug toast: confirm data counts
-  try {
-    const raw = Array.isArray(window.libraryData) ? window.libraryData : [];
-    const rawCount = raw.length;
-    const plsCount = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists.length : 0;
-    if (typeof __resonDbg === "function") __resonDbg(`Library: raw=${rawCount} • playlists=${plsCount} • userId=${window.APP_USER_ID || localStorage.getItem("app_user_id") || ""}`);
-  } catch (e) {}
-
-  return;
 }
 
-if (viewType === 'crate') {
-
-    try { document.getElementById('crate-view')?.classList.remove('hidden'); } catch (e) {}
-    try { initCrateUIOnce(); } catch (e) {}
-    try { renderCrate(); } catch (e) {}
-    try { if (typeof __resonDbg === "function") __resonDbg(`CRATE ✅ (crate-view visible)`); } catch (e) {}
-    return;
-  }
-
-  if (viewType === 'liked') {
-    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
-    try { renderCollection("Liked Songs", likedSongs); } catch (e) {}
-    try { if (typeof __resonDbg === "function") __resonDbg(`LIKED ✅ (album-view visible)`); } catch (e) {}
-    return;
-  }
-
-  // Leave playlist/artist handling to your existing code paths if they exist elsewhere.
+function popToRootSection(targetViewType) {
+  // This function resets the nav stack and shows the target root view
   try {
-    if (typeof __resonDbg === "function") __resonDbg(`showView(${viewType}) ⚠️ no handler here`);
-  } catch (e) {}
-}
+    // Prevent showView() from pushing the current view onto the back stack
+    window.__isBackNav = true;
 
+    // Clear back stack
+    if (Array.isArray(window.navStack)) window.navStack.length = 0;
+
+    // Go to root view
+    showView(targetViewType);
+  } finally {
+    window.__isBackNav = false;
+  }
+}
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
@@ -6636,7 +6484,7 @@ function onNavTap(viewType) {
     // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      __dbgNavTapLast[viewType] = 0;
+      __navTapLast[viewType] = 0;
       return;
     }
 
@@ -6647,45 +6495,45 @@ function onNavTap(viewType) {
       // Inside album/playlist → double-tap Library should go BACK
       if (viewType === 'library') {
         const now = Date.now();
-        const last = __dbgNavTapLast[viewType] || 0;
+        const last = __navTapLast[viewType] || 0;
 
         if (now - last <= 350) {
-          __dbgNavTapLast[viewType] = 0;
+          __navTapLast[viewType] = 0;
           goBack(); // restores Library + scroll position
         } else {
-          __dbgNavTapLast[viewType] = now;
+          __navTapLast[viewType] = now;
         }
         return;
       }
 
       // Other tabs keep old behavior
       popToRootSection(viewType);
-      __dbgNavTapLast[viewType] = 0;
+      __navTapLast[viewType] = 0;
       return;
     }
 
     // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
-    const last = __dbgNavTapLast[viewType] || 0;
+    const last = __navTapLast[viewType] || 0;
 
     if (now - last <= 350) {
-      __dbgNavTapLast[viewType] = 0;
+      __navTapLast[viewType] = 0;
       scrollMainToTopSmooth();
       return;
     }
 
-    __dbgNavTapLast[viewType] = now;
+    __navTapLast[viewType] = now;
     return; // wait for possible second tap
   }
 
   // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __dbgNavTapLast[viewType] = 0;
+  __navTapLast[viewType] = 0;
 
   const now = Date.now();
   if (isMobile) {
-    if (now < __dbgNavTapLockUntil && __dbgNavTapLastNavType === viewType) return;
-    __dbgNavTapLastNavType = viewType;
-    __dbgNavTapLockUntil = now + 300; // 300ms debounce window
+    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
+    __navTapLastNavType = viewType;
+    __navTapLockUntil = now + 300; // 300ms debounce window
   }
 
    // Normal navigation
@@ -6694,315 +6542,14 @@ function onNavTap(viewType) {
 }
 
 
-/* ---------------------------------------------------------------------
-   RENDERERS
---------------------------------------------------------------------- */
 
 /**
- * Mobile-visible debug toast (since you don't have console on phone)
- */
-function __resonDbg(msg) {
-  try {
-    window.__resonDbgLog = window.__resonDbgLog || [];
-    window.__resonDbgLog.push({ t: Date.now(), msg: String(msg) });
-
-    let el = document.getElementById('reson-debug-toast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'reson-debug-toast';
-      el.style.cssText =
-        'position:fixed;left:12px;right:12px;bottom:84px;z-index:999999;' +
-        'background:rgba(0,0,0,0.78);color:#fff;padding:10px 12px;border-radius:14px;' +
-        'font-size:12px;line-height:1.35;backdrop-filter:blur(6px);' +
-        'border:1px solid rgba(255,255,255,0.12);';
-      document.body.appendChild(el);
-    }
-
-    el.textContent = String(msg);
-
-    try { clearTimeout(window.__resonDbgTimer); } catch (e) {}
-    window.__resonDbgTimer = setTimeout(() => {
-      try { el.remove(); } catch (e) {}
-    }, 3500);
-  } catch (e) {}
-}
-
-/**
- * If Cloudflare returns TRACK rows, derive ALBUM rows:
- * group by (artist + album).
- *
- * Accepts track shapes like:
- *  - { artist, album, title, ... }
- *  - { artistName, albumName, title, ... }
- */
-function __resonDeriveAlbumsFromSongs(rows) {
-  const list = Array.isArray(rows) ? rows : [];
-  const map = new Map();
-
-  for (const r of list) {
-    const artist = String(r?.artistName || r?.artist || '').trim();
-    const album = String(r?.albumName || r?.album || '').trim();
-    if (!album) continue;
-
-    const key = (artist + '|' + album).toLowerCase();
-    if (!map.has(key)) {
-      map.set(key, {
-        artistName: artist,
-        albumName: album,
-        coverArt: r?.coverArt || r?.cover || r?.albumArt || r?.art || null
-      });
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) =>
-    String(a.albumName || '').localeCompare(String(b.albumName || ''), undefined, { sensitivity: 'base' })
-  );
-}
-
-/**
- * Returns ALBUM rows no matter what `window.libraryData` contains.
- * - If rows already look like albums (albumName exists), keep them.
- * - Otherwise derive from track rows.
- */
-function __resonGetAlbumRowsForLibrary(rawRows) {
-  const rows = Array.isArray(rawRows) ? rawRows : [];
-
-  // If it already looks like album rows, keep it
-  const looksLikeAlbums = rows.length && rows.some(x => x && (x.albumName || x.artistName));
-  if (looksLikeAlbums) return rows;
-
-  // Otherwise derive albums from track list
-  const derived = __resonDeriveAlbumsFromSongs(rows);
-
-  // Keep a debug breadcrumb
-  try {
-    window.__lastLibraryDerive = {
-      ok: true,
-      rawCount: rows.length,
-      albumCount: derived.length,
-      at: Date.now()
-    };
-  } catch (e) {}
-
-  return derived;
-}
-
-// ✅ Normalizes Cloudflare library rows so album detection works even if your JSON uses
-// "album" / "artist" instead of "albumName" / "artistName".
-if (typeof window.__resonGetAlbumRowsForLibrary !== 'function') {
-  window.__resonGetAlbumRowsForLibrary = function (raw) {
-    if (!Array.isArray(raw)) return [];
-    return raw.map((t) => ({
-      albumName:
-        t?.albumName || t?.album || t?.album_title || t?.albumTitle || '',
-      artistName:
-        t?.artistName || t?.artist || t?.artist_title || t?.artistTitle || '',
-      coverArt:
-        t?.coverArt || t?.cover || t?.albumArt || t?.art || t?.image || ''
-    }));
-  };
-}
-
-function renderMobileLibraryGrid() {
-
-
-  const grid = document.getElementById('album-grid');
-  if (!grid) return;
-
-  // Always show *something* so we know the function ran
-  const fetchInfo = window.__lastLibraryFetch || null;
-  const albumsCount = Array.isArray(window.libraryData) ? window.libraryData.length : 0;
-  const plsCount = Array.isArray(window.cloudPlaylists)
-    ? window.cloudPlaylists.length
-    : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists.length : 0);
-
-  // If we truly have nothing yet, show a loading message (normal on slow mobile)
-  if (!albumsCount && !plsCount) {
-    grid.style.display = 'block';
-    grid.style.gridTemplateColumns = '';
-    grid.style.gap = '';
-    grid.innerHTML = `
-      <div class="text-zinc-300 text-sm" style="padding: 12px 4px;">
-        <div class="font-extrabold text-white mb-1">Loading your cloud library…</div>
-        <div class="text-zinc-400">Albums: ${albumsCount} • Playlists: ${plsCount}</div>
-        ${
-          fetchInfo
-            ? `<div class="text-zinc-500 mt-1">Cloudflare fetch: ${fetchInfo.ok ? 'OK' : 'FAILED'}${(fetchInfo.count != null) ? (' • ' + fetchInfo.count + ' albums') : ''}</div>`
-            : `<div class="text-zinc-500 mt-1">Cloudflare fetch: (no status yet)</div>`
-        }
-      </div>
-    `;
-    return;
-  }
-
-  try {
-    // Albums: use desktop source if available; fallback to raw cloud library
-    let albumRows = [];
-
-    if (typeof getLibraryGridData === 'function') {
-      try { albumRows = getLibraryGridData() || []; } catch (e) { albumRows = []; }
-    }
-
-        if (!Array.isArray(albumRows) || albumRows.length === 0) {
-      const raw = Array.isArray(window.libraryData) ? window.libraryData : [];
-      albumRows = (typeof __resonGetAlbumRowsForLibrary === 'function')
-        ? __resonGetAlbumRowsForLibrary(raw)
-        : raw;
-    }
-
-    // Dedupe albums by "artist|album"
-
-    const seen = new Set();
-    const albums = [];
-    for (const a of albumRows) {
-      const artist = String(a?.artistName || '');
-      const album = String(a?.albumName || '');
-      if (!album) continue;
-      const key = (artist + '|' + album).toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      albums.push({
-        type: 'album',
-        albumName: album,
-        artistName: artist,
-        coverArt: a?.coverArt
-      });
-    }
-
-    // Playlists: prefer cloudPlaylists if present, else fallback to playlists, else []
-    const plSource =
-      (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-        ? window.cloudPlaylists
-        : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
-
-    const pls = plSource.map(pl => ({
-      type: 'playlist',
-      id: String(pl?.id || ''),
-      name: String(pl?.name || 'Playlist'),
-      cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : ''
-    })).filter(p => p.name);
-
-    const items = [...albums, ...pls];
-
-    // Alphabetical A–Z by display name (albumName or playlist name)
-    items.sort((a, b) => {
-      const an = (a.type === 'album' ? a.albumName : a.name);
-      const bn = (b.type === 'album' ? b.albumName : b.name);
-      return String(an).localeCompare(String(bn), undefined, { sensitivity: 'base' });
-    });
-
-    // Force 2 columns on mobile Library
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-    grid.style.gap = '16px';
-
-    if (!items.length) {
-      grid.innerHTML = `
-        <div class="text-zinc-400 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
-          Nothing to show yet (albums/playlists list is empty).
-        </div>
-      `;
-      return;
-    }
-
-    const debugLine = `
-      <div class="text-zinc-500 text-xs" style="grid-column: 1 / -1; margin: -4px 0 4px;">
-        Debug: albums=${albums.length} • playlists=${pls.length} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}
-      </div>
-    `;
-
-    grid.innerHTML = debugLine + items.map((item) => {
-      if (item.type === 'playlist') {
-        const safeId = String(item.id).replace(/"/g, '&quot;');
-        const title = String(item.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const cover = item.cover ? String(item.cover).replace(/"/g, '&quot;') : '';
-        return `
-          <div class="album-card p-2"
-               data-type="playlist"
-               data-id="${safeId}">
-            <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-              ${
-                cover
-                  ? `<img src="${cover}" class="w-full h-full object-cover">`
-                  : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
-                       <i class="fas fa-music text-zinc-400"></i>
-                     </div>`
-              }
-            </div>
-            <div class="font-bold text-white truncate text-sm mb-0.5">${title}</div>
-            <div class="text-xs text-zinc-400 truncate">Playlist</div>
-          </div>
-        `;
-      }
-
-      // album card (with placeholder if cover missing)
-      const safeAlbum = String(item.albumName).replace(/"/g, '&quot;');
-
-      let cover = '';
-      try {
-        cover = (typeof getAlbumCover === 'function')
-          ? getAlbumCover(item.artistName, item.albumName, item.coverArt)
-          : '';
-      } catch (e) {
-        cover = '';
-      }
-      cover = cover ? String(cover).replace(/"/g, '&quot;') : '';
-
-      const albumTitle = String(item.albumName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const artistTitle = String(item.artistName).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-      return `
-        <div class="album-card p-2"
-             data-type="album"
-             data-album="${safeAlbum}">
-          <div class="relative mb-2 rounded-md overflow-hidden aspect-square">
-            ${
-              cover
-                ? `<img src="${cover}" class="w-full h-full object-cover">`
-                : `<div class="w-full h-full bg-white/10 flex items-center justify-center">
-                     <i class="fas fa-compact-disc text-zinc-400"></i>
-                   </div>`
-            }
-          </div>
-          <div class="font-bold text-white truncate text-sm mb-0.5">${albumTitle}</div>
-          <div class="text-xs text-zinc-400 truncate">${artistTitle}</div>
-        </div>
-      `;
-    }).join('');
-
-    // Click handling
-    [...grid.querySelectorAll('.album-card')].forEach(card => {
-      card.addEventListener('click', () => {
-        const type = card.getAttribute('data-type');
-
-        if (type === 'playlist') {
-          const id = card.getAttribute('data-id');
-          const source =
-            (Array.isArray(window.cloudPlaylists) && window.cloudPlaylists.length)
-              ? window.cloudPlaylists
-              : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists : []);
-          const idx = source.findIndex(pl => String(pl?.id) === String(id));
-          if (idx !== -1) showView('playlist', idx);
-          return;
-        }
-
-        const album = card.getAttribute('data-album');
-        if (album) openAlbumByName(album);
-      });
-    });
-  } catch (e) {
-    console.error('renderMobileLibraryGrid failed:', e);
-    grid.innerHTML = `
-      <div class="text-red-300 text-sm" style="grid-column: 1 / -1; padding: 12px 4px;">
-        Library grid failed to render. Check console for "renderMobileLibraryGrid failed".
-      </div>
-    `;
-  }
-}
-
+          * ---------------------------------------------------------------------
+          * RENDERERS
+          * ---------------------------------------------------------------------
+          */
 
 function renderGrid(data) {
-
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
@@ -8775,35 +8322,9 @@ function persistPlayerState(isPlayingOverride = null) {
   // Also keep your existing lastPlayedTime “freshness” timestamp aligned
   lastPlayedTime = state.updatedAt;
   localStorage.setItem('lastPlayedTime', lastPlayedTime);
-
-  // ✅ Cloud sync (cross-device dock) — best-effort
-  try {
-    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-    if (uid && typeof window.syncNowPlayingToCloud === "function") {
-      // convert currentSong.url -> trackId (id param) when possible
-      let trackId = "";
-      try {
-        const u = new URL(currentSong.url, window.location.origin);
-        trackId = String(u.searchParams.get("id") || "").trim();
-      } catch (e) {
-        trackId = "";
-      }
-
-      if (trackId) {
-        window.syncNowPlayingToCloud({
-          userId: uid,
-          trackId: trackId,
-          contextType: null,
-          contextId: null,
-          positionSec: Number(state.currentTime || 0)
-        });
-      }
-    }
-  } catch (e) {}
 }
 
 function restorePlayerStateIfRecent() {
-
   const oneHour = 3600000;
 
   let state = null;
@@ -8813,35 +8334,24 @@ function restorePlayerStateIfRecent() {
     state = null;
   }
 
-   // If no saved state, hide dock (desktop only). Mobile always keeps dock visible.
-  if (!raw) {
+  // If no saved state, hide dock
+  if (!state || !state.song || !state.song.url) {
     currentSong = null;
-    toggleRightSidebar(false);
-
-    if (window.innerWidth <= 768) {
-      dock.classList.remove('dock-hidden');
-    } else {
-      dock.classList.add('dock-hidden');
-    }
+      toggleRightSidebar(false);
+    dock.classList.add('dock-hidden');
     return;
   }
 
-  // If older than 1 hour, wipe it and hide dock (desktop only). Mobile always keeps dock visible.
-  const ONE_HOUR = 60 * 60 * 1000;
-  if (!state || !state.lastPlayedTime || (Date.now() - state.lastPlayedTime) > ONE_HOUR) {
-    localStorage.removeItem('reson_player_state');
+  // If older than 1 hour, wipe it and hide dock
+  if ((Date.now() - (state.updatedAt || 0)) >= oneHour) {
+    localStorage.removeItem('lastSongState');
     currentSong = null;
-    toggleRightSidebar(false);
-
-    if (window.innerWidth <= 768) {
-      dock.classList.remove('dock-hidden');
-    } else {
-      dock.classList.add('dock-hidden');
-    }
+      toggleRightSidebar(false);
+    dock.classList.add('dock-hidden');
     return;
   }
 
-
+  // Restore song into memory
   currentSong = state.song;
 
   // Restore audio source + time (do NOT autoplay)
@@ -8880,18 +8390,7 @@ document.getElementById('p-artist').innerText = currentSong.artist || "";
 }
 
 function checkDockVisibility() {
-  const dock = document.getElementById('main-dock');
-  if (!dock) return;
-
-  // ✅ Mobile: dock is ALWAYS visible (home, search, library, album, playlist, etc.)
-  if (window.innerWidth <= 768) {
-    dock.classList.remove('dock-hidden');
-    return;
-  }
-
-  // Desktop behavior (unchanged): only show dock when something is loaded / recently played
-  const lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime'), 10);
-  const currentTime = Date.now();
+  const oneHour = 3600000;
 
   // If nothing is loaded / no current song => NO dock
   if (!currentSong) {
@@ -8899,14 +8398,18 @@ function checkDockVisibility() {
     return;
   }
 
-  // If last played time exists and is within 1 hour => show dock
-  if (!isNaN(lastPlayedTime) && currentTime - lastPlayedTime < 3600000) {
+  // If playing, always show
+  if (!player.paused) {
     dock.classList.remove('dock-hidden');
-  } else {
-    dock.classList.add('dock-hidden');
+    return;
   }
-}
 
+  // If paused: only show if last interaction within 1 hour
+  const isRecent = (Date.now() - lastPlayedTime) < oneHour;
+
+  if (isRecent) dock.classList.remove('dock-hidden');
+  else dock.classList.add('dock-hidden');
+}
 
        function toggleRightSidebar(show) {
   if (window.innerWidth < 1024) return;
@@ -9810,19 +9313,14 @@ function handleContextMenu(e, song) {
   if (!grid) return;
 
   const isMobile = (window.innerWidth <= 768);
+  const slotCount = isMobile ? 4 : 8;
 
-const pinnedIds = loadPinnedPlaylists();
-const pinnedSet = new Set(pinnedIds);
-const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-
-// ✅ Mobile: show ALL playlists (scroll horizontally instead of "only 4")
-const defaultSlots = isMobile ? orderedPlaylists.length : 8;
-const slotCount = homePlaylistsExpanded ? orderedPlaylists.length : defaultSlots;
-
-const filled = orderedPlaylists.slice(0, slotCount);
-
+  const pinnedIds = loadPinnedPlaylists();
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+  const filled = orderedPlaylists.slice(0, slotCount);
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
@@ -9882,8 +9380,7 @@ const filled = orderedPlaylists.slice(0, slotCount);
   });
 }
 
-        let mobileRecentsExpanded = false;
-let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mobile + desktop)
+         let mobileRecentsExpanded = false;
 
         function renderHomeRecentsRow(containerId) {
           const row = document.getElementById(containerId);
@@ -9955,107 +9452,15 @@ let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mo
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
     renderHomeRecentsRow('home-recents-row');
-    try { window.__applyHomeChipFilter?.(); } catch (e) {}
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
-  try { window.__applyHomeChipFilter?.(); } catch (e) {}
 }
 
-// ------------------------------
-// Home chips: All / Music / Playlists / Audio
-// (Only implement what you asked: Playlists shows ONLY playlists)
-// ------------------------------
-if (!window.__homeChipsBound) {
-  window.__homeChipsBound = true;
-
-  window.__homeChip = window.__homeChip || 'all';
-
-  window.__applyHomeChipStyles = function () {
-    const ids = ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'];
-    ids.forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      const key = btn.getAttribute('data-homechip');
-
-      if (key === window.__homeChip) {
-        btn.classList.remove('bg-white/10', 'text-white');
-        btn.classList.add('bg-[#1db954]', 'text-black');
-      } else {
-        btn.classList.remove('bg-[#1db954]', 'text-black');
-        btn.classList.add('bg-white/10', 'text-white');
-      }
-    });
-  };
-
-   window.__applyHomeChipFilter = function () {
-    // ✅ Only hide/show Home sections while you are on Home.
-    // If you leave Home (ex: go to Library), force everything back on.
-    const isHome = (typeof navCurrent === 'object' && navCurrent && navCurrent.type === 'home');
-
-    const dRecentsRow = document.getElementById('desktop-recents-row');
-    const albumGrid = document.getElementById('album-grid');
-    const mRecentsRow = document.getElementById('home-recents-row');
-
-    if (!isHome) {
-      // restore anything the Home chip may have hidden
-      if (dRecentsRow) {
-        const h2 = dRecentsRow.previousElementSibling;
-        if (h2 && h2.tagName === 'H2') h2.style.display = '';
-        dRecentsRow.style.display = '';
-      }
-      if (albumGrid) albumGrid.style.display = '';
-      if (mRecentsRow && mRecentsRow.parentElement) {
-        mRecentsRow.parentElement.style.display = '';
-      }
-      return;
-    }
-
-    const onlyPlaylists = (window.__homeChip === 'playlists');
-
-    // Desktop: hide Recents row + its H2
-    if (dRecentsRow) {
-      const h2 = dRecentsRow.previousElementSibling;
-      if (h2 && h2.tagName === 'H2') h2.style.display = onlyPlaylists ? 'none' : '';
-      dRecentsRow.style.display = onlyPlaylists ? 'none' : '';
-    }
-
-    // Desktop: hide the big album grid section (your library cards) when Playlists is selected
-    if (albumGrid) albumGrid.style.display = onlyPlaylists ? 'none' : '';
-
-    // Mobile: hide the whole Recents section container (the parent of #home-recents-row)
-    if (mRecentsRow && mRecentsRow.parentElement) {
-      mRecentsRow.parentElement.style.display = onlyPlaylists ? 'none' : '';
-    }
-  };
-
-  function bindHomeChip(id) {
-    const btn = document.getElementById(id);
-    if (!btn || btn.__bound) return;
-    btn.__bound = true;
-
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-homechip') || 'all';
-      window.__homeChip = key;
-
-      try { window.__applyHomeChipStyles(); } catch (e) {}
-      try { window.__applyHomeChipFilter(); } catch (e) {}
-    });
-  }
-
-  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio', 'desktop-home-chip-all', 'desktop-home-chip-music', 'desktop-home-chip-playlists', 'desktop-home-chip-audio'].forEach(bindHomeChip);
-
-
-  // initial apply
-  try { window.__applyHomeChipStyles(); } catch (e) {}
-  try { window.__applyHomeChipFilter(); } catch (e) {}
-}
-
-const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
-
+        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
 if (homeRecentsShowAllBtn) {
   homeRecentsShowAllBtn.addEventListener('click', () => {
     mobileRecentsExpanded = !mobileRecentsExpanded;
@@ -10084,27 +9489,12 @@ if (homeRecentsShowAllBtn) {
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
-
-    // ✅ Always compute album covers from Artist + Album (ignores stale h.cover)
-    let cover = "";
-    if (h.type === 'playlist') {
-      cover = String(h.cover || "").trim();
-    } else {
-      const artistName = String(h.artist || "").trim();
-      const albumName  = String(h.album || "").trim();
-      cover = getAlbumCover(artistName, albumName, "");
-    }
-
     return `
       <div class="mobile-recent-card"
            data-type="${h.type}"
            data-id="${safeId}"
            data-album="${safeAlbum}">
-        ${
-          cover
-            ? `<img src="${cover}" alt="">`
-            : `<div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>`
-        }
+        <img src="${h.cover || ''}" alt="">
         <div class="min-w-0">
           <div class="title">${title}</div>
           <div class="sub">${sub}</div>
@@ -10115,21 +9505,18 @@ if (homeRecentsShowAllBtn) {
 
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
-      const type = card.dataset.type;
-      const id = card.dataset.id;
-
+      const type = card.getAttribute('data-type');
       if (type === 'playlist') {
-        const idx = playlists.findIndex(p => String(p.id) === String(id));
-        if (idx >= 0) showView('playlist', idx);
-        return;
+        const id = card.getAttribute('data-id');
+        const idx = playlists.findIndex(pl => pl.id === id);
+        if (idx !== -1) showView('playlist', idx);
+      } else {
+        const album = card.getAttribute('data-album');
+        if (album) openAlbumByName(album);
       }
-
-      const albumName = card.dataset.album || '';
-      if (albumName) openAlbumByName(albumName);
     });
   });
 }
-
 
 function renderHistory() {
   const historyEl = document.getElementById('history-container');
@@ -10227,14 +9614,14 @@ function renderHistory() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: window.APP_USER_ID || localStorage.getItem("app_user_id"),
+          userId: window.APP_USER_ID || localStorage.getItem("app_user_id"),
           name: name.trim()
         })
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       if (!res.ok || !data || !data.ok) {
-        throw new Error(data?.error || "Failed to create playlist");
+        throw new Error("Failed to create playlist");
       }
 
       // Reload cloud playlists and re-render
@@ -10246,7 +9633,6 @@ function renderHistory() {
     }
   })();
 }
-
 
 
 // ---------------- PINNED PLAYLISTS ----------------
@@ -10412,12 +9798,8 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
     return `<img src="${explicit}" class="${sc} object-cover" alt="">`;
   }
 
-    // 2) build from song covers
-  const songs =
-    (Array.isArray(pl?.songs) && pl.songs.length)
-      ? pl.songs
-      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
-
+  // 2) build from song covers
+  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
   const covers = songs
     .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
     .map(x => String(x || '').trim())
@@ -10449,12 +9831,8 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
 
 function playlistAutoCoverSignature(pl) {
 
-    // Signature determines when we need to rebuild the auto cover
-  const songs =
-    (Array.isArray(pl?.songs) && pl.songs.length)
-      ? pl.songs
-      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
-
+  // Signature determines when we need to rebuild the auto cover
+  const songs = Array.isArray(pl?.songs) ? pl.songs : [];
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) return "none";
@@ -10536,11 +9914,7 @@ async function updatePlaylistAutoCoverById(playlistId) {
     return; // already up to date
   }
 
-    const songs =
-    (Array.isArray(pl?.songs) && pl.songs.length)
-      ? pl.songs
-      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
-
+  const songs = Array.isArray(pl.songs) ? pl.songs : [];
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
 
   if (covers.length === 0) {
@@ -10725,38 +10099,21 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
-// -----------------------
-// HERO 3-DOTS MENU (playlist OR album)
-// -----------------------
-(function bindHeroMoreButtonOnce() {
-  const btn = document.getElementById('hero-more-btn');
-  if (!btn || btn.__bound) return;
-  btn.__bound = true;
+function openPlaylistPinMenuFromHero(e) {
+  // Only works when you're inside a playlist view
+  if (!activePlaylistId) return;
 
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  e.preventDefault();
+  e.stopPropagation();
 
-    // If inside a playlist → open playlist menu
-    if (typeof activePlaylistId !== 'undefined' && activePlaylistId) {
-      try { openPlaylistPinMenuFromHero(e); } catch (err) {}
-      return;
-    }
+  const btn = e.currentTarget || document.getElementById('hero-more-btn');
+  if (!btn) return;
 
-    // Otherwise → album menu
-    if (!activeAlbumName || !activeAlbumArtist) return;
+  const rect = btn.getBoundingClientRect();
 
-    const r = btn.getBoundingClientRect();
-    try {
-      showAlbumCoverMenuAt(
-        r.left,
-        r.bottom + 8,
-        activeAlbumArtist,
-        activeAlbumName
-      );
-    } catch (err) {}
-  }, { passive: false });
-})();
+  // Open menu just under the 3 dots
+  showPlaylistMenuAt(rect.left, rect.bottom + 8, activePlaylistId);
+}
 
 function attachPlaylistPressHandlers(el, playlistId) {
   if (!el) return;
@@ -10844,7 +10201,7 @@ window.addEventListener('DOMContentLoaded', () => {
     hidePlaylistMenu();
   };
 
-    // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
+  // ✅ DELETE PLAYLIST (local + cloud if your cloud delete function exists)
   if (delBtn && !delBtn.__bound) {
     delBtn.__bound = true;
 
@@ -10855,23 +10212,16 @@ window.addEventListener('DOMContentLoaded', () => {
       const id = playlistMenuTargetId;
       if (!id) { hidePlaylistMenu(); return; }
 
-      // 1) Cloud delete MUST succeed (otherwise it will reappear on refresh)
-      if (typeof deletePlaylistFromCloud === 'function') {
-        try {
+      // 1) Try cloud delete if you have it
+      try {
+        if (typeof deletePlaylistFromCloud === 'function') {
           await deletePlaylistFromCloud(id);
-        } catch (err) {
-          console.warn('Cloud delete failed:', err);
-          alert('Cloud delete failed. Playlist was NOT deleted.\n\n' + (err?.message || String(err)));
-          hidePlaylistMenu();
-          return;
         }
-      } else {
-        alert('Cloud delete function is missing (deletePlaylistFromCloud). Playlist was NOT deleted.');
-        hidePlaylistMenu();
-        return;
+      } catch (err) {
+        console.warn('Cloud delete failed, continuing local delete:', err);
       }
 
-      // 2) Delete locally so UI updates immediately
+      // 2) Always delete locally so UI updates immediately
       const idx = findPlaylistIndexById(id);
       if (idx !== -1) playlists.splice(idx, 1);
 
@@ -10892,7 +10242,6 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   }
 });
-
 
 
   // -----------------------
@@ -11019,10 +10368,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('album-cover-menu');
   const urlBtn = document.getElementById('acm-cover-url');
   const uploadBtn = document.getElementById('acm-cover-upload');
-    const clearBtn = document.getElementById('acm-cover-clear');
-  const deleteBtn = document.getElementById('acm-delete-album');
+  const clearBtn = document.getElementById('acm-cover-clear');
   const fileInput = document.getElementById('album-cover-file');
-
 
   if (!menu) return;
 
@@ -11074,7 +10421,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-    if (clearBtn) {
+  if (clearBtn) {
     clearBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -11085,51 +10432,6 @@ window.addEventListener('DOMContentLoaded', () => {
       refreshAfterAlbumCoverChange(albumMenuTarget.artistName, albumMenuTarget.albumName);
     };
   }
-
-  if (deleteBtn) {
-    deleteBtn.onclick = async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!requireTarget()) return;
-
-      const a = albumMenuTarget.artistName;
-      const b = albumMenuTarget.albumName;
-
-      const ok = confirm(`Delete this album from the cloud?\n\n${a} — ${b}\n\nThis removes the album files from R2.`);
-      if (!ok) return;
-
-      try {
-        hideAlbumCoverMenu();
-
-        // Delete from cloud
-        await window.deleteAlbumFromCloud(a, b);
-
-        // Remove from current in-memory library so it disappears immediately
-        try {
-          if (Array.isArray(window.libraryData)) {
-            window.libraryData = window.libraryData.filter(x =>
-              !(String(x.artistName || "") === String(a) && String(x.albumName || "") === String(b))
-            );
-          }
-        } catch (e2) {}
-
-        // Re-render UI
-        try { if (typeof renderLibrary === "function") renderLibrary(); } catch (e3) {}
-        try { if (typeof renderHome === "function") renderHome(); } catch (e4) {}
-
-        // If you were inside that album view, go back
-        try {
-          if (window.navCurrent && window.navCurrent.type === 'album' &&
-              window.navCurrent.artistName === a && window.navCurrent.albumName === b) {
-            showView('library');
-          }
-        } catch (e5) {}
-      } catch (err) {
-        alert("Delete album failed: " + (err && err.message ? err.message : String(err)));
-      }
-    };
-  }
-
 
   // Click outside closes
   window.addEventListener('click', (e) => {
@@ -11142,41 +10444,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', hideAlbumCoverMenu, true);
 });
 
-// ✅ Canonical track id helper (global)
-// Turns URLs or encoded ids into the stable R2 path: "Artist/Album/Song.mp3"
-function canonTrackId(v) {
-  let s = String(v || "").trim();
-  if (!s) return "";
-
-  // If we were given a full URL, pull out ?id=
-  try {
-    if (s.includes("://")) {
-      const u = new URL(s);
-      const id = u.searchParams.get("id");
-      if (id) s = id;
-    }
-  } catch (e) {}
-
-  // If we were given just a query-ish string
-  if (s.includes("?id=")) {
-    try {
-      const part = s.split("?id=")[1] || "";
-      s = part.split("&")[0] || part;
-    } catch (e) {}
-  }
-
-  // Decode %2F etc
-  try { s = decodeURIComponent(s); } catch (e) {}
-
-  // Strip leading slash if present
-  s = s.replace(/^\/+/, "").trim();
-
-  return s;
-}
-
 function renderPlaylists() {
   const list = document.getElementById('dynamic-playlists-list');
-
   const sub = document.getElementById('playlist-submenu');
   if (!list || !sub) return;
 
@@ -11329,7 +10598,10 @@ function renderPlaylists() {
     pl.trackIds.push(trackId);
   }
 
-    // ✅ Playlists are IDs-only: do NOT store song objects on playlist
+  pl.songs = (typeof window.resolveTrackIdsToSongs === "function")
+    ? window.resolveTrackIdsToSongs(pl.trackIds)
+    : [];
+
   savePlaylists();
 
   // Update auto cover after adding
@@ -11445,11 +10717,10 @@ if (pl) {
   const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
   __plBeforeIds = arr.slice();
 
-    pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
+  pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
+  pl.songs = resolveTrackIdsToSongs(pl.trackIds);
 
-  // ✅ IDs-only: do NOT store song objects on playlist
   savePlaylists();
-
 
   try { updatePlaylistAutoCoverById(activePlaylistId); } catch (e) {}
   try { renderPlaylists(); } catch (e) {}
@@ -12146,13 +11417,9 @@ player.addEventListener('ended', () => {
 // Auto-hide dock interval
 
         // Auto-hide dock interval
-                             setInterval(checkDockVisibility, 30000);
+        setInterval(checkDockVisibility, 30000);
 
     </script>
-
-
-<!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
-
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
@@ -12587,8 +11854,6 @@ try {
     </div>
   </div>
 
-<!-- (removed) Saved-for-later block was breaking DOM because HTML comments can't be nested -->
-
-
 </body>
+
 </html>
