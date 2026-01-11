@@ -7450,24 +7450,23 @@ function openArtistByName(artistName) {
 
   const heroCover = getAlbumCover(albums[0].artistName, albums[0].albumName, albums[0].coverArt);
 
-  // HERO
-      // HERO (Spotify-style header: background image + text overlay)
+    // HERO (Spotify-style header: big background image + text overlay)
   (async () => {
     const heroEl = document.getElementById('artist-hero');
     if (!heroEl) return;
 
-    // 1) Immediately render the correct layout (with a dark fallback)
+    // layout first (so the page doesn't jump)
     heroEl.innerHTML = `
       <div class="relative w-full overflow-hidden rounded-2xl">
         <div id="artist-hero-bg"
              class="absolute inset-0 bg-zinc-900"
-             style="background-size: cover; background-position: center; filter: saturate(1.05);">
+             style="background-size: cover; background-position: center; background-repeat: no-repeat;">
         </div>
 
-        <!-- dark overlay like Spotify -->
+        <!-- Spotify-ish dark fade so text is readable -->
         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10"></div>
 
-        <div class="relative h-[240px] md:h-[320px] flex flex-col justify-end p-6 md:p-10">
+        <div class="relative h-[260px] md:h-[340px] flex flex-col justify-end p-6 md:p-10">
           <div class="text-xs font-extrabold uppercase tracking-[0.35em] text-white/80">Artist</div>
           <div class="mt-2 text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
             ${artistName}
@@ -7476,16 +7475,18 @@ function openArtistByName(artistName) {
       </div>
     `;
 
-    // 2) Ask Cloudflare for the artist image (this will fetch from Wikipedia ONCE,
-    //    store to R2 forever, and then serve the stored image on every device)
-    const imgUrl = await getArtistHeroImageUrl(artistName);
+    // try cached internet artist image first
+    let imgUrl = await getArtistHeroImageUrl(artistName);
 
-    // 3) If we got one, set it as the background
+    // fallback: if wikipedia had nothing, use your library cover so it never looks blank
+    if (!imgUrl && heroCover) imgUrl = heroCover;
+
     if (imgUrl) {
       const bg = document.getElementById('artist-hero-bg');
       if (bg) bg.style.backgroundImage = `url("${imgUrl}")`;
     }
   })();
+
 
 
 
