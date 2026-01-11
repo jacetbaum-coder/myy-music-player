@@ -7416,9 +7416,12 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
 
 async function getArtistHeroImageUrl(artistName) {
   try {
-    const endpoint = "https://music-streamer.jacetbaum.workers.dev/api/artist-image?name=" + encodeURIComponent(artistName);
-    // IMPORTANT: this endpoint will return the SAVED (R2) image bytes
-    // so using it as a URL is stable on all devices forever.
+    const endpoint =
+      "https://music-streamer.jacetbaum.workers.dev/api/artist-image?name=" +
+      encodeURIComponent(artistName);
+
+    // This endpoint serves the SAVED (R2) image bytes,
+    // so the URL is stable forever on mobile + desktop.
     const res = await fetch(endpoint, { method: "GET" });
     if (!res.ok) return "";
     return endpoint;
@@ -7426,6 +7429,7 @@ async function getArtistHeroImageUrl(artistName) {
     return "";
   }
 }
+
 
 function openArtistByName(artistName) {
 
