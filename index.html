@@ -7484,7 +7484,208 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
 
 // ARTIST MENU + CROP (per-artist saved)
 
+// ✅ Worker base (matches the rest of your file)
+const ARTIST_API_BASE = "https://music-streamer.jacetbaum.workers.dev";
+
+// ✅ user id helper (matches your app pattern)
+function getAppUserId() {
+  try {
+    const v = localStorage.getItem("app_user_id") || "23";
+    localStorage.setItem("app_user_id", v);
+    return v;
+  } catch (e) {
+    return "23";
+  }
+}
+
+// ✅ returns a usable URL for CSS background-image
+// This pings your Worker endpoint so it will fetch from Wikipedia once,
+// store to R2 forever, and then serve the cached version forever.
+async function getArtistHeroImageUrl(artistName) {
+  const u = `${ARTIST_API_BASE}/api/artist-image?name=${encodeURIComponent(artistName)}`;
+  try {
+    const res = await fetch(u, { method: "GET" });
+
+    // If it returned an image, we're good.
+    const ct = (res.headers.get("content-type") || "").toLowerCase();
+    if (res.ok && ct.includes("image")) return u;
+
+    // If it returned JSON error, just treat as no image.
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ✅ Crop storage (cloud) — expects your Worker to return { ok:true, crop: ... }
+// GET  /api/artist-crop?userId=...&name=...
+// POST /api/artist-crop  { userId, name, crop }
+async function fetchArtistCropFromCloud(artistName) {
+  const uid = getAppUserId();
+  const u = `${ARTIST_API_BASE}/api/artist-crop?userId=${encodeURIComponent(uid)}&name=${encodeURIComponent(artistName)}`;
+  try {
+    const res = await fetch(u, { method: "GET" });
+    const data = await res.json().catch(() => null);
+    if (!data || !data.ok) return null;
+    return data.crop || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function saveArtistCropToCloud(artistName, crop) {
+  const uid = getAppUserId();
+  try {
+    const res = await fetch(`${ARTIST_API_BASE}/api/artist-crop`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: uid, name: artistName, crop }),
+    });
+    const data = await res.json().catch(() => null);
+    return !!(data && data.ok);
+  } catch (e) {
+    return false;
+  }
+}
+
+// ✅ Apply crop to the hero bg element
+async function applyArtistCropToBg(artistName) {
+  const bg = document.getElementById("artist-hero-bg");
+  if (!bg) return;
+
+  const crop = await fetchArtistCropFromCloud(artistName);
+  if (!crop) {
+    // default crop
+    bg.style.backgroundPosition = "50% 50%";
+    bg.style.backgroundSize = "cover";
+    return;
+  }
+
+  const x = Number(crop.x ?? 50);
+  const y = Number(crop.y ?? 50);
+  const zoom = Number(crop.zoom ?? 100);
+
+  bg.style.backgroundPosition = `${x}% ${y}%`;
+
+  // Your modal slider is 100–170. 100 => normal cover-ish.
+  // We'll use a percent size so it visually zooms.
+  bg.style.backgroundSize = `${zoom}%`;
+}
+
+// ✅ 3-dots Artist menu show/hide
+function hideArtistMenu() {
+  const m = document.getElementById("artist-menu");
+  if (m) m.classList.add("hidden");
+}
+
+function showArtistMenuFromButton(btnEl, artistName) {
+  const m = document.getElementById("artist-menu");
+  if (!m || !btnEl) return;
+
+  // prevent the global outside-dismiss from instantly closing it
+  window.__outsideDismissSkipUntil = Date.now() + 200;
+
+  m.classList.remove("hidden");
+
+  const r = btnEl.getBoundingClientRect();
+
+  // place under the dots, aligned right
+  const top = Math.round(r.bottom + 8);
+  const left = Math.round(Math.min(window.innerWidth - 280, Math.max(12, r.right - 260)));
+
+  m.style.top = top + "px";
+  m.style.left = left + "px";
+
+  // remember current artist for menu actions if needed
+  try { m.setAttribute("data-artist", artistName); } catch (e) {}
+}
+
+// ✅ Crop modal show/hide + binding
+function hideArtistCropModal() {
+  const modal = document.getElementById("artist-crop-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function showArtistCropModal(artistName) {
+  const modal = document.getElementById("artist-crop-modal");
+  const preview = document.getElementById("artist-crop-preview");
+  const xR = document.getElementById("artist-crop-x");
+  const yR = document.getElementById("artist-crop-y");
+  const zR = document.getElementById("artist-crop-zoom");
+  const doneBtn = document.getElementById("artist-crop-done");
+  const resetBtn = document.getElementById("artist-crop-reset");
+  const closeBtn = document.getElementById("artist-crop-close");
+
+  if (!modal || !preview || !xR || !yR || !zR || !doneBtn || !resetBtn || !closeBtn) return;
+
+  modal.classList.remove("hidden");
+
+  // Copy the current hero image into the preview
+  const bg = document.getElementById("artist-hero-bg");
+  const img = bg ? bg.style.backgroundImage : "";
+  preview.style.backgroundImage = img || "";
+  preview.style.backgroundRepeat = "no-repeat";
+
+  // Load saved crop defaults from cloud
+  (async () => {
+    const saved = await fetchArtistCropFromCloud(artistName);
+    const x = Number(saved?.x ?? 50);
+    const y = Number(saved?.y ?? 50);
+    const zoom = Number(saved?.zoom ?? 100);
+
+    xR.value = String(x);
+    yR.value = String(y);
+    zR.value = String(zoom);
+
+    const applyPreview = () => {
+      preview.style.backgroundPosition = `${xR.value}% ${yR.value}%`;
+      preview.style.backgroundSize = `${zR.value}%`;
+    };
+
+    applyPreview();
+
+    // Bind sliders once per open
+    const onInput = () => applyPreview();
+    xR.oninput = onInput;
+    yR.oninput = onInput;
+    zR.oninput = onInput;
+
+    resetBtn.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      xR.value = "50";
+      yR.value = "50";
+      zR.value = "100";
+      applyPreview();
+    };
+
+    closeBtn.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      hideArtistCropModal();
+    };
+
+    doneBtn.onclick = async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const crop = {
+        x: Number(xR.value),
+        y: Number(yR.value),
+        zoom: Number(zR.value),
+      };
+
+      await saveArtistCropToCloud(artistName, crop);
+      await applyArtistCropToBg(artistName);
+      hideArtistCropModal();
+    };
+  })();
+}
+
+function clearArtistCrop(artistName) {
+  // Save null crop by POSTing crop:null (your worker can treat this as delete)
+  // If your worker requires a DELETE instead, tell me and I’ll match it.
+  return saveArtistCropToCloud(artistName, null);
+}
+
 function openArtistByName(artistName) {
+
 
 
   // BACK STACK: push current view before entering artist
