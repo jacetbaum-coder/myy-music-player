@@ -2301,15 +2301,35 @@ body.qs-lock {
             </div>
           </div>
 
-          <!-- Tabs row (visual only, like your Home tabs) -->
+                    <!-- Tabs row (NOW functional) -->
           <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4">
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-            <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audiobooks</button>
+            <button id="mobile-lib-tab-playlists"
+                    type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+              Playlists
+            </button>
+
+            <button id="mobile-lib-tab-albums"
+                    type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
+              Albums
+            </button>
+
+            <button type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
+                    disabled>
+              Podcasts
+            </button>
+
+            <button type="button"
+                    class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap opacity-50"
+                    disabled>
+              Audiobooks
+            </button>
           </div>
         </div>
 
-                <!-- MOBILE: Library Search overlay (Spotify-like) -->
+        <!-- MOBILE: Library Search overlay (Spotify-like) -->
         <div id="library-search-overlay" class="hidden md:hidden fixed inset-0 bg-black z-[9999]">
           <!-- top bar -->
           <div class="px-4 pt-4" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px);">
@@ -2336,6 +2356,7 @@ body.qs-lock {
           <!-- results / recents / empty state -->
           <div id="library-search-results-overlay" class="mt-2"></div>
         </div>
+
 
         <!-- Library controls (Sort + View as) -->
 
@@ -6472,19 +6493,14 @@ if (scrollArea) scrollArea.scrollTop = 0;
     }
   }
 
-  if (viewType === 'library') {
-  document.getElementById('grid-view').classList.remove('hidden');
+   if (viewType === 'library') {
+    document.getElementById('grid-view').classList.remove('hidden');
 
-  // ✅ NEW: render playlists section (if container exists)
-  try { renderLibraryPlaylists(); } catch (e) {}
-
-  renderGrid(getLibraryGridData());
-  renderHistory();
-
-  if (window.innerWidth <= 768) {
-    renderMobileRecents();
+    // ✅ Render Albums or Playlists based on the active Library tab
+    renderLibraryMain();
   }
-}
+
+
 
 
     if (viewType === 'search') {
@@ -6859,12 +6875,118 @@ function renderLibraryPlaylists() {
   });
 }
 
-function openAlbumByName(name) {
+// -----------------------
+// LIBRARY: Mobile top tabs (Playlists / Albums)
+// -----------------------
+let libraryTopTab = localStorage.getItem('libraryTopTab') || 'albums';
 
+function updateMobileLibraryTabUI() {
+  const btnP = document.getElementById('mobile-lib-tab-playlists');
+  const btnA = document.getElementById('mobile-lib-tab-albums');
+  if (!btnP || !btnA) return;
+
+  const base = "px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap";
+  const onCls = "bg-[#1db954] text-black";
+  const offCls = "bg-white/10 text-white";
+
+  btnP.className = base + " " + (libraryTopTab === 'playlists' ? onCls : offCls);
+  btnA.className = base + " " + (libraryTopTab === 'albums' ? onCls : offCls);
+}
+
+function setLibraryTopTab(tab) {
+  libraryTopTab = tab;
+  localStorage.setItem('libraryTopTab', tab);
+
+  updateMobileLibraryTabUI();
+
+  // If we're currently in Library, re-render immediately
+  if (navCurrent && navCurrent.type === 'library') {
+    renderLibraryMain();
+  }
+}
+
+function initMobileLibraryTabsOnce() {
+  if (window.__mobileLibTabsInit) return;
+  window.__mobileLibTabsInit = true;
+
+  const btnP = document.getElementById('mobile-lib-tab-playlists');
+  const btnA = document.getElementById('mobile-lib-tab-albums');
+
+  if (btnP) btnP.addEventListener('click', () => setLibraryTopTab('playlists'));
+  if (btnA) btnA.addEventListener('click', () => setLibraryTopTab('albums'));
+
+  updateMobileLibraryTabUI();
+}
+
+function renderLibraryPlaylists() {
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+
+  const list = Array.isArray(playlists) ? playlists : [];
+
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="text-zinc-400 font-bold p-4">
+        No playlists yet.
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = list.map((pl, idx) => {
+    const name = String(pl?.name || "Untitled Playlist");
+    const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
+
+    return `
+      <div class="album-card p-4"
+           data-pl="${idOrIdx}">
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+          <i class="fas fa-music text-white/50 text-3xl"></i>
+        </div>
+
+        <div class="font-bold text-white truncate text-base mb-1">
+          ${safeName}
+        </div>
+
+        <div class="text-sm text-zinc-400 truncate">
+          Playlist
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const plKey = card.getAttribute('data-pl');
+      if (!plKey) return;
+      showView('playlist', plKey); // ✅ your showView already supports id OR index
+    });
+  });
+}
+
+function renderLibraryMain() {
+  initMobileLibraryTabsOnce();
+
+  if (libraryTopTab === 'playlists') {
+    renderLibraryPlaylists();
+  } else {
+    renderGrid(getLibraryGridData()); // Albums
+  }
+
+  renderHistory();
+
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
+  }
+}
+
+function openAlbumByName(name) {
 
     if (!__isBackNav && window.innerWidth <= 768) {
     window.captureSwipeBackUnderlay?.();
   }
+
 
   // BACK STACK: push current view before entering album
   pushNavCurrent();
