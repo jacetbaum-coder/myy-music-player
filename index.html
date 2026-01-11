@@ -6955,26 +6955,159 @@ function initMobileLibraryTabsOnce() {
   updateMobileLibrarySectionTitle();
 }
 
-function renderLibraryArtistsPlaceholder() {
+function renderLibraryArtists() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  grid.innerHTML = `
-    <div class="text-zinc-400 font-bold p-4">
-      Artists (coming next)
-    </div>
-  `;
+  const albums = Array.isArray(libraryData) ? libraryData : [];
+
+  // Build unique artist list (artistName -> first album object)
+  const firstAlbumByArtist = new Map();
+  albums.forEach(a => {
+    const artist = String(a?.artistName || '').trim();
+    if (!artist) return;
+    if (!firstAlbumByArtist.has(artist)) firstAlbumByArtist.set(artist, a);
+  });
+
+  const artists = [...firstAlbumByArtist.keys()].sort((a, b) => a.localeCompare(b));
+
+  if (!artists.length) {
+    grid.innerHTML = `
+      <div class="text-zinc-400 font-bold p-4">
+        No artists found yet.
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = artists.map((artistName) => {
+    const a = firstAlbumByArtist.get(artistName);
+    const cover = a ? getAlbumCover(a.artistName, a.albumName, a.coverArt) : "";
+
+    const safeArtist = String(artistName)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    return `
+      <div class="album-card p-4" data-artist="${safeArtist}">
+        <div class="relative mb-4 rounded-full overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+          ${cover ? `<img src="${cover}" class="w-full h-full object-cover">`
+                  : `<i class="fas fa-user text-white/50 text-3xl"></i>`}
+        </div>
+
+        <div class="font-bold text-white truncate text-base mb-1">
+          ${safeArtist}
+        </div>
+
+        <div class="text-sm text-zinc-400 truncate">
+          Artist
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const artist = card.getAttribute('data-artist');
+      if (!artist) return;
+      openArtistByName(artist);
+    });
+  });
 }
 
-function renderLibraryAllPlaceholder() {
+function renderLibraryAll() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  grid.innerHTML = `
-    <div class="text-zinc-400 font-bold p-4">
-      All (coming next)
-    </div>
-  `;
+  const items = [];
+
+  // 1) Playlists
+  const pls = Array.isArray(playlists) ? playlists : [];
+  pls.forEach((pl, idx) => {
+    const name = String(pl?.name || pl?.title || "Untitled Playlist");
+    const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
+    items.push({
+      kind: "playlist",
+      key: idOrIdx,
+      title: name,
+      sub: "Playlist"
+    });
+  });
+
+  // 2) Albums
+  const albums = Array.isArray(libraryData) ? libraryData : [];
+  albums.forEach((a) => {
+    const albumName = String(a?.albumName || "").trim();
+    if (!albumName) return;
+    items.push({
+      kind: "album",
+      key: albumName,
+      title: albumName,
+      sub: a?.artistName ? String(a.artistName) : "Album",
+      cover: getAlbumCover(a.artistName, a.albumName, a.coverArt)
+    });
+  });
+
+  if (!items.length) {
+    grid.innerHTML = `
+      <div class="text-zinc-400 font-bold p-4">
+        Nothing to show yet.
+      </div>
+    `;
+    return;
+  }
+
+  // Simple alpha sort by title
+  items.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+
+  grid.innerHTML = items.map((it) => {
+    const safeTitle = String(it.title)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    const safeSub = String(it.sub || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    const coverHtml = (it.kind === "album" && it.cover)
+      ? `<img src="${it.cover}" class="w-full h-full object-cover">`
+      : `<i class="fas fa-music text-white/50 text-3xl"></i>`;
+
+    return `
+      <div class="album-card p-4"
+           data-kind="${it.kind}"
+           data-key="${String(it.key).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+          ${coverHtml}
+        </div>
+
+        <div class="font-bold text-white truncate text-base mb-1">
+          ${safeTitle}
+        </div>
+
+        <div class="text-sm text-zinc-400 truncate">
+          ${safeSub}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  [...grid.querySelectorAll('.album-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const kind = card.getAttribute('data-kind');
+      const key = card.getAttribute('data-key');
+      if (!kind || !key) return;
+
+      if (kind === "playlist") {
+        showView('playlist', key);
+      } else {
+        openAlbumByName(key);
+      }
+    });
+  });
 }
 
 function renderLibraryMain() {
@@ -6983,9 +7116,9 @@ function renderLibraryMain() {
   if (libraryTopTab === 'playlists') {
     renderLibraryPlaylists();
   } else if (libraryTopTab === 'artists') {
-    renderLibraryArtistsPlaceholder();
+    renderLibraryArtists();
   } else if (libraryTopTab === 'all') {
-    renderLibraryAllPlaceholder();
+    renderLibraryAll();
   } else {
     // albums
     renderGrid(getLibraryGridData());
@@ -6997,6 +7130,7 @@ function renderLibraryMain() {
     renderMobileRecents();
   }
 }
+
 
 
 
