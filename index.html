@@ -6428,218 +6428,151 @@ function initSearchSwipeDownClose() {
 
 function showView(viewType, playlistIndex = null) {
 
+  // --- DEBUG: show every navigation as a toast (mobile) + console (desktop)
+  try {
+    if (typeof __resonDbg === "function") __resonDbg(`showView(${viewType})`);
+  } catch (e) {}
+  try { console.log("showView(", viewType, ", playlistIndex=", playlistIndex, ")"); } catch (e) {}
+
   // Capture what's currently on screen so swipe-back shows it behind
   try { window.captureSwipeBackUnderlay?.(); } catch (e) {}
 
   // BACK STACK: push the current state before switching views
-  try { window.pushNavCurrent?.(); } catch (e) {}
-  try { pushNavCurrent?.(); } catch (e) {}
+  try { pushNavCurrent(); } catch (e) {}
 
-  try { hidePlaylistMenu?.(); } catch (e) {}
-  try { closeContextMenu?.(); } catch (e) {}
+  try { hidePlaylistMenu(); } catch (e) {}
+  try { closeContextMenu(); } catch (e) {}
 
+  // ✅ CRITICAL: hide ALL root views so we never stack Home + Library on one scroll
+  ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view'].forEach(id => {
+    try { document.getElementById(id)?.classList.add('hidden'); } catch (e) {}
+  });
 
-  // Also hide library-only UI when leaving Library
+  // Also hide mobile library header/overlay by default (we'll re-show when needed)
   try { document.getElementById('mobile-library-header')?.classList.add('hidden'); } catch (e) {}
-  try { document.getElementById('library-search-overlay')?.classList.add('hidden'); } catch (e) {}
+  try { document.getElementById('mobile-library-overlay')?.classList.add('hidden'); } catch (e) {}
 
+  // Reset active playlist pointers
+  try { activePlaylistIndex = playlistIndex; } catch (e) {}
+  try { activePlaylistId = null; } catch (e) {}
 
-  // Show the requested view
+  // BACK STACK: set new current view
+  try {
+    if (viewType === 'home') setNavCurrent({ type: 'home' });
+    else if (viewType === 'library') setNavCurrent({ type: 'library' });
+    else if (viewType === 'search') setNavCurrent({ type: 'search' });
+    else if (viewType === 'liked') setNavCurrent({ type: 'liked' });
+    else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
+    else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
+    else if (viewType === 'playlist') {
+      const plForNav = (Array.isArray(playlists) ? playlists[playlistIndex] : null);
+      setNavCurrent({ type: 'playlist', playlistIndex: playlistIndex, playlistId: plForNav?.id || null });
+    } else {
+      setNavCurrent({ type: viewType || 'home' });
+    }
+  } catch (e) {}
+
+  // Always reset main scroll to top when switching root views
+  try {
+    const scrollArea = document.getElementById('main-scroll-area');
+    if (scrollArea) scrollArea.scrollTop = 0;
+  } catch (e) {}
+
+  // -------------------------
+  // SHOW THE REQUESTED VIEW
+  // -------------------------
+
   if (viewType === 'home') {
     try { document.getElementById('home-view')?.classList.remove('hidden'); } catch (e) {}
-    try { window.renderHome?.(); } catch (e) {}
+    try { renderHome(); } catch (e) {}
+    try {
+      if (typeof __resonDbg === "function") __resonDbg(`HOME ✅ (home-view visible)`);
+    } catch (e) {}
+    return;
   }
 
-        if (viewType === 'library') {
+  if (viewType === 'library') {
     try { document.getElementById('grid-view')?.classList.remove('hidden'); } catch (e) {}
-    try { document.getElementById('mobile-library-header')?.classList.remove('hidden'); } catch (e) {}
 
-
-    const isMobile = window.innerWidth <= 768;
-
-    // Source candidates (tracks or albums)
-    const raw =
-      (Array.isArray(window.libraryData) && window.libraryData) ||
-      (Array.isArray(window.albumData) && window.albumData) ||
-      (Array.isArray(window.allAlbums) && window.allAlbums) ||
-      (typeof libraryData !== 'undefined' && Array.isArray(libraryData) && libraryData) ||
-      [];
-
-    // Derive albums if the library is actually track rows
-    let albums = [];
+    // Mobile: show the Spotify-ish library header if it exists
     try {
-      albums = (typeof __resonGetAlbumRowsForLibrary === 'function')
-        ? __resonGetAlbumRowsForLibrary(raw)
-        : [];
-    } catch (e) {
-      albums = [];
-    }
-
-    // Mobile gets the Spotify-ish combined grid (albums + playlists)
-    if (isMobile && typeof renderMobileLibraryGrid === 'function') {
-      try {
-        const fetchInfo = window.__lastLibraryFetch || null;
-        const plsCount = Array.isArray(window.cloudPlaylists)
-          ? window.cloudPlaylists.length
-          : ((typeof playlists !== 'undefined' && Array.isArray(playlists)) ? playlists.length : 0);
-
-        try {
-          if (typeof __resonDbg === 'function') {
-            __resonDbg(
-              `Library: raw=${raw.length} • albums=${albums.length} • playlists=${plsCount} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}`
-            );
-          }
-        } catch (e) {}
-
-        renderMobileLibraryGrid();
-      } catch (e) {}
-      return;
-    }
-
-    // Desktop (or fallback): render albums-only grid
-    try {
-      const fetchInfo = window.__lastLibraryFetch || null;
-      if (typeof __resonDbg === 'function') {
-        __resonDbg(
-          `Library (desktop/fallback): raw=${raw.length} • albums=${albums.length} • cloudFetch=${fetchInfo ? (fetchInfo.ok ? 'OK' : 'FAILED') : 'unknown'}`
-        );
+      if (window.innerWidth <= 768) {
+        document.getElementById('mobile-library-header')?.classList.remove('hidden');
       }
     } catch (e) {}
 
-    try { window.renderGrid?.(albums); } catch (e) {}
-  }
+    // Render library grid
+    try {
+      let data = null;
 
+      // Prefer your existing function if it exists
+      if (typeof getLibraryGridData === "function") {
+        data = getLibraryGridData();
+      } else {
+        // Fallback: derive album rows from whatever we have
+        const raw = (typeof libraryData !== "undefined") ? libraryData : (window.libraryData || []);
+        data = (typeof __resonGetAlbumRowsForLibrary === "function")
+          ? __resonGetAlbumRowsForLibrary(raw)
+          : (Array.isArray(raw) ? raw : []);
+      }
+
+      renderGrid(data);
+      try { renderHistory(); } catch (e) {}
+
+      // Extra debug: counts
+      try {
+        const raw = (typeof libraryData !== "undefined") ? libraryData : (window.libraryData || []);
+        const rawCount = Array.isArray(raw) ? raw.length : 0;
+        const albumCount = (typeof __resonGetAlbumRowsForLibrary === "function")
+          ? __resonGetAlbumRowsForLibrary(raw).length
+          : 0;
+        const plCount = (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists.length : (Array.isArray(playlists) ? playlists.length : 0));
+
+        if (typeof __resonDbg === "function") __resonDbg(`LIBRARY ✅ raw=${rawCount} • albums=${albumCount} • playlists=${plCount}`);
+        console.log("LIBRARY counts:", { rawCount, albumCount, plCount });
+      } catch (e) {}
+
+      // If you have mobile recents renderer, keep it
+      try {
+        if (window.innerWidth <= 768 && typeof renderMobileRecents === "function") renderMobileRecents();
+      } catch (e) {}
+
+    } catch (e) {
+      try { console.warn("Library render failed:", e); } catch (_) {}
+      try { if (typeof __resonDbg === "function") __resonDbg(`LIBRARY ❌ render failed: ${e?.message || e}`); } catch (_) {}
+    }
+
+    return;
+  }
 
   if (viewType === 'search') {
     try { document.getElementById('search-view')?.classList.remove('hidden'); } catch (e) {}
+    try { document.getElementById('global-search')?.focus(); } catch (e) {}
+    try { if (typeof __resonDbg === "function") __resonDbg(`SEARCH ✅ (search-view visible)`); } catch (e) {}
+    return;
   }
 
   if (viewType === 'crate') {
     try { document.getElementById('crate-view')?.classList.remove('hidden'); } catch (e) {}
-    try { window.renderCrate?.(); } catch (e) {}
-  }
-
-  // NOTE: In your app, playlists/albums often reuse the same "album-view" container.
-  if (viewType === 'album') {
-    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
-  }
-
-  if (viewType === 'playlist') {
-    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
-
-    // If a playlist exists in memory, render it. Otherwise fall back to Library (so you never get a blank screen).
-    try {
-      const list = Array.isArray(window.playlists) ? window.playlists : (Array.isArray(playlists) ? playlists : []);
-      let idx = playlistIndex;
-
-      if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-      if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
-
-      const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
-
-      if (!pl) {
-        showView('library');
-      } else {
-        // If your existing renderer expects (name, songs, isPlaylist, playlistIndex)
-        const ids = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-        const songs = (typeof resolveTrackIdsToSongs === 'function') ? resolveTrackIdsToSongs(ids) : [];
-        if (typeof renderCollection === 'function') renderCollection(pl.name || 'Playlist', songs, true, idx);
-      }
-    } catch (e) {
-      try { showView('library'); } catch (e2) {}
-    }
-  }
-
-  if (viewType === 'artist') {
-    try { document.getElementById('artist-view')?.classList.remove('hidden'); } catch (e) {}
-  }
-
-  // Make the tab highlight update
-  try { updateActiveStates?.(viewType); } catch (e) {}
-}
-        function updateActiveStates(viewType) {
-  const isMobile = window.innerWidth <= 768;
-
-  // On mobile, keep the bottom tab "root" active even when you're in deep views
-  // like playlist/album/artist. This stops the UI from snapping back to Home.
-  let tabType = viewType;
-
-  if (isMobile) {
-    // Initialize root tab if missing
-    if (!window.__rootTab) window.__rootTab = 'home';
-
-    // If we're at a root, update rootTab
-    if (viewType === 'home' || viewType === 'search' || viewType === 'library') {
-      window.__rootTab = viewType;
-      tabType = viewType;
-    } else {
-      // Deep views should keep whatever root tab we came from
-      tabType = window.__rootTab;
-    }
-  }
-
-  // Mobile Nav
-  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
-  Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
-  if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
-
-  // Desktop Sidebar (unchanged behavior, but key off tabType for consistency)
-  document.getElementById('side-nav-home')?.classList.toggle('text-white', tabType === 'home' || tabType === 'library');
-  document.getElementById('side-nav-home')?.classList.toggle('text-zinc-400', !(tabType === 'home' || tabType === 'library'));
-  document.getElementById('side-nav-search')?.classList.toggle('text-white', tabType === 'search');
-  document.getElementById('side-nav-search')?.classList.toggle('text-zinc-400', tabType !== 'search');
-  document.getElementById('side-nav-liked')?.classList.toggle('bg-zinc-900', viewType === 'liked');
-}
-
-
-/* ---------------------------------------------------------------------
-   Mobile: active-tab taps
-   - Tap active tab while deep (album/playlist/etc): Pop-to-root of that tab
-   - Double-tap active tab while already at root: Smooth scroll-to-top
-   - Debounce rapid taps to prevent flicker / race conditions
-   --------------------------------------------------------------------- */
-
-const __dbgNavTapLast = { home: 0, search: 0, library: 0 };
-
-
-// Debounce for navigation (prevents multiple showView() calls fighting each other)
-let __dbgNavTapLockUntil = 0;
-
-let __dbgNavTapLastNavType = null;
-
-
-function scrollMainToTopSmooth() {
-  const area = document.getElementById('main-scroll-area');
-  if (!area) return;
-
-  // Mobile only
-  if (window.innerWidth > 768) {
-    area.scrollTop = 0;
+    try { initCrateUIOnce(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
+    try { if (typeof __resonDbg === "function") __resonDbg(`CRATE ✅ (crate-view visible)`); } catch (e) {}
     return;
   }
 
-  try {
-    area.scrollTo({ top: 0, behavior: 'smooth' });
-  } catch (e) {
-    area.scrollTop = 0;
+  if (viewType === 'liked') {
+    try { document.getElementById('album-view')?.classList.remove('hidden'); } catch (e) {}
+    try { renderCollection("Liked Songs", likedSongs); } catch (e) {}
+    try { if (typeof __resonDbg === "function") __resonDbg(`LIKED ✅ (album-view visible)`); } catch (e) {}
+    return;
   }
+
+  // Leave playlist/artist handling to your existing code paths if they exist elsewhere.
+  try {
+    if (typeof __resonDbg === "function") __resonDbg(`showView(${viewType}) ⚠️ no handler here`);
+  } catch (e) {}
 }
 
-function popToRootSection(targetViewType) {
-  // This function resets the nav stack and shows the target root view
-  try {
-    // Prevent showView() from pushing the current view onto the back stack
-    window.__isBackNav = true;
-
-    // Clear back stack
-    if (Array.isArray(window.navStack)) window.navStack.length = 0;
-
-    // Go to root view
-    showView(targetViewType);
-  } finally {
-    window.__isBackNav = false;
-  }
-}
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
