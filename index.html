@@ -7385,16 +7385,19 @@ function openArtistByName(artistName) {
   const heroCover = getAlbumCover(albums[0].artistName, albums[0].albumName, albums[0].coverArt);
 
   // HERO
-  document.getElementById('artist-hero').innerHTML = `
-    <div class="flex items-end gap-6">
+    document.getElementById('artist-hero').innerHTML = `
+    <div class="flex flex-col md:flex-row md:items-end gap-4 md:gap-6 w-full min-w-0">
       <img src="${heroCover}"
-           class="w-48 h-48 rounded-full object-cover shadow-2xl">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-widest mb-2">Artist</p>
-        <h1 class="text-5xl md:text-7xl font-black">${artistName}</h1>
+           class="w-44 h-44 md:w-48 md:h-48 rounded-full object-cover shadow-2xl flex-none">
+      <div class="min-w-0">
+        <p class="text-xs font-bold uppercase tracking-widest mb-2 text-white/80">Artist</p>
+        <h1 class="text-4xl sm:text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
+          ${artistName}
+        </h1>
       </div>
     </div>
   `;
+
 
   // Bind Artist green Play button (plays all songs by the artist)
   const artistPlayBtn = document.getElementById('artist-play-btn');
