@@ -6945,6 +6945,50 @@ function initMobileLibraryTabsOnce() {
   updateMobileLibrarySectionTitle();
 }
 
+function renderLibraryArtistsPlaceholder() {
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+
+  grid.innerHTML = `
+    <div class="text-zinc-400 font-bold p-4">
+      Artists (coming next)
+    </div>
+  `;
+}
+
+function renderLibraryAllPlaceholder() {
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+
+  grid.innerHTML = `
+    <div class="text-zinc-400 font-bold p-4">
+      All (coming next)
+    </div>
+  `;
+}
+
+function renderLibraryMain() {
+  initMobileLibraryTabsOnce();
+
+  if (libraryTopTab === 'playlists') {
+    renderLibraryPlaylists();
+  } else if (libraryTopTab === 'artists') {
+    renderLibraryArtistsPlaceholder();
+  } else if (libraryTopTab === 'all') {
+    renderLibraryAllPlaceholder();
+  } else {
+    // albums
+    renderGrid(getLibraryGridData());
+  }
+
+  renderHistory();
+
+  if (window.innerWidth <= 768) {
+    renderMobileRecents();
+  }
+}
+
+
 
 function openAlbumByName(name) {
 
