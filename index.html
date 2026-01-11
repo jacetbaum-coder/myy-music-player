@@ -1508,12 +1508,28 @@ body.qs-lock{
   margin-bottom: 18px;
 }
 
-        .home-recents-grid {
+       .home-recents-grid {
   display: flex;
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 8px;
 }
+
+/* ✅ Home "Playlists" row scrolls horizontally on mobile (same feel as Recents) */
+@media (max-width: 768px) {
+  #home-recent-grid {
+    display: flex !important;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #home-recent-grid .mobile-recent-card {
+    flex: 0 0 260px;
+  }
+}
+
 
         
 .recent-tile {
@@ -2202,12 +2218,13 @@ body.qs-lock {
 </button>
 
 
-    <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button id="home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+      <button id="home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+      <button id="home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+      <button id="home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
     </div>
+
   </div>
 
     <!-- Playlists -->
@@ -2249,12 +2266,13 @@ body.qs-lock {
         <i class="fas fa-user text-white/70"></i>
       </div>
 
-      <div class="flex gap-2 overflow-x-auto">
-        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+            <div class="flex gap-2 overflow-x-auto">
+        <button id="desktop-home-chip-all" data-homechip="all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+        <button id="desktop-home-chip-music" data-homechip="music" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
+        <button id="desktop-home-chip-playlists" data-homechip="playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+        <button id="desktop-home-chip-audio" data-homechip="audio" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
       </div>
+
     </div>
 
         <!-- Playlists -->
@@ -2625,7 +2643,7 @@ body.qs-lock {
     <!-- Queue (desktop right sidebar) -->
     <section id="right-queue-card" class="lyrics-card hidden">
       <div class="lyrics-header" style="justify-content: space-between;">
-                <div class="lyrics-title">Queue</div>
+        <div class="lyrics-title">Queue</div
         <button id="right-queue-clear"
                 style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
           Clear
@@ -3718,35 +3736,50 @@ window.loadPlaylistsFromCloud = async function () {
     window.cloudPlaylists = data.playlists;
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
-    try {
-      const localList = Array.isArray(playlists) ? playlists : [];
-      const byId = new Map(localList.map(p => [String(p?.id), p]).filter(([k]) => k && k !== "undefined"));
+try {
+  const cloudUi = data.playlists
+    .map(cloudRowToUiPlaylist)
+    .filter(pl => pl && pl.id);
 
-      for (const c of data.playlists) {
-        if (!c || !c.id) continue;
-        const key = String(c.id);
-        const existing = byId.get(key);
-        byId.set(key, existing ? ({ ...existing, ...c }) : c);
-      }
+  const localArr = Array.isArray(playlists) ? playlists : [];
+  const byId = new Map(localArr.map(p => [p.id, p]));
 
-      playlists = Array.from(byId.values());
+  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
+  for (const c of cloudUi) {
+    const existing = byId.get(c.id);
+    if (existing) {
+      byId.set(c.id, {
+        ...existing,
+        ...c,
+        // preserve local-only content if cloud meta doesn't include it
+        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
+        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
 
-      // Persist locally so refresh works even if offline
-      try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
-    } catch (e) {
-      console.warn("Failed to merge cloud playlists:", e);
+      });
+    } else {
+      byId.set(c.id, c);
     }
-
-    return data.playlists;
   }
 
-  window.cloudPlaylists = [];
+  // Keep local-only playlists that aren't in cloud yet
+  playlists = Array.from(byId.values());
+
+  // Persist locally so refresh works even if offline
+  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+} catch (e) {
+  console.warn("Failed to merge cloud playlists:", e);
+}
+
+return data.playlists;
+
+  }
+
+   window.cloudPlaylists = [];
   return [];
 };
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
-
 // -----------------------
 window.__cloudPlaylistSig = "";
 window.__cloudPlaylistSyncTimer = null;
@@ -3836,21 +3869,51 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       continue;
     }
 
-    out.push({
+        out.push({
       id: key,
       r2Path: key,
       key: key,
-      title: key.split("/").pop() || key,
-      name: key.split("/").pop() || key,
-      artist: "",
-      album: "",
-      artistName: "",
-      albumName: "",
+
+      // Parse "Artist/Album/Track.mp3" OR "Artist/Track.mp3"
+      title: (() => {
+        const parts = String(key).split("/");
+        const file = parts[parts.length - 1] || key;
+        return String(file).replace(/\.mp3$/i, "");
+      })(),
+
+      name: (() => {
+        const parts = String(key).split("/");
+        const file = parts[parts.length - 1] || key;
+        return String(file).replace(/\.mp3$/i, "");
+      })(),
+
+      artist: (() => {
+        const parts = String(key).split("/");
+        return String(parts[0] || "").trim();
+      })(),
+
+      album: (() => {
+        const parts = String(key).split("/");
+        // Only treat the 2nd segment as album if format is Artist/Album/Track
+        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
+      })(),
+
+      artistName: (() => {
+        const parts = String(key).split("/");
+        return String(parts[0] || "").trim();
+      })(),
+
+      albumName: (() => {
+        const parts = String(key).split("/");
+        return (parts.length >= 3) ? String(parts[1] || "").trim() : "";
+      })(),
+
       cover: "",
       coverArt: "",
       url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
       link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
     });
+
   }
 
   return out;
@@ -5865,8 +5928,6 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 let navStack = [];
 let navCurrent = { type: 'home' };
 let __isBackNav = false;
-        window.navStack = navStack;
-window.navCurrent = navCurrent;
 
 // -----------------------
 // SWIPE-BACK UNDERLAY (shows the previous page behind during swipe)
@@ -5958,7 +6019,6 @@ function hideSwipeBackUnderlay() {
 
 function setNavCurrent(state) {
   navCurrent = state || { type: 'home' };
-    window.navCurrent = navCurrent;
 }
 
 function pushNavCurrent() {
@@ -5966,29 +6026,20 @@ function pushNavCurrent() {
   if (!navCurrent) navCurrent = { type: 'home' };
 
   // Clone current view state
+    // Clone current view state
   const snapshot = JSON.parse(JSON.stringify(navCurrent));
 
-  // ✅ Remember which ROOT tab we were in when we entered a deep view
-  // This is the real fix for “swipe-back jumps to Home”.
+  // ✅ MOBILE FIX:
+  // If the Library tab is active, treat "home" as "library" for the back stack.
+  // This prevents swipe-back from jumping to Home when you came from Library.
   try {
-    snapshot.rootTab = String(window.__rootTab || "").trim() || "";
-    if (!snapshot.rootTab) {
-      const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
-      const homeActive = !!document.getElementById('nav-home')?.classList?.contains('active');
-      const searchActive = !!document.getElementById('nav-search')?.classList?.contains('active');
-      const crateActive = !!document.getElementById('nav-premium')?.classList?.contains('active');
-      snapshot.rootTab = libActive ? 'library'
-        : homeActive ? 'home'
-        : searchActive ? 'search'
-        : crateActive ? 'crate'
-        : '';
+    const isMobile = window.innerWidth <= 768;
+    const libActive = !!document.getElementById('nav-library')?.classList?.contains('active');
+    if (isMobile && libActive && snapshot.type === 'home') {
+      snapshot.type = 'library';
     }
   } catch (e) {}
-// ✅ If the active root tab isn't Home, but navCurrent is stale, align it.
-  // This prevents Library deep views from back-swiping to Home.
-  if (snapshot.rootTab && snapshot.rootTab !== 'home' && snapshot.type === 'home') {
-    snapshot.type = snapshot.rootTab;
-  }
+
 
   // ✅ If we're leaving Library, capture the current scroll position
   if (snapshot.type === 'library') {
@@ -6011,16 +6062,12 @@ function goBack() {
   try {
     if (prev.type === 'album' && prev.albumName) {
       openAlbumByName(prev.albumName);
-
     } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
-
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
-
     } else if (prev.type === 'search') {
       showView('search');
-
     } else if (prev.type === 'library') {
       showView('library');
 
@@ -6033,16 +6080,10 @@ function goBack() {
           area.scrollTop = top;
         });
       }
-
     } else if (prev.type === 'liked') {
       showView('liked');
-
     } else {
-      // ✅ CRITICAL: if this entry came from Library, go to Library (not Home)
-      if (prev.rootTab === 'library') showView('library');
-      else if (prev.rootTab === 'search') showView('search');
-      else if (prev.rootTab === 'crate') showView('crate');
-      else showView('home');
+      showView('home');
     }
   } finally {
     __isBackNav = false;
@@ -6089,24 +6130,16 @@ function initSwipeBack() {
   }
 
   function canStart(e) {
-  // Must have something to go back to
-  if (!Array.isArray(navStack) || navStack.length === 0) return false;
+    // Must have something to go back to
+    if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
-  // ✅ Do NOT allow swipe-back on ROOT pages (prevents Library -> Home swipe)
-  const current = navCurrent || window.navCurrent;
-  const t = String(current?.type || '').trim();
-  if (t === 'home' || t === 'library' || t === 'search' || t === 'crate' || t === 'liked') {
-    return false;
-  }
-
-        // Don’t hijack gestures on form controls / buttons
-    const targetEl = e.target;
-    if (targetEl && (targetEl.closest('input, textarea, select, button') || targetEl.closest('[data-no-swipe-back="1"]'))) {
+    // Don’t hijack gestures on form controls / buttons
+    const t = e.target;
+    if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
       return false;
     }
 
     // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
-
     const { y } = getXY(e);
     if (y > (window.innerHeight * 0.75)) return false;
 
@@ -6420,7 +6453,7 @@ function showView(viewType, playlistIndex = null) {
   // ✅ Remember which bottom tab is the current "root" section on mobile.
   // This is what prevents deep Library views (playlist/album) from flipping to Home.
   try {
-    if (viewType === 'home' || viewType === 'library' || viewType === 'search' || viewType === 'crate') {
+    if (viewType === 'home' || viewType === 'library' || viewType === 'search') {
       window.__rootTab = viewType;
     }
     if (!window.__rootTab) window.__rootTab = 'home';
@@ -6436,29 +6469,33 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const playlistList = Array.isArray(playlists) ? playlists : [];
-  let resolvedIndex = playlistIndex;
+  const list = Array.isArray(playlists) ? playlists : [];
+  let idx = playlistIndex;
 
-  if (typeof resolvedIndex === "string") {
-    if (/^\d+$/.test(resolvedIndex)) {
-      resolvedIndex = Number(resolvedIndex);
-    } else {
-      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
-    }
+  // If we got "12" as a string, convert to number
+  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+
+  // If we got an id string, try id -> index
+  if (typeof idx === 'string') {
+    const byId = list.findIndex(p => String(p?.id) === String(idx));
+    idx = byId;
   }
 
-  const plForNav = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
-    ? playlistList[resolvedIndex]
-    : null;
+  const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
-   setNavCurrent({ type: 'playlist', playlistIndex: resolvedIndex, playlistId: plForNav?.id || null });
+  setNavCurrent({
+    type: 'playlist',
+    playlistIndex: (Number.isInteger(idx) ? idx : null),
+    playlistId: plForNav?.id || null
+  });
+
 } else {
   setNavCurrent({ type: viewType || 'home' });
 }
 
 const scrollArea = document.getElementById('main-scroll-area');
-if (scrollArea) scrollArea.scrollTop = 0;
 
+if (scrollArea) scrollArea.scrollTop = 0;
 
 
         if (viewType === 'home') {
@@ -6508,40 +6545,28 @@ if (scrollArea) scrollArea.scrollTop = 0;
         if (viewType === 'playlist') {
   document.getElementById('album-view').classList.remove('hidden');
 
-  // ✅ SAFETY: allow caller to pass playlist INDEX or playlist ID
-  const playlistList = Array.isArray(playlists) ? playlists : [];
-  let resolvedIndex = playlistIndex;
+  const list = Array.isArray(playlists) ? playlists : [];
+let idx = playlistIndex;
 
-  // If caller passed an id string, convert id -> index
-  if (typeof resolvedIndex === "string") {
-    // numeric string => index
-    if (/^\d+$/.test(resolvedIndex)) {
-      resolvedIndex = Number(resolvedIndex);
-    } else {
-      // id string => index
-      resolvedIndex = playlistList.findIndex(p => String(p.id) === String(resolvedIndex));
-    }
-  }
+if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
 
-  const pl = (Number.isInteger(resolvedIndex) && resolvedIndex >= 0 && resolvedIndex < playlistList.length)
-    ? playlistList[resolvedIndex]
-    : null;
+const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
-  // If we can't resolve the playlist, bail to library (prevents black screen)
-  if (!pl) {
-    console.warn('showView(playlist): could not resolve playlist from:', playlistIndex);
-    showView('library');
-    return;
-  }
+// ✅ If playlist is missing, do NOT return (it would leave everything hidden)
+if (!pl) {
+  console.warn('showView(playlist): missing playlist for', playlistIndex);
+  showView('library');
+  return;
+}
 
-  // Keep globals consistent
-  activePlaylistIndex = resolvedIndex;
-  activePlaylistId = pl.id;
+activePlaylistIndex = idx;
+activePlaylistId = pl.id;
+
   playContext = { type: 'playlist', label: pl.name };
 
   // 🔒 wrap async work so `await` is legal
   (async () => {
-
     try {
       const rawItems = await window.loadPlaylistItemsFromCloud(pl.id);
 
@@ -6601,8 +6626,7 @@ const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 // covers & render
 try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
-renderCollection(pl.name, playlistSongs, true, resolvedIndex);
-;
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
 
 
@@ -6613,8 +6637,7 @@ pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
 
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
-renderCollection(pl.name, playlistSongs, true, resolvedIndex);
-
+renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
     }
   })();
@@ -6644,7 +6667,7 @@ renderCollection(pl.name, playlistSongs, true, resolvedIndex);
     if (!window.__rootTab) window.__rootTab = 'home';
 
     // If we're at a root, update rootTab
-    if (viewType === 'home' || viewType === 'search' || viewType === 'library' || viewType === 'crate') {
+    if (viewType === 'home' || viewType === 'search' || viewType === 'library') {
       window.__rootTab = viewType;
       tabType = viewType;
     } else {
@@ -6654,7 +6677,7 @@ renderCollection(pl.name, playlistSongs, true, resolvedIndex);
   }
 
   // Mobile Nav
-  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library', crate: 'nav-premium' };
+  const navIds = { home: 'nav-home', search: 'nav-search', library: 'nav-library' };
   Object.values(navIds).forEach(id => document.getElementById(id)?.classList.remove('active'));
   if (navIds[tabType]) document.getElementById(navIds[tabType])?.classList.add('active');
 
@@ -6715,47 +6738,80 @@ function popToRootSection(targetViewType) {
 
 function onNavTap(viewType) {
   const isMobile = window.innerWidth <= 768;
-  if (!isMobile) return;
 
-  const navId = 
+    const navId =
     viewType === 'home' ? 'nav-home' :
     viewType === 'search' ? 'nav-search' :
     viewType === 'library' ? 'nav-library' :
     viewType === 'crate' ? 'nav-premium' :
     null;
 
+
   const isActive = navId ? document.getElementById(navId)?.classList.contains('active') : false;
 
-  if (isActive) {
+    // If user taps the active tab while NOT actually at that root view, pop-to-root immediately.
+  // This fixes the “tap ignored while deep in album view” behavior.
+  if (isMobile && isActive) {
     const currentType = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : null;
 
+    // Crate: just open it (no double-tap behavior)
     if (viewType === 'crate') {
       showView('crate');
-      return;
-    }
-
-    // FIX: Instead of calling popToRootSection which is failing, 
-    // we explicitly call showView(viewType) to ensure we land on Library.
-    if (currentType && currentType !== viewType) {
-      showView(viewType); 
       __navTapLast[viewType] = 0;
       return;
     }
 
-    // Already at root: double tap to scroll to top
+    // If active tab says "library" but current view is album/playlist/etc
+    if (currentType && currentType !== viewType) {
+
+      // ✅ SPECIAL CASE:
+      // Inside album/playlist → double-tap Library should go BACK
+      if (viewType === 'library') {
+        const now = Date.now();
+        const last = __navTapLast[viewType] || 0;
+
+        if (now - last <= 350) {
+          __navTapLast[viewType] = 0;
+          goBack(); // restores Library + scroll position
+        } else {
+          __navTapLast[viewType] = now;
+        }
+        return;
+      }
+
+      // Other tabs keep old behavior
+      popToRootSection(viewType);
+      __navTapLast[viewType] = 0;
+      return;
+    }
+
+    // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
+
     if (now - last <= 350) {
-      scrollMainToTopSmooth();
       __navTapLast[viewType] = 0;
+      scrollMainToTopSmooth();
       return;
     }
+
     __navTapLast[viewType] = now;
-    return;
+    return; // wait for possible second tap
   }
 
-  // Normal navigation
+  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
+  __navTapLast[viewType] = 0;
+
+  const now = Date.now();
+  if (isMobile) {
+    if (now < __navTapLockUntil && __navTapLastNavType === viewType) return;
+    __navTapLastNavType = viewType;
+    __navTapLockUntil = now + 300; // 300ms debounce window
+  }
+
+   // Normal navigation
   showView(viewType);
+
 }
 
 
@@ -9558,7 +9614,7 @@ function handleContextMenu(e, song) {
 
         // -----------------------
         // HOME RENDERING (Mobile Home + Desktop Home)
-        -
+        // -----------------------
 
         function getRecentlyAddedAlbums(limit = 12) {
           const src = (Array.isArray(libraryDataOriginal) && libraryDataOriginal.length)
@@ -9574,14 +9630,19 @@ function handleContextMenu(e, song) {
   if (!grid) return;
 
   const isMobile = (window.innerWidth <= 768);
-  const slotCount = isMobile ? 4 : 8;
 
-  const pinnedIds = loadPinnedPlaylists();
-  const pinnedSet = new Set(pinnedIds);
-  const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
-  const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
-  const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
-  const filled = orderedPlaylists.slice(0, slotCount);
+const pinnedIds = loadPinnedPlaylists();
+const pinnedSet = new Set(pinnedIds);
+const pinnedPlaylists = pinnedIds.map(id => playlists.find(pl => pl.id === id)).filter(Boolean);
+const unpinnedPlaylists = playlists.filter(pl => !pinnedSet.has(pl.id));
+const orderedPlaylists = [...pinnedPlaylists, ...unpinnedPlaylists];
+
+// ✅ Mobile: show ALL playlists (scroll horizontally instead of "only 4")
+const defaultSlots = isMobile ? orderedPlaylists.length : 8;
+const slotCount = homePlaylistsExpanded ? orderedPlaylists.length : defaultSlots;
+
+const filled = orderedPlaylists.slice(0, slotCount);
+
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
@@ -9631,8 +9692,9 @@ function handleContextMenu(e, song) {
         if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-        if (id) showView('playlist', id);
-} else {
+        const idx = playlists.findIndex(pl => pl.id === id);
+        if (idx !== -1) showView('playlist', idx);
+      } else {
         const album = card.getAttribute('data-album');
         if (album) openAlbumByName(album);
       }
@@ -9640,7 +9702,8 @@ function handleContextMenu(e, song) {
   });
 }
 
-         let mobileRecentsExpanded = false;
+        let mobileRecentsExpanded = false;
+let homePlaylistsExpanded = false; // ✅ controls Home "Playlists" Show all (mobile + desktop)
 
         function renderHomeRecentsRow(containerId) {
           const row = document.getElementById(containerId);
@@ -9692,13 +9755,11 @@ function handleContextMenu(e, song) {
 
     // ✅ PLAYLIST
     if (type === 'playlist') {
-  const id = card.getAttribute('data-id');
-  if (id) showView('playlist', id);
-} else {
-  const album = card.getAttribute('data-album');
-  if (album) openAlbumByName(album);
-}
-
+      const id = card.getAttribute('data-id');
+      const idx = playlists.findIndex(pl => pl.id === id);
+      if (idx !== -1) showView('playlist', idx);
+      return;
+    }
 
     // ✅ ALBUM
     if (type === 'album') {
@@ -9714,15 +9775,107 @@ function handleContextMenu(e, song) {
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
     renderHomeRecentsRow('home-recents-row');
+    try { window.__applyHomeChipFilter?.(); } catch (e) {}
     return;
   }
 
   // Desktop Home (inside grid-view header)
   renderHomeRecents('desktop-recent-grid');
   renderHomeRecentsRow('desktop-recents-row');
+  try { window.__applyHomeChipFilter?.(); } catch (e) {}
 }
 
-        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+// ------------------------------
+// Home chips: All / Music / Playlists / Audio
+// (Only implement what you asked: Playlists shows ONLY playlists)
+// ------------------------------
+if (!window.__homeChipsBound) {
+  window.__homeChipsBound = true;
+
+  window.__homeChip = window.__homeChip || 'all';
+
+  window.__applyHomeChipStyles = function () {
+    const ids = ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio'];
+    ids.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const key = btn.getAttribute('data-homechip');
+
+      if (key === window.__homeChip) {
+        btn.classList.remove('bg-white/10', 'text-white');
+        btn.classList.add('bg-[#1db954]', 'text-black');
+      } else {
+        btn.classList.remove('bg-[#1db954]', 'text-black');
+        btn.classList.add('bg-white/10', 'text-white');
+      }
+    });
+  };
+
+   window.__applyHomeChipFilter = function () {
+    // ✅ Only hide/show Home sections while you are on Home.
+    // If you leave Home (ex: go to Library), force everything back on.
+    const isHome = (typeof navCurrent === 'object' && navCurrent && navCurrent.type === 'home');
+
+    const dRecentsRow = document.getElementById('desktop-recents-row');
+    const albumGrid = document.getElementById('album-grid');
+    const mRecentsRow = document.getElementById('home-recents-row');
+
+    if (!isHome) {
+      // restore anything the Home chip may have hidden
+      if (dRecentsRow) {
+        const h2 = dRecentsRow.previousElementSibling;
+        if (h2 && h2.tagName === 'H2') h2.style.display = '';
+        dRecentsRow.style.display = '';
+      }
+      if (albumGrid) albumGrid.style.display = '';
+      if (mRecentsRow && mRecentsRow.parentElement) {
+        mRecentsRow.parentElement.style.display = '';
+      }
+      return;
+    }
+
+    const onlyPlaylists = (window.__homeChip === 'playlists');
+
+    // Desktop: hide Recents row + its H2
+    if (dRecentsRow) {
+      const h2 = dRecentsRow.previousElementSibling;
+      if (h2 && h2.tagName === 'H2') h2.style.display = onlyPlaylists ? 'none' : '';
+      dRecentsRow.style.display = onlyPlaylists ? 'none' : '';
+    }
+
+    // Desktop: hide the big album grid section (your library cards) when Playlists is selected
+    if (albumGrid) albumGrid.style.display = onlyPlaylists ? 'none' : '';
+
+    // Mobile: hide the whole Recents section container (the parent of #home-recents-row)
+    if (mRecentsRow && mRecentsRow.parentElement) {
+      mRecentsRow.parentElement.style.display = onlyPlaylists ? 'none' : '';
+    }
+  };
+
+  function bindHomeChip(id) {
+    const btn = document.getElementById(id);
+    if (!btn || btn.__bound) return;
+    btn.__bound = true;
+
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-homechip') || 'all';
+      window.__homeChip = key;
+
+      try { window.__applyHomeChipStyles(); } catch (e) {}
+      try { window.__applyHomeChipFilter(); } catch (e) {}
+    });
+  }
+
+  ['home-chip-all', 'home-chip-music', 'home-chip-playlists', 'home-chip-audio', 'desktop-home-chip-all', 'desktop-home-chip-music', 'desktop-home-chip-playlists', 'desktop-home-chip-audio'].forEach(bindHomeChip);
+
+
+  // initial apply
+  try { window.__applyHomeChipStyles(); } catch (e) {}
+  try { window.__applyHomeChipFilter(); } catch (e) {}
+}
+
+const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+
 if (homeRecentsShowAllBtn) {
   homeRecentsShowAllBtn.addEventListener('click', () => {
     mobileRecentsExpanded = !mobileRecentsExpanded;
@@ -10392,9 +10545,9 @@ function showPlaylistMenuAt(x, y, playlistId) {
 }
 
 
--
+// -----------------------
 // HERO 3-DOTS MENU (playlist OR album)
--
+// -----------------------
 (function bindHeroMoreButtonOnce() {
   const btn = document.getElementById('hero-more-btn');
   if (!btn || btn.__bound) return;
@@ -10562,9 +10715,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-  -
+  // -----------------------
 // PLAYLIST MENU buttons (bind once, after DOM exists)
--
+// -----------------------
 window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
