@@ -11282,12 +11282,17 @@ function renderHistory() {
       console.error(e);
       alert("Could not create playlist.");
     }
-  })();
-}
+    // ✅ Expose playback functions globally (your click handlers call these)
+  try { window.playQueue = playQueue; } catch (e) {}
+  try { window.playSpecificSong = playSpecificSong; } catch (e) {}
 
-
+  // (Optional but helpful for debugging + other parts of the app)
+  try { window.currentQueue = currentQueue; } catch (e) {}
+  try { window.currentIndex = currentIndex; } catch (e) {}
+})();
 
 // ---------------- PINNED PLAYLISTS ----------------
+
 function loadPinnedPlaylists() {
   let stored = [];
   try { stored = JSON.parse(localStorage.getItem('pinnedPlaylists') || "[]"); }
