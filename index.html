@@ -4857,6 +4857,135 @@ let contextMenuAnchor = null;
   }
 }
 
+/* ============================================================
+   ✅ SAFETY SHIMS (only define if missing)
+   - Fixes: attachSongPressHandlers is not defined
+   - Fixes: addToHistory is not defined (history stays empty)
+   - Fixes: renderMobileRecents is not defined
+   ============================================================ */
+
+// ---- history bootstrap (global) ----
+if (!Array.isArray(window.history)) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('historyLog') || '[]');
+    window.history = Array.isArray(saved) ? saved : [];
+  } catch (e) {
+    window.history = [];
+  }
+}
+
+// ---- attachSongPressHandlers shim ----
+if (typeof window.attachSongPressHandlers !== "function") {
+  window.attachSongPressHandlers = function attachSongPressHandlers(row, song, state) {
+    if (!row) return;
+    state = state || {};
+    let pressTimer = null;
+
+    row.addEventListener('touchstart', (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const t = e.touches[0];
+      state.longPress = false;
+
+      pressTimer = setTimeout(() => {
+        state.longPress = true;
+        try {
+          if (typeof window.showContextMenuAt === "function") {
+            window.showContextMenuAt(t.pageX, t.pageY, song, row);
+          }
+        } catch (err) {}
+      }, 500);
+    }, { passive: true });
+
+    const cancel = () => {
+      if (pressTimer) clearTimeout(pressTimer);
+      pressTimer = null;
+    };
+
+    row.addEventListener('touchend', (e) => {
+      cancel();
+      if (state.longPress) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+
+    row.addEventListener('touchmove', cancel, { passive: true });
+    row.addEventListener('touchcancel', cancel, { passive: true });
+  };
+
+  // Also expose as a plain global identifier
+  try { if (typeof attachSongPressHandlers !== "function") { var attachSongPressHandlers = window.attachSongPressHandlers; } } catch (e) {}
+}
+
+// ---- addToHistory shim ----
+if (typeof window.addToHistory !== "function") {
+  window.addToHistory = function addToHistory(album, artist, cover) {
+    try {
+      // Load freshest copy
+      let h = [];
+      try { h = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { h = []; }
+      if (!Array.isArray(h)) h = [];
+
+      const playlistMatch = (typeof activePlaylistId !== 'undefined' && activePlaylistId)
+        ? (Array.isArray(playlists) ? playlists.find(pl => pl.id === activePlaylistId) : null)
+        : null;
+
+      if (playlistMatch) {
+        const explicit = (typeof getEffectivePlaylistCover === "function")
+          ? getEffectivePlaylistCover(playlistMatch)
+          : (playlistMatch.cover || playlistMatch.cover_url || "");
+
+        const songs = Array.isArray(playlistMatch.songs) ? playlistMatch.songs : [];
+        const covers = songs
+          .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
+          .map(x => String(x || '').trim())
+          .filter(Boolean);
+
+        const historyCover = explicit || (covers.length >= 1 ? covers[0] : cover);
+
+        h = h.filter(x => !(x && x.type === 'playlist' && x.id === playlistMatch.id));
+        h.unshift({
+          type: 'playlist',
+          id: playlistMatch.id,
+          name: playlistMatch.name,
+          cover: historyCover
+        });
+      } else {
+        // album entry
+        h = h.filter(x => !(x && x.type === 'album' && x.album === album && x.artist === artist));
+        h.unshift({ type: 'album', album, artist, cover });
+      }
+
+      // Save + mirror to window.history
+      window.history = h.slice(0, 16);
+      localStorage.setItem('historyLog', JSON.stringify(window.history));
+
+      // Re-render if your app has these
+      try { if (typeof window.renderHistory === "function") window.renderHistory(); } catch (e) {}
+      try { if (typeof window.renderHome === "function") window.renderHome(); } catch (e) {}
+      try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+    } catch (e) {}
+  };
+
+  // Also expose as a plain global identifier
+  try { if (typeof addToHistory !== "function") { var addToHistory = window.addToHistory; } } catch (e) {}
+}
+
+// ---- renderMobileRecents shim ----
+if (typeof window.renderMobileRecents !== "function") {
+  window.renderMobileRecents = function renderMobileRecents() {
+    // Your codebase already uses renderHomeRecentsRow(containerId)
+    // Try the most likely containers safely (no crashes if missing)
+    try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+    try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('library-recents-row'); } catch (e) {}
+  };
+
+  try { if (typeof renderMobileRecents !== "function") { var renderMobileRecents = window.renderMobileRecents; } } catch (e) {}
+}
+
+const greetingEl = document.getElementById('greeting-text');
+
+
         const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
