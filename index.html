@@ -6594,7 +6594,83 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
+function renderCollection(name, songs, isPlaylist = false, playlistIndex = null) {
+  // Ensure album-view is visible
+  try {
+    document.getElementById('home-view')?.classList.add('hidden');
+    document.getElementById('grid-view')?.classList.add('hidden');
+    document.getElementById('search-view')?.classList.add('hidden');
+    document.getElementById('artist-view')?.classList.add('hidden');
+    document.getElementById('crate-view')?.classList.add('hidden');
+    document.getElementById('album-view')?.classList.remove('hidden');
+  } catch (e) {}
+
+  const arr = Array.isArray(songs) ? songs : [];
+
+  // Pick a reasonable cover
+  const first = arr[0] || {};
+  const cover =
+    first.cover || first.coverArt || first.image || first.art ||
+    (document.getElementById('p-cover') ? document.getElementById('p-cover').src : "");
+
+  // Build queue (so rows can play)
+  currentQueue = buildQueueFromSongs(arr, { album: name, cover });
+  currentIndex = -1;
+
+  // Hero
+  const label = isPlaylist ? "Playlist" : "Album";
+  const hero = document.getElementById('album-hero');
+  if (hero) {
+    hero.innerHTML = `
+      <img id="album-hero-cover"
+           src="${String(cover || '')}"
+           class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
+      <div class="flex-1 album-hero-info">
+        <p class="album-hero-label text-xs font-bold uppercase tracking-widest mb-2">${label}</p>
+        <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${String(name || '')}</h1>
+        <div class="album-hero-meta text-sm text-zinc-400">${label} • ${currentQueue.length} songs</div>
+      </div>
+    `;
+  }
+
+  // Hook hero play
+  const heroPlay = document.getElementById('hero-play-btn');
+  if (heroPlay) {
+    heroPlay.onclick = () => {
+      playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
+      playQueue(currentQueue, 0);
+    };
+  }
+
+  // Track rows
+  const listEl = document.getElementById('track-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = currentQueue.map((s, i) => {
+    const t = String(s.title || s.name || 'Unknown Title');
+    const a = String(s.artist || s.artistName || 'Unknown Artist');
+    return `
+      <div class="track-row flex items-center gap-3 px-4 py-3 hover:bg-white/10 cursor-pointer" data-idx="${i}">
+        <div class="w-6 text-zinc-400 text-sm">${i + 1}</div>
+        <div class="min-w-0 flex-1">
+          <div class="text-white font-bold truncate">${t}</div>
+          <div class="text-zinc-400 text-sm truncate">${a}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.track-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = parseInt(row.getAttribute('data-idx') || '0', 10);
+      playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
+      playQueue(currentQueue, idx);
+    });
+  });
+}
+
 function showView(viewType, playlistIndex = null) {
+
 
     // Capture what's currently on screen so swipe-back shows it behind
   window.captureSwipeBackUnderlay?.();
@@ -6660,24 +6736,23 @@ const scrollArea = document.getElementById('main-scroll-area');
 if (scrollArea) scrollArea.scrollTop = 0;
 
 
-       if (viewType === 'home') {
-  // ✅ Always show the real Home screen first
+               if (viewType === 'home') {
+  // MOBILE: show the real Home screen
   const renderHomeFn =
     (typeof window.renderHome === "function") ? window.renderHome :
     ((typeof renderHome === "function") ? renderHome : null);
 
-  if (renderHomeFn) {
+  if (window.innerWidth <= 768) {
     document.getElementById('home-view')?.classList.remove('hidden');
-    try { renderHomeFn(); } catch (e) {}
+    try { if (renderHomeFn) renderHomeFn(); } catch (e) {}
   } else {
-    // last-resort fallback: never blank
+    // DESKTOP: Home = grid-view (your library grid) + ALSO run renderHome() for the header sections
     document.getElementById('grid-view')?.classList.remove('hidden');
     try { renderGrid(libraryData); } catch (e) {}
     try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
+    try { if (renderHomeFn) renderHomeFn(); } catch (e) {}
   }
 }
-
-
 
    if (viewType === 'library') {
     document.getElementById('grid-view').classList.remove('hidden');
