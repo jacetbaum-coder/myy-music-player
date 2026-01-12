@@ -8832,7 +8832,10 @@ function playPlaylistById(playlistId) {
           }
         }
 
+        } // ✅ CLOSE handleSearch() so player functions are global + run on load
+
         function exitSearch() {
+
           const input = document.getElementById('global-search');
           if (input) input.value = '';
           handleSearch('');
