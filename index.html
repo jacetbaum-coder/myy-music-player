@@ -7815,7 +7815,8 @@ function openAlbumByName(name, artistName) {
           ${album.artistName}
         </span>
       </div>
-      <div class="album-hero-meta text-sm text-zinc-400">Album • ${album.songs.length} songs</div>
+      <div       <div class="album-hero-meta text-sm text-zinc-400">Album • ${(songsForQueue || []).length} songs</div>
+
     </div>
   `;
 
@@ -7841,11 +7842,12 @@ function openAlbumByName(name, artistName) {
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
-  album.songs.forEach((song, i) => {
+  (songsForQueue || []).forEach((song, i) => {
+
     const row = document.createElement('div');
     row.className = "track-row group";
 
-        const songUrl = song.url || song.link;
+                const songUrl = song.url || song.link || song.src;
     const songTitle = song.title || song.name;
 
     const isCurrent = currentSong && (currentSong.url === songUrl);
