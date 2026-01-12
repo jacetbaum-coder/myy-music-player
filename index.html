@@ -6631,23 +6631,17 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const list = (Array.isArray(playlists) ? playlists.slice() : [])
-    .sort((a, b) => {
-      const an = String(a?.name || a?.title || '').toLowerCase();
-      const bn = String(b?.name || b?.title || '').toLowerCase();
-      return an.localeCompare(bn);
-    });
-
+  const list = Array.isArray(playlists) ? playlists : [];
   let idx = playlistIndex;
 
-  // If we got "12" as a string, convert to number
-  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-
-  // If we got an id string, try id -> index
+  // ✅ If we got an id (string), try id -> index FIRST
   if (typeof idx === 'string') {
     const byId = list.findIndex(p => String(p?.id) === String(idx));
-    idx = byId;
+    if (byId !== -1) idx = byId;
   }
+
+  // ✅ If still a numeric-looking string, treat as index
+  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
 
   const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
@@ -6666,22 +6660,23 @@ const scrollArea = document.getElementById('main-scroll-area');
 if (scrollArea) scrollArea.scrollTop = 0;
 
 
-        if (viewType === 'home') {
-  // If mobile home renderer exists, use it. Otherwise fall back to the grid so Home is never blank.
+       if (viewType === 'home') {
+  // ✅ Always show the real Home screen first
   const renderHomeFn =
     (typeof window.renderHome === "function") ? window.renderHome :
     ((typeof renderHome === "function") ? renderHome : null);
 
-  if (window.innerWidth <= 768 && renderHomeFn) {
+  if (renderHomeFn) {
     document.getElementById('home-view')?.classList.remove('hidden');
     try { renderHomeFn(); } catch (e) {}
   } else {
-    // fallback: always show something
+    // last-resort fallback: never blank
     document.getElementById('grid-view')?.classList.remove('hidden');
     try { renderGrid(libraryData); } catch (e) {}
     try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
   }
 }
+
 
 
    if (viewType === 'library') {
@@ -6717,8 +6712,15 @@ if (scrollArea) scrollArea.scrollTop = 0;
   const list = Array.isArray(playlists) ? playlists : [];
 let idx = playlistIndex;
 
+// ✅ Try id -> index FIRST (so "12" can still be an id)
+if (typeof idx === 'string') {
+  const byId = list.findIndex(p => String(p?.id) === String(idx));
+  if (byId !== -1) idx = byId;
+}
+
+// ✅ If still numeric-looking string, treat as index
 if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
+
 
 const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
