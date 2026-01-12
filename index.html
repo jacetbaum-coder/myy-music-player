@@ -10645,8 +10645,10 @@ const filled = pinnedPlaylists.slice(0, slotCount);
     tiles.push(`
       <div class="mobile-recent-card"
             data-type="playlist"
-           data-id="${safeId}"
-                      data-album="">
+            data-id="${safeId}"
+            data-album=""
+            data-artist="">
+
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -10674,8 +10676,10 @@ const filled = pinnedPlaylists.slice(0, slotCount);
         const idx = playlists.findIndex(pl => pl.id === id);
         if (idx !== -1) showView('playlist', idx);
       } else {
-        const album = card.getAttribute('data-album');
-        if (album) openAlbumByName(album);
+                const album = card.getAttribute('data-album');
+        const artist = card.getAttribute('data-artist');
+        if (album) openAlbumByName(album, artist);
+
       }
     });
   });
@@ -10710,11 +10714,13 @@ const filled = pinnedPlaylists.slice(0, slotCount);
          row.innerHTML = items.map(item => {
             const title = (item.type === 'playlist') ? (item.name || 'Playlist') : (item.album || 'Album');
             const sub = (item.type === 'playlist') ? 'Playlist' : (item.artist || '');
-            const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
+                        const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
+            const safeArtist = String(item.artist || '').replace(/'/g, "\\'");
             const safeId = String(item.id || '').replace(/"/g, '&quot;');
             const dataAttrs = item.type === 'playlist'
               ? `data-type="playlist" data-id="${safeId}"`
-              : `data-type="album" data-album="${safeAlbum}"`;
+              : `data-type="album" data-album="${safeAlbum}" data-artist="${safeArtist}"`;
+
             return `
               <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
                 <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
@@ -10741,9 +10747,11 @@ const filled = pinnedPlaylists.slice(0, slotCount);
 
     // ✅ ALBUM
     if (type === 'album') {
-      const albumName = card.getAttribute('data-album');
-      if (albumName) openAlbumByName(albumName);
+            const albumName = card.getAttribute('data-album');
+      const artistName = card.getAttribute('data-artist');
+      if (albumName) openAlbumByName(albumName, artistName);
       return;
+
     }
   });
 });
@@ -10805,7 +10813,9 @@ if (homeRecentsShowAllBtn) {
       <div class="mobile-recent-card"
            data-type="${h.type}"
            data-id="${safeId}"
-           data-album="${safeAlbum}">
+           data-album="${safeAlbum}"
+           data-artist="${String(h.artist || '').replace(/"/g, '&quot;')}">
+
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -10830,8 +10840,10 @@ if (homeRecentsShowAllBtn) {
         return;
       }
 
-      const albumName = card.dataset.album || '';
-      if (albumName) openAlbumByName(albumName);
+            const albumName = card.dataset.album || '';
+      const artistName = card.dataset.artist || '';
+      if (albumName) openAlbumByName(albumName, artistName);
+
     });
   });
 }
