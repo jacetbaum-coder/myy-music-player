@@ -7725,7 +7725,11 @@ function openAlbumByName(name, artistName) {
   const artist = String(artistName || "").trim();
 
   // ✅ store BOTH so back-nav can reopen the correct one later
-  setNavCurrent({ type: 'album', albumName: albumName, artistName: artist });
+    setNavCurrent({ type: 'album', albumName: name, artistName: artist || "" });
+
+  // Use a stable label for context (helps prevent “Singles” ambiguity)
+  playContext = { type: 'album', label: (artist ? `${artist} — ${name}` : name) };
+
 
   // ✅ display label (also helps with Singles)
   const displayName = (albumName === "Singles" && artist)
@@ -13075,8 +13079,26 @@ function updateTrackListActiveState() {
 }
 
 function playAlbumByName(name) {
-  const album = libraryData.find(a => a.albumName === name);
+    // ✅ Album identity fix: match by (albumName + artistName) when artist is provided
+  const wantAlbum = String(name || "").trim();
+  const wantArtist = String(artist || "").trim();
+
+  const album = libraryData.find(a => {
+    const aAlbum = String(a?.albumName || "").trim();
+    const aArtist = String(a?.artistName || "").trim();
+
+    if (!aAlbum) return false;
+    if (aAlbum !== wantAlbum) return false;
+
+    // If caller provided artist, require it too (prevents "Singles" collisions)
+    if (wantArtist) return aArtist === wantArtist;
+
+    // Fallback: old behavior (only when artist wasn’t provided)
+    return true;
+  });
+
   if (!album) return;
+
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
