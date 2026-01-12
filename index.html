@@ -4558,7 +4558,25 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   if (Object.prototype.hasOwnProperty.call(map, key)) {
     const override = String(map[key] || "").trim();
 
-    if (override) return override;
+        if (override) {
+      // If an old override points to Artist/Album/cover.jpg, rewrite to Artist/cover.jpg automatically
+      try {
+        if (override.includes("/?id=") && override.toLowerCase().includes("cover.jpg")) {
+          const u = new URL(override, location.origin);
+          const id = u.searchParams.get("id") || "";
+          const decoded = decodeURIComponent(id);
+          const parts = decoded.split("/").filter(Boolean);
+
+          // "Artist/Album/cover.jpg" -> "Artist/cover.jpg"
+          if (parts.length >= 3 && String(parts[parts.length - 1]).toLowerCase() === "cover.jpg") {
+            const artist = parts[0];
+            return `${u.origin}/?id=${encodeURIComponent(artist + "/cover.jpg")}`;
+          }
+        }
+      } catch (e) {}
+      return override;
+    }
+
 
     // If override exists but is empty, it hides covers.
     // Auto-delete it so covers come back.
@@ -7269,7 +7287,9 @@ function renderLibraryMain() {
     renderGrid(getLibraryGridData());
   }
 
-  renderHistory();
+    if (typeof window.renderHistory === "function") {
+    window.renderHistory();
+  }
 
   if (window.innerWidth <= 768) {
     renderMobileRecents();
