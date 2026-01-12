@@ -12914,6 +12914,44 @@ function buildQueueFromSongs(songs, fallback) {
   return songs.map((song) => normalizeSong(song, fallback)).filter(Boolean);
 }
 
+// ✅ REQUIRED: many parts of your app call playSpecificSong(...)
+// Your current file calls it from track rows + playQueue, but it wasn't defined.
+function playSpecificSong(url, title, album, artist, cover) {
+  const player = document.getElementById('audio-player');
+  if (!player) return;
+
+  const u = String(url || '').trim();
+  if (!u) return;
+
+  // keep a single canonical currentSong object
+  currentSong = {
+    url: u,
+    title: String(title || ''),
+    album: String(album || ''),
+    artist: String(artist || ''),
+    cover: String(cover || '')
+  };
+  try { window.currentSong = currentSong; } catch (e) {}
+
+  // set src + play
+  try {
+    if (player.src !== u) player.src = u;
+  } catch (e) {
+    player.src = u;
+  }
+
+  // update UI if your helpers exist
+  try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
+  try { if (typeof openNowPlaying === 'function') openNowPlaying(); } catch (e) {}
+
+  const p = player.play();
+  if (p && typeof p.catch === 'function') {
+    p.catch(() => {
+      // ignore autoplay-block errors; user can press play again
+    });
+  }
+}
+
 function playQueue(queue, startIndex = 0) {
   if (!queue || !queue.length) return;
 
