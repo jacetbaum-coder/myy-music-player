@@ -6995,12 +6995,23 @@ function renderGrid(data) {
   if (!grid) return;
 
   grid.innerHTML = data.map((album) => {
-    const safeName = album.albumName.replace(/'/g, "\\'");
+    const albumName = String(album?.albumName || "");
+    const artistName = String(album?.artistName || "");
+
+    // keep your escaping style, but make it safe for attributes
+    const safeAlbum = albumName.replace(/'/g, "\\'");
+    const safeArtist = artistName.replace(/'/g, "\\'");
+
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+
+    // ✅ Fix: if album is "Singles", show the ARTIST as the big title
+    const bigTitle = (albumName === "Singles") ? artistName : albumName;
+    const smallLine = (albumName === "Singles") ? "Singles" : artistName;
 
     return `
   <div class="album-card p-4"
-       data-album="${safeName}"
+       data-album="${safeAlbum}"
+       data-artist="${safeArtist}"
        data-no-swipe-back="1">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
@@ -7008,11 +7019,11 @@ function renderGrid(data) {
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
-          ${album.albumName}
+          ${bigTitle}
         </div>
 
         <div class="text-sm text-zinc-400 truncate">
-          ${album.artistName}
+          ${smallLine}
         </div>
       </div>
     `;
@@ -7021,10 +7032,12 @@ function renderGrid(data) {
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
       const album = card.getAttribute('data-album');
-      if (album) openAlbumByName(album);
+      const artist = card.getAttribute('data-artist');
+      if (album) openAlbumByName(album, artist);
     });
   });
 }
+
 
 
 function renderLibraryPlaylists() {
@@ -7380,8 +7393,7 @@ function renderLibraryMain() {
   }
 })();
 
-function openAlbumByName(name) {
-
+function openAlbumByName(name, artistName) {
 
   // ✅ Never let swipe-underlay capture break album navigation
   try {
@@ -7398,21 +7410,51 @@ function openAlbumByName(name) {
 
 
   // BACK STACK: push current view before entering album
-  pushNavCurrent();
-  setNavCurrent({ type: 'album', albumName: name });
+    pushNavCurrent();
 
-  playContext = { type: 'album', label: name };
-    const isPlaylist = false;
-  const album = libraryData.find(a => a.albumName === name);
+  const albumName = String(name || "").trim();
+  const artist = String(artistName || "").trim();
+
+  // ✅ store BOTH so back-nav can reopen the correct one later
+  setNavCurrent({ type: 'album', albumName: albumName, artistName: artist });
+
+  // ✅ display label (also helps with Singles)
+  const displayName = (albumName === "Singles" && artist)
+    ? (artist + " — Singles")
+    : albumName;
+
+  playContext = { type: 'album', label: displayName };
+  const isPlaylist = false;
+
+  // ✅ find exact album (artist+album). if artist missing, fall back to albumName-only
+  const album =
+    libraryData.find(a => a.albumName === albumName && a.artistName === artist) ||
+    libraryData.find(a => a.albumName === albumName);
+
   if (!album) return;
+
 
   activeAlbumName = album.albumName;
   activeAlbumArtist = album.artistName;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
-  // Build the queue for next/prev (use overridden cover)
-  currentQueue = buildQueueFromSongs(album.songs, {
+    // Build the queue for next/prev (use overridden cover)
+
+  // ✅ If album songs aren't already playable, resolve them through your track resolver
+  let songsForQueue = Array.isArray(album.songs) ? album.songs : [];
+  const hasPlayable = songsForQueue.some(s => s && (s.url || s.link || s.src));
+
+  if (!hasPlayable && typeof resolveTrackIdsToSongs === "function") {
+    const ids = songsForQueue
+      .map(s => String((s && (s.id || s.r2Path || s.key)) || "").trim())
+      .filter(Boolean);
+
+    const resolved = resolveTrackIdsToSongs(ids);
+    if (Array.isArray(resolved) && resolved.length) songsForQueue = resolved;
+  }
+
+  currentQueue = buildQueueFromSongs(songsForQueue, {
     album: album.albumName,
     artist: album.artistName,
     cover: cover
@@ -7451,7 +7493,8 @@ function openAlbumByName(name) {
 
     <div class="flex-1 album-hero-info">
       <p class="album-hero-label text-xs font-bold uppercase tracking-widest mb-2">Album</p>
-      <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
+            <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${displayName}</h1>
+
       <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
         <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
         <span class="hover:underline cursor-pointer font-semibold"
