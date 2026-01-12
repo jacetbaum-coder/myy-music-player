@@ -6769,12 +6769,13 @@ function renderCollection(name, songs, isPlaylist = false, playlistIndex = null)
     `;
   }
 
-  // Hook hero play
+    // Hook hero play
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) {
     heroPlay.onclick = () => {
       playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
-      playQueue(currentQueue, 0);
+      // ✅ Call the global function (works even if defined in a different script scope)
+      window.playQueue(currentQueue, 0);
     };
   }
 
@@ -7862,7 +7863,8 @@ function openAlbumByName(name, artistName) {
       }
       if (!songUrl) return;
       currentIndex = i;
-      playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
+            window.playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
+
     };
 
     row.oncontextmenu = (e) =>
@@ -8949,175 +8951,25 @@ async function playSpecificSong(url, title, album, artist, cover) {
   let started = false;
   try {
     const p = player.play();
-    if (p && typeof p.then === 'function') await p;
-    started = !player.paused;
+    if (p && typeof p.then === 'function') {
+      await p;
+    }
+    started = true;
   } catch (err) {
-    console.warn('Playback did not start automatically:', err);
+    // If autoplay blocks for some reason, we still proceed
     started = false;
   }
 
-  updateMediaSessionMetadata();
+  // Always update UI
+  try { updateNowPlayingUI(); } catch (e) {}
+  try { openNowPlaying(); } catch (e) {}
 
-  lastPlayedTime = Date.now();
-  localStorage.setItem('lastPlayedTime', lastPlayedTime);
-
-  // Save state (we still save the selected track even if iOS didn’t start)
-  persistPlayerState(started);
-
-  // UI Updates
-  dock.classList.remove('dock-hidden');
-  document.getElementById('p-cover').src = cover;
-  updateAccentFromCover(cover);
-
-  setMarqueeTitle('p-title', title.replace('.mp3', ''));
-  document.getElementById('p-artist').innerText = artist;
-
-  // Set all play/pause icons based on what actually happened
-  const desktopIcon = document.getElementById('play-icon');
-  const mobileIcon = document.getElementById('mobile-play-icon');
-  const npIcon = document.getElementById('np-play-icon');
-
-  if (started) {
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
-
-  } else {
-    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
-    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-play text-white text-2xl";
-  }
-
-    // Sidebars (desktop only, only when a song is playing)
-if (window.innerWidth >= 1024) {
-  const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
-  toggleRightSidebar(true);
-  setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
-      loadRightLyrics(artist, cleanTitle);
-  loadRightBio(artist);
-
-
+  return started;
 }
 
+// ✅ Make it globally available (so onclick handlers can always find it)
+try { window.playSpecificSong = playSpecificSong; } catch (e) {}
 
-  // Lyrics (desktop right sidebar)
-  updateRightLyricsForSong(currentSong);
-  updateCenterLyricsForSong(currentSong);
-
-
-  updateHeartUI();
-
-  addToHistory(album, artist, cover);
-
-    // Update the existing rows in-place (so the green row updates immediately)
-  updateTrackListActiveState();
-
-
-  // If Now Playing is open, keep it synced
-  if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
-    updateNowPlayingUI();
-  }
-}
-        
-function togglePlay() {
-  // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
-  // start playing from the top instead of doing nothing.
-  if (!currentSong) {
-    if (Array.isArray(currentQueue) && currentQueue.length) {
-      playQueue(currentQueue, 0);
-    }
-    return;
-  }
-
-  const desktopIcon = document.getElementById('play-icon');
-
-  const mobileIcon = document.getElementById('mobile-play-icon');
-  const npIcon = document.getElementById('np-play-icon');
-
-  if (player.paused) {
-    player.play();
-      
-      updateMediaSessionMetadata();
-
-persistPlayerState(true);
-
-// ===== iOS / Lock Screen / Control Center metadata =====
-if ("mediaSession" in navigator && currentSong) {
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: currentSong.title,
-    artist: currentSong.artist,
-    album: currentSong.album || "",
-    artwork: [
-      {
-        src: currentSong.cover,
-        sizes: "512x512",
-        type: "image/png"
-      }
-    ]
-  });
-
-  navigator.mediaSession.setActionHandler("play", () => player.play());
-  navigator.mediaSession.setActionHandler("pause", () => player.pause());
-  navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
-  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
-}
-
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
-  } else {
-    player.pause();
-      persistPlayerState(false);
-
-    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
-    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
-  }
-}
-
-// -----------------------
-// NOW PLAYING OVERLAY (desktop)
-// -----------------------
-const nowPlayingOverlay = document.getElementById('now-playing-overlay');
-const npCloseBtn = document.getElementById('np-close');
-
-function openArtistFromCurrentSong(e) {
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-  if (!currentSong || !currentSong.artist) return;
-
-  // Only allow artist navigation when you are INSIDE the album page
-  const albumView = document.getElementById('album-view');
-  const onAlbumPage = albumView && !albumView.classList.contains('hidden');
-  if (!onAlbumPage) return;
-
-  // Close Now Playing if it’s open so it doesn’t sit on top
-  try {
-    if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
-      closeNowPlaying();
-    }
-  } catch (err) {}
-
-  openArtistByName(currentSong.artist);
-}
-
-// Click artist in the DOCK
-const dockArtistEl = document.getElementById('p-artist');
-if (dockArtistEl) {
-  dockArtistEl.addEventListener('click', openArtistFromCurrentSong);
-  dockArtistEl.addEventListener('pointerdown', (e) => {
-    // don’t trigger dock-left openNowPlaying handler
-    e.stopPropagation();
-  });
-}
-
-// Click artist in NOW PLAYING overlay
-const npArtistEl = document.getElementById('np-artist');
-if (npArtistEl) {
-  npArtistEl.addEventListener('click', openArtistFromCurrentSong);
-}
 
 function updateNowPlayingUI() {
   if (!currentSong) return;
@@ -12958,8 +12810,8 @@ function playQueue(queue, startIndex = 0) {
   currentQueue = queue;
 
   // If shuffle is ON and we’re starting from the beginning (green Play button behavior),
-  // pick a random starting song like Spotify.
-  if (isShuffleOn() && startIndex === 0 && queue.length > 1) {
+  // pick a random starting point
+  if (isShuffling && startIndex === 0) {
     currentIndex = Math.floor(Math.random() * queue.length);
   } else {
     currentIndex = startIndex;
@@ -12969,8 +12821,12 @@ function playQueue(queue, startIndex = 0) {
   resetShuffleForQueue();
 
   const s = currentQueue[currentIndex];
-  playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+  window.playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
+
+// ✅ Make it globally available
+try { window.playQueue = playQueue; } catch (e) {}
+
 
 
 
