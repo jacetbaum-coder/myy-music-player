@@ -4984,7 +4984,10 @@ if (typeof window.renderMobileRecents !== "function") {
 }
 
 
-        const greetingEl = document.getElementById('greeting-text');
+        // ✅ Safe: avoids "already been declared" if this script runs twice
+        var greetingEl = window.greetingEl || document.getElementById('greeting-text');
+        window.greetingEl = greetingEl;
+
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
 const dockLeft = document.getElementById('dock-left');
