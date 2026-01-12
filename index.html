@@ -12925,14 +12925,22 @@ if (hero && activePlaylistId) {
       const longPressState = { longPress: false };
       
     row.onclick = () => {
-        if (longPressState.longPress) {
-        longPressState.longPress = false;
-        return;
-      }
+  if (longPressState.longPress) {
+    longPressState.longPress = false;
+    return;
+  }
+  if (!songUrl) return;
+  currentIndex = i;
 
-      currentIndex = i;
-      playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
-    };
+  // 🔑 LOOK UP playSpecificSong AT CLICK TIME (not render time)
+  const fn = window.playSpecificSong;
+  if (typeof fn === 'function') {
+    fn(songUrl, songTitle, album.albumName, album.artistName, cover);
+  } else {
+    console.error('playSpecificSong missing at click time');
+  }
+};
+
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
