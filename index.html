@@ -6200,8 +6200,9 @@ function goBack() {
 
   try {
     if (prev.type === 'album' && prev.albumName) {
-      openAlbumByName(prev.albumName);
-    } else if (prev.type === 'artist' && prev.artistName) {
+  openAlbumByName(prev.albumName, prev.artistName);
+} else if (prev.type === 'artist' && prev.artistName) {
+
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
