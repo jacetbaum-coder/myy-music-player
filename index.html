@@ -4585,10 +4585,33 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   }
 
   // 2) Use coverArt from the library (Worker JSON)
-  const libCover = String(coverArtFromLibrary || "").trim();
-  if (libCover) return libCover;
+    const libCover = String(libraryCoverUrl || "").trim();
+
+  // ✅ If UI passes an old album-level cover URL (Artist/Album/cover.jpg),
+  // rewrite it to the new artist-level cover (Artist/cover.jpg).
+  if (libCover) {
+    try {
+      // only try to rewrite workers.dev URLs with ?id=
+      const u = new URL(libCover);
+      const id = u.searchParams.get("id");
+      if (id) {
+        const decoded = decodeURIComponent(id);
+
+        // If it matches the old album cover path, rewrite to artist cover
+        if (decoded === `${a}/${b}/cover.jpg`) {
+          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+          const artistCoverPath = `${a}/cover.jpg`;
+          return `${r2Base}${encodeURIComponent(artistCoverPath)}`;
+        }
+      }
+    } catch (e) {}
+
+    // otherwise keep whatever we were given
+    return libCover;
+  }
 
   // 3) Final fallback: build a cover.jpg URL in R2 (artist-level)
+
 const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
 const artistCoverPath = `${a}/cover.jpg`;
 return `${r2Base}${encodeURIComponent(artistCoverPath)}`;
@@ -10502,7 +10525,10 @@ function handleContextMenu(e, song) {
 
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
 
-            renderHistory();
+if (typeof window.renderHistory === "function") {
+  window.renderHistory();
+}
+
 
             // Keep Home tiles synced
             try { renderHome(); } catch (e) {}
