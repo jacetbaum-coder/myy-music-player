@@ -11104,7 +11104,8 @@ if (homeRecentsShowAllBtn) {
   grid.innerHTML = items.map(h => {
     const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
-    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+        const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+    const safeArtist = String(h.artist || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
 
     // ✅ Always compute album covers from Artist + Album (ignores stale h.cover)
@@ -11122,6 +11123,10 @@ if (homeRecentsShowAllBtn) {
            data-type="${h.type}"
            data-id="${safeId}"
            data-album="${safeAlbum}"
+           data-artist="${safeArtist}">
+
+           data-artist="${safeArtist}">
+
            data-artist="${String(h.artist || '').replace(/"/g, '&quot;')}">
 
         ${
@@ -11148,9 +11153,10 @@ if (homeRecentsShowAllBtn) {
         return;
       }
 
-            const albumName = card.dataset.album || '';
+                  const albumName = card.dataset.album || '';
       const artistName = card.dataset.artist || '';
       if (albumName) openAlbumByName(albumName, artistName);
+
 
     });
   });
