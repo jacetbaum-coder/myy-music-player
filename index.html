@@ -4585,7 +4585,8 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   }
 
   // 2) Use coverArt from the library (Worker JSON)
-      const libCover = String((arguments.length >= 3 ? libraryCoverUrl : "") || "").trim();
+      const libCover = String(coverArtFromLibrary || "").trim();
+
 
 
   // ✅ If UI passes an old album-level cover URL (Artist/Album/cover.jpg),
