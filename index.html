@@ -2274,7 +2274,13 @@ body.qs-lock {
 
 
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
-  <!-- (Removed on mobile Library) -->
+<div class="md:hidden mb-4">
+  <div class="flex items-center justify-between mb-3">
+    <div class="text-2xl font-black">Recently listened</div>
+  </div>
+  <div id="mobile-recents-grid" class="grid grid-cols-1 gap-3"></div>
+</div>
+
 
                 <!-- MOBILE: Library header (Spotify-ish) -->
         <div id="mobile-library-header" class="md:hidden mb-4">
@@ -7397,7 +7403,101 @@ function renderLibraryAll() {
   });
 }
 
+function renderMobileRecents() {
+  const grid = document.getElementById('mobile-recents-grid');
+  if (!grid) return;
+
+  const items = Array.isArray(history) ? history.slice(0, 8) : [];
+  if (!items.length) {
+    grid.innerHTML = `<div class="text-zinc-500 text-sm">No recents yet.</div>`;
+    return;
+  }
+
+  const tiles = [];
+
+  for (const h of items) {
+    const type = String(h?.type || "").trim();
+
+    // PLAYLIST
+    if (type === "playlist") {
+      const safeId = String(h?.id || "").replace(/"/g, '&quot;');
+      const title = String(h?.name || h?.title || "Playlist");
+      const cover = String(h?.cover || "");
+
+      tiles.push(`
+        <div class="mobile-recent-card"
+             data-type="playlist"
+             data-id="${safeId}">
+          ${
+            cover
+              ? `<img src="${cover}" alt="">`
+              : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                   <i class="fas fa-music text-zinc-400 text-xs"></i>
+                 </div>`
+          }
+          <div class="min-w-0">
+            <div class="title">${title}</div>
+            <div class="sub">Playlist</div>
+          </div>
+        </div>
+      `);
+
+      continue;
+    }
+
+    // ALBUM
+    const album = String(h?.album || h?.albumName || "").trim();
+    const artist = String(h?.artist || h?.artistName || "").trim();
+    const safeAlbum = album.replace(/'/g, "\\'");
+    const safeArtist = artist.replace(/'/g, "\\'");
+
+    const cover = String(h?.cover || "");
+    const bigTitle = (album === "Singles") ? artist : album;
+    const smallLine = (album === "Singles") ? "Singles" : artist;
+
+    tiles.push(`
+      <div class="mobile-recent-card"
+           data-type="album"
+           data-album="${safeAlbum}"
+           data-artist="${safeArtist}">
+        ${
+          cover
+            ? `<img src="${cover}" alt="">`
+            : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                 <i class="fas fa-music text-zinc-400 text-xs"></i>
+               </div>`
+        }
+        <div class="min-w-0">
+          <div class="title">${bigTitle}</div>
+          <div class="sub">${smallLine}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  grid.innerHTML = tiles.join('');
+
+  [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const type = card.getAttribute('data-type');
+      if (!type) return;
+
+      if (type === 'playlist') {
+        const id = card.getAttribute('data-id');
+        const idx = playlists.findIndex(pl => String(pl.id) === String(id));
+        if (idx !== -1) showView('playlist', idx);
+        return;
+      }
+
+      const album = card.getAttribute('data-album');
+      const artist = card.getAttribute('data-artist');
+      if (album) openAlbumByName(album, artist);
+    });
+  });
+}
+
 function renderLibraryMain() {
+
   initMobileLibraryTabsOnce();
 
   // ✅ For every tab EXCEPT "All": force alphabetical behavior
@@ -7422,8 +7522,9 @@ function renderLibraryMain() {
   }
 
   if (window.innerWidth <= 768) {
-    renderMobileRecents();
-  }
+  try { renderMobileRecents(); } catch (e) { console.warn("renderMobileRecents failed:", e); }
+}
+
 }
 
 
