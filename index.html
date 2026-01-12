@@ -6798,12 +6798,13 @@ function renderCollection(name, songs, isPlaylist = false, playlistIndex = null)
   }).join('');
 
   listEl.querySelectorAll('.track-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const idx = parseInt(row.getAttribute('data-idx') || '0', 10);
-      playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
-      playQueue(currentQueue, idx);
-    });
+  row.addEventListener('click', () => {
+    const idx = parseInt(row.getAttribute('data-idx') || '0', 10);
+    playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
+    window.playQueue(currentQueue, idx);
   });
+});
+
 }
 
 function showView(viewType, playlistIndex = null) {
@@ -7791,10 +7792,11 @@ function openAlbumByName(name, artistName) {
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) {
     heroPlay.onclick = () => {
-      playContext = { type: 'album', label: name };
-      // shuffle-start handled inside playQueue
-      playQueue(currentQueue, 0);
-    };
+  playContext = { type: 'album', label: name };
+  // shuffle-start handled inside playQueue
+  window.playQueue(currentQueue, 0);
+};
+
   }
 
 
@@ -8458,7 +8460,8 @@ function playArtistByName(artistName) {
 
   const queue = buildQueueFromSongs(allSongs, { album: 'Artist', artist: artistName });
   playContext = { type: 'artist', label: artistName };
-  playQueue(queue, 0);
+  window.playQueue(queue, 0);
+
 }
 
 // Plays a playlist by id (respects shuffle)
@@ -8468,7 +8471,8 @@ function playPlaylistById(playlistId) {
 
   const queue = buildQueueFromSongs(pl.songs || [], { album: pl.name || 'Playlist' });
   playContext = { type: 'playlist', label: pl.name || 'Playlist' };
-  playQueue(queue, 0);
+  window.playQueue(queue, 0);
+
 }
 
         /**
@@ -12824,10 +12828,18 @@ function playQueue(queue, startIndex = 0) {
   window.playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
 
-// ✅ Make it globally available
+
 try { window.playQueue = playQueue; } catch (e) {}
 
-
+// ✅ HARD GUARD: if anything loaded in a weird order, re-export safely
+try {
+  if (typeof window.playQueue !== "function" && typeof playQueue === "function") {
+    window.playQueue = playQueue;
+  }
+  if (typeof window.playSpecificSong !== "function" && typeof playSpecificSong === "function") {
+    window.playSpecificSong = playSpecificSong;
+  }
+} catch (e) {}
 
 
 function renderCollection(name, songs, isPlaylist = false) {
