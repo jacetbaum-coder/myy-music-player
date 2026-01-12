@@ -5703,12 +5703,22 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   // Never let one missing helper break app startup
 
   const safe = (fn, ...args) => {
-    try {
-      if (typeof fn === 'function') return fn(...args);
-    } catch (e) {
-      console.warn('Startup helper failed:', e);
-    }
-  };
+  try {
+    if (typeof fn === 'function') return fn(...args);
+  } catch (e) {
+    console.warn('Startup helper failed:', e);
+  }
+};
+
+// ✅ Always define renderHistory as a harmless no-op if missing
+try {
+  if (typeof window.renderHistory !== "function" && typeof renderHistory !== "function") {
+    window.renderHistory = function(){};
+  }
+} catch (e) {
+  try { window.renderHistory = function(){}; } catch (e2) {}
+}
+
 
     safe(setGreeting);
 
@@ -6656,19 +6666,22 @@ if (scrollArea) scrollArea.scrollTop = 0;
 
 
         if (viewType === 'home') {
-    // MOBILE: show the real Home screen
-    if (window.innerWidth <= 768) {
-      document.getElementById('home-view')?.classList.remove('hidden');
-      try { renderHome(); } catch (e) {}
-    } else {
-      // DESKTOP: Home shows the new header + still shows your library below
-      document.getElementById('grid-view').classList.remove('hidden');
-      renderGrid(libraryData);
-      try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
+  // If mobile home renderer exists, use it. Otherwise fall back to the grid so Home is never blank.
+  const renderHomeFn =
+    (typeof window.renderHome === "function") ? window.renderHome :
+    ((typeof renderHome === "function") ? renderHome : null);
 
-      try { renderHome(); } catch (e) {}
-    }
+  if (window.innerWidth <= 768 && renderHomeFn) {
+    document.getElementById('home-view')?.classList.remove('hidden');
+    try { renderHomeFn(); } catch (e) {}
+  } else {
+    // fallback: always show something
+    document.getElementById('grid-view')?.classList.remove('hidden');
+    try { renderGrid(libraryData); } catch (e) {}
+    try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
   }
+}
+
 
    if (viewType === 'library') {
     document.getElementById('grid-view').classList.remove('hidden');
