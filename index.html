@@ -4570,10 +4570,11 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   const libCover = String(coverArtFromLibrary || "").trim();
   if (libCover) return libCover;
 
-  // 3) Final fallback: build a cover.jpg URL in R2
-  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-  const albumCoverPath = `${a}/${b}/cover.jpg`;
-  return `${r2Base}${encodeURIComponent(albumCoverPath)}`;
+  // 3) Final fallback: build a cover.jpg URL in R2 (artist-level)
+const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+const artistCoverPath = `${a}/cover.jpg`;
+return `${r2Base}${encodeURIComponent(artistCoverPath)}`;
+
 }
 
 async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
@@ -5711,9 +5712,10 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
         const artist = parts[0] || "";
         const album = parts[1] || "";
         const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
-        const cover = artist && album
-          ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/" + album + "/cover.jpg"))
-          : "";
+        const cover = artist
+  ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/cover.jpg"))
+  : "";
+
 
         currentSong = {
           url: "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(trackId),
@@ -6617,7 +6619,8 @@ if (scrollArea) scrollArea.scrollTop = 0;
       // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
       renderGrid(libraryData);
-      renderHistory();
+      try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
+
       try { renderHome(); } catch (e) {}
     }
   }
