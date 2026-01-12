@@ -8945,33 +8945,51 @@ async function updateRightLyricsForSong(songObj) {
 }
 
 async function playSpecificSong(url, title, album, artist, cover) {
+  if (!url) return false;
 
+  // 1) Set current song
   currentSong = { url, title, album, artist, cover };
 
-  // Reset audio cleanly first (helps iOS)
+  // 2) Reset + load audio
   try { player.pause(); } catch (e) {}
   player.src = url;
   player.load();
 
-  // Try to start playback immediately (user tapped a song)
+  // 3) Try to play
   let started = false;
   try {
     const p = player.play();
-    if (p && typeof p.then === 'function') {
-      await p;
-    }
+    if (p && typeof p.then === 'function') await p;
     started = true;
-  } catch (err) {
-    // If autoplay blocks for some reason, we still proceed
-    started = false;
-  }
+  } catch (e) {}
 
-  // Always update UI
+  // 4) 🔑 UPDATE DOCK UI (THIS WAS MISSING)
+  try {
+    const dock = document.getElementById('main-dock');
+    if (dock) dock.classList.remove('dock-hidden');
+
+    const coverEl = document.getElementById('p-cover');
+    if (coverEl) coverEl.src = cover || "";
+
+    try { updateAccentFromCover(cover || ""); } catch (e) {}
+    try { setMarqueeTitle('p-title', (title || "").replace('.mp3','')); } catch (e) {}
+
+    const artistEl = document.getElementById('p-artist');
+    if (artistEl) artistEl.innerText = artist || "";
+
+    try { setAllPlayIconsToPause(); } catch (e) {}
+  } catch (e) {}
+
+  // 5) Persist + cloud sync (so refresh works)
+  try { persistPlayerState(true); } catch (e) {}
+
+  // 6) Now Playing overlay
   try { updateNowPlayingUI(); } catch (e) {}
   try { openNowPlaying(); } catch (e) {}
 
   return started;
 }
+
 
 // ✅ Make it globally available (so onclick handlers can always find it)
 try { window.playSpecificSong = playSpecificSong; } catch (e) {}
