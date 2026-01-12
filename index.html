@@ -8989,6 +8989,12 @@ async function playSpecificSong(url, title, album, artist, cover) {
 
   return started;
 }
+// 🔑 Expose for click handlers + other modules
+try {
+  window.playSpecificSong = playSpecificSong;
+} catch (e) {
+  console.error('Failed to attach playSpecificSong to window', e);
+}
 
 
 // ✅ Make it globally available (so onclick handlers can always find it)
