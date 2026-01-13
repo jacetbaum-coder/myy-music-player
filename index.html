@@ -12605,13 +12605,19 @@ player.addEventListener('ended', () => {
   nextSong();
 });
 
-// Auto-hide dock interval
 
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
 
+        // ✅ Export dock/Now Playing controls to global scope
+        // (Your dock buttons / inline onclick need these on window)
+        window.nextSong = nextSong;
+        window.prevSong = prevSong;
+        window.cycleRepeat = cycleRepeat;
+
 }
 </script>
+
 
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
