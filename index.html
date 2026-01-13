@@ -4176,12 +4176,58 @@ let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
 
 
-        // Elements
+                // Elements
 const player = document.getElementById('audio-player');
 
-/* -----------------------
-   MANUAL QUEUE: add + render
------------------------- */
+// ✅ HARD GUARANTEE: these must exist because your track rows call window.playSpecificSong(...)
+if (typeof window.playSpecificSong !== 'function') {
+  window.playSpecificSong = async function (url, title, album, artist, cover) {
+    try {
+      const p = document.getElementById('audio-player') || document.querySelector('audio');
+      if (!p) {
+        console.error('playSpecificSong: no <audio> element found');
+        return false;
+      }
+
+      const u = String(url || '').trim();
+      if (!u) return false;
+
+      // keep a consistent currentSong
+      try {
+        window.currentSong = { url: u, title: title || '', album: album || '', artist: artist || '', cover: cover || '' };
+      } catch (e) {}
+
+      try { p.pause(); } catch (e) {}
+      try { p.src = u; } catch (e) {}
+      try { p.load(); } catch (e) {}
+
+      try {
+        const prom = p.play();
+        if (prom && typeof prom.catch === 'function') prom.catch(err => console.warn('play() blocked/rejected:', err));
+      } catch (e) {
+        console.warn('play() threw:', e);
+      }
+
+      // best-effort UI updates (won’t crash if missing)
+      try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
+      try { if (typeof openNowPlaying === 'function') openNowPlaying(); } catch (e) {}
+
+      return true;
+    } catch (e) {
+      console.error('playSpecificSong failed:', e);
+      return false;
+    }
+  };
+}
+
+// ✅ Prevent right-click from crashing if handleContextMenu isn't loaded yet
+if (typeof window.handleContextMenu !== 'function') {
+  window.handleContextMenu = function (e, song) {
+    try { e && e.preventDefault && e.preventDefault(); } catch (err) {}
+    console.warn('handleContextMenu not available yet. song=', song);
+  };
+}
+
 function addSongToQueue(songObj) {
   if (!songObj) return;
 
