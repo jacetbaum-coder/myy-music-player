@@ -4765,9 +4765,20 @@ const volumeContainer = document.getElementById('volume-container');
 const volumeFill = document.getElementById('volume-fill');
 const volumeIcon = document.getElementById('volume-icon');
 
-// Default volume
-player.volume = 0.66;
-volumeFill.style.width = "66%";
+// Default volume (GUARDED so mobile/desktop missing elements can't crash the whole script)
+try {
+  if (player && volumeFill) {
+    player.volume = 0.66;
+    volumeFill.style.width = "66%";
+  } else {
+    console.warn("Volume UI missing:", { player: !!player, volumeFill: !!volumeFill });
+  }
+} catch (e) {
+  console.warn("Volume init failed (non-fatal):", e);
+}
+
+function setVolumeFromClientX(clientX) {
+
 
 function setVolumeFromClientX(clientX) {
     const rect = volumeContainer.getBoundingClientRect();
