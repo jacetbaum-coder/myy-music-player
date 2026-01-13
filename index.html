@@ -13312,31 +13312,65 @@ player.addEventListener('ended', () => {
         if (dockArtist) dockArtist.textContent = artist || '';
         const coverEl = document.getElementById('p-cover');
         if (coverEl && cover) coverEl.src = cover;
-                const npCover = document.getElementById('np-cover');
+        const npCover = document.getElementById('np-cover');
         if (npCover && cover) npCover.src = cover;
-                const dock = document.getElementById('main-dock');
-        if (dock) dock.classList.remove('hidden');
+        const dock = document.getElementById('main-dock');
+                if (dock) dock.classList.remove('hidden');
       } catch (e) {}
     };
   }
-
-/* ✅ Export dock/now-playing controls so inline onclick="..." works */
-
+})();
+/* =====================================================================
+   FORCE DOCK / NOW PLAYING CONTROL CONTRACT ONTO window
+   (so inline onclick="togglePlay()" etc always work)
+   ===================================================================== */
+(function forceDockGlobals() {
+  const exportIfMissing = (name, fn) => {
     try {
-      window.togglePlay = togglePlay;
-      window.toggleLike = toggleLike;
-      window.nextSong = nextSong;
-      window.prevSong = prevSong;
-      window.toggleShuffle = toggleShuffle;
-      window.cycleRepeat = cycleRepeat;
-      window.openNowPlaying = openNowPlaying;
-      window.closeNowPlaying = closeNowPlaying;
-      window.updateNowPlayingUI = updateNowPlayingUI;
+      if (typeof window[name] !== 'function' && typeof fn === 'function') {
+        window[name] = fn;
+      }
     } catch (e) {}
+  };
+
+  // Export the functions if they exist in this script scope
+  try { exportIfMissing('togglePlay', (typeof togglePlay === 'function') ? togglePlay : null); } catch (e) {}
+  try { exportIfMissing('toggleLike', (typeof toggleLike === 'function') ? toggleLike : null); } catch (e) {}
+  try { exportIfMissing('nextSong', (typeof nextSong === 'function') ? nextSong : null); } catch (e) {}
+  try { exportIfMissing('prevSong', (typeof prevSong === 'function') ? prevSong : null); } catch (e) {}
+  try { exportIfMissing('cycleRepeat', (typeof cycleRepeat === 'function') ? cycleRepeat : null); } catch (e) {}
+  try { exportIfMissing('toggleShuffle', (typeof toggleShuffle === 'function') ? toggleShuffle : null); } catch (e) {}
+  try { exportIfMissing('openNowPlaying', (typeof openNowPlaying === 'function') ? openNowPlaying : null); } catch (e) {}
+  try { exportIfMissing('updateNowPlayingUI', (typeof updateNowPlayingUI === 'function') ? updateNowPlayingUI : null); } catch (e) {}
+
+  // closeNowPlaying is the most likely one to be scoped/closure-bound, so add a DOM-safe fallback
+  try {
+    if (typeof window.closeNowPlaying !== 'function') {
+      window.closeNowPlaying = function closeNowPlayingGlobal() {
+        try {
+          const overlay = document.getElementById('now-playing-overlay');
+          if (!overlay) return;
+
+          // animate down, then hide
+          overlay.classList.remove('np-dragging');
+          overlay.style.transform = 'translateY(100%)';
+
+          const done = () => {
+            overlay.classList.add('hidden');
+            overlay.style.transform = 'translateY(0)';
+            overlay.removeEventListener('transitionend', done);
+          };
+          overlay.addEventListener('transitionend', done);
+        } catch (e) {
+          // hard-hide fallback
+          try { document.getElementById('now-playing-overlay')?.classList.add('hidden'); } catch (e2) {}
+        }
+      };
+    }
+  } catch (e) {}
 })();
 
 </script>
-
 
 
 <!-- PLAYLIST MENU (Pin/Unpin + Cover)
@@ -13779,6 +13813,24 @@ try {
       bind();
     }
   })();
+
+  /* =========================================================
+     DOCK / NOW PLAYING GLOBAL CONTRACT
+     Expose controls for inline onclick="nextSong()" etc.
+     ========================================================= */
+  try {
+    if (typeof togglePlay === 'function') window.togglePlay = togglePlay;
+    if (typeof toggleLike === 'function') window.toggleLike = toggleLike;
+    if (typeof nextSong === 'function') window.nextSong = nextSong;
+    if (typeof prevSong === 'function') window.prevSong = prevSong;
+    if (typeof toggleShuffle === 'function') window.toggleShuffle = toggleShuffle;
+    if (typeof cycleRepeat === 'function') window.cycleRepeat = cycleRepeat;
+    if (typeof openNowPlaying === 'function') window.openNowPlaying = openNowPlaying;
+    if (typeof closeNowPlaying === 'function') window.closeNowPlaying = closeNowPlaying;
+    if (typeof updateNowPlayingUI === 'function') window.updateNowPlayingUI = updateNowPlayingUI;
+  } catch (e) {
+    try { console.error('Dock global export failed', e); } catch (e2) {}
+  }
 
 </script>
   <!-- SYNC DEVICES MODAL -->
