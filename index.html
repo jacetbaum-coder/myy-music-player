@@ -12061,8 +12061,37 @@ function resetShuffleForQueue() {
     shufflePos = 0;
 }
 function toggleShuffle() {
+  const els = [
+    document.getElementById('btn-shuffle'),
+    document.getElementById('np-shuffle-icon'),
+    document.getElementById('album-shuffle-icon'),
+    document.getElementById('artist-shuffle-icon'),
+  ].filter(Boolean);
+
+  if (!els.length) return;
+
+  const isOn = els.some(el => el.classList.contains('active-green'));
+  const turnOn = !isOn;
+
+  // Keep all shuffle buttons/icons in sync
+  els.forEach(el => el.classList.toggle('active-green', turnOn));
+
+  // If turning ON and we have a queue + currentIndex, reset shuffle order/history
+  if (turnOn && currentQueue && currentQueue.length > 0 && currentIndex >= 0) {
+    try { resetShuffleForQueue(); } catch (e) {}
+    try { playedStack = [currentIndex]; } catch (e) {}
+    try { shufflePos = 0; } catch (e) {}
+  }
+
+  // If turning OFF, clear shuffle ordering state (optional but safe)
+  if (!turnOn) {
+    try { shuffleOrder = []; } catch (e) {}
+    try { shufflePos = 0; } catch (e) {}
+  }
+}
 
 function bindActionShuffleButton() {
+
   const actionButtons = Array.from(document.querySelectorAll('.action-btn'));
   const shuffleBtn = actionButtons.find(btn => btn.querySelector('.fa-shuffle'));
   if (!shuffleBtn || shuffleBtn.dataset.shuffleBound === '1') return;
