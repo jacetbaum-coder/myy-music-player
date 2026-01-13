@@ -13314,12 +13314,14 @@ player.addEventListener('ended', () => {
         if (coverEl && cover) coverEl.src = cover;
                 const npCover = document.getElementById('np-cover');
         if (npCover && cover) npCover.src = cover;
-        const dock = document.getElementById('main-dock');
+                const dock = document.getElementById('main-dock');
         if (dock) dock.classList.remove('hidden');
       } catch (e) {}
-    }
+    };
+  }
 
-    /* ✅ Export dock/now-playing controls so inline onclick="..." works */
+/* ✅ Export dock/now-playing controls so inline onclick="..." works */
+
     try {
       window.togglePlay = togglePlay;
       window.toggleLike = toggleLike;
