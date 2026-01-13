@@ -12678,6 +12678,46 @@ function setAllPlayIconsToPlay() {
   if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
 }
 
+
+function togglePlay() {
+  const p = document.getElementById('audio-player') || document.querySelector('audio');
+  if (!p) return;
+
+  // If we somehow have no src but we do have a currentSong, use it.
+  try {
+    const u =
+      (window.currentSong && window.currentSong.url) ? window.currentSong.url :
+      (typeof currentSong !== 'undefined' && currentSong && currentSong.url) ? currentSong.url :
+      '';
+    if (!p.src && u) p.src = u;
+  } catch (e) {}
+
+  // Nothing to play yet
+  if (!p.src) return;
+
+  // Toggle play/pause
+  if (p.paused) {
+    const prom = p.play();
+    if (prom && typeof prom.catch === 'function') prom.catch(() => {});
+    // Update icons to "pause" if they exist
+    try {
+      const desktopIcon = document.getElementById('play-icon');
+      const mobileIcon = document.getElementById('mobile-play-icon');
+      const npIcon = document.getElementById('np-play-icon');
+      if (desktopIcon) desktopIcon.className = "fas fa-pause ml-1";
+      if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+      if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+    } catch (e) {}
+  } else {
+    p.pause();
+    try { if (typeof setAllPlayIconsToPlay === 'function') setAllPlayIconsToPlay(); } catch (e) {}
+  }
+
+  // Keep UI in sync (non-fatal if missing)
+  try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
+}
+
+
 function nextSong() {
 
     const manualSong = takeNextManualQueueSong();
@@ -13212,6 +13252,75 @@ player.addEventListener('ended', () => {
 
 }
 };
+
+// ✅ Export / fallback: dock buttons use inline onclick="...()" which needs globals.
+// If something is missing, define a safe version so the UI never "does nothing".
+(function(){
+  try {
+    // Ensure currentSong is reachable everywhere
+    if (typeof window.currentSong === 'undefined' && typeof currentSong !== 'undefined') {
+      window.currentSong = currentSong;
+    }
+  } catch (e) {}
+
+  // expose existing functions if they exist in this scope
+  try { if (typeof nextSong === 'function') window.nextSong = nextSong; } catch (e) {}
+  try { if (typeof prevSong === 'function') window.prevSong = prevSong; } catch (e) {}
+  try { if (typeof cycleRepeat === 'function') window.cycleRepeat = cycleRepeat; } catch (e) {}
+  try { if (typeof toggleShuffle === 'function') window.toggleShuffle = toggleShuffle; } catch (e) {}
+  try { if (typeof toggleLike === 'function') window.toggleLike = toggleLike; } catch (e) {}
+  try { if (typeof openNowPlaying === 'function') window.openNowPlaying = openNowPlaying; } catch (e) {}
+  try { if (typeof closeNowPlaying === 'function') window.closeNowPlaying = closeNowPlaying; } catch (e) {}
+  try { if (typeof handleContextMenu === 'function') window.handleContextMenu = handleContextMenu; } catch (e) {}
+  try { if (typeof playSpecificSong === 'function') window.playSpecificSong = playSpecificSong; } catch (e) {}
+
+  // Always provide togglePlay (dock play button depends on it)
+  if (typeof window.togglePlay !== 'function') {
+    window.togglePlay = (typeof togglePlay === 'function') ? togglePlay : function(){
+      const p = document.getElementById('audio-player') || document.querySelector('audio');
+      if (!p) return;
+      if (!p.src) {
+        const u = (window.currentSong && window.currentSong.url) ? window.currentSong.url : '';
+        if (u) p.src = u;
+      }
+      if (!p.src) return;
+      if (p.paused) {
+        const prom = p.play();
+        if (prom && prom.catch) prom.catch(()=>{});
+      } else {
+        p.pause();
+      }
+      try { if (typeof window.updateNowPlayingUI === 'function') window.updateNowPlayingUI(); } catch (e) {}
+    };
+  }
+
+  // Fallback updateNowPlayingUI (fills dock + now playing sheet)
+  if (typeof window.updateNowPlayingUI !== 'function') {
+    window.updateNowPlayingUI = function(){
+      const s = window.currentSong || {};
+      const title = s.title || s.name || '';
+      const artist = s.artist || s.artistName || '';
+      const cover = s.cover || s.coverArt || '';
+      try {
+        const tEl = document.getElementById('np-title');
+        if (tEl) tEl.textContent = title || '—';
+        const cEl = document.getElementById('np-context');
+        if (cEl) cEl.textContent = title ? 'NOW PLAYING' : '—';
+        const dockTitle = document.getElementById('dock-title');
+        if (dockTitle) dockTitle.textContent = title || '—';
+        const dockArtist = document.getElementById('dock-artist');
+        if (dockArtist) dockArtist.textContent = artist || '';
+        const coverEl = document.getElementById('p-cover');
+        if (coverEl && cover) coverEl.src = cover;
+        const npCover = document.getElementById('np-cover');
+        if (npCover && cover) npCover.src = cover;
+        const dock = document.getElementById('main-dock');
+        if (dock) dock.classList.remove('hidden');
+      } catch (e) {}
+    };
+  }
+})();
+
 </script>
 
 
