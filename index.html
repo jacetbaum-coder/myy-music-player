@@ -4178,6 +4178,42 @@ let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
                 // Elements
 const player = document.getElementById('audio-player');
+    // ===============================
+// NOW PLAYING UI (DOCK + OVERLAY)
+// ===============================
+
+// Update dock + now-playing text from currentSong
+window.updateNowPlayingUI = function () {
+  try {
+    if (!window.currentSong) return;
+
+    const dock = document.getElementById('main-dock');
+    const npTitle = document.getElementById('np-title');
+
+    // Show dock
+    if (dock) dock.classList.remove('hidden');
+
+    // Update title text
+    if (npTitle) {
+      const title = window.currentSong.title || '';
+      const artist = window.currentSong.artist || '';
+      npTitle.textContent = artist ? `${title} — ${artist}` : title;
+    }
+  } catch (e) {
+    console.warn('updateNowPlayingUI failed:', e);
+  }
+};
+
+// Open the Now Playing overlay panel
+window.openNowPlaying = function () {
+  try {
+    const panel = document.querySelector('[id^="now-playing"]');
+    if (panel) panel.classList.remove('hidden');
+  } catch (e) {
+    console.warn('openNowPlaying failed:', e);
+  }
+};
+
 
 // ✅ HARD GUARANTEE: these must exist because your track rows call window.playSpecificSong(...)
 if (typeof window.playSpecificSong !== 'function') {
