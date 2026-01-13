@@ -2274,13 +2274,7 @@ body.qs-lock {
 
 
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
-<div class="md:hidden mb-4">
-  <div class="flex items-center justify-between mb-3">
-    <div class="text-2xl font-black">Recently listened</div>
-  </div>
-  <div id="mobile-recents-grid" class="grid grid-cols-1 gap-3"></div>
-</div>
-
+  <!-- (Removed on mobile Library) -->
 
                 <!-- MOBILE: Library header (Spotify-ish) -->
         <div id="mobile-library-header" class="md:hidden mb-4">
@@ -2596,25 +2590,7 @@ body.qs-lock {
     </button>
   </div>
 
-  <!-- FEATURED IN (shows playlists that contain this artist) -->
-  <div id="artist-featured-wrap" class="mt-10 hidden">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-black">Featured in…</h2>
-
-      <button id="artist-featured-showall"
-              class="text-sm font-extrabold text-zinc-400 hover:text-white hidden"
-              type="button">
-        Show all
-      </button>
-    </div>
-
-    <div id="artist-playlist-grid"
-         class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-    </div>
-  </div>
-
   <!-- DISCOGRAPHY HEADER (Albums + Shuffle + 3-dots) -->
-
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-2xl font-black">Albums</h2>
 
@@ -2636,6 +2612,12 @@ body.qs-lock {
   </div>
 
   <div id="artist-album-grid"
+       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+  </div>
+
+  <!-- FEATURED IN -->
+  <h2 id="artist-featured-title" class="text-2xl font-black mt-10 mb-4 hidden">Featured in…</h2>
+  <div id="artist-playlist-grid"
        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
   </div>
 
@@ -2679,8 +2661,7 @@ body.qs-lock {
     <!-- Queue (desktop right sidebar) -->
     <section id="right-queue-card" class="lyrics-card hidden">
       <div class="lyrics-header" style="justify-content: space-between;">
-        <div class="lyrics-title">Queue</div>
-
+        <div class="lyrics-title">Queue</div
         <button id="right-queue-clear"
                 style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
           Clear
@@ -4176,94 +4157,12 @@ let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
 
 
-                // Elements
+        // Elements
 const player = document.getElementById('audio-player');
-    // ===============================
-// NOW PLAYING UI (DOCK + OVERLAY)
-// ===============================
 
-// Update dock + now-playing text from currentSong
-window.updateNowPlayingUI = function () {
-  try {
-    if (!window.currentSong) return;
-
-    const dock = document.getElementById('main-dock');
-    const npTitle = document.getElementById('np-title');
-
-    // Show dock
-    if (dock) dock.classList.remove('hidden');
-
-    // Update title text
-    if (npTitle) {
-      const title = window.currentSong.title || '';
-      const artist = window.currentSong.artist || '';
-      npTitle.textContent = artist ? `${title} — ${artist}` : title;
-    }
-  } catch (e) {
-    console.warn('updateNowPlayingUI failed:', e);
-  }
-};
-
-// Open the Now Playing overlay panel
-window.openNowPlaying = function () {
-  try {
-    const panel = document.querySelector('[id^="now-playing"]');
-    if (panel) panel.classList.remove('hidden');
-  } catch (e) {
-    console.warn('openNowPlaying failed:', e);
-  }
-};
-
-
-// ✅ HARD GUARANTEE: these must exist because your track rows call window.playSpecificSong(...)
-if (typeof window.playSpecificSong !== 'function') {
-  window.playSpecificSong = async function (url, title, album, artist, cover) {
-    try {
-      const p = document.getElementById('audio-player') || document.querySelector('audio');
-      if (!p) {
-        console.error('playSpecificSong: no <audio> element found');
-        return false;
-      }
-
-      const u = String(url || '').trim();
-      if (!u) return false;
-
-      // keep a consistent currentSong
-      try {
-        window.currentSong = { url: u, title: title || '', album: album || '', artist: artist || '', cover: cover || '' };
-      } catch (e) {}
-
-      try { p.pause(); } catch (e) {}
-      try { p.src = u; } catch (e) {}
-      try { p.load(); } catch (e) {}
-
-      try {
-        const prom = p.play();
-        if (prom && typeof prom.catch === 'function') prom.catch(err => console.warn('play() blocked/rejected:', err));
-      } catch (e) {
-        console.warn('play() threw:', e);
-      }
-
-      // best-effort UI updates (won’t crash if missing)
-      try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
-      try { if (typeof openNowPlaying === 'function') openNowPlaying(); } catch (e) {}
-
-      return true;
-    } catch (e) {
-      console.error('playSpecificSong failed:', e);
-      return false;
-    }
-  };
-}
-
-// ✅ Prevent right-click from crashing if handleContextMenu isn't loaded yet
-if (typeof window.handleContextMenu !== 'function') {
-  window.handleContextMenu = function (e, song) {
-    try { e && e.preventDefault && e.preventDefault(); } catch (err) {}
-    console.warn('handleContextMenu not available yet. song=', song);
-  };
-}
-
+/* -----------------------
+   MANUAL QUEUE: add + render
+------------------------ */
 function addSongToQueue(songObj) {
   if (!songObj) return;
 
@@ -4646,25 +4545,7 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   if (Object.prototype.hasOwnProperty.call(map, key)) {
     const override = String(map[key] || "").trim();
 
-        if (override) {
-      // If an old override points to Artist/Album/cover.jpg, rewrite to Artist/cover.jpg automatically
-      try {
-        if (override.includes("/?id=") && override.toLowerCase().includes("cover.jpg")) {
-          const u = new URL(override, location.origin);
-          const id = u.searchParams.get("id") || "";
-          const decoded = decodeURIComponent(id);
-          const parts = decoded.split("/").filter(Boolean);
-
-          // "Artist/Album/cover.jpg" -> "Artist/cover.jpg"
-          if (parts.length >= 3 && String(parts[parts.length - 1]).toLowerCase() === "cover.jpg") {
-            const artist = parts[0];
-            return `${u.origin}/?id=${encodeURIComponent(artist + "/cover.jpg")}`;
-          }
-        }
-      } catch (e) {}
-      return override;
-    }
-
+    if (override) return override;
 
     // If override exists but is empty, it hides covers.
     // Auto-delete it so covers come back.
@@ -4673,40 +4554,13 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
   }
 
   // 2) Use coverArt from the library (Worker JSON)
-      const libCover = String(coverArtFromLibrary || "").trim();
+  const libCover = String(coverArtFromLibrary || "").trim();
+  if (libCover) return libCover;
 
-
-
-  // ✅ If UI passes an old album-level cover URL (Artist/Album/cover.jpg),
-  // rewrite it to the new artist-level cover (Artist/cover.jpg).
-  if (libCover) {
-    try {
-      // only try to rewrite workers.dev URLs with ?id=
-      const u = new URL(libCover);
-      const id = u.searchParams.get("id");
-      if (id) {
-        const decoded = decodeURIComponent(id);
-
-        // If it matches the old album cover path, rewrite to artist cover
-        if (decoded === `${a}/${b}/cover.jpg`) {
-          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-          const artistCoverPath = `${a}/cover.jpg`;
-          return `${r2Base}${encodeURIComponent(artistCoverPath)}`;
-        }
-      }
-    } catch (e) {}
-
-    // otherwise keep whatever we were given
-    return libCover;
-  }
-
-  // 3) Final fallback: build a cover.jpg URL in R2 (artist-level)
-
-const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-const artistCoverPath = `${a}/cover.jpg`;
-return `${r2Base}${encodeURIComponent(artistCoverPath)}`;
-
-
+  // 3) Final fallback: build a cover.jpg URL in R2
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+  const albumCoverPath = `${a}/${b}/cover.jpg`;
+  return `${r2Base}${encodeURIComponent(albumCoverPath)}`;
 }
 
 async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
@@ -4847,17 +4701,9 @@ const volumeContainer = document.getElementById('volume-container');
 const volumeFill = document.getElementById('volume-fill');
 const volumeIcon = document.getElementById('volume-icon');
 
-// Default volume (GUARDED so mobile/desktop missing elements can't crash the whole script)
-try {
-  if (player && volumeFill) {
-    player.volume = 0.66;
-    volumeFill.style.width = "66%";
-  } else {
-    console.warn("Volume UI missing:", { player: !!player, volumeFill: !!volumeFill });
-  }
-} catch (e) {
-  console.warn("Volume init failed (non-fatal):", e);
-}
+// Default volume
+player.volume = 0.66;
+volumeFill.style.width = "66%";
 
 function setVolumeFromClientX(clientX) {
     const rect = volumeContainer.getBoundingClientRect();
@@ -4947,137 +4793,7 @@ let contextMenuAnchor = null;
   }
 }
 
-/* ============================================================
-   ✅ SAFETY SHIMS (only define if missing)
-   - Fixes: attachSongPressHandlers is not defined
-   - Fixes: addToHistory is not defined (history stays empty)
-   - Fixes: renderMobileRecents is not defined
-   ============================================================ */
-
-// ---- history bootstrap (global) ----
-if (!Array.isArray(window.history)) {
-  try {
-    const saved = JSON.parse(localStorage.getItem('historyLog') || '[]');
-    window.history = Array.isArray(saved) ? saved : [];
-  } catch (e) {
-    window.history = [];
-  }
-}
-
-// ---- attachSongPressHandlers shim ----
-if (typeof window.attachSongPressHandlers !== "function") {
-  window.attachSongPressHandlers = function attachSongPressHandlers(row, song, state) {
-    if (!row) return;
-    state = state || {};
-    let pressTimer = null;
-
-    row.addEventListener('touchstart', (e) => {
-      if (!e.touches || !e.touches[0]) return;
-      const t = e.touches[0];
-      state.longPress = false;
-
-      pressTimer = setTimeout(() => {
-        state.longPress = true;
-        try {
-          if (typeof window.showContextMenuAt === "function") {
-            window.showContextMenuAt(t.pageX, t.pageY, song, row);
-          }
-        } catch (err) {}
-      }, 500);
-    }, { passive: true });
-
-    const cancel = () => {
-      if (pressTimer) clearTimeout(pressTimer);
-      pressTimer = null;
-    };
-
-    row.addEventListener('touchend', (e) => {
-      cancel();
-      if (state.longPress) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { passive: false });
-
-    row.addEventListener('touchmove', cancel, { passive: true });
-    row.addEventListener('touchcancel', cancel, { passive: true });
-  };
-
-  // Also expose as a plain global identifier
-  try { if (typeof attachSongPressHandlers !== "function") { var attachSongPressHandlers = window.attachSongPressHandlers; } } catch (e) {}
-}
-
-// ---- addToHistory shim ----
-if (typeof window.addToHistory !== "function") {
-  window.addToHistory = function addToHistory(album, artist, cover) {
-    try {
-      // Load freshest copy
-      let h = [];
-      try { h = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { h = []; }
-      if (!Array.isArray(h)) h = [];
-
-      const playlistMatch = (typeof activePlaylistId !== 'undefined' && activePlaylistId)
-        ? (Array.isArray(playlists) ? playlists.find(pl => pl.id === activePlaylistId) : null)
-        : null;
-
-      if (playlistMatch) {
-        const explicit = (typeof getEffectivePlaylistCover === "function")
-          ? getEffectivePlaylistCover(playlistMatch)
-          : (playlistMatch.cover || playlistMatch.cover_url || "");
-
-        const songs = Array.isArray(playlistMatch.songs) ? playlistMatch.songs : [];
-        const covers = songs
-          .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
-          .map(x => String(x || '').trim())
-          .filter(Boolean);
-
-        const historyCover = explicit || (covers.length >= 1 ? covers[0] : cover);
-
-        h = h.filter(x => !(x && x.type === 'playlist' && x.id === playlistMatch.id));
-        h.unshift({
-          type: 'playlist',
-          id: playlistMatch.id,
-          name: playlistMatch.name,
-          cover: historyCover
-        });
-      } else {
-        // album entry
-        h = h.filter(x => !(x && x.type === 'album' && x.album === album && x.artist === artist));
-        h.unshift({ type: 'album', album, artist, cover });
-      }
-
-      // Save + mirror to window.history
-      window.history = h.slice(0, 16);
-      localStorage.setItem('historyLog', JSON.stringify(window.history));
-
-      // Re-render if your app has these
-      try { if (typeof window.renderHistory === "function") window.renderHistory(); } catch (e) {}
-      try { if (typeof window.renderHome === "function") window.renderHome(); } catch (e) {}
-      try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('home-recents-row'); } catch (e) {}
-    } catch (e) {}
-  };
-
-  // Also expose as a plain global identifier
-  try { if (typeof addToHistory !== "function") { var addToHistory = window.addToHistory; } } catch (e) {}
-}
-
-// ---- renderMobileRecents shim ----
-if (typeof window.renderMobileRecents !== "function") {
-  window.renderMobileRecents = function renderMobileRecents() {
-    // Your codebase already uses renderHomeRecentsRow(containerId)
-    // Try the most likely containers safely (no crashes if missing)
-    try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('home-recents-row'); } catch (e) {}
-    try { if (typeof window.renderHomeRecentsRow === "function") window.renderHomeRecentsRow('library-recents-row'); } catch (e) {}
-  };
-
-  try { if (typeof renderMobileRecents !== "function") { var renderMobileRecents = window.renderMobileRecents; } } catch (e) {}
-}
-
-
-        // ✅ Safe: avoids "already been declared" if this script runs twice
-        var greetingEl = window.greetingEl || document.getElementById('greeting-text');
-        window.greetingEl = greetingEl;
-
+        const greetingEl = document.getElementById('greeting-text');
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
 const dockLeft = document.getElementById('dock-left');
@@ -5929,22 +5645,12 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   // Never let one missing helper break app startup
 
   const safe = (fn, ...args) => {
-  try {
-    if (typeof fn === 'function') return fn(...args);
-  } catch (e) {
-    console.warn('Startup helper failed:', e);
-  }
-};
-
-// ✅ Always define renderHistory as a harmless no-op if missing
-try {
-  if (typeof window.renderHistory !== "function" && typeof renderHistory !== "function") {
-    window.renderHistory = function(){};
-  }
-} catch (e) {
-  try { window.renderHistory = function(){}; } catch (e2) {}
-}
-
+    try {
+      if (typeof fn === 'function') return fn(...args);
+    } catch (e) {
+      console.warn('Startup helper failed:', e);
+    }
+  };
 
     safe(setGreeting);
 
@@ -5992,10 +5698,9 @@ try {
         const artist = parts[0] || "";
         const album = parts[1] || "";
         const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
-        const cover = artist
-  ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/cover.jpg"))
-  : "";
-
+        const cover = artist && album
+          ? ("https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(artist + "/" + album + "/cover.jpg"))
+          : "";
 
         currentSong = {
           url: "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(trackId),
@@ -6062,8 +5767,7 @@ try {
     const controller = new AbortController();
 const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(), { signal: controller.signal });
-
+const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
 
 clearTimeout(timeoutId);
 
@@ -6426,9 +6130,8 @@ function goBack() {
 
   try {
     if (prev.type === 'album' && prev.albumName) {
-  openAlbumByName(prev.albumName, prev.artistName);
-} else if (prev.type === 'artist' && prev.artistName) {
-
+      openAlbumByName(prev.albumName);
+    } else if (prev.type === 'artist' && prev.artistName) {
       openArtistByName(prev.artistName);
     } else if (prev.type === 'playlist' && Number.isInteger(prev.playlistIndex)) {
       showView('playlist', prev.playlistIndex);
@@ -6820,85 +6523,7 @@ function initSearchSwipeDownClose() {
   }, { passive: true });
 }
 
-function renderCollection(name, songs, isPlaylist = false, playlistIndex = null) {
-  // Ensure album-view is visible
-  try {
-    document.getElementById('home-view')?.classList.add('hidden');
-    document.getElementById('grid-view')?.classList.add('hidden');
-    document.getElementById('search-view')?.classList.add('hidden');
-    document.getElementById('artist-view')?.classList.add('hidden');
-    document.getElementById('crate-view')?.classList.add('hidden');
-    document.getElementById('album-view')?.classList.remove('hidden');
-  } catch (e) {}
-
-  const arr = Array.isArray(songs) ? songs : [];
-
-  // Pick a reasonable cover
-  const first = arr[0] || {};
-  const cover =
-    first.cover || first.coverArt || first.image || first.art ||
-    (document.getElementById('p-cover') ? document.getElementById('p-cover').src : "");
-
-  // Build queue (so rows can play)
-  currentQueue = buildQueueFromSongs(arr, { album: name, cover });
-  currentIndex = -1;
-
-  // Hero
-  const label = isPlaylist ? "Playlist" : "Album";
-  const hero = document.getElementById('album-hero');
-  if (hero) {
-    hero.innerHTML = `
-      <img id="album-hero-cover"
-           src="${String(cover || '')}"
-           class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">
-      <div class="flex-1 album-hero-info">
-        <p class="album-hero-label text-xs font-bold uppercase tracking-widest mb-2">${label}</p>
-        <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${String(name || '')}</h1>
-        <div class="album-hero-meta text-sm text-zinc-400">${label} • ${currentQueue.length} songs</div>
-      </div>
-    `;
-  }
-
-    // Hook hero play
-  const heroPlay = document.getElementById('hero-play-btn');
-  if (heroPlay) {
-    heroPlay.onclick = () => {
-      playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
-      // ✅ Call the global function (works even if defined in a different script scope)
-      window.playQueue(currentQueue, 0);
-    };
-  }
-
-  // Track rows
-  const listEl = document.getElementById('track-list');
-  if (!listEl) return;
-
-  listEl.innerHTML = currentQueue.map((s, i) => {
-    const t = String(s.title || s.name || 'Unknown Title');
-    const a = String(s.artist || s.artistName || 'Unknown Artist');
-    return `
-      <div class="track-row flex items-center gap-3 px-4 py-3 hover:bg-white/10 cursor-pointer" data-idx="${i}">
-        <div class="w-6 text-zinc-400 text-sm">${i + 1}</div>
-        <div class="min-w-0 flex-1">
-          <div class="text-white font-bold truncate">${t}</div>
-          <div class="text-zinc-400 text-sm truncate">${a}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  listEl.querySelectorAll('.track-row').forEach(row => {
-  row.addEventListener('click', () => {
-    const idx = parseInt(row.getAttribute('data-idx') || '0', 10);
-    playContext = { type: isPlaylist ? 'playlist' : 'album', label: String(name || '') };
-    window.playQueue(currentQueue, idx);
-  });
-});
-
-}
-
 function showView(viewType, playlistIndex = null) {
-
 
     // Capture what's currently on screen so swipe-back shows it behind
   window.captureSwipeBackUnderlay?.();
@@ -6935,17 +6560,23 @@ else if (viewType === 'crate') setNavCurrent({ type: 'crate' });
 else if (viewType === 'artist') setNavCurrent({ type: 'artist', artistName: activeArtistName || "" });
 else if (viewType === 'playlist') {
 
-  const list = Array.isArray(playlists) ? playlists : [];
+  const list = (Array.isArray(playlists) ? playlists.slice() : [])
+    .sort((a, b) => {
+      const an = String(a?.name || a?.title || '').toLowerCase();
+      const bn = String(b?.name || b?.title || '').toLowerCase();
+      return an.localeCompare(bn);
+    });
+
   let idx = playlistIndex;
 
-  // ✅ If we got an id (string), try id -> index FIRST
+  // If we got "12" as a string, convert to number
+  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
+
+  // If we got an id string, try id -> index
   if (typeof idx === 'string') {
     const byId = list.findIndex(p => String(p?.id) === String(idx));
-    if (byId !== -1) idx = byId;
+    idx = byId;
   }
-
-  // ✅ If still a numeric-looking string, treat as index
-  if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
 
   const plForNav = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
@@ -6964,23 +6595,19 @@ const scrollArea = document.getElementById('main-scroll-area');
 if (scrollArea) scrollArea.scrollTop = 0;
 
 
-               if (viewType === 'home') {
-  // MOBILE: show the real Home screen
-  const renderHomeFn =
-    (typeof window.renderHome === "function") ? window.renderHome :
-    ((typeof renderHome === "function") ? renderHome : null);
-
-  if (window.innerWidth <= 768) {
-    document.getElementById('home-view')?.classList.remove('hidden');
-    try { if (renderHomeFn) renderHomeFn(); } catch (e) {}
-  } else {
-    // DESKTOP: Home = grid-view (your library grid) + ALSO run renderHome() for the header sections
-    document.getElementById('grid-view')?.classList.remove('hidden');
-    try { renderGrid(libraryData); } catch (e) {}
-    try { if (typeof renderHistory === "function") renderHistory(); } catch (e) {}
-    try { if (renderHomeFn) renderHomeFn(); } catch (e) {}
+        if (viewType === 'home') {
+    // MOBILE: show the real Home screen
+    if (window.innerWidth <= 768) {
+      document.getElementById('home-view')?.classList.remove('hidden');
+      try { renderHome(); } catch (e) {}
+    } else {
+      // DESKTOP: Home shows the new header + still shows your library below
+      document.getElementById('grid-view').classList.remove('hidden');
+      renderGrid(libraryData);
+      renderHistory();
+      try { renderHome(); } catch (e) {}
+    }
   }
-}
 
    if (viewType === 'library') {
     document.getElementById('grid-view').classList.remove('hidden');
@@ -7015,15 +6642,8 @@ if (scrollArea) scrollArea.scrollTop = 0;
   const list = Array.isArray(playlists) ? playlists : [];
 let idx = playlistIndex;
 
-// ✅ Try id -> index FIRST (so "12" can still be an id)
-if (typeof idx === 'string') {
-  const byId = list.findIndex(p => String(p?.id) === String(idx));
-  if (byId !== -1) idx = byId;
-}
-
-// ✅ If still numeric-looking string, treat as index
 if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = Number(idx);
-
+if (typeof idx === 'string') idx = list.findIndex(p => String(p?.id) === String(idx));
 
 const pl = (Number.isInteger(idx) && idx >= 0 && idx < list.length) ? list[idx] : null;
 
@@ -7301,23 +6921,12 @@ function renderGrid(data) {
   if (!grid) return;
 
   grid.innerHTML = data.map((album) => {
-    const albumName = String(album?.albumName || "");
-    const artistName = String(album?.artistName || "");
-
-    // keep your escaping style, but make it safe for attributes
-    const safeAlbum = albumName.replace(/'/g, "\\'");
-    const safeArtist = artistName.replace(/'/g, "\\'");
-
+    const safeName = album.albumName.replace(/'/g, "\\'");
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
-
-    // ✅ Fix: if album is "Singles", show the ARTIST as the big title
-    const bigTitle = (albumName === "Singles") ? artistName : albumName;
-    const smallLine = (albumName === "Singles") ? "Singles" : artistName;
 
     return `
   <div class="album-card p-4"
-       data-album="${safeAlbum}"
-       data-artist="${safeArtist}"
+       data-album="${safeName}"
        data-no-swipe-back="1">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
@@ -7325,11 +6934,11 @@ function renderGrid(data) {
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
-          ${bigTitle}
+          ${album.albumName}
         </div>
 
         <div class="text-sm text-zinc-400 truncate">
-          ${smallLine}
+          ${album.artistName}
         </div>
       </div>
     `;
@@ -7338,12 +6947,10 @@ function renderGrid(data) {
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
       const album = card.getAttribute('data-album');
-      const artist = card.getAttribute('data-artist');
-      if (album) openAlbumByName(album, artist);
+      if (album) openAlbumByName(album);
     });
   });
 }
-
 
 
 function renderLibraryPlaylists() {
@@ -7625,101 +7232,7 @@ function renderLibraryAll() {
   });
 }
 
-function renderMobileRecents() {
-  const grid = document.getElementById('mobile-recents-grid');
-  if (!grid) return;
-
-  const items = Array.isArray(history) ? history.slice(0, 8) : [];
-  if (!items.length) {
-    grid.innerHTML = `<div class="text-zinc-500 text-sm">No recents yet.</div>`;
-    return;
-  }
-
-  const tiles = [];
-
-  for (const h of items) {
-    const type = String(h?.type || "").trim();
-
-    // PLAYLIST
-    if (type === "playlist") {
-      const safeId = String(h?.id || "").replace(/"/g, '&quot;');
-      const title = String(h?.name || h?.title || "Playlist");
-      const cover = String(h?.cover || "");
-
-      tiles.push(`
-        <div class="mobile-recent-card"
-             data-type="playlist"
-             data-id="${safeId}">
-          ${
-            cover
-              ? `<img src="${cover}" alt="">`
-              : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
-                   <i class="fas fa-music text-zinc-400 text-xs"></i>
-                 </div>`
-          }
-          <div class="min-w-0">
-            <div class="title">${title}</div>
-            <div class="sub">Playlist</div>
-          </div>
-        </div>
-      `);
-
-      continue;
-    }
-
-    // ALBUM
-    const album = String(h?.album || h?.albumName || "").trim();
-    const artist = String(h?.artist || h?.artistName || "").trim();
-    const safeAlbum = album.replace(/'/g, "\\'");
-    const safeArtist = artist.replace(/'/g, "\\'");
-
-    const cover = String(h?.cover || "");
-    const bigTitle = (album === "Singles") ? artist : album;
-    const smallLine = (album === "Singles") ? "Singles" : artist;
-
-    tiles.push(`
-      <div class="mobile-recent-card"
-           data-type="album"
-           data-album="${safeAlbum}"
-           data-artist="${safeArtist}">
-        ${
-          cover
-            ? `<img src="${cover}" alt="">`
-            : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
-                 <i class="fas fa-music text-zinc-400 text-xs"></i>
-               </div>`
-        }
-        <div class="min-w-0">
-          <div class="title">${bigTitle}</div>
-          <div class="sub">${smallLine}</div>
-        </div>
-      </div>
-    `);
-  }
-
-  grid.innerHTML = tiles.join('');
-
-  [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
-    card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
-      if (!type) return;
-
-      if (type === 'playlist') {
-        const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => String(pl.id) === String(id));
-        if (idx !== -1) showView('playlist', idx);
-        return;
-      }
-
-      const album = card.getAttribute('data-album');
-      const artist = card.getAttribute('data-artist');
-      if (album) openAlbumByName(album, artist);
-    });
-  });
-}
-
 function renderLibraryMain() {
-
   initMobileLibraryTabsOnce();
 
   // ✅ For every tab EXCEPT "All": force alphabetical behavior
@@ -7739,14 +7252,11 @@ function renderLibraryMain() {
     renderGrid(getLibraryGridData());
   }
 
-    if (typeof window.renderHistory === "function") {
-    window.renderHistory();
-  }
+  renderHistory();
 
   if (window.innerWidth <= 768) {
-  try { renderMobileRecents(); } catch (e) { console.warn("renderMobileRecents failed:", e); }
-}
-
+    renderMobileRecents();
+  }
 }
 
 
@@ -7794,7 +7304,8 @@ function renderLibraryMain() {
   }
 })();
 
-function openAlbumByName(name, artistName) {
+function openAlbumByName(name) {
+
 
   // ✅ Never let swipe-underlay capture break album navigation
   try {
@@ -7811,55 +7322,21 @@ function openAlbumByName(name, artistName) {
 
 
   // BACK STACK: push current view before entering album
-    pushNavCurrent();
+  pushNavCurrent();
+  setNavCurrent({ type: 'album', albumName: name });
 
-  const albumName = String(name || "").trim();
-  const artist = String(artistName || "").trim();
-
-  // ✅ store BOTH so back-nav can reopen the correct one later
-    setNavCurrent({ type: 'album', albumName: name, artistName: artist || "" });
-
-  // Use a stable label for context (helps prevent “Singles” ambiguity)
-  playContext = { type: 'album', label: (artist ? `${artist} — ${name}` : name) };
-
-
-  // ✅ display label (also helps with Singles)
-  const displayName = (albumName === "Singles" && artist)
-    ? (artist + " — Singles")
-    : albumName;
-
-  playContext = { type: 'album', label: displayName };
-  const isPlaylist = false;
-
-  // ✅ find exact album (artist+album). if artist missing, fall back to albumName-only
-  const album =
-    libraryData.find(a => a.albumName === albumName && a.artistName === artist) ||
-    libraryData.find(a => a.albumName === albumName);
-
+  playContext = { type: 'album', label: name };
+    const isPlaylist = false;
+  const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
-
 
   activeAlbumName = album.albumName;
   activeAlbumArtist = album.artistName;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
-    // Build the queue for next/prev (use overridden cover)
-
-  // ✅ If album songs aren't already playable, resolve them through your track resolver
-  let songsForQueue = Array.isArray(album.songs) ? album.songs : [];
-  const hasPlayable = songsForQueue.some(s => s && (s.url || s.link || s.src));
-
-  if (!hasPlayable && typeof resolveTrackIdsToSongs === "function") {
-    const ids = songsForQueue
-      .map(s => String((s && (s.id || s.r2Path || s.key)) || "").trim())
-      .filter(Boolean);
-
-    const resolved = resolveTrackIdsToSongs(ids);
-    if (Array.isArray(resolved) && resolved.length) songsForQueue = resolved;
-  }
-
-  currentQueue = buildQueueFromSongs(songsForQueue, {
+  // Build the queue for next/prev (use overridden cover)
+  currentQueue = buildQueueFromSongs(album.songs, {
     album: album.albumName,
     artist: album.artistName,
     cover: cover
@@ -7882,11 +7359,10 @@ function openAlbumByName(name, artistName) {
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) {
     heroPlay.onclick = () => {
-  playContext = { type: 'album', label: name };
-  // shuffle-start handled inside playQueue
-  window.playQueue(currentQueue, 0);
-};
-
+      playContext = { type: 'album', label: name };
+      // shuffle-start handled inside playQueue
+      playQueue(currentQueue, 0);
+    };
   }
 
 
@@ -7899,8 +7375,7 @@ function openAlbumByName(name, artistName) {
 
     <div class="flex-1 album-hero-info">
       <p class="album-hero-label text-xs font-bold uppercase tracking-widest mb-2">Album</p>
-            <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${displayName}</h1>
-
+      <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-6 tracking-tighter">${album.albumName}</h1>
       <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
         <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
         <span class="hover:underline cursor-pointer font-semibold"
@@ -7908,8 +7383,7 @@ function openAlbumByName(name, artistName) {
           ${album.artistName}
         </span>
       </div>
-      <div       <div class="album-hero-meta text-sm text-zinc-400">Album • ${(songsForQueue || []).length} songs</div>
-
+      <div class="album-hero-meta text-sm text-zinc-400">Album • ${album.songs.length} songs</div>
     </div>
   `;
 
@@ -7935,12 +7409,11 @@ function openAlbumByName(name, artistName) {
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
-  (songsForQueue || []).forEach((song, i) => {
-
+  album.songs.forEach((song, i) => {
     const row = document.createElement('div');
     row.className = "track-row group";
 
-                const songUrl = song.url || song.link || song.src;
+        const songUrl = song.url || song.link;
     const songTitle = song.title || song.name;
 
     const isCurrent = currentSong && (currentSong.url === songUrl);
@@ -7955,8 +7428,7 @@ function openAlbumByName(name, artistName) {
       }
       if (!songUrl) return;
       currentIndex = i;
-            window.playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
-
+      playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
     };
 
     row.oncontextmenu = (e) =>
@@ -8390,102 +7862,26 @@ function openArtistByName(artistName) {
 
 
   // FEATURED IN… (Playlists containing songs by this artist)
-  const featuredWrap = document.getElementById('artist-featured-wrap');
+  const featuredTitle = document.getElementById('artist-featured-title');
   const plGrid = document.getElementById('artist-playlist-grid');
-  const showAllBtn = document.getElementById('artist-featured-showall');
 
-  // Reset per-artist open (default collapsed)
-  window.__artistFeaturedExpanded = false;
-
-  // Count "most listened" using historyLog (playlist entries)
-  const getPlaylistListenCount = (playlistId) => {
-    let hist = [];
-    try { hist = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { hist = []; }
-    if (!Array.isArray(hist)) hist = [];
-    let n = 0;
-    for (const h of hist) {
-      if (h && h.type === 'playlist' && String(h.id) === String(playlistId)) n++;
-    }
-    return n;
-  };
-
-  // Find playlists that contain songs by this artist.
-  // If a playlist doesn't have songs loaded, we try cloud items (if available).
-  const computeFeaturedPlaylists = async () => {
-    const arr = Array.isArray(playlists) ? playlists : [];
-
-    const matches = [];
-    for (const pl of arr) {
-      if (!pl || !pl.id) continue;
-
-      const songsLocal = Array.isArray(pl.songs) ? pl.songs : [];
-      let hasArtist = songsLocal.some(s => String(s?.artist || s?.artistName || '') === String(artistName));
-
-      // Fallback: if no local songs, try cloud playlist-items
-      if (!hasArtist && songsLocal.length === 0 && typeof window.loadPlaylistItemsFromCloud === "function") {
-        try {
-          const items = await window.loadPlaylistItemsFromCloud(pl.id);
-          if (Array.isArray(items) && items.length) {
-            hasArtist = items.some(it => String(it?.artist || it?.artistName || '') === String(artistName));
-            // Optional: cache minimal songs so next time it's instant
-            if (hasArtist) {
-              pl.songs = items.map(it => ({
-                title: it.title || it.name || '',
-                artist: it.artist || it.artistName || '',
-                album: it.album || it.albumName || '',
-                cover: it.coverUrl || it.cover || it.coverArt || ''
-              }));
-              try { localStorage.setItem('playlists', JSON.stringify(playlists)); } catch (e) {}
-            }
-          }
-        } catch (e) {}
-      }
-
-      if (hasArtist) matches.push(pl);
-    }
-
-    // Sort by "most listened" (historyLog count), then name
-    matches.sort((a, b) => {
-      const ca = getPlaylistListenCount(a.id);
-      const cb = getPlaylistListenCount(b.id);
-      if (cb !== ca) return cb - ca;
-      return String(a.name || '').localeCompare(String(b.name || ''));
+  const pls = (Array.isArray(playlists) ? playlists : []).filter(pl => {
+    const songs = Array.isArray(pl.songs) ? pl.songs : [];
+    return songs.some(s => {
+      const a = (s.artist || s.artistName || '');
+      return a === artistName;
     });
+  });
 
-    return matches;
-  };
+  if (featuredTitle) featuredTitle.classList.toggle('hidden', pls.length === 0);
 
-  const renderFeatured = (pls) => {
-    if (!featuredWrap || !plGrid) return;
-
-    const hasAny = Array.isArray(pls) && pls.length > 0;
-    featuredWrap.classList.toggle('hidden', !hasAny);
-    if (!hasAny) {
-      if (plGrid) plGrid.innerHTML = '';
-      if (showAllBtn) showAllBtn.classList.add('hidden');
-      return;
-    }
-
-    const expanded = !!window.__artistFeaturedExpanded;
-    const visible = expanded ? pls : pls.slice(0, 3);
-
-    if (showAllBtn) {
-      if (pls.length > 3) {
-        showAllBtn.classList.remove('hidden');
-        showAllBtn.textContent = expanded ? 'Show less' : 'Show all';
-      } else {
-        showAllBtn.classList.add('hidden');
-      }
-    }
-
-    plGrid.innerHTML = visible.map(pl => {
+  if (plGrid) {
+    plGrid.innerHTML = pls.map(pl => {
       const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
       const cover = getEffectivePlaylistCover(pl) || pl.cover || '';
       const safeName = String(pl.name || 'Playlist').replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
       return `
         <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
-             data-no-swipe-back="1"
              onclick="if (${idx} !== -1) showView('playlist', ${idx});">
           ${cover
             ? `<img src="${cover}" class="w-full aspect-square rounded-md mb-3 object-cover">`
@@ -8503,37 +7899,14 @@ function openArtistByName(artistName) {
             <i class="fas fa-play text-black text-lg ml-1"></i>
           </button>
 
+
           <div class="text-white font-bold truncate">${safeName}</div>
           <div class="text-sm text-zinc-400">Playlist</div>
         </div>
       `;
     }).join('');
-
-    // Bind play overlays in this grid too
-    plGrid.querySelectorAll('.js-green-play').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const value = btn.getAttribute('data-value');
-        if (value) return playPlaylistById(value);
-      });
-    });
-  };
-
-  (async () => {
-    const pls = await computeFeaturedPlaylists();
-    renderFeatured(pls);
-
-    if (showAllBtn) {
-      showAllBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.__artistFeaturedExpanded = !window.__artistFeaturedExpanded;
-        renderFeatured(pls);
-      };
-    }
-  })();
-
+  }
+}
 
 // Plays ALL songs by this artist (respects shuffle)
 function playArtistByName(artistName) {
@@ -8550,8 +7923,7 @@ function playArtistByName(artistName) {
 
   const queue = buildQueueFromSongs(allSongs, { album: 'Artist', artist: artistName });
   playContext = { type: 'artist', label: artistName };
-  window.playQueue(queue, 0);
-
+  playQueue(queue, 0);
 }
 
 // Plays a playlist by id (respects shuffle)
@@ -8561,8 +7933,7 @@ function playPlaylistById(playlistId) {
 
   const queue = buildQueueFromSongs(pl.songs || [], { album: pl.name || 'Playlist' });
   playContext = { type: 'playlist', label: pl.name || 'Playlist' };
-  window.playQueue(queue, 0);
-
+  playQueue(queue, 0);
 }
 
         /**
@@ -8920,11 +8291,9 @@ function playPlaylistById(playlistId) {
             appendSection('Playlists');
             playlistMatches.slice(0, 8).forEach(appendPlaylistRow);
           }
-
-        } // ✅ CLOSE handleSearch() so player functions are global + run on load
+        }
 
         function exitSearch() {
-
           const input = document.getElementById('global-search');
           if (input) input.value = '';
           handleSearch('');
@@ -9035,61 +8404,187 @@ async function updateRightLyricsForSong(songObj) {
 }
 
 async function playSpecificSong(url, title, album, artist, cover) {
-  if (!url) return false;
 
-  // 1) Set current song
   currentSong = { url, title, album, artist, cover };
 
-  // 2) Reset + load audio
+  // Reset audio cleanly first (helps iOS)
   try { player.pause(); } catch (e) {}
   player.src = url;
   player.load();
 
-  // 3) Try to play
+  // Try to start playback immediately (user tapped a song)
   let started = false;
   try {
     const p = player.play();
     if (p && typeof p.then === 'function') await p;
-    started = true;
-  } catch (e) {}
+    started = !player.paused;
+  } catch (err) {
+    console.warn('Playback did not start automatically:', err);
+    started = false;
+  }
 
-  // 4) 🔑 UPDATE DOCK UI (THIS WAS MISSING)
+  updateMediaSessionMetadata();
+
+  lastPlayedTime = Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+
+  // Save state (we still save the selected track even if iOS didn’t start)
+  persistPlayerState(started);
+
+  // UI Updates
+  dock.classList.remove('dock-hidden');
+  document.getElementById('p-cover').src = cover;
+  updateAccentFromCover(cover);
+
+  setMarqueeTitle('p-title', title.replace('.mp3', ''));
+  document.getElementById('p-artist').innerText = artist;
+
+  // Set all play/pause icons based on what actually happened
+  const desktopIcon = document.getElementById('play-icon');
+  const mobileIcon = document.getElementById('mobile-play-icon');
+  const npIcon = document.getElementById('np-play-icon');
+
+  if (started) {
+    if (desktopIcon) desktopIcon.className = "fas fa-pause";
+    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+
+  } else {
+    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
+    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-play text-white text-2xl";
+  }
+
+    // Sidebars (desktop only, only when a song is playing)
+if (window.innerWidth >= 1024) {
+  const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
+  toggleRightSidebar(true);
+  setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
+      loadRightLyrics(artist, cleanTitle);
+  loadRightBio(artist);
+
+
+}
+
+
+  // Lyrics (desktop right sidebar)
+  updateRightLyricsForSong(currentSong);
+  updateCenterLyricsForSong(currentSong);
+
+
+  updateHeartUI();
+
+  addToHistory(album, artist, cover);
+
+    // Update the existing rows in-place (so the green row updates immediately)
+  updateTrackListActiveState();
+
+
+  // If Now Playing is open, keep it synced
+  if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
+    updateNowPlayingUI();
+  }
+}
+        
+function togglePlay() {
+  // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
+  // start playing from the top instead of doing nothing.
+  if (!currentSong) {
+    if (Array.isArray(currentQueue) && currentQueue.length) {
+      playQueue(currentQueue, 0);
+    }
+    return;
+  }
+
+  const desktopIcon = document.getElementById('play-icon');
+
+  const mobileIcon = document.getElementById('mobile-play-icon');
+  const npIcon = document.getElementById('np-play-icon');
+
+  if (player.paused) {
+    player.play();
+      
+      updateMediaSessionMetadata();
+
+persistPlayerState(true);
+
+// ===== iOS / Lock Screen / Control Center metadata =====
+if ("mediaSession" in navigator && currentSong) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: currentSong.title,
+    artist: currentSong.artist,
+    album: currentSong.album || "",
+    artwork: [
+      {
+        src: currentSong.cover,
+        sizes: "512x512",
+        type: "image/png"
+      }
+    ]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => player.play());
+  navigator.mediaSession.setActionHandler("pause", () => player.pause());
+  navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
+  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
+}
+
+    if (desktopIcon) desktopIcon.className = "fas fa-pause";
+    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+  } else {
+    player.pause();
+      persistPlayerState(false);
+
+    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
+    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
+    if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
+  }
+}
+
+// -----------------------
+// NOW PLAYING OVERLAY (desktop)
+// -----------------------
+const nowPlayingOverlay = document.getElementById('now-playing-overlay');
+const npCloseBtn = document.getElementById('np-close');
+
+function openArtistFromCurrentSong(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (!currentSong || !currentSong.artist) return;
+
+  // Only allow artist navigation when you are INSIDE the album page
+  const albumView = document.getElementById('album-view');
+  const onAlbumPage = albumView && !albumView.classList.contains('hidden');
+  if (!onAlbumPage) return;
+
+  // Close Now Playing if it’s open so it doesn’t sit on top
   try {
-    const dock = document.getElementById('main-dock');
-    if (dock) dock.classList.remove('dock-hidden');
+    if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
+      closeNowPlaying();
+    }
+  } catch (err) {}
 
-    const coverEl = document.getElementById('p-cover');
-    if (coverEl) coverEl.src = cover || "";
-
-    try { updateAccentFromCover(cover || ""); } catch (e) {}
-    try { setMarqueeTitle('p-title', (title || "").replace('.mp3','')); } catch (e) {}
-
-    const artistEl = document.getElementById('p-artist');
-    if (artistEl) artistEl.innerText = artist || "";
-
-    try { setAllPlayIconsToPause(); } catch (e) {}
-  } catch (e) {}
-
-  // 5) Persist + cloud sync (so refresh works)
-  try { persistPlayerState(true); } catch (e) {}
-
-  // 6) Now Playing overlay
-  try { updateNowPlayingUI(); } catch (e) {}
-  try { openNowPlaying(); } catch (e) {}
-
-  return started;
-}
-// 🔑 Expose for click handlers + other modules
-try {
-  window.playSpecificSong = playSpecificSong;
-} catch (e) {
-  console.error('Failed to attach playSpecificSong to window', e);
+  openArtistByName(currentSong.artist);
 }
 
+// Click artist in the DOCK
+const dockArtistEl = document.getElementById('p-artist');
+if (dockArtistEl) {
+  dockArtistEl.addEventListener('click', openArtistFromCurrentSong);
+  dockArtistEl.addEventListener('pointerdown', (e) => {
+    // don’t trigger dock-left openNowPlaying handler
+    e.stopPropagation();
+  });
+}
 
-// ✅ Make it globally available (so onclick handlers can always find it)
-try { window.playSpecificSong = playSpecificSong; } catch (e) {}
-
+// Click artist in NOW PLAYING overlay
+const npArtistEl = document.getElementById('np-artist');
+if (npArtistEl) {
+  npArtistEl.addEventListener('click', openArtistFromCurrentSong);
+}
 
 function updateNowPlayingUI() {
   if (!currentSong) return;
@@ -10871,10 +10366,7 @@ function handleContextMenu(e, song) {
 
             localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
 
-if (typeof window.renderHistory === "function") {
-  window.renderHistory();
-}
-
+            renderHistory();
 
             // Keep Home tiles synced
             try { renderHome(); } catch (e) {}
@@ -10931,10 +10423,8 @@ const filled = pinnedPlaylists.slice(0, slotCount);
     tiles.push(`
       <div class="mobile-recent-card"
             data-type="playlist"
-            data-id="${safeId}"
-            data-album=""
-            data-artist="">
-
+           data-id="${safeId}"
+                      data-album="">
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -10962,10 +10452,8 @@ const filled = pinnedPlaylists.slice(0, slotCount);
         const idx = playlists.findIndex(pl => pl.id === id);
         if (idx !== -1) showView('playlist', idx);
       } else {
-                const album = card.getAttribute('data-album');
-        const artist = card.getAttribute('data-artist');
-        if (album) openAlbumByName(album, artist);
-
+        const album = card.getAttribute('data-album');
+        if (album) openAlbumByName(album);
       }
     });
   });
@@ -11000,13 +10488,11 @@ const filled = pinnedPlaylists.slice(0, slotCount);
          row.innerHTML = items.map(item => {
             const title = (item.type === 'playlist') ? (item.name || 'Playlist') : (item.album || 'Album');
             const sub = (item.type === 'playlist') ? 'Playlist' : (item.artist || '');
-                        const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
-            const safeArtist = String(item.artist || '').replace(/'/g, "\\'");
+            const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
             const safeId = String(item.id || '').replace(/"/g, '&quot;');
             const dataAttrs = item.type === 'playlist'
               ? `data-type="playlist" data-id="${safeId}"`
-              : `data-type="album" data-album="${safeAlbum}" data-artist="${safeArtist}"`;
-
+              : `data-type="album" data-album="${safeAlbum}"`;
             return `
               <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
                 <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
@@ -11033,11 +10519,9 @@ const filled = pinnedPlaylists.slice(0, slotCount);
 
     // ✅ ALBUM
     if (type === 'album') {
-            const albumName = card.getAttribute('data-album');
-      const artistName = card.getAttribute('data-artist');
-      if (albumName) openAlbumByName(albumName, artistName);
+      const albumName = card.getAttribute('data-album');
+      if (albumName) openAlbumByName(albumName);
       return;
-
     }
   });
 });
@@ -11082,8 +10566,7 @@ if (homeRecentsShowAllBtn) {
   grid.innerHTML = items.map(h => {
     const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
-        const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
-    const safeArtist = String(h.artist || '').replace(/"/g,'&quot;');
+    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
     const safeId = String(h.id || '');
 
     // ✅ Always compute album covers from Artist + Album (ignores stale h.cover)
@@ -11100,13 +10583,7 @@ if (homeRecentsShowAllBtn) {
       <div class="mobile-recent-card"
            data-type="${h.type}"
            data-id="${safeId}"
-           data-album="${safeAlbum}"
-           data-artist="${safeArtist}">
-
-           data-artist="${safeArtist}">
-
-           data-artist="${String(h.artist || '').replace(/"/g, '&quot;')}">
-
+           data-album="${safeAlbum}">
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -11131,11 +10608,8 @@ if (homeRecentsShowAllBtn) {
         return;
       }
 
-                  const albumName = card.dataset.album || '';
-      const artistName = card.dataset.artist || '';
-      if (albumName) openAlbumByName(albumName, artistName);
-
-
+      const albumName = card.dataset.album || '';
+      if (albumName) openAlbumByName(albumName);
     });
   });
 }
@@ -11254,10 +10728,12 @@ function renderHistory() {
       console.error(e);
       alert("Could not create playlist.");
     }
-     })();
+  })();
 }
 
 
+
+// ---------------- PINNED PLAYLISTS ----------------
 function loadPinnedPlaylists() {
   let stored = [];
   try { stored = JSON.parse(localStorage.getItem('pinnedPlaylists') || "[]"); }
@@ -12678,46 +12154,6 @@ function setAllPlayIconsToPlay() {
   if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
 }
 
-
-function togglePlay() {
-  const p = document.getElementById('audio-player') || document.querySelector('audio');
-  if (!p) return;
-
-  // If we somehow have no src but we do have a currentSong, use it.
-  try {
-    const u =
-      (window.currentSong && window.currentSong.url) ? window.currentSong.url :
-      (typeof currentSong !== 'undefined' && currentSong && currentSong.url) ? currentSong.url :
-      '';
-    if (!p.src && u) p.src = u;
-  } catch (e) {}
-
-  // Nothing to play yet
-  if (!p.src) return;
-
-  // Toggle play/pause
-  if (p.paused) {
-    const prom = p.play();
-    if (prom && typeof prom.catch === 'function') prom.catch(() => {});
-    // Update icons to "pause" if they exist
-    try {
-      const desktopIcon = document.getElementById('play-icon');
-      const mobileIcon = document.getElementById('mobile-play-icon');
-      const npIcon = document.getElementById('np-play-icon');
-      if (desktopIcon) desktopIcon.className = "fas fa-pause ml-1";
-      if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-      if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
-    } catch (e) {}
-  } else {
-    p.pause();
-    try { if (typeof setAllPlayIconsToPlay === 'function') setAllPlayIconsToPlay(); } catch (e) {}
-  }
-
-  // Keep UI in sync (non-fatal if missing)
-  try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
-}
-
-
 function nextSong() {
 
     const manualSong = takeNextManualQueueSong();
@@ -12926,52 +12362,14 @@ function buildQueueFromSongs(songs, fallback) {
   return songs.map((song) => normalizeSong(song, fallback)).filter(Boolean);
 }
 
-// ✅ REQUIRED: many parts of your app call playSpecificSong(...)
-// Your current file calls it from track rows + playQueue, but it wasn't defined.
-function playSpecificSong(url, title, album, artist, cover) {
-  const player = document.getElementById('audio-player');
-  if (!player) return;
-
-  const u = String(url || '').trim();
-  if (!u) return;
-
-  // keep a single canonical currentSong object
-  currentSong = {
-    url: u,
-    title: String(title || ''),
-    album: String(album || ''),
-    artist: String(artist || ''),
-    cover: String(cover || '')
-  };
-  try { window.currentSong = currentSong; } catch (e) {}
-
-  // set src + play
-  try {
-    if (player.src !== u) player.src = u;
-  } catch (e) {
-    player.src = u;
-  }
-
-  // update UI if your helpers exist
-  try { if (typeof updateNowPlayingUI === 'function') updateNowPlayingUI(); } catch (e) {}
-  try { if (typeof openNowPlaying === 'function') openNowPlaying(); } catch (e) {}
-
-  const p = player.play();
-  if (p && typeof p.catch === 'function') {
-    p.catch(() => {
-      // ignore autoplay-block errors; user can press play again
-    });
-  }
-}
-
 function playQueue(queue, startIndex = 0) {
   if (!queue || !queue.length) return;
 
   currentQueue = queue;
 
   // If shuffle is ON and we’re starting from the beginning (green Play button behavior),
-  // pick a random starting point
-  if (isShuffling && startIndex === 0) {
+  // pick a random starting song like Spotify.
+  if (isShuffleOn() && startIndex === 0 && queue.length > 1) {
     currentIndex = Math.floor(Math.random() * queue.length);
   } else {
     currentIndex = startIndex;
@@ -12981,21 +12379,9 @@ function playQueue(queue, startIndex = 0) {
   resetShuffleForQueue();
 
   const s = currentQueue[currentIndex];
-  window.playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+  playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
 }
 
-
-try { window.playQueue = playQueue; } catch (e) {}
-
-// ✅ HARD GUARD: if anything loaded in a weird order, re-export safely
-try {
-  if (typeof window.playQueue !== "function" && typeof playQueue === "function") {
-    window.playQueue = playQueue;
-  }
-  if (typeof window.playSpecificSong !== "function" && typeof playSpecificSong === "function") {
-    window.playSpecificSong = playSpecificSong;
-  }
-} catch (e) {}
 
 
 function renderCollection(name, songs, isPlaylist = false) {
@@ -13061,22 +12447,14 @@ if (hero && activePlaylistId) {
       const longPressState = { longPress: false };
       
     row.onclick = () => {
-  if (longPressState.longPress) {
-    longPressState.longPress = false;
-    return;
-  }
-  if (!songUrl) return;
-  currentIndex = i;
+        if (longPressState.longPress) {
+        longPressState.longPress = false;
+        return;
+      }
 
-  // 🔑 LOOK UP playSpecificSong AT CLICK TIME (not render time)
-  const fn = window.playSpecificSong;
-  if (typeof fn === 'function') {
-    fn(songUrl, songTitle, album.albumName, album.artistName, cover);
-  } else {
-    console.error('playSpecificSong missing at click time');
-  }
-};
-
+      currentIndex = i;
+      playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
+    };
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
@@ -13149,26 +12527,8 @@ function updateTrackListActiveState() {
 }
 
 function playAlbumByName(name) {
-    // ✅ Album identity fix: match by (albumName + artistName) when artist is provided
-  const wantAlbum = String(name || "").trim();
-  const wantArtist = String(artist || "").trim();
-
-  const album = libraryData.find(a => {
-    const aAlbum = String(a?.albumName || "").trim();
-    const aArtist = String(a?.artistName || "").trim();
-
-    if (!aAlbum) return false;
-    if (aAlbum !== wantAlbum) return false;
-
-    // If caller provided artist, require it too (prevents "Singles" collisions)
-    if (wantArtist) return aArtist === wantArtist;
-
-    // Fallback: old behavior (only when artist wasn’t provided)
-    return true;
-  });
-
+  const album = libraryData.find(a => a.albumName === name);
   if (!album) return;
-
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
@@ -13251,130 +12611,10 @@ player.addEventListener('ended', () => {
         setInterval(checkDockVisibility, 30000);
 
 }
-};
-
-// ✅ Export / fallback: dock buttons use inline onclick="...()" which needs globals.
-// If something is missing, define a safe version so the UI never "does nothing".
-(function(){
-  try {
-    // Ensure currentSong is reachable everywhere
-    if (typeof window.currentSong === 'undefined' && typeof currentSong !== 'undefined') {
-      window.currentSong = currentSong;
-    }
-  } catch (e) {}
-
-  // expose existing functions if they exist in this scope
-  try { if (typeof nextSong === 'function') window.nextSong = nextSong; } catch (e) {}
-  try { if (typeof prevSong === 'function') window.prevSong = prevSong; } catch (e) {}
-  try { if (typeof cycleRepeat === 'function') window.cycleRepeat = cycleRepeat; } catch (e) {}
-  try { if (typeof toggleShuffle === 'function') window.toggleShuffle = toggleShuffle; } catch (e) {}
-  try { if (typeof toggleLike === 'function') window.toggleLike = toggleLike; } catch (e) {}
-  try { if (typeof openNowPlaying === 'function') window.openNowPlaying = openNowPlaying; } catch (e) {}
-  try { if (typeof closeNowPlaying === 'function') window.closeNowPlaying = closeNowPlaying; } catch (e) {}
-  try { if (typeof handleContextMenu === 'function') window.handleContextMenu = handleContextMenu; } catch (e) {}
-  try { if (typeof playSpecificSong === 'function') window.playSpecificSong = playSpecificSong; } catch (e) {}
-
-  // Always provide togglePlay (dock play button depends on it)
-  if (typeof window.togglePlay !== 'function') {
-    window.togglePlay = (typeof togglePlay === 'function') ? togglePlay : function(){
-      const p = document.getElementById('audio-player') || document.querySelector('audio');
-      if (!p) return;
-      if (!p.src) {
-        const u = (window.currentSong && window.currentSong.url) ? window.currentSong.url : '';
-        if (u) p.src = u;
-      }
-      if (!p.src) return;
-      if (p.paused) {
-        const prom = p.play();
-        if (prom && prom.catch) prom.catch(()=>{});
-      } else {
-        p.pause();
-      }
-      try { if (typeof window.updateNowPlayingUI === 'function') window.updateNowPlayingUI(); } catch (e) {}
-    };
-  }
-
-  // Fallback updateNowPlayingUI (fills dock + now playing sheet)
-  if (typeof window.updateNowPlayingUI !== 'function') {
-    window.updateNowPlayingUI = function(){
-      const s = window.currentSong || {};
-      const title = s.title || s.name || '';
-      const artist = s.artist || s.artistName || '';
-      const cover = s.cover || s.coverArt || '';
-      try {
-        const tEl = document.getElementById('np-title');
-        if (tEl) tEl.textContent = title || '—';
-        const cEl = document.getElementById('np-context');
-        if (cEl) cEl.textContent = title ? 'NOW PLAYING' : '—';
-        const dockTitle = document.getElementById('dock-title');
-        if (dockTitle) dockTitle.textContent = title || '—';
-        const dockArtist = document.getElementById('dock-artist');
-        if (dockArtist) dockArtist.textContent = artist || '';
-        const coverEl = document.getElementById('p-cover');
-        if (coverEl && cover) coverEl.src = cover;
-        const npCover = document.getElementById('np-cover');
-        if (npCover && cover) npCover.src = cover;
-        const dock = document.getElementById('main-dock');
-                if (dock) dock.classList.remove('hidden');
-      } catch (e) {}
-    };
-  }
-})();
-/* =====================================================================
-   FORCE DOCK / NOW PLAYING CONTROL CONTRACT ONTO window
-   (so inline onclick="togglePlay()" etc always work)
-   ===================================================================== */
-(function forceDockGlobals() {
-  const exportIfMissing = (name, fn) => {
-    try {
-      if (typeof window[name] !== 'function' && typeof fn === 'function') {
-        window[name] = fn;
-      }
-    } catch (e) {}
-  };
-
-  // Export the functions if they exist in this script scope
-  try { exportIfMissing('togglePlay', (typeof togglePlay === 'function') ? togglePlay : null); } catch (e) {}
-  try { exportIfMissing('toggleLike', (typeof toggleLike === 'function') ? toggleLike : null); } catch (e) {}
-  try { exportIfMissing('nextSong', (typeof nextSong === 'function') ? nextSong : null); } catch (e) {}
-  try { exportIfMissing('prevSong', (typeof prevSong === 'function') ? prevSong : null); } catch (e) {}
-  try { exportIfMissing('cycleRepeat', (typeof cycleRepeat === 'function') ? cycleRepeat : null); } catch (e) {}
-  try { exportIfMissing('toggleShuffle', (typeof toggleShuffle === 'function') ? toggleShuffle : null); } catch (e) {}
-  try { exportIfMissing('openNowPlaying', (typeof openNowPlaying === 'function') ? openNowPlaying : null); } catch (e) {}
-  try { exportIfMissing('updateNowPlayingUI', (typeof updateNowPlayingUI === 'function') ? updateNowPlayingUI : null); } catch (e) {}
-
-  // closeNowPlaying is the most likely one to be scoped/closure-bound, so add a DOM-safe fallback
-  try {
-    if (typeof window.closeNowPlaying !== 'function') {
-      window.closeNowPlaying = function closeNowPlayingGlobal() {
-        try {
-          const overlay = document.getElementById('now-playing-overlay');
-          if (!overlay) return;
-
-          // animate down, then hide
-          overlay.classList.remove('np-dragging');
-          overlay.style.transform = 'translateY(100%)';
-
-          const done = () => {
-            overlay.classList.add('hidden');
-            overlay.style.transform = 'translateY(0)';
-            overlay.removeEventListener('transitionend', done);
-          };
-          overlay.addEventListener('transitionend', done);
-        } catch (e) {
-          // hard-hide fallback
-          try { document.getElementById('now-playing-overlay')?.classList.add('hidden'); } catch (e2) {}
-        }
-      };
-    }
-  } catch (e) {}
-})();
-
 </script>
 
 
-<!-- PLAYLIST MENU (Pin/Unpin + Cover)
-
+<!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
 <div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
 
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
@@ -13813,24 +13053,6 @@ try {
       bind();
     }
   })();
-
-  /* =========================================================
-     DOCK / NOW PLAYING GLOBAL CONTRACT
-     Expose controls for inline onclick="nextSong()" etc.
-     ========================================================= */
-  try {
-    if (typeof togglePlay === 'function') window.togglePlay = togglePlay;
-    if (typeof toggleLike === 'function') window.toggleLike = toggleLike;
-    if (typeof nextSong === 'function') window.nextSong = nextSong;
-    if (typeof prevSong === 'function') window.prevSong = prevSong;
-    if (typeof toggleShuffle === 'function') window.toggleShuffle = toggleShuffle;
-    if (typeof cycleRepeat === 'function') window.cycleRepeat = cycleRepeat;
-    if (typeof openNowPlaying === 'function') window.openNowPlaying = openNowPlaying;
-    if (typeof closeNowPlaying === 'function') window.closeNowPlaying = closeNowPlaying;
-    if (typeof updateNowPlayingUI === 'function') window.updateNowPlayingUI = updateNowPlayingUI;
-  } catch (e) {
-    try { console.error('Dock global export failed', e); } catch (e2) {}
-  }
 
 </script>
   <!-- SYNC DEVICES MODAL -->
