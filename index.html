@@ -4778,9 +4778,6 @@ try {
 }
 
 function setVolumeFromClientX(clientX) {
-
-
-function setVolumeFromClientX(clientX) {
     const rect = volumeContainer.getBoundingClientRect();
     const pct = (clientX - rect.left) / rect.width;
     const clamped = Math.max(0, Math.min(1, pct));
