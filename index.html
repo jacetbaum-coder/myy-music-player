@@ -7428,8 +7428,17 @@ function openAlbumByName(name) {
       }
       if (!songUrl) return;
       currentIndex = i;
-      playSpecificSong(songUrl, songTitle, album.albumName, album.artistName, cover);
+            // ✅ Always use the real streaming link from the API (never reconstruct paths)
+      // songUrl must be a valid Worker streaming URL like /?id=Artist%2FTitle.mp3
+      const safeUrl =
+        (song && typeof song.link === "string" && song.link) ||
+        (song && typeof song.id === "string" && song.id
+          ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(song.id)
+          : songUrl);
+
+      playSpecificSong(safeUrl, songTitle, album.albumName, album.artistName, cover);
     };
+
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, {
