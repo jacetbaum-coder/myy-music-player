@@ -2929,6 +2929,31 @@ body.qs-lock {
   </div>
 </div>
 
+<!-- TRACK MISSING MODAL -->
+<div id="track-missing-modal" class="hidden fixed inset-0 z-[9999] bg-black/70">
+  <div class="absolute left-1/2 top-1/2 w-[92vw] max-w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl p-4">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-white text-lg font-semibold">No track found</div>
+        <div id="track-missing-sub" class="text-white/70 text-sm mt-1">This file isn’t available in your R2 library.</div>
+      </div>
+      <button id="track-missing-close" class="text-white/70 hover:text-white text-xl leading-none" aria-label="Close">×</button>
+    </div>
+
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button id="track-missing-more-btn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm">Show more</button>
+      <button id="track-missing-copy-btn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm">Copy debug</button>
+    </div>
+
+    <pre id="track-missing-debug" class="hidden mt-3 max-h-[40vh] overflow-auto rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/80 whitespace-pre-wrap"></pre>
+
+    <div class="mt-3 text-white/50 text-xs">
+      Tip: this usually means the playlist points to a file that wasn’t uploaded (or was uploaded under a different key).
+    </div>
+  </div>
+</div>
+
+
 <!-- QUEUE SHEET (mobile) -->
 <div id="queue-sheet-backdrop" class="qs-backdrop qs-hidden" onclick="closeQueueSheet()"></div>
 
@@ -8414,7 +8439,46 @@ async function updateRightLyricsForSong(songObj) {
 
 async function playSpecificSong(url, title, album, artist, cover) {
 
+  // ✅ Guard: if the stream URL doesn't exist, show a friendly modal instead of "dead dock"
+  try {
+    const head = await fetch(url, { method: "HEAD" });
+    const ct = String(head.headers.get("content-type") || "");
+    if (!head.ok || ct.includes("application/json")) {
+      let bodyText = "";
+      try {
+        const r = await fetch(url);
+        bodyText = await r.text();
+      } catch (e) {}
+
+      let bodyJson = null;
+      try { bodyJson = bodyText ? JSON.parse(bodyText) : null; } catch (e) {}
+
+      showTrackMissingModal({
+        reason: "stream_not_found",
+        headStatus: head.status,
+        headContentType: ct,
+        requestedUrl: url,
+        title, album, artist,
+        workerBodyText: bodyText,
+        workerBodyJson: bodyJson,
+        when: new Date().toISOString()
+      });
+
+      return;
+    }
+  } catch (e) {
+    showTrackMissingModal({
+      reason: "stream_check_failed",
+      requestedUrl: url,
+      title, album, artist,
+      error: String(e),
+      when: new Date().toISOString()
+    });
+    return;
+  }
+
   currentSong = { url, title, album, artist, cover };
+
 
   // Reset audio cleanly first (helps iOS)
   try { player.pause(); } catch (e) {}
@@ -8887,6 +8951,88 @@ function showQueueToast() {
     toast.classList.add('qt-hidden');
   }, 2200);
 }
+
+// -----------------------
+// TRACK MISSING MODAL
+// -----------------------
+let __trackMissingLastDebugText = "";
+
+function showTrackMissingModal(payload) {
+  try {
+    const modal = document.getElementById('track-missing-modal');
+    const sub = document.getElementById('track-missing-sub');
+    const pre = document.getElementById('track-missing-debug');
+    const moreBtn = document.getElementById('track-missing-more-btn');
+
+    if (!modal || !sub || !pre || !moreBtn) return;
+
+    const title = payload?.title ? String(payload.title) : "Unknown title";
+    const artist = payload?.artist ? String(payload.artist) : "Unknown artist";
+    sub.textContent = `Missing: ${title} — ${artist}`;
+
+    __trackMissingLastDebugText = JSON.stringify(payload || {}, null, 2);
+    pre.textContent = __trackMissingLastDebugText;
+
+    // reset to collapsed
+    pre.classList.add('hidden');
+    moreBtn.textContent = "Show more";
+
+    modal.classList.remove('hidden');
+  } catch (e) {}
+}
+
+function hideTrackMissingModal() {
+  try { document.getElementById('track-missing-modal')?.classList.add('hidden'); } catch (e) {}
+}
+
+(function bindTrackMissingModal() {
+  const modal = document.getElementById('track-missing-modal');
+  const closeBtn = document.getElementById('track-missing-close');
+  const moreBtn = document.getElementById('track-missing-more-btn');
+  const copyBtn = document.getElementById('track-missing-copy-btn');
+  const pre = document.getElementById('track-missing-debug');
+
+  if (closeBtn) closeBtn.addEventListener('click', hideTrackMissingModal);
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) hideTrackMissingModal(); });
+
+  if (moreBtn && pre) {
+    moreBtn.addEventListener('click', () => {
+      const isHidden = pre.classList.contains('hidden');
+      if (isHidden) {
+        pre.classList.remove('hidden');
+        moreBtn.textContent = "Show less";
+      } else {
+        pre.classList.add('hidden');
+        moreBtn.textContent = "Show more";
+      }
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        const txt = __trackMissingLastDebugText || "";
+        if (!txt) return;
+        await navigator.clipboard.writeText(txt);
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = "Copy debug"; }, 900);
+      } catch (e) {
+        // fallback: select text in the <pre>
+        try {
+          const el = document.getElementById('track-missing-debug');
+          if (el) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        } catch (e2) {}
+      }
+    });
+  }
+})();
+
 
 (function bindQueueToastOpen() {
   const btn = document.getElementById('queue-toast-open');
