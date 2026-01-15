@@ -11,7 +11,7 @@
     
     <!-- iOS Home Screen icon -->
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-
+frowEl.addEventListener('pointermove', (e) => {
     <!-- App name -->
     <meta name="apple-mobile-web-app-title" content="Reson">
     <meta name="application-name" content="Reson">
@@ -4331,7 +4331,7 @@ function attachSwipeAddToQueue(rowEl, songObj) {
     try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
-  rowEl.addEventListener('pointermove', (e) => {
+   rowEl.addEventListener('pointermove', (e) => {
     if (!active) return;
 
     const { x, y } = getXY(e);
@@ -4342,6 +4342,12 @@ function attachSwipeAddToQueue(rowEl, songObj) {
       if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
       decided = true;
       isHorizontal = Math.abs(dx) > Math.abs(dy);
+
+      // ✅ init rAF throttle state once we “claim” a horizontal swipe
+      if (isHorizontal) {
+        rowEl.__swipeRafPending = false;
+        rowEl.__swipeRafDx = 0;
+      }
     }
 
     if (!isHorizontal) return;
@@ -4351,12 +4357,29 @@ function attachSwipeAddToQueue(rowEl, songObj) {
 
     // only respond to LEFT swipes
     if (dx >= 0) {
-      setDrag(0);
+      // schedule a frame update (still throttled)
+      rowEl.__swipeRafDx = 0;
+      if (!rowEl.__swipeRafPending) {
+        rowEl.__swipeRafPending = true;
+        requestAnimationFrame(() => {
+          rowEl.__swipeRafPending = false;
+          setDrag(rowEl.__swipeRafDx);
+        });
+      }
       return;
     }
 
-    setDrag(dx);
+    // ✅ Throttle setDrag to once per frame
+    rowEl.__swipeRafDx = dx;
+    if (!rowEl.__swipeRafPending) {
+      rowEl.__swipeRafPending = true;
+      requestAnimationFrame(() => {
+        rowEl.__swipeRafPending = false;
+        setDrag(rowEl.__swipeRafDx);
+      });
+    }
   }, { passive: false });
+
 
   rowEl.addEventListener('pointerup', () => {
     if (!active) return;
@@ -5787,33 +5810,20 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
   safe(window.initSearchSwipeDownClose);
 
 
-  // Fetch library
-  try {
-    const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Fetch library
+  // ✅ FAST BOOT: show cached library immediately (if we have it),
+  // then refresh from network in the background.
+  let renderedFromCache = false;
 
-const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
-
-clearTimeout(timeoutId);
-
-
-    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
-
-    libraryData = await response.json();
-    if (!Array.isArray(libraryData)) throw new Error('Invalid library response');
-
-    // ✅ Build master track index: id/r2Path -> canonical track object
-    // This is what playlists will reference.
+  function buildTracksByIdFromLibrary(albums) {
     window.tracksById = new Map();
-
     try {
-      libraryData.forEach((album) => {
+      (Array.isArray(albums) ? albums : []).forEach((album) => {
         const songs = Array.isArray(album?.songs) ? album.songs : [];
         songs.forEach((s) => {
           const id = String(s?.id || s?.r2Path || "").trim();
           if (!id) return;
 
-          // Normalize a consistent object shape for the UI
           const track = {
             ...s,
             id,
@@ -5832,33 +5842,79 @@ clearTimeout(timeoutId);
     } catch (e) {
       console.warn("tracksById build failed:", e);
     }
+  }
 
-    // Keep original order for "Recently added"
+  function applyLibraryAndRender(albums) {
+    libraryData = Array.isArray(albums) ? albums : [];
     libraryDataOriginal = libraryData.slice();
 
+    buildTracksByIdFromLibrary(libraryData);
 
     // Sort library alphabetically by album (Library grid)
-    libraryData.sort((a, b) => a.albumName.localeCompare(b.albumName));
+    try {
+      libraryData.sort((a, b) => String(a?.albumName || "").localeCompare(String(b?.albumName || "")));
+    } catch (e) {}
 
+    // Cache it (best-effort)
+    try { saveLibraryCache(libraryDataOriginal); } catch (e) {}
+
+    // Show UI
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
     safe(window.renderHome);
-  } catch (error) {
-    console.error("Fetch error:", error);
-
-    const loading = document.getElementById('loading');
-    if (loading) {
-      loading.innerHTML = `
-        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-        <p class="text-white font-bold">Cloud Connection Failed</p>
-        <p class="text-zinc-500 text-sm mt-2">Check your server status or API endpoint.</p>
-      `;
-      loading.classList.add('hidden');
-    }
-
-        libraryData = [];
-    safe(window.showView, 'home');
   }
+
+  // 1) Try cache first (instant paint)
+  try {
+    const cached = loadLibraryCache();
+    if (Array.isArray(cached) && cached.length) {
+      applyLibraryAndRender(cached);
+      renderedFromCache = true;
+    }
+  } catch (e) {}
+
+  // 2) Network refresh (background if cache rendered; blocking if not)
+  async function fetchLibraryFromNetwork() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch('/api/get-songs?t=' + Date.now(), { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+
+    const fresh = await response.json();
+    if (!Array.isArray(fresh)) throw new Error('Invalid library response');
+
+    applyLibraryAndRender(fresh);
+  }
+
+  if (renderedFromCache) {
+    // ✅ Let the first paint happen, then refresh
+    const run = () => {
+      fetchLibraryFromNetwork().catch((error) => {
+        console.warn("Background refresh failed:", error);
+        // Keep cached UI; do not block user
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(run, { timeout: 1200 });
+    } else {
+      setTimeout(run, 0);
+    }
+  } else {
+    // No cache yet -> do the original blocking behavior (but now it also caches)
+    try {
+      await fetchLibraryFromNetwork();
+    } catch (error) {
+      console.error("Fetch error:", error);
+      document.getElementById("loading-text").innerText = "Cloud Connection Failed";
+      document.getElementById("loading-sub").innerText = "Could not load music library from Cloudflare.";
+      document.getElementById("reload-btn").classList.remove("hidden");
+    }
+  }
+
 
   // ✅ Reload button (desktop)
   try {
