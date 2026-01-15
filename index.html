@@ -12412,14 +12412,35 @@ function nextSong() {
 function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
   if (!url) return null;
-  const title = song.name || song.title || "Unknown Title";
+
+  // Raw title can be derived from filenames (often "Artist - Title")
+  const rawTitle = song.name || song.title || "Unknown Title";
+
   const album = song.album || song.albumName || fallback.album || "Unknown Album";
   const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
   const cover = song.cover || song.coverArt || fallback.cover || "";
+
+  // ✅ Display fix:
+  // If rawTitle starts with the artist name (e.g. "Simon & Garfunkel - Old Friends"),
+  // strip "Artist - " so the title line shows only the song.
+  let title = String(rawTitle || "");
+
+  try {
+    const a = String(artist || "").trim();
+    if (a) {
+      const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // allow hyphen/en-dash/em-dash/colon as separators
+      const re = new RegExp("^\\s*" + esc + "\\s*[-–—:]\\s*", "i");
+      title = title.replace(re, "");
+    }
+  } catch (e) {}
+
+  // Strip file extension if it somehow made it through
+  title = String(title || "").replace(/\.[^/.]+$/, "").trim() || String(rawTitle || "").trim();
+
   return { url, title, album, artist, cover };
 }
 
-/* ---------------------------------------------------------------------
    PLAYLIST TRACK ID RESOLVER
    - Turns trackIds like "Artist/Album/Track.mp3" into full song objects
    - Prefers real metadata from libraryData when possible
