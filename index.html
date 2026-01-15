@@ -6929,9 +6929,11 @@ function onNavTap(viewType) {
   }
 
    // Normal navigation
-  showView(viewType);
+    showView(viewType);
 
 }
+window.onNavTap = onNavTap;
+
 
 
 
@@ -12761,7 +12763,9 @@ player.addEventListener('ended', () => {
         window.prevSong = prevSong;
                 window.cycleRepeat = cycleRepeat;
 
+}
 </script>
+
 
 
 
