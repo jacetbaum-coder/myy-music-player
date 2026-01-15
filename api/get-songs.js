@@ -158,15 +158,19 @@ export default async function handler(req, res) {
             coverUrl = null;
           }
 
-          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+                    const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
           const albumCoverPath = `${artist.name}/${album.name}/cover.jpg`;
-          const artistCoverPath = `${artist.name}/cover.jpg`;
 
+          // Primary cover (KV override → otherwise album cover in R2)
           if (!coverUrl) {
             coverUrl = `${r2Base}${encodeURIComponent(albumCoverPath)}`;
           }
 
-          const fallbackCover = `${r2Base}${encodeURIComponent(artistCoverPath)}`;
+          // ✅ IMPORTANT:
+          // Do NOT fall back to Artist/cover.jpg, because that makes every album
+          // by the same artist look identical when an album cover is missing/404.
+          // Let the UI show a generic placeholder instead.
+          const fallbackCover = "";
 
           // -----------------------
           // Build album object
