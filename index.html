@@ -6929,11 +6929,9 @@ function onNavTap(viewType) {
   }
 
    // Normal navigation
-    showView(viewType);
+  showView(viewType);
 
 }
-window.onNavTap = onNavTap;
-
 
 
 
@@ -8622,34 +8620,6 @@ if ("mediaSession" in navigator && currentSong) {
 // -----------------------
 const nowPlayingOverlay = document.getElementById('now-playing-overlay');
 const npCloseBtn = document.getElementById('np-close');
-const npMoreBtn = document.getElementById('np-more');
-
-// ✅ NOW PLAYING: "..." opens the SAME working context menu used by track rows
-if (npMoreBtn) {
-  // stop swipe overlay handler from stealing the tap
-  npMoreBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-  npMoreBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!window.currentSong) return;
-
-    // open the existing context menu (mobile: sheet / desktop: popover)
-    const r = npMoreBtn.getBoundingClientRect();
-    const x = r.right - 10;
-    const y = r.bottom + 8;
-
-    if (typeof window.showContextMenuAt === 'function') {
-      window.showContextMenuAt(x, y, window.currentSong, npMoreBtn);
-    } else {
-      console.warn("showContextMenuAt is not defined");
-    }
-  });
-}
-
-function openArtistFromCurrentSong(e) {
-
 
 function openArtistFromCurrentSong(e) {
   if (e) {
@@ -12763,9 +12733,7 @@ player.addEventListener('ended', () => {
         window.prevSong = prevSong;
                 window.cycleRepeat = cycleRepeat;
 
-}
 </script>
-
 
 
 
