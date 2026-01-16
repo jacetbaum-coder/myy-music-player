@@ -11143,10 +11143,25 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
       ? pl.songs
       : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
 
-  const covers = songs
-    .map(getSongCoverFromPlaylistSong)
-    .map(x => String(x || '').trim())
-    .filter(Boolean);
+  // ✅ Build cover list from songs, but prefer UNIQUE non-empty covers (in order)
+const covers = [];
+const seen = new Set();
+
+for (const s of (songs || [])) {
+  const c = (typeof getSongCoverFromPlaylistSong === "function")
+    ? String(getSongCoverFromPlaylistSong(s) || "").trim()
+    : "";
+
+  if (!c) continue;
+  if (seen.has(c)) continue;
+
+  seen.add(c);
+  covers.push(c);
+
+  // we only need enough for a 2x2
+  if (covers.length >= 4) break;
+}
+
 
   if (covers.length >= 4) {
     const c0 = covers[0], c1 = covers[1], c2 = covers[2], c3 = covers[3];
