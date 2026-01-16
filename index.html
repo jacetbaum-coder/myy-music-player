@@ -11,7 +11,7 @@
     
     <!-- iOS Home Screen icon -->
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-frowEl.addEventListener('pointermove', (e) => {
+frowEl.addEventListener('pointermove', (ef) => {
     <!-- App name -->
     <meta name="apple-mobile-web-app-title" content="Reson">
     <meta name="application-name" content="Reson">
@@ -11163,12 +11163,16 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
   // (Do NOT treat pl.autoCover as explicit, or it blocks the 2x2 grid.)
   const manual = (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
   if (manual) {
-    return `<img src="${manual}" class="${sc} object-cover" alt="">`;
+    return `
+      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${manual.replace(/'/g, "%27")}')"></div>
+    `;
   }
 
   const cloud = (pl && pl.cover_url && String(pl.cover_url).trim()) ? String(pl.cover_url).trim() : "";
   if (cloud) {
-    return `<img src="${cloud}" class="${sc} object-cover" alt="">`;
+    return `
+      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${cloud.replace(/'/g, "%27")}')"></div>
+    `;
   }
 
   // ✅ Build from song covers (this is what enables the 2x2 grid reliably)
@@ -11178,39 +11182,44 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
       : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
 
   // ✅ Build cover list from songs, but prefer UNIQUE non-empty covers (in order)
-const covers = [];
-const seen = new Set();
+  const covers = [];
+  const seen = new Set();
 
-for (const s of (songs || [])) {
-  const c = (typeof getSongCoverFromPlaylistSong === "function")
-    ? String(getSongCoverFromPlaylistSong(s) || "").trim()
-    : "";
+  for (const s of (songs || [])) {
+    const c = (typeof getSongCoverFromPlaylistSong === "function")
+      ? String(getSongCoverFromPlaylistSong(s) || "").trim()
+      : "";
 
-  if (!c) continue;
-  if (seen.has(c)) continue;
- 
-  seen.add(c);
-  covers.push(c);
+    if (!c) continue;
+    if (seen.has(c)) continue;
 
-  // we only need enough for a 2x2
-  if (covers.length >= 4) break;
-}
+    seen.add(c);
+    covers.push(c);
 
+    // we only need enough for a 2x2
+    if (covers.length >= 4) break;
+  }
+
+  // helper: safe for single quotes in URLs
+  const safeUrl = (u) => String(u || "").replace(/'/g, "%27");
 
   if (covers.length >= 4) {
-    const c0 = covers[0], c1 = covers[1], c2 = covers[2], c3 = covers[3];
+    const c0 = safeUrl(covers[0]), c1 = safeUrl(covers[1]), c2 = safeUrl(covers[2]), c3 = safeUrl(covers[3]);
     return `
-      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden">
-        <img src="${c0}" class="w-full h-full object-cover" alt="">
-        <img src="${c1}" class="w-full h-full object-cover" alt="">
-        <img src="${c2}" class="w-full h-full object-cover" alt="">
-        <img src="${c3}" class="w-full h-full object-cover" alt="">
+      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden bg-zinc-800">
+        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c0}')"></div>
+        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c1}')"></div>
+        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c2}')"></div>
+        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c3}')"></div>
       </div>
     `;
   }
 
   if (covers.length >= 1) {
-    return `<img src="${covers[0]}" class="${sc} object-cover" alt="">`;
+    const c0 = safeUrl(covers[0]);
+    return `
+      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${c0}')"></div>
+    `;
   }
 
   return `
@@ -11219,6 +11228,7 @@ for (const s of (songs || [])) {
     </div>
   `;
 }
+
 
 function playlistAutoCoverSignature(pl) {
 
