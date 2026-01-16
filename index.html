@@ -12445,9 +12445,8 @@ function normalizeSong(song, fallback = {}) {
    - Prefers real metadata from libraryData when possible
 --------------------------------------------------------------------- */
 function __extractIdFromMaybeUrl(u) {
-
-function __extractIdFromMaybeUrl(u) {
   const raw = String(u || "");
+
   if (!raw) return "";
   try {
     const parsed = new URL(raw, window.location.origin);
