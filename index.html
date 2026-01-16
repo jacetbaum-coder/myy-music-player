@@ -7111,16 +7111,23 @@ function renderLibraryPlaylists() {
     return;
   }
 
-  grid.innerHTML = list.map((pl, idx) => {
+    grid.innerHTML = list.map((pl, idx) => {
     const name = String(pl?.name || pl?.title || "Untitled Playlist");
     const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
 
+    const coverMarkup =
+      (typeof getPlaylistCoverMarkup === "function")
+        ? getPlaylistCoverMarkup(pl, "w-full h-full")
+        : `<div class="w-full h-full flex items-center justify-center">
+             <i class="fas fa-music text-white/50 text-3xl"></i>
+           </div>`;
+
     return `
       <div class="album-card p-4"
            data-pl="${idOrIdx}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          <i class="fas fa-music text-white/50 text-3xl"></i>
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10">
+          ${coverMarkup}
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
@@ -7133,6 +7140,7 @@ function renderLibraryPlaylists() {
       </div>
     `;
   }).join('');
+
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
