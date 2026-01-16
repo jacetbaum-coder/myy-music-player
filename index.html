@@ -11058,11 +11058,52 @@ function getEffectivePlaylistCover(pl) {
 function getPlaylistCoverMarkup(pl, sizeClass) {
   const sc = sizeClass || "w-12 h-12";
 
-  // 1) explicit cover (manual/cloud/auto)
-  const explicit = getEffectivePlaylistCover(pl);
-  if (explicit) {
-    return `<img src="${explicit}" class="${sc} object-cover" alt="">`;
+  // ✅ Only treat MANUAL or CLOUD cover as "explicit".
+  // (Do NOT treat pl.autoCover as explicit, or it blocks the 2x2 grid.)
+  const manual = (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
+  if (manual) {
+    return `<img src="${manual}" class="${sc} object-cover" alt="">`;
   }
+
+  const cloud = (pl && pl.cover_url && String(pl.cover_url).trim()) ? String(pl.cover_url).trim() : "";
+  if (cloud) {
+    return `<img src="${cloud}" class="${sc} object-cover" alt="">`;
+  }
+
+  // ✅ Build from song covers (this is what enables the 2x2 grid reliably)
+  const songs =
+    (Array.isArray(pl?.songs) && pl.songs.length)
+      ? pl.songs
+      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+
+  const covers = songs
+    .map(getSongCoverFromPlaylistSong)
+    .map(x => String(x || '').trim())
+    .filter(Boolean);
+
+  if (covers.length >= 4) {
+    const c0 = covers[0], c1 = covers[1], c2 = covers[2], c3 = covers[3];
+    return `
+      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden">
+        <img src="${c0}" class="w-full h-full object-cover" alt="">
+        <img src="${c1}" class="w-full h-full object-cover" alt="">
+        <img src="${c2}" class="w-full h-full object-cover" alt="">
+        <img src="${c3}" class="w-full h-full object-cover" alt="">
+      </div>
+    `;
+  }
+
+  if (covers.length >= 1) {
+    return `<img src="${covers[0]}" class="${sc} object-cover" alt="">`;
+  }
+
+  return `
+    <div class="${sc} flex items-center justify-center bg-zinc-800">
+      <i class="fas fa-music text-zinc-600"></i>
+    </div>
+  `;
+}
+
 
     // 2) build from song covers
   const songs =
@@ -11210,8 +11251,8 @@ async function updatePlaylistAutoCoverById(playlistId) {
   }
 
   // 4+ => build 2x2 (try)
-  const gridUrl = await build2x2CoverDataURL(covers.slice(0, 4));
-  pl.autoCover = gridUrl || (covers[0] || "");
+  pl.autoCover = gridUrl || "";
+
   pl.autoCoverSig = sig;
   savePlaylists();
 }
