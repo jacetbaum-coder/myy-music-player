@@ -11104,42 +11104,6 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
   `;
 }
 
-
-    // 2) build from song covers
-  const songs =
-    (Array.isArray(pl?.songs) && pl.songs.length)
-      ? pl.songs
-      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
-
-  const covers = songs
-    .map(s => s?.cover || s?.coverArt || s?.cover_url || '')
-    .map(x => String(x || '').trim())
-    .filter(Boolean);
-
-  if (covers.length >= 4) {
-    const c0 = covers[0], c1 = covers[1], c2 = covers[2], c3 = covers[3];
-    return `
-      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden">
-        <img src="${c0}" class="w-full h-full object-cover" alt="">
-        <img src="${c1}" class="w-full h-full object-cover" alt="">
-        <img src="${c2}" class="w-full h-full object-cover" alt="">
-        <img src="${c3}" class="w-full h-full object-cover" alt="">
-      </div>
-    `;
-  }
-
-  if (covers.length >= 1) {
-    return `<img src="${covers[0]}" class="${sc} object-cover" alt="">`;
-  }
-
-  // 3) fallback icon
-  return `
-    <div class="${sc} flex items-center justify-center bg-zinc-800">
-      <i class="fas fa-music text-zinc-600"></i>
-    </div>
-  `;
-}
-
 function playlistAutoCoverSignature(pl) {
 
     // Signature determines when we need to rebuild the auto cover
