@@ -7494,10 +7494,22 @@ function openAlbumByName(name) {
     const row = document.createElement('div');
     row.className = "track-row group";
 
-        const songUrl = song.url || song.link;
-    const songTitle = song.title || song.name;
+       const songUrl = song.url || song.link;
 
-    const isCurrent = currentSong && (currentSong.url === songUrl);
+// ✅ Title cleanup (display-only): remove "Artist - " prefix if it matches the album artist
+let songTitle = song.title || song.name || "";
+
+try {
+  const a = String(album.artistName || "").trim();
+  if (a) {
+    const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp("^\\s*" + esc + "\\s*[-–—:]\\s*", "i");
+    songTitle = String(songTitle).replace(re, "");
+  }
+} catch (e) {}
+
+const isCurrent = currentSong && (currentSong.url === songUrl);
+
     if (isCurrent) row.classList.add('active-track');
 
       const longPressState = { longPress: false };
