@@ -3339,17 +3339,20 @@ function normalizeUserId(id) {
 // Priority:
 // 1) URL userId (pairing link)
 // 2) localStorage app_user_id
-// 3) generate new
-let userId = normalizeUserId(readUserIdFromUrl()) || normalizeUserId(localStorage.getItem("app_user_id"));
+// 3) DEFAULT user (stable cross-device)
+// 4) (never by default) generate new
+const DEFAULT_USER_ID = "23";
 
-if (!userId) {
-  userId = makeUserId();
-}
+let userId =
+  normalizeUserId(readUserIdFromUrl()) ||
+  normalizeUserId(localStorage.getItem("app_user_id")) ||
+  DEFAULT_USER_ID;
 
 // Persist so reloads keep the same id on THIS device
 localStorage.setItem("app_user_id", userId);
 
 window.APP_USER_ID = userId;
+
 
 // Helpers you can use from console (or wire to UI later)
 window.getSyncCode = function () {
