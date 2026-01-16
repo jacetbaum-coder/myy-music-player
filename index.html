@@ -12413,7 +12413,6 @@ function normalizeSong(song, fallback = {}) {
   const url = song.link || song.url;
   if (!url) return null;
 
-  // Raw title can be derived from filenames (often "Artist - Title")
   const rawTitle = song.name || song.title || "Unknown Title";
 
   const album = song.album || song.albumName || fallback.album || "Unknown Album";
@@ -12429,7 +12428,6 @@ function normalizeSong(song, fallback = {}) {
     const a = String(artist || "").trim();
     if (a) {
       const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // allow hyphen/en-dash/em-dash/colon as separators
       const re = new RegExp("^\\s*" + esc + "\\s*[-–—:]\\s*", "i");
       title = title.replace(re, "");
     }
@@ -12441,10 +12439,13 @@ function normalizeSong(song, fallback = {}) {
   return { url, title, album, artist, cover };
 }
 
+/* ---------------------------------------------------------------------
    PLAYLIST TRACK ID RESOLVER
    - Turns trackIds like "Artist/Album/Track.mp3" into full song objects
    - Prefers real metadata from libraryData when possible
 --------------------------------------------------------------------- */
+function __extractIdFromMaybeUrl(u) {
+
 function __extractIdFromMaybeUrl(u) {
   const raw = String(u || "");
   if (!raw) return "";
