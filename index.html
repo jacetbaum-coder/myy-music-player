@@ -11274,9 +11274,18 @@ async function updatePlaylistAutoCoverById(playlistId) {
   }
 
   // 4+ => build 2x2 (try)
-  pl.autoCover = gridUrl || "";
+ let gridUrl = "";
+try {
+  gridUrl = await build2x2CoverDataURL(covers.slice(0, 4));
+} catch (e) {
+  gridUrl = "";
+}
 
-  pl.autoCoverSig = sig;
+// ✅ Only store if we actually built a grid.
+// If it fails (CORS/tainted canvas/etc), leave autoCover blank so UI can still compute 2x2 from song covers.
+pl.autoCover = gridUrl || "";
+pl.autoCoverSig = sig;
+
   savePlaylists();
 }
 
