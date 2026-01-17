@@ -6316,7 +6316,24 @@ function goBack() {
     }
   } catch (e) {}
 
-  showView('library');
+    showView('library');
+
+  // ✅ After returning to Library, force the Library grid to match the restored top tab.
+  // Fixes: pill still says Playlists/Artists/All but the grid shows Albums.
+  try { initMobileLibraryTabsOnce(); } catch (e) {}
+
+  try {
+    if (typeof setLibraryTopTab === 'function' && typeof libraryTopTab === 'string') {
+      // setLibraryTopTab updates the pills + section title + re-renders on mobile
+      setLibraryTopTab(libraryTopTab);
+    } else {
+      // fallback
+      try { updateMobileLibraryTabUI(); } catch (e) {}
+      try { updateMobileLibrarySectionTitle(); } catch (e) {}
+      try { renderLibraryMain(); } catch (e) {}
+    }
+  } catch (e) {}
+
 
   // Restore scroll position inside Library list
   try {
@@ -6775,12 +6792,18 @@ if (scrollArea) scrollArea.scrollTop = 0;
     }
   }
 
-   if (viewType === 'library') {
-    document.getElementById('grid-view').classList.remove('hidden');
+      if (viewType === 'library') {
+     document.getElementById('grid-view').classList.remove('hidden');
 
-    // ✅ Render Albums or Playlists based on the active Library tab
-    renderLibraryMain();
-  }
+     // ✅ Ensure Library top tabs are wired and UI matches the current libraryTopTab
+     try { initMobileLibraryTabsOnce(); } catch (e) {}
+     try { updateMobileLibraryTabUI(); } catch (e) {}
+     try { updateMobileLibrarySectionTitle(); } catch (e) {}
+
+     // ✅ Render Albums / Playlists / Artists / All based on libraryTopTab
+     renderLibraryMain();
+   }
+
 
 
     if (viewType === 'search') {
