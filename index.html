@@ -4216,6 +4216,51 @@ window.loadNowPlayingFromCloud = async function () {
   }
 };
 
+// -----------------------
+// CLOUD HISTORY LOG SYNC
+// -----------------------
+
+window.loadHistoryFromCloud = async function () {
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (!uid) return null;
+
+    const res = await fetch(
+      "https://music-streamer.jacetbaum.workers.dev/api/history-log?userId=" + encodeURIComponent(uid)
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data || !data.ok) return null;
+
+    const arr = Array.isArray(data.history) ? data.history : [];
+    localStorage.setItem("historyLog", JSON.stringify(arr));
+    return arr;
+  } catch (e) {
+    console.warn("load history-log failed", e);
+    return null;
+  }
+};
+
+window.saveHistoryToCloud = async function (arr) {
+  try {
+    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    if (!uid) return false;
+
+    const body = { userId: uid, history: Array.isArray(arr) ? arr : [] };
+
+    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/history-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json().catch(() => ({}));
+    return !!(res.ok && data && data.ok);
+  } catch (e) {
+    console.warn("save history-log failed", e);
+    return false;
+  }
+};
+
 const makeId = () => {
 
   try {
@@ -5797,7 +5842,9 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
-  safe(window.renderHistory);
+  try { if (typeof window.loadHistoryFromCloud === "function") await window.loadHistoryFromCloud(); } catch (e) {}
+safe(window.renderHistory);
+
 
   // You already upgrade playlist IDs elsewhere; do NOT hard-require ensurePlaylistIds()
   // safe(window.ensurePlaylistIds);
@@ -11000,9 +11047,6 @@ if (homeRecentsShowAllBtn) {
 
   section.classList.remove('hidden');
 
-
-  section.classList.remove('hidden');
-
   grid.innerHTML = items.map(h => {
     const title = (h.type === 'playlist') ? (h.name || 'Playlist') : (h.album || 'Album');
     const sub = (h.type === 'playlist') ? 'Playlist' : (h.artist || '');
@@ -11096,6 +11140,8 @@ function renderHistory() {
   // ✅ Normalize + persist
   history = history.slice(0, 16);
   localStorage.setItem('historyLog', JSON.stringify(history));
+try { if (typeof window.saveHistoryToCloud === "function") window.saveHistoryToCloud(history); } catch (e) {}
+
 
   // ✅ Force all recents UIs to match this cleaned list
   try { if (typeof renderHome === 'function') renderHome(); } catch (e) {}
