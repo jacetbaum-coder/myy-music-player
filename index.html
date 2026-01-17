@@ -11097,10 +11097,11 @@ function getSongCoverFromPlaylistSong(s) {
   const directClean = String(direct || "").trim();
   if (directClean) return directClean;
 
-  // 2) Otherwise, compute album cover from track id/path
+  // 2) Otherwise, compute album/parent-folder cover from track id/path
   // Supports:
-  // - "Artist/Album/Song.mp3"
-  // - "My Collection/Artists/Artist/Album/Song.mp3"
+  // - "Artist/Album/Song.mp3"          => "Artist/Album/cover.jpg"
+  // - "Artist/Song.mp3"               => "Artist/cover.jpg"
+  // - "My Collection/Artists/Artist/Album/Song.mp3" => "Artist/Album/cover.jpg"
   const rawId =
     s.id ||
     s.key ||
@@ -11117,18 +11118,22 @@ function getSongCoverFromPlaylistSong(s) {
   if (tid.startsWith("My Collection/")) tid = tid.slice("My Collection/".length);
 
   const parts = tid.split("/").filter(Boolean);
-  if (parts.length < 2) return "";
+  if (parts.length < 1) return "";
 
-  const artist = parts[0];
-  const album = parts[1];
-  const coverPath = `${artist}/${album}/cover.jpg`;
+  // If it ends in a filename (has a dot), drop it to get the parent folder
+  // e.g. ["berlioz","deep in it.mp3"] => ["berlioz"]
+  const last = parts[parts.length - 1];
+  if (last.includes(".")) parts.pop();
 
-  // Use the same Worker pattern you already have elsewhere
+  if (parts.length < 1) return "";
+
+  const coverPath = `${parts.join("/")}/cover.jpg`;
+
   return `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
 }
 
-
 function getPlaylistManualCover(pl) {
+
   return (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
 }
 
