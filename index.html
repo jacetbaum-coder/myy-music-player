@@ -7691,13 +7691,39 @@ if (typeof attachSwipeAddToQueue === 'function') {
 // Desktop “Album” column cell used in the template below
 const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
-       const thumbMarkup = (song && song.cover)
-      ? `<img src="${song.cover}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+       // ✅ Thumbnail source (playlist rows only)
+// Prefer whatever the song already has; else compute from Artist/Album; else Artist cover for singles
+const rawAlbum = String((song && (song.album || song.albumName)) || "").trim();
+const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(rawAlbum); // "Work.mp3" etc
+const albumFolder = albumIsFile ? "" : rawAlbum;
+
+let thumbSrc = String(
+  (song && (song.cover || song.coverArt || song.coverUrl || song.coverURL || song.image || song.art || "")) || ""
+).trim();
+
+if (!thumbSrc) {
+  const a = String((song && (song.artist || song.artistName)) || "").trim();
+  if (a && albumFolder) {
+    thumbSrc =
+      "https://music-streamer.jacetbaum.workers.dev/?id=" +
+      encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
+  } else if (a) {
+    thumbSrc =
+      "https://music-streamer.jacetbaum.workers.dev/?id=" +
+      encodeURIComponent(a + "/cover.jpg");
+  }
+}
+
+const thumbMarkup = isPlaylist
+  ? (thumbSrc
+      ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
       : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
            <i class="fas fa-music text-white/40 text-xs"></i>
-         </div>`;
+         </div>`
+    )
+  : '';
 
-    row.innerHTML = `
+
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
