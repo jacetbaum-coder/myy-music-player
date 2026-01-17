@@ -224,6 +224,20 @@
     user-select: none;
   }
 
+  /* ✅ Mobile: make these views full-screen overlays so they don't get pushed below main content */
+  #settings-view,
+  #recently-deleted-view {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    background: #000;
+    z-index: 80;
+    padding: 16px;
+    padding-bottom: 190px; /* space for dock + now playing */
+  }
+}
+
+
   /* extra safety for text + images */
   img, a, button, #now-playing-overlay, #np-sheet {
     -webkit-touch-callout: none;
