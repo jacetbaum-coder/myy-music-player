@@ -11,8 +11,9 @@
     
     <!-- iOS Home Screen icon -->
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-frowEl.addEventListener('pointermove', (ef) => {
-    <!-- App name -->
+
+<!-- App name -->
+
     <meta name="apple-mobile-web-app-title" content="Reson">
     <meta name="application-name" content="Reson">
 
@@ -1718,9 +1719,10 @@ body.qs-lock{
 
     /* Album hero (MOBILE) — override desktop row layout */
     #album-hero {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 10px !important;          /* was 16px */
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;          /* was 16px */
+
     margin-bottom: 10px !important; /* kills the big empty space before controls */
   }
 
@@ -7665,7 +7667,15 @@ try {
   }
 
   // Remove extension (mp3/m4a/flac/etc) for display + playback title
-  songTitle = String(songTitle).replace(/\.[a-z0-9]{2,5}$/i, "");
+songTitle = String(songTitle).replace(/\.[a-z0-9]{2,5}$/i, "");
+
+// ✅ PLAYLIST FIX: if title comes in as "Artist/Title", show only "Title"
+try {
+  if (isPlaylist && String(songTitle).includes("/")) {
+    songTitle = String(songTitle).split("/").pop();
+  }
+} catch (e) {}
+
 } catch (e) {}
 
 
@@ -7735,10 +7745,25 @@ if (isPlaylist) {
   } catch (e) {}
 
   if (!thumbSrc) {
-    thumbSrc = String(
-      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
-    ).trim();
+  // 1) use whatever the playlist item already has
+  thumbSrc = String(
+    (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
+  ).trim();
+
+  // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
+  if (!thumbSrc) {
+    try {
+      const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
+      if (key && window.tracksById && typeof window.tracksById.get === "function") {
+        const lib = window.tracksById.get(key);
+        if (lib) {
+          thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+        }
+      }
+    } catch (e) {}
   }
+}
+
 }
 
 const thumbMarkup = isPlaylist
