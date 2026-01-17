@@ -7691,15 +7691,25 @@ if (typeof attachSwipeAddToQueue === 'function') {
 // Desktop “Album” column cell used in the template below
 const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
-    row.innerHTML = `
+       const thumbMarkup = (song && song.cover)
+      ? `<img src="${song.cover}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+      : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+           <i class="fas fa-music text-white/40 text-xs"></i>
+         </div>`;
 
+    row.innerHTML = `
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
       </span>
-      <div class="flex flex-col">
-        <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-        <div data-role="sub" class="track-artist md:hidden">${song.artist || album.artistName || ''}</div>
+
+      <div class="flex items-center gap-3 min-w-0">
+        ${thumbMarkup}
+        <div class="flex flex-col min-w-0">
+          <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+          <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${song.artist || album.artistName || ''}</div>
+        </div>
       </div>
+
       ${albumCell}
       <span class="hidden md:block">Just now</span>
       <span class="track-menu">•••</span>
