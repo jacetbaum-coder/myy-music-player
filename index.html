@@ -11133,37 +11133,24 @@ function renderHistory() {
   });
 }
 
-        function createNewPlaylist() {
+       function createNewPlaylist() {
   const name = prompt("Enter Playlist Name:");
   if (!name || !name.trim()) return;
 
   (async () => {
     try {
-      const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: window.APP_USER_ID || localStorage.getItem("app_user_id"),
-          name: name.trim()
-        })
-      });
+      await window.createPlaylistInCloud(name.trim());
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data || !data.ok) {
-        throw new Error(data?.error || "Failed to create playlist");
-      }
-
-      // Reload cloud playlists and re-render
+      // Pull cloud playlists and repaint
       await window.loadPlaylistsFromCloud();
-      renderPlaylists();
+      try { renderPlaylists(); } catch (e) {}
+      try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
     } catch (e) {
       console.error(e);
       alert("Could not create playlist.");
     }
   })();
 }
-
-
 
 // ---------------- PINNED PLAYLISTS ----------------
 function loadPinnedPlaylists() {
@@ -11521,12 +11508,21 @@ async function updatePlaylistAutoCoverById(playlistId) {
     return; // already up to date
   }
 
-    const songs =
+      // Prefer real song objects if present, else resolve ids -> songs
+  let songs =
     (Array.isArray(pl?.songs) && pl.songs.length)
       ? pl.songs
       : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
 
+  // ✅ CRITICAL: If the library isn't loaded yet, resolveTrackIdsToSongs can return empty.
+  // In that case, fall back to stubs made from trackIds so getSongCoverFromPlaylistSong()
+  // can still compute "Artist/Album/cover.jpg" from the path.
+  if ((!Array.isArray(songs) || songs.length === 0) && Array.isArray(pl?.trackIds) && pl.trackIds.length) {
+    songs = pl.trackIds.map((tid) => ({ id: tid, trackId: tid, key: tid, track_id: tid, r2_key: tid }));
+  }
+
   const covers = songs.map(getSongCoverFromPlaylistSong).filter(Boolean);
+
 
   if (covers.length === 0) {
     pl.autoCover = "";
