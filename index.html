@@ -13000,16 +13000,51 @@ if (hero && activePlaylistId) {
       longPressState
     );
 
-   row.innerHTML = `
-      <span class="text-zinc-400 group-hover:text-white text-center">
-        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-      </span>
-      <div class="flex flex-col">
-          <div class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${String(song.title || '').replace('.mp3', '')}</div>
-                <div class="track-artist md:hidden"></div>
+       // ✅ needed by updateTrackListActiveState()
+    row.dataset.url = song.url || '';
+    row.dataset.index = String(i + 1);
 
+    // ✅ Playlist titles often come in as "Artist/Title" — display only "Title"
+    const rawTitle = String(song.title || '').replace('.mp3', '');
+    const displayTitle = (isPlaylist && rawTitle.includes('/'))
+      ? rawTitle.split('/').pop()
+      : rawTitle;
+
+    // ✅ Artist line (prefer real field, else infer from "Artist/Title")
+    const displayArtist = String(
+      song.artist ||
+      (isPlaylist && rawTitle.includes('/') ? rawTitle.split('/')[0] : '') ||
+      ''
+    ).trim();
+
+    // ✅ Thumbnail ONLY for playlists
+    let thumbMarkup = '';
+    if (isPlaylist) {
+      let thumbSrc = '';
+      try { thumbSrc = String(getSongCoverFromPlaylistSong(song) || '').trim(); } catch (e) {}
+      if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
+
+      thumbMarkup = thumbSrc
+        ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+        : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+             <i class="fas fa-music text-white/40 text-xs"></i>
+           </div>`;
+    }
+
+   row.innerHTML = `
+      <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
+        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : (i + 1)}
+      </span>
+
+      <div class="flex items-center gap-3 min-w-0">
+        ${isPlaylist ? thumbMarkup : ''}
+        <div class="min-w-0">
+          <div data-role="title" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${displayTitle}</div>
+          <div data-role="sub" class="md:hidden text-xs text-zinc-400 truncate">${displayArtist}</div>
+        </div>
       </div>
-      <span class="truncate hidden md:block">${song.album}</span>
+
+      <span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>
       <span class="hidden md:block">Just now</span>
       <span class="track-menu">•••</span>
     `;
