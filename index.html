@@ -5830,8 +5830,74 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
       const data = await res.json();
 
       if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
-        window.cloudPlaylists = data.playlists;
-        return data.playlists;
+        // Capture what cloud playlists USED TO be before we overwrite it
+const prevCloudIds = new Set(
+  (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [])
+    .map(r => String(r?.playlist_id || r?.id || "").trim())
+    .filter(Boolean)
+);
+
+// Save latest cloud playlists
+window.cloudPlaylists = data.playlists;
+
+// ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array
+// - Keep true local-only playlists (never existed in cloud)
+// - Remove playlists that USED TO be in cloud but are now missing (deleted / recently deleted)
+try {
+  const cloudUi = data.playlists
+    .map(cloudRowToUiPlaylist)
+    .filter(pl => pl && pl.id);
+
+  const newCloudIds = new Set(cloudUi.map(p => String(p.id).trim()).filter(Boolean));
+
+  const localArr = Array.isArray(playlists) ? playlists : [];
+  const byId = new Map(localArr.map(p => [p.id, p]));
+
+  // Merge: cloud wins for meta, but preserve local-only content if cloud doesn't have it
+  for (const c of cloudUi) {
+    const existing = byId.get(c.id);
+    if (existing) {
+      byId.set(c.id, {
+        ...existing,
+        ...c,
+        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
+        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+      });
+    } else {
+      byId.set(c.id, c);
+    }
+  }
+
+  // ✅ Keep local-only playlists, but DROP ones that were in cloud before and are now gone
+  const merged = [];
+  for (const p of byId.values()) {
+    const id = String(p?.id || "").trim();
+    if (!id) continue;
+
+    // If it used to be in cloud, but isn't anymore -> it was deleted (soft deleted), so hide it
+    if (prevCloudIds.has(id) && !newCloudIds.has(id)) continue;
+
+    merged.push(p);
+  }
+
+  playlists = merged;
+
+  // Persist locally so refresh works even if offline
+  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+
+  // ✅ Background-hydrate trackIds so playlist covers can render
+  try {
+    if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
+      window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
+    }
+  } catch (e) {}
+
+} catch (e) {
+  console.warn("Failed to merge cloud playlists:", e);
+}
+
+return data.playlists;
+
       }
 
       window.cloudPlaylists = [];
