@@ -4177,10 +4177,14 @@ window.createPlaylistInCloud = async function (name) {
 
 // ✅ Delete playlist in cloud
 window.deletePlaylistFromCloud = async function (playlistId) {
+  const uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
+  if (!uid) throw new Error("Missing userId (app_user_id)");
   if (!playlistId) throw new Error("Missing playlistId");
 
   const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" + encodeURIComponent(playlistId),
+    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" +
+      encodeURIComponent(playlistId) +
+      "&userId=" + encodeURIComponent(uid),
     { method: "DELETE" }
   );
 
@@ -4188,6 +4192,7 @@ window.deletePlaylistFromCloud = async function (playlistId) {
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");
   return data;
 };
+
 
 // ✅ Delete album in cloud (R2 folder delete)
 window.deleteAlbumFromCloud = async function (artistName, albumName) {
