@@ -1725,9 +1725,9 @@ body.qs-lock{
   }
 
   /* bigger cover, but centered like Spotify */
-  #album-hero-cover {
-    width: 240px !important;
-    height: 240px !important;
+    #album-hero-cover {
+    width: 280px !important;
+    height: 280px !important;
     align-self: center !important;
   }
 
@@ -7717,10 +7717,29 @@ if (typeof attachSwipeAddToQueue === 'function') {
 // Desktop “Album” column cell used in the template below
 const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
-// ✅ Thumbnail: playlists only (albums = no thumbnail)
-const thumbSrc = String(
-  (song && (song.cover || song.coverArt || song.coverUrl || song.coverURL)) || ""
+// ✅ Playlist-safe artist + thumbnail
+// - playlist items often have coverUrl OR only trackId
+// - this uses your helper that already knows how to derive covers safely
+const displayArtist = String(
+  (song && (song.artist || song.artistName)) ||
+  (song && (song.trackId || song.id || song.r2Path || ""))?.split?.("/")?.[0] ||
+  ""
 ).trim();
+
+let thumbSrc = "";
+if (isPlaylist) {
+  try {
+    if (typeof getSongCoverFromPlaylistSong === "function") {
+      thumbSrc = String(getSongCoverFromPlaylistSong(song) || "").trim();
+    }
+  } catch (e) {}
+
+  if (!thumbSrc) {
+    thumbSrc = String(
+      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
+    ).trim();
+  }
+}
 
 const thumbMarkup = isPlaylist
   ? (thumbSrc
@@ -7731,6 +7750,7 @@ const thumbMarkup = isPlaylist
     )
   : '';
 
+
 row.innerHTML = `
   <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
     ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
@@ -7740,7 +7760,8 @@ row.innerHTML = `
     ${thumbMarkup}
     <div class="flex flex-col min-w-0">
       <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-      <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${song.artist || album.artistName || ''}</div>
+      <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${displayArtist || ''}</div>
+
     </div>
   </div>
 
