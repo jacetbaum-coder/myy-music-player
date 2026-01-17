@@ -8992,16 +8992,31 @@ function updateNowPlayingUI() {
 
   // ---- CONTEXT LABEL (mobile) ----
   if (ctx) {
-    if (!playContext) {
-      ctx.textContent = "NOW PLAYING";
-    } else if (playContext.type === 'album') {
-      ctx.textContent = playContext.label.toUpperCase();
-    } else if (playContext.type === 'playlist') {
-      ctx.textContent = playContext.label.toUpperCase();
-    } else if (playContext.type === 'search') {
-      ctx.textContent = `"${playContext.label}" IN SEARCH`;
+    let label = "";
+
+    if (!playContext || !playContext.type) {
+      label = "NOW PLAYING";
+    } else if (playContext.type === "album") {
+      label = (playContext.album || playContext.name || playContext.label || "").trim();
+      label = label || "ALBUM";
+    } else if (playContext.type === "playlist") {
+      label = (playContext.playlist || playContext.name || playContext.label || "").trim();
+      label = label || "PLAYLIST";
+    } else if (playContext.type === "artist") {
+      label = (playContext.artist || playContext.name || playContext.label || "").trim();
+      label = label || "ARTIST";
+    } else if (playContext.type === "search") {
+      const q = (playContext.label || playContext.query || "").trim();
+      label = q ? `"${q}" IN SEARCH` : "SEARCH";
+    } else {
+      label = (playContext.label || playContext.name || "").trim() || "NOW PLAYING";
     }
+
+    ctx.textContent = String(label).toUpperCase();
   }
+
+  // progress sync
+
 
   // progress sync
   const curr = document.getElementById('np-t-curr');
