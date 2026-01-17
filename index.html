@@ -10802,6 +10802,9 @@ function handleContextMenu(e, song) {
 
             // Keep Home tiles synced
             try { renderHome(); } catch (e) {}
+try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
+try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+
         }
 
         // -----------------------
@@ -10985,13 +10988,18 @@ if (homeRecentsShowAllBtn) {
   const section = document.getElementById('mobile-recent-section');
   if (!grid || !section) return;
 
-  const items = Array.isArray(history) ? history.slice(0, 6) : [];
+  // ✅ Match Home Recents rules (same as desktop/mobile row)
+  const allItems = Array.isArray(history) ? history.slice(0, 12) : [];
+  const items = allItems.slice(0, (mobileRecentsExpanded ? 12 : 4));
 
   if (items.length === 0) {
     grid.innerHTML = '';
     section.classList.add('hidden');
     return;
   }
+
+  section.classList.remove('hidden');
+
 
   section.classList.remove('hidden');
 
