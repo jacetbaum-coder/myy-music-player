@@ -3716,41 +3716,46 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
 // SYNC DEVICES UI (Home profile button)
 // -----------------------
 (function bindSyncDevicesUI() {
-  const btn = document.getElementById('sync-devices-btn');
-  const modal = document.getElementById('sync-devices-modal');
-  const closeBtn = document.getElementById('sync-devices-close');
-  const copyBtn = document.getElementById('sync-devices-copy');
-  const codeEl = document.getElementById('sync-devices-code');
-  const pasteInput = document.getElementById('sync-devices-paste');
-  const pasteBtn = document.getElementById('sync-devices-paste-btn');
+  const btns = Array.from(document.querySelectorAll('#sync-devices-btn'));
+const modal = document.getElementById('sync-devices-modal');
+const closeBtn = document.getElementById('sync-devices-close');
+const copyBtn = document.getElementById('sync-devices-copy');
+const codeEl = document.getElementById('sync-devices-code');
+const pasteInput = document.getElementById('sync-devices-paste');
+const pasteBtn = document.getElementById('sync-devices-paste-btn');
 
-  if (!btn) return;
+if (!btns.length) return;
 
-  const openModal = async () => {
-    try {
-      let uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
-      if (!uid) {
-        uid = String(makeUserId()).trim();
-        localStorage.setItem("app_user_id", uid);
-        window.APP_USER_ID = uid;
-      }
-      if (codeEl) codeEl.textContent = uid;
-    } catch (e) {}
+const openModal = async () => {
+  try {
+    let uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
+    if (!uid) {
+      uid = String(makeUserId()).trim();
+      localStorage.setItem("app_user_id", uid);
+      window.APP_USER_ID = uid;
+    }
+    if (codeEl) codeEl.textContent = uid;
+  } catch (e) {}
 
-    if (modal) modal.classList.remove('hidden');
-  };
+  if (modal) modal.classList.remove('hidden');
+};
 
-  const closeModal = () => {
-    if (modal) modal.classList.add('hidden');
-  };
+const closeModal = () => {
+  if (modal) modal.classList.add('hidden');
+};
 
-  // ✅ expose so Settings can open the modal
-  window.openSyncDevicesModal = openModal;
+// ✅ expose so Settings can open the modal
+window.openSyncDevicesModal = openModal;
 
-  // ✅ Person icon now opens Settings instead of the modal
-  btn.addEventListener('click', () => {
-    try { showView('settings'); } catch (e) {}
-  });
+// ✅ Person icon now opens Settings instead of the modal
+btns.forEach((b) => {
+  try {
+    b.addEventListener('click', () => {
+      try { showView('settings'); } catch (e) {}
+    });
+  } catch (e) {}
+});
+
 
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
@@ -7317,7 +7322,15 @@ else if (viewType === 'playlist') {
 
 const scrollArea = document.getElementById('main-scroll-area');
 
-if (scrollArea) scrollArea.scrollTop = 0;
+if (scrollArea) {
+  scrollArea.scrollTop = 0;
+
+  // ✅ Reset any leftover swipe-down transform (this was pushing Recently Deleted down)
+  scrollArea.style.transition = '';
+  scrollArea.style.transform = '';
+  scrollArea.style.opacity = '';
+}
+
 
 
         if (viewType === 'home') {
