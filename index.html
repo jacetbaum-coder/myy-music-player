@@ -2983,6 +2983,8 @@ body.qs-lock {
        let libraryData = [];
 let libraryDataOriginal = [];
 let currentSong = null;
+window.currentSong = currentSong;
+
 let currentQueue = [];
 let currentIndex = -1;
 
@@ -8666,8 +8668,20 @@ async function playSpecificSong(url, title, album, artist, cover) {
     return;
   }
 
-  currentSong = { url, title, album, artist, cover };
+    // ✅ If cover is missing, auto-build it from artist + album
+  let resolvedCover = String(cover || "").trim();
+  if (!resolvedCover) {
+    const a = String(artist || "").trim();
+    const b = String(album || "").trim();
+    if (a && b) {
+      resolvedCover =
+        "https://music-streamer.jacetbaum.workers.dev/?id=" +
+        encodeURIComponent(a + "/" + b + "/cover.jpg");
+    }
+  }
 
+  currentSong = { url, title, album, artist, cover: resolvedCover };
+  window.currentSong = currentSong;
 
   // Reset audio cleanly first (helps iOS)
   try { player.pause(); } catch (e) {}
@@ -8695,8 +8709,8 @@ async function playSpecificSong(url, title, album, artist, cover) {
 
   // UI Updates
   dock.classList.remove('dock-hidden');
-  document.getElementById('p-cover').src = cover;
-  updateAccentFromCover(cover);
+  document.getElementById('p-cover').src = resolvedCover || "";
+  updateAccentFromCover(resolvedCover || "");
 
   setMarqueeTitle('p-title', title.replace('.mp3', ''));
   document.getElementById('p-artist').innerText = artist;
@@ -12876,7 +12890,8 @@ if (hero && activePlaylistId) {
       </span>
       <div class="flex flex-col">
           <div class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${String(song.title || '').replace('.mp3', '')}</div>
-        <div class="track-artist md:hidden">${song.artist || ''}</div>
+                <div class="track-artist md:hidden"></div>
+
       </div>
       <span class="truncate hidden md:block">${song.album}</span>
       <span class="hidden md:block">Just now</span>
