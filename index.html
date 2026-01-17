@@ -11771,8 +11771,8 @@ function showPlaylistMenuAt(x, y, playlistId) {
   if (pinBtn)   pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-  // Bind menu actions ONCE
-  if (!m.__playlistMenuBound) {
+  if (false && !m.__playlistMenuBound) {
+
     m.__playlistMenuBound = true;
 
     const safeClose = () => { try { hidePlaylistMenu(); } catch (e) {} };
@@ -12137,7 +12137,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const pl = (Array.isArray(playlists) ? playlists.find(p => p.id === id) : null);
     const name = pl?.name || "this playlist";
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+if (!confirm(`Delete "${name}"?\n\nThis will move it to Recently Deleted for 30 days.`)) return;
+
 
     try {
       // remove locally
