@@ -3911,6 +3911,8 @@ window.resolveTrackIdsToSongs = function (trackIds) {
   const ids = Array.isArray(trackIds) ? trackIds : [];
   const out = [];
 
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+
   for (const id of ids) {
     const key = String(id || "").trim();
     if (!key) continue;
@@ -3920,25 +3922,49 @@ window.resolveTrackIdsToSongs = function (trackIds) {
         ? (window.tracksById.get(key) || null)
         : null;
 
+    // ✅ Best case: we have the real track from the library
     if (found) {
       out.push(found);
       continue;
     }
 
+    // ✅ Fallback: derive title/artist/album/cover from the trackId path
+    const parts = key.split("/").filter(Boolean);
+    const file = parts.length ? parts[parts.length - 1] : key;
+
+    const titleOnly = String(file).replace(/\.[^/.]+$/, ""); // remove .mp3/.m4a/etc
+
+    const artistName = parts.length >= 2 ? parts[0] : "";
+    const albumName  = parts.length >= 3 ? parts[1] : "";
+
+    // Only build album cover if we actually have Artist/Album/...
+    const coverUrl =
+      (artistName && albumName)
+        ? (r2Base + encodeURIComponent(`${artistName}/${albumName}/cover.jpg`))
+        : "";
+
+    const audioUrl = r2Base + encodeURIComponent(key);
+
     out.push({
       id: key,
       r2Path: key,
       key: key,
-      title: key.split("/").pop() || key,
-      name: key.split("/").pop() || key,
-      artist: "",
-      album: "",
-      artistName: "",
-      albumName: "",
-      cover: "",
-      coverArt: "",
-      url: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`,
-      link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
+
+      // ✅ what the UI should show
+      title: titleOnly,
+      name: titleOnly,
+      artist: artistName,
+      album: albumName,
+      artistName: artistName,
+      albumName: albumName,
+
+      // ✅ what the UI should use for thumbs
+      cover: coverUrl,
+      coverArt: coverUrl,
+
+      // ✅ playback
+      url: audioUrl,
+      link: audioUrl,
     });
   }
 
