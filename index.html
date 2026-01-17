@@ -7689,82 +7689,43 @@ if (typeof attachSwipeAddToQueue === 'function') {
 }
 
 // Desktop “Album” column cell used in the template below
-const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>`;
+const albumCell = `<span data-role="album" class="truncate hidden md:block text-white/80">${album.albumName}</span>`;
 
-// Attach metadata for active-row highlighting
-row.dataset.url = song.url;
-row.dataset.index = String(i + 1);
+       const thumbMarkup = (song && song.cover)
+      ? `<img src="${song.cover}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+      : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+           <i class="fas fa-music text-white/40 text-xs"></i>
+         </div>`;
 
-// Build row cover ONLY for playlists
-let rowCover = '';
-if (isPlaylist) {
-  rowCover = String(song.cover || '').trim();
+    row.innerHTML = `
+      <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
+        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+      </span>
 
-  if (!rowCover) {
-    const a = String(song.artist || '').trim();
-    const b = String(song.album || '').trim();
-    const bIsFile = /\.[a-z0-9]{2,5}$/i.test(b);
-    const albumFolder = bIsFile ? '' : b;
+      <div class="flex items-center gap-3 min-w-0">
+        ${thumbMarkup}
+        <div class="flex flex-col min-w-0">
+          <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+          <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${song.artist || album.artistName || ''}</div>
+        </div>
+      </div>
 
-    if (a && albumFolder) {
-      rowCover =
-        'https://music-streamer.jacetbaum.workers.dev/?id=' +
-        encodeURIComponent(a + '/' + albumFolder + '/cover.jpg');
-    } else if (a) {
-      rowCover =
-        'https://music-streamer.jacetbaum.workers.dev/?id=' +
-        encodeURIComponent(a + '/cover.jpg');
+      ${albumCell}
+      <span class="hidden md:block">Just now</span>
+      <span class="track-menu">•••</span>
+    `;
+
+    // If the album is clickable, clicking it should NOT play the song row
+    const albumBtn = row.querySelector('button[data-album]');
+    if (albumBtn) {
+      albumBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const alb = albumBtn.getAttribute('data-album') || '';
+        if (alb) openAlbumByName(alb);
+      });
     }
-  }
-}
 
-const thumbMarkup = rowCover
-  ? `<img src="${rowCover}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
-  : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
-       <i class="fas fa-music text-white/40 text-xs"></i>
-     </div>`;
-
-row.innerHTML = isPlaylist ? `
-  <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
-    ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-  </span>
-
-  <div class="flex items-center gap-3 min-w-0">
-    ${thumbMarkup}
-    <div class="flex flex-col min-w-0">
-      <div data-role="title" class="track-title text-white truncate">
-        ${String(song.title || '').replace('.mp3', '')}
-      </div>
-      <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">
-        ${song.artist || ''}
-      </div>
-    </div>
-  </div>
-
-  ${albumCell}
-  <span class="hidden md:block">Just now</span>
-  <span class="track-menu">•••</span>
-` : `
-  <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
-    ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
-  </span>
-
-  <div class="flex flex-col min-w-0">
-    <div data-role="title" class="track-title text-white truncate">
-      ${String(song.title || '').replace('.mp3', '')}
-    </div>
-    <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">
-      ${song.artist || ''}
-    </div>
-  </div>
-
-  ${albumCell}
-  <span class="hidden md:block">Just now</span>
-  <span class="track-menu">•••</span>
-`;
-
-listEl.appendChild(row);
-
+    listEl.appendChild(row);
     });
 }
 
@@ -12914,12 +12875,13 @@ let cover = queue[0]?.cover || '';
     }
   }
 
-    const coverMarkup = cover
-    ? `<img id="album-hero-cover" src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover mx-auto sm:mx-0">`
-    : `<div id="album-hero-cover" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center mx-auto sm:mx-0">
+  const coverMarkup = cover
+
+    ? `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
+    : `<div class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center">
          <i class="fas fa-music text-4xl text-zinc-500"></i>
        </div>`;
-
+  const label = isPlaylist ? 'Playlist' : name === 'Liked Songs' ? 'Liked Songs' : 'Album';
 
   document.getElementById('album-hero').innerHTML = `
     ${coverMarkup}
