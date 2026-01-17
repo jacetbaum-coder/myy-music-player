@@ -3788,9 +3788,18 @@ window.loadPlaylistsFromCloud = async function () {
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
 try {
+  // Remember what cloud playlists used to exist (so we can detect deletions)
+  const prevCloudIds = new Set(
+    (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [])
+      .map(r => (r && (r.playlist_id || r.id)) ? String(r.playlist_id || r.id) : "")
+      .filter(Boolean)
+  );
+
   const cloudUi = data.playlists
     .map(cloudRowToUiPlaylist)
     .filter(pl => pl && pl.id);
+
+  const newCloudIds = new Set(cloudUi.map(p => String(p.id)));
 
   const localArr = Array.isArray(playlists) ? playlists : [];
   const byId = new Map(localArr.map(p => [p.id, p]));
@@ -3805,31 +3814,42 @@ try {
         // preserve local-only content if cloud meta doesn't include it
         songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
         trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
-
       });
     } else {
       byId.set(c.id, c);
     }
   }
 
-  // Keep local-only playlists that aren't in cloud yet
-  playlists = Array.from(byId.values());
+  // ✅ KEEP local-only playlists, but DROP ones that used to be in cloud and are now missing (deleted / recently deleted)
+  const merged = [];
+  for (const p of byId.values()) {
+    const id = String(p?.id || "").trim();
+    if (!id) continue;
+
+    // If this playlist USED TO be in cloud, but is NOT in cloud anymore -> remove it
+    if (prevCloudIds.has(id) && !newCloudIds.has(id)) continue;
+
+    merged.push(p);
+  }
+
+  playlists = merged;
 
   // Persist locally so refresh works even if offline
   try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
 
-// ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
-try {
-  if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
-    window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
-  }
-} catch (e) {}
+  // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
+  try {
+    if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
+      window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
+    }
+  } catch (e) {}
 
 } catch (e) {
   console.warn("Failed to merge cloud playlists:", e);
 }
 
 return data.playlists;
+
 
   }
 
