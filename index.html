@@ -600,30 +600,33 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 
-               .main-view { 
-  flex: 1; 
+                              .main-view { 
+  flex: 1;
+  min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
+  width: 100%;
+  overflow-y: auto;              /* ✅ vertical scrolling */
+  -webkit-overflow-scrolling: touch;
+
   /* subtle accent tint at top -> black */
   background: linear-gradient(180deg,
       rgba(var(--accent-rgb), 0.28) 0%,
       rgba(0,0,0,1) 65%);
 
-  /* ✅ IMPORTANT: prevent any horizontal “peek” during swipe/back gestures */
+  /* ✅ prevent any horizontal “peek” during swipe/back gestures */
   overflow-x: hidden;
-    /* ✅ extra bottom space so the last song can scroll above the player/dock */
+
+  /* ✅ extra bottom space so the last song can scroll above the player/dock */
   padding: 32px 32px 190px;
 
-  position: relative; 
+  position: relative;
   scrollbar-width: thin;
-    scrollbar-color: #555 transparent;
+  scrollbar-color: #555 transparent;
   scrollbar-gutter: stable both-edges;
 }
 
 #grid-view {
   scrollbar-gutter: stable both-edges;
 }
-
-
-
 
         /* --- INTERACTIVE ELEMENTS --- */
         .resizer { 
