@@ -2224,17 +2224,19 @@ body.qs-lock {
 </button>
 
 
-    <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button id="home-tab-playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+      <button id="home-tab-albums" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Albums</button>
+      <button id="home-tab-artists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Artists</button>
+      <button id="home-tab-all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
     </div>
+
   </div>
 
     <!-- Playlists -->
   <div class="flex items-center justify-between mb-3">
-    <h2 class="text-xl font-black">Playlists</h2>
+        <h2 id="home-section-title" class="text-xl font-black">Playlists</h2>
+
   </div>
 
 
@@ -7845,24 +7847,71 @@ updateMobileLibraryTabUI();
 
 
 
-function initMobileLibraryTabsOnce() {
-  if (window.__mobileLibTabsInit) return;
-  window.__mobileLibTabsInit = true;
+// -----------------------
+// HOME: Top tabs (Playlists / Albums / Artists / All)
+// -----------------------
+let homeTopTab = 'all';
+window.homeTopTab = homeTopTab;
 
-  document.getElementById('mobile-lib-tab-playlists')
-    ?.addEventListener('click', () => setLibraryTopTab('playlists'));
+function getHomeTabLabel(tab) {
+  if (tab === 'playlists') return 'Playlists';
+  if (tab === 'albums') return 'Albums';
+  if (tab === 'artists') return 'Artists';
+  if (tab === 'all') return 'All';
+  return 'All';
+}
 
-  document.getElementById('mobile-lib-tab-albums')
-    ?.addEventListener('click', () => setLibraryTopTab('albums'));
+function updateHomeSectionTitle() {
+  const el = document.getElementById('home-section-title');
+  if (el) el.textContent = getHomeTabLabel(homeTopTab);
+}
 
-  document.getElementById('mobile-lib-tab-artists')
-    ?.addEventListener('click', () => setLibraryTopTab('artists'));
+function updateHomeTabUI() {
+  const btnP = document.getElementById('home-tab-playlists');
+  const btnA = document.getElementById('home-tab-albums');
+  const btnR = document.getElementById('home-tab-artists');
+  const btnAll = document.getElementById('home-tab-all');
+  if (!btnP || !btnA || !btnR || !btnAll) return;
 
-  document.getElementById('mobile-lib-tab-all')
-    ?.addEventListener('click', () => setLibraryTopTab('all'));
+  const base = "px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap";
+  const onCls = "bg-[#1db954] text-black";
+  const offCls = "bg-white/10 text-white";
 
-  updateMobileLibraryTabUI();
-  updateMobileLibrarySectionTitle();
+  btnP.className   = base + " " + (homeTopTab === 'playlists' ? onCls : offCls);
+  btnA.className   = base + " " + (homeTopTab === 'albums' ? onCls : offCls);
+  btnR.className   = base + " " + (homeTopTab === 'artists' ? onCls : offCls);
+  btnAll.className = base + " " + (homeTopTab === 'all' ? onCls : offCls);
+}
+
+function setHomeTopTab(tab) {
+  homeTopTab = tab;
+  window.homeTopTab = tab;
+  updateHomeTabUI();
+  updateHomeSectionTitle();
+
+  // Re-render ONLY home sections (minimal)
+  try { renderHomeRecents('home-recent-grid'); } catch (e) {}
+  try { renderHomeRecents('desktop-recent-grid'); } catch (e) {}
+}
+
+function initHomeTabsOnce() {
+  if (window.__homeTabsInit) return;
+  window.__homeTabsInit = true;
+
+  document.getElementById('home-tab-playlists')
+    ?.addEventListener('click', () => setHomeTopTab('playlists'));
+
+  document.getElementById('home-tab-albums')
+    ?.addEventListener('click', () => setHomeTopTab('albums'));
+
+  document.getElementById('home-tab-artists')
+    ?.addEventListener('click', () => setHomeTopTab('artists'));
+
+  document.getElementById('home-tab-all')
+    ?.addEventListener('click', () => setHomeTopTab('all'));
+
+  updateHomeTabUI();
+  updateHomeSectionTitle();
 }
 
 function renderLibraryArtists() {
@@ -11375,56 +11424,151 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
           return src.slice(-limit).reverse();
         }
 
-        function renderHomeRecents(containerId) {
+                       function renderHomeRecents(containerId) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
- const pinnedIds = loadPinnedPlaylists();
-const pinnedPlaylists = pinnedIds
-  .map(id => playlists.find(pl => pl.id === id))
-  .filter(Boolean);
+  // homeTopTab should be: 'playlists' | 'albums' | 'artists' | 'all'
+  const tab = (window.homeTopTab || 'all');
 
-// ✅ Home should ONLY show pinned playlists
-const filled = pinnedPlaylists.slice(0, slotCount);
+  // pinned playlists (existing logic)
+  const pinnedIds = loadPinnedPlaylists();
+  const pinnedPlaylists = pinnedIds
+    .map(id => playlists.find(pl => pl.id === id))
+    .filter(Boolean);
 
+  const allHist = Array.isArray(history) ? history.slice(0, 60) : [];
+
+  // Build "filled" items for the current tab
+  let filled = [];
+
+  if (tab === 'playlists') {
+    // ✅ Playlists tab: pinned playlists (your existing behavior)
+    filled = pinnedPlaylists.slice(0, slotCount).map(pl => ({
+      type: 'playlist',
+      id: pl.id,
+      name: pl.name || 'Playlist',
+      cover: getEffectivePlaylistCover(pl) || ''
+    }));
+  } else if (tab === 'albums') {
+    // ✅ Albums tab: recent albums
+    filled = allHist
+      .filter(h => h && h.type === 'album')
+      .slice(0, slotCount)
+      .map(h => ({
+        type: 'album',
+        album: h.album || 'Album',
+        artist: h.artist || '',
+        cover: h.cover || ''
+      }));
+  } else if (tab === 'artists') {
+    // ✅ Artists tab: recent unique artists (derived from album history)
+    const seen = new Set();
+    filled = [];
+    for (const h of allHist) {
+      if (!h || h.type !== 'album') continue;
+      const a = String(h.artist || '').trim();
+      if (!a || seen.has(a)) continue;
+      seen.add(a);
+      filled.push({ type: 'artist', artist: a, cover: h.cover || '' });
+      if (filled.length >= slotCount) break;
+    }
+  } else {
+    // ✅ All tab: mixed history (keeps order)
+    filled = allHist.slice(0, slotCount).map(h => {
+      if (!h) return null;
+
+      if (h.type === 'playlist') {
+        const pl = playlists.find(p => p.id === h.id) || null;
+        const cover = pl ? (getEffectivePlaylistCover(pl) || '') : (h.cover || '');
+        return { type: 'playlist', id: h.id, name: h.name || 'Playlist', cover };
+      }
+
+      if (h.type === 'album') {
+        return { type: 'album', album: h.album || 'Album', artist: h.artist || '', cover: h.cover || '' };
+      }
+
+      return null;
+    }).filter(Boolean);
+  }
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
 
   for (let i = 0; i < slotCount; i++) {
-     const pl = filled[i];
+    const it = filled[i];
 
-    // Placeholder tile (keeps the “imaginary rectangle” space)
-    if (!pl) {
+    // Placeholder tile (keeps spacing)
+    if (!it) {
+      tiles.push(`<div class="min-w-0 flex-1"></div>`);
+      continue;
+    }
+
+    // PLAYLIST tile
+    if (it.type === 'playlist') {
+      const safeId = String(it.id || '').replace(/"/g,'&quot;');
       tiles.push(`
-        <div class="min-w-0 flex-1"></div>
+        <div class="mobile-recent-card"
+             data-type="playlist"
+             data-id="${safeId}">
+          ${
+            it.cover
+              ? `<img src="${it.cover}" alt="">`
+              : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                   <i class="fas fa-music text-zinc-400 text-xs"></i>
+                 </div>`
+          }
+          <div class="min-w-0">
+            <div class="title">${it.name || 'Playlist'}</div>
+            <div class="sub">Playlist</div>
+          </div>
         </div>
       `);
       continue;
     }
 
-    const cover = getEffectivePlaylistCover(pl);
-    const title = pl.name || 'Playlist';
-    const safeId = String(pl.id || '').replace(/"/g,'&quot;');
+    // ALBUM tile
+    if (it.type === 'album') {
+      const safeAlbum = String(it.album || '').replace(/"/g,'&quot;');
+      tiles.push(`
+        <div class="mobile-recent-card"
+             data-type="album"
+             data-album="${safeAlbum}">
+          ${
+            it.cover
+              ? `<img src="${it.cover}" alt="">`
+              : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                   <i class="fas fa-music text-zinc-400 text-xs"></i>
+                 </div>`
+          }
+          <div class="min-w-0">
+            <div class="title">${it.album || 'Album'}</div>
+            <div class="sub">${it.artist || ''}</div>
+          </div>
+        </div>
+      `);
+      continue;
+    }
 
+    // ARTIST tile
+    const safeArtist = String(it.artist || '').replace(/"/g,'&quot;');
     tiles.push(`
       <div class="mobile-recent-card"
-            data-type="playlist"
-           data-id="${safeId}"
-                      data-album="">
+           data-type="artist"
+           data-artist="${safeArtist}">
         ${
-          cover
-            ? `<img src="${cover}" alt="">`
+          it.cover
+            ? `<img src="${it.cover}" alt="">`
             : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
-                 <i class="fas fa-music text-zinc-400 text-xs"></i>
+                 <i class="fas fa-user text-zinc-400 text-xs"></i>
                </div>`
         }
         <div class="min-w-0">
-          <div class="title">${title}</div>
-          <div class="sub">Playlist</div>
+          <div class="title">${it.artist || 'Artist'}</div>
+          <div class="sub">Artist</div>
         </div>
       </div>
     `);
@@ -11432,22 +11576,36 @@ const filled = pinnedPlaylists.slice(0, slotCount);
 
   grid.innerHTML = tiles.join('');
 
-  // Click opens playlist/album (placeholders have pointer-events none)
+  // Click opens playlist / album / artist
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
-        if (!type) return;
+      if (!type) return;
+
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
         const idx = playlists.findIndex(pl => pl.id === id);
         if (idx !== -1) showView('playlist', idx);
-      } else {
+        return;
+      }
+
+      if (type === 'album') {
         const album = card.getAttribute('data-album');
         if (album) openAlbumByName(album);
+        return;
+      }
+
+      if (type === 'artist') {
+        const artist = card.getAttribute('data-artist');
+        if (artist && typeof openArtistByName === 'function') openArtistByName(artist);
+        return;
       }
     });
   });
 }
+
+         let mobileRecentsExpanded = false;
+
 
          let mobileRecentsExpanded = false;
 
