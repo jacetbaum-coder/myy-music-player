@@ -11051,8 +11051,11 @@ function renderHistory() {
   const historyEl = document.getElementById('history-container');
   if (!historyEl) return;
 
+    // ✅ Single source of truth: historyLog in localStorage
+  // (and we also force Home recents to repaint after we clean it)
   let history = [];
   try { history = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { history = []; }
+  if (!Array.isArray(history)) history = [];
 
   // ✅ helper to resolve a playlist that still exists
   const getPlaylistById = (id) => {
@@ -11082,7 +11085,15 @@ function renderHistory() {
     return false;
   });
 
-  localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+  // ✅ Normalize + persist
+  history = history.slice(0, 16);
+  localStorage.setItem('historyLog', JSON.stringify(history));
+
+  // ✅ Force all recents UIs to match this cleaned list
+  try { if (typeof renderHome === 'function') renderHome(); } catch (e) {}
+  try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow(); } catch (e) {}
+  try { if (typeof renderHomeRecents === 'function') renderHomeRecents(); } catch (e) {}
+
 
   historyEl.innerHTML = '';
 
