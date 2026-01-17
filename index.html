@@ -12088,9 +12088,50 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
   // -----------------------
+// PLAYLIST MENU compatibility wrappers (so BOTH menu wiring systems work)
+window.setPlaylistManualCover = async function (playlistId, url) {
+  try { setPlaylistManualCoverById(playlistId, url); } catch (e) { console.warn(e); }
+};
+
+window.clearPlaylistManualCover = async function (playlistId) {
+  try { clearPlaylistManualCoverById(playlistId); } catch (e) { console.warn(e); }
+};
+
+window.openPlaylistCoverUpload = function (playlistId) {
+  try {
+    // keep target consistent with the rest of your menu logic
+    window.playlistMenuTargetId = playlistId;
+
+    const fileInput = document.getElementById('playlist-cover-file');
+    if (!fileInput) return;
+
+    fileInput.value = "";
+    fileInput.onchange = async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+
+      try {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try { setPlaylistManualCoverById(window.playlistMenuTargetId, String(reader.result || '')); } catch (err) {}
+          try { renderPlaylists(); } catch (err) {}
+          try { hidePlaylistMenu(); } catch (err) {}
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn(err);
+      }
+    };
+
+    fileInput.click();
+  } catch (e) {
+    console.warn(e);
+  }
+};
+
 // PLAYLIST MENU buttons (bind once, after DOM exists)
-// -----------------------
 window.addEventListener('DOMContentLoaded', () => {
+
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
   const coverUploadBtn = document.getElementById('pm-cover-upload');
