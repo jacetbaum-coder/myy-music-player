@@ -7715,13 +7715,17 @@ if (!thumbSrc) {
 }
 
 const thumbMarkup = isPlaylist
-  ? (thumbSrc
-      ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
-      : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
-           <i class="fas fa-music text-white/40 text-xs"></i>
-         </div>`
-    )
+  ? `
+      ${
+        song && song.cover
+          ? `<img src="${song.cover}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+          : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+               <i class="fas fa-music text-white/40 text-xs"></i>
+             </div>`
+      }
+    `
   : '';
+
 
 
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
