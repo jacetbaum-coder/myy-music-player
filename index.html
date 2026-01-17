@@ -11758,8 +11758,9 @@ function showPlaylistMenuAt(x, y, playlistId) {
   const m = document.getElementById('playlist-menu');
   if (!m) return;
 
-  // ✅ Prevent “open click” from immediately closing it
-  suppressPlaylistMenuCloseUntil = Date.now() + 350;
+ // ✅ Prevent “open click” from immediately closing it
+window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
+
 
   playlistMenuTargetId = playlistId;
 
@@ -11843,7 +11844,8 @@ function showPlaylistMenuAt(x, y, playlistId) {
 
         const pl = playlists.find(p => p.id === id);
         const name = pl ? (pl.name || 'this playlist') : 'this playlist';
-        if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+        if (!confirm(`Delete "${name}"?\n\nThis will move it to Recently Deleted for 30 days.`)) return;
+
 
         // Close menu immediately so it feels responsive
         safeClose();
@@ -11900,7 +11902,25 @@ function showPlaylistMenuAt(x, y, playlistId) {
 // -----------------------
 // HERO 3-DOTS MENU (playlist OR album)
 // -----------------------
+
+function openPlaylistPinMenuFromHero(e) {
+  try {
+    const id = (typeof activePlaylistId !== 'undefined') ? activePlaylistId : null;
+    if (!id) return;
+
+    const rect = e?.currentTarget?.getBoundingClientRect?.();
+    const x = rect ? (rect.left + rect.width / 2) : (e?.clientX || 16);
+    const y = rect ? (rect.bottom + 8) : (e?.clientY || 16);
+
+    // open the same playlist menu used everywhere else
+    showPlaylistMenuAt(Math.round(x), Math.round(y), id);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
 (function bindHeroMoreButtonOnce() {
+
   const btn = document.getElementById('hero-more-btn');
   if (!btn || btn.__bound) return;
   btn.__bound = true;
