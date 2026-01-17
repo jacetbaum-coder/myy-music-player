@@ -8669,19 +8669,43 @@ async function playSpecificSong(url, title, album, artist, cover) {
   }
 
     // ✅ If cover is missing, auto-build it from artist + album
+    // ✅ Normalize title (remove artist path + extension)
+  const titleClean = String(title || "")
+    .split("/")
+    .pop()
+    .replace(/\.[^/.]+$/, "");
+
+  // ✅ Detect if "album" is actually a filename like "Work.mp3"
+  const albumRaw = String(album || "").trim();
+  const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(albumRaw);
+  const albumFolder = albumIsFile ? "" : albumRaw;
+
+  // ✅ Cover fallback rules:
+  // Album track  → Artist/Album/cover.jpg
+  // Single track → Artist/cover.jpg
   let resolvedCover = String(cover || "").trim();
   if (!resolvedCover) {
     const a = String(artist || "").trim();
-    const b = String(album || "").trim();
-    if (a && b) {
+    if (a && albumFolder) {
       resolvedCover =
         "https://music-streamer.jacetbaum.workers.dev/?id=" +
-        encodeURIComponent(a + "/" + b + "/cover.jpg");
+        encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
+    } else if (a) {
+      resolvedCover =
+        "https://music-streamer.jacetbaum.workers.dev/?id=" +
+        encodeURIComponent(a + "/cover.jpg");
     }
   }
 
-  currentSong = { url, title, album, artist, cover: resolvedCover };
+  currentSong = {
+    url,
+    title: titleClean,
+    album: albumFolder,
+    artist,
+    cover: resolvedCover
+  };
   window.currentSong = currentSong;
+
 
   // Reset audio cleanly first (helps iOS)
   try { player.pause(); } catch (e) {}
