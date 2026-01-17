@@ -2215,20 +2215,19 @@ body.qs-lock {
 
 
 
-  <!-- Spotify-like top tabs (not functional yet) -->
+    <!-- Home top tabs (same style as Library tabs) -->
   <div class="flex items-center gap-3 mb-5">
     <button id="sync-devices-btn" type="button"
-  class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
-  aria-label="Sync devices">
-  <i class="fas fa-user text-white/70"></i>
-</button>
-
+      class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+      aria-label="Sync devices">
+      <i class="fas fa-user text-white/70"></i>
+    </button>
 
     <div class="flex gap-2 overflow-x-auto no-scrollbar">
-      <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-      <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
+      <button id="mobile-home-tab-playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+      <button id="mobile-home-tab-albums" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Albums</button>
+      <button id="mobile-home-tab-artists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Artists</button>
+      <button id="mobile-home-tab-all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
     </div>
   </div>
 
@@ -7356,7 +7355,9 @@ if (scrollArea) {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
       document.getElementById('home-view')?.classList.remove('hidden');
-      try { renderHome(); } catch (e) {}
+try { initMobileHomeTabsOnce(); } catch (e) {}
+try { renderHome(); } catch (e) {}
+
     } else {
       // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
@@ -11449,14 +11450,114 @@ const filled = pinnedPlaylists.slice(0, slotCount);
   });
 }
 
-         let mobileRecentsExpanded = false;
+        let mobileRecentsExpanded = false;
 
-        function renderHomeRecentsRow(containerId) {
+// -----------------------
+// HOME TOP TABS (Recents filter)
+// -----------------------
+let homeTopTab = 'all';
+let __homeTabsBound = false;
+
+function setHomeTopTab(tab) {
+  homeTopTab = (tab || 'all');
+
+  // keep the green pill correct
+  try { updateMobileHomeTabUI(); } catch (e) {}
+
+  // keep mobile show-all sane when switching tabs
+  try { mobileRecentsExpanded = false; } catch (e) {}
+
+  // repaint ONLY the home recents areas
+  try { renderHome(); } catch (e) {}
+}
+
+function updateMobileHomeTabUI() {
+  const map = {
+    playlists: 'mobile-home-tab-playlists',
+    albums: 'mobile-home-tab-albums',
+    artists: 'mobile-home-tab-artists',
+    all: 'mobile-home-tab-all',
+  };
+
+  Object.entries(map).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const isActive = (homeTopTab === key);
+    el.classList.toggle('bg-[#1db954]', isActive);
+    el.classList.toggle('text-black', isActive);
+
+    el.classList.toggle('bg-white/10', !isActive);
+    el.classList.toggle('text-white', !isActive);
+  });
+}
+
+function initMobileHomeTabsOnce() {
+  if (__homeTabsBound) return;
+
+  const map = {
+    playlists: 'mobile-home-tab-playlists',
+    albums: 'mobile-home-tab-albums',
+    artists: 'mobile-home-tab-artists',
+    all: 'mobile-home-tab-all',
+  };
+
+  Object.entries(map).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', () => setHomeTopTab(key));
+  });
+
+  __homeTabsBound = true;
+  updateMobileHomeTabUI();
+}
+
+function getHomeRecentsItems() {
+  const src = Array.isArray(history) ? history.slice() : [];
+
+  if (homeTopTab === 'albums') {
+    return src.filter(x => x && x.type === 'album');
+  }
+
+  if (homeTopTab === 'playlists') {
+    return src.filter(x => x && x.type === 'playlist');
+  }
+
+  if (homeTopTab === 'artists') {
+    // Build "recent artists" from the existing history rows (albums/playlists),
+    // without changing how history is stored.
+    const seen = new Set();
+    const out = [];
+
+    src.forEach(x => {
+      const a = String(x?.artist || '').trim();
+      if (!a) return;
+      const k = a.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+
+      out.push({
+        type: 'artist',
+        artist: a,
+        cover: x?.cover || ''
+      });
+    });
+
+    return out;
+  }
+
+  // default: all (keep everything together)
+  return src;
+}
+
+function renderHomeRecentsRow(containerId) {
+
           const row = document.getElementById(containerId);
           if (!row) return;
 
           const isMobile = (window.innerWidth <= 768);
-          const allItems = Array.isArray(history) ? history.slice(0, 12) : [];
+          const allItems = getHomeRecentsItems().slice(0, 12);
+
           const items = isMobile
             ? allItems.slice(0, mobileRecentsExpanded ? 12 : 4)
             : allItems;
@@ -11476,13 +11577,25 @@ const filled = pinnedPlaylists.slice(0, slotCount);
           }
 
          row.innerHTML = items.map(item => {
-            const title = (item.type === 'playlist') ? (item.name || 'Playlist') : (item.album || 'Album');
-            const sub = (item.type === 'playlist') ? 'Playlist' : (item.artist || '');
-            const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
-            const safeId = String(item.id || '').replace(/"/g, '&quot;');
-            const dataAttrs = item.type === 'playlist'
-              ? `data-type="playlist" data-id="${safeId}"`
-              : `data-type="album" data-album="${safeAlbum}"`;
+            const title =
+  (item.type === 'playlist') ? (item.name || 'Playlist')
+  : (item.type === 'artist') ? (item.artist || 'Artist')
+  : (item.album || 'Album');
+
+const sub =
+  (item.type === 'playlist') ? 'Playlist'
+  : (item.type === 'artist') ? 'Artist'
+  : (item.artist || '');
+
+const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
+const safeId = String(item.id || '').replace(/"/g, '&quot;');
+const safeArtist = String(item.artist || '').replace(/"/g, '&quot;');
+
+const dataAttrs =
+  (item.type === 'playlist') ? `data-type="playlist" data-id="${safeId}"`
+  : (item.type === 'artist') ? `data-type="artist" data-artist="${safeArtist}"`
+  : `data-type="album" data-album="${safeAlbum}"`;
+
             return `
               <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
                 <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
@@ -11508,10 +11621,19 @@ const filled = pinnedPlaylists.slice(0, slotCount);
     }
 
     // ✅ ALBUM
-    if (type === 'album') {
-      const albumName = card.getAttribute('data-album');
-      if (albumName) openAlbumByName(albumName);
-      return;
+if (type === 'album') {
+  const albumName = card.getAttribute('data-album');
+  if (albumName) openAlbumByName(albumName);
+  return;
+}
+
+// ✅ ARTIST
+if (type === 'artist') {
+  const artistName = card.getAttribute('data-artist');
+  if (artistName && typeof openArtistByName === 'function') openArtistByName(artistName);
+  return;
+}
+
     }
   });
 });
