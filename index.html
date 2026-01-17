@@ -7619,17 +7619,29 @@ function openAlbumByName(name) {
 
        const songUrl = song.url || song.link;
 
-// ✅ Title cleanup (display-only): remove "Artist - " prefix if it matches the album artist
+// ✅ Title cleanup (display): normalize weird formats like
+// "Artist - Track", "Artist/Track", and remove file extensions
 let songTitle = song.title || song.name || "";
 
 try {
+  // If it contains a path-style slash, keep only the last segment
+  // e.g. "Iggy Azalea/Work" -> "Work"
+  if (String(songTitle).includes("/")) {
+    songTitle = String(songTitle).split("/").pop();
+  }
+
+  // Remove "Artist - " prefix if it matches the album artist
   const a = String(album.artistName || "").trim();
   if (a) {
     const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp("^\\s*" + esc + "\\s*[-–—:]\\s*", "i");
     songTitle = String(songTitle).replace(re, "");
   }
+
+  // Remove extension (mp3/m4a/flac/etc) for display + playback title
+  songTitle = String(songTitle).replace(/\.[a-z0-9]{2,5}$/i, "");
 } catch (e) {}
+
 
 const isCurrent = currentSong && (currentSong.url === songUrl);
 
