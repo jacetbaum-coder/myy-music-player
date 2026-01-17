@@ -614,10 +614,15 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
   position: relative; 
   scrollbar-width: thin;
-  scrollbar-color: #555 transparent;
-scrollbar-gutter: stable both-edges;
-
+    scrollbar-color: #555 transparent;
+  scrollbar-gutter: stable both-edges;
 }
+
+#grid-view {
+  scrollbar-gutter: stable both-edges;
+}
+
+
 
 
         /* --- INTERACTIVE ELEMENTS --- */
@@ -2201,13 +2206,8 @@ body.qs-lock {
   </div>
 
             
-                        <div id="loading" class="flex flex-col items-center justify-center h-full">
-                <img
-                  src="android-chrome-512x512.png"
-                  alt="Reson"
-                  class="w-24 h-24 md:w-44 md:h-44 rounded-full shadow-2xl"
-                />
-            </div>
+                        <div id="loading" class="absolute inset-0 flex flex-col items-center justify-center h-full">
+
 
             <div id="home-view" class="hidden pb-30 md:pb-0">
 
