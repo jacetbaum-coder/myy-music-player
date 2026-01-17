@@ -3730,46 +3730,49 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
 // SYNC DEVICES UI (Home profile button)
 // -----------------------
 (function bindSyncDevicesUI() {
-  const btns = Array.from(document.querySelectorAll('#sync-devices-btn'));
-const modal = document.getElementById('sync-devices-modal');
-const closeBtn = document.getElementById('sync-devices-close');
-const copyBtn = document.getElementById('sync-devices-copy');
-const codeEl = document.getElementById('sync-devices-code');
-const pasteInput = document.getElementById('sync-devices-paste');
-const pasteBtn = document.getElementById('sync-devices-paste-btn');
+  // Prevent double-binding if this runs more than once
+  if (window.__syncDevicesUIDelegateBound) return;
+  window.__syncDevicesUIDelegateBound = true;
 
-if (!btns.length) return;
+  const modal = document.getElementById('sync-devices-modal');
+  const closeBtn = document.getElementById('sync-devices-close');
+  const copyBtn = document.getElementById('sync-devices-copy');
+  const codeEl = document.getElementById('sync-devices-code');
+  const pasteInput = document.getElementById('sync-devices-paste');
+  const pasteBtn = document.getElementById('sync-devices-paste-btn');
 
-const openModal = async () => {
-  try {
-    let uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
-    if (!uid) {
-      uid = String(makeUserId()).trim();
-      localStorage.setItem("app_user_id", uid);
-      window.APP_USER_ID = uid;
-    }
-    if (codeEl) codeEl.textContent = uid;
-  } catch (e) {}
+  const openModal = async () => {
+    try {
+      let uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
+      if (!uid) {
+        uid = String(makeUserId()).trim();
+        localStorage.setItem("app_user_id", uid);
+        window.APP_USER_ID = uid;
+      }
+      if (codeEl) codeEl.textContent = uid;
+    } catch (e) {}
 
-  if (modal) modal.classList.remove('hidden');
-};
+    if (modal) modal.classList.remove('hidden');
+  };
 
-const closeModal = () => {
-  if (modal) modal.classList.add('hidden');
-};
+  const closeModal = () => {
+    if (modal) modal.classList.add('hidden');
+  };
 
-// ✅ expose so Settings can open the modal
-window.openSyncDevicesModal = openModal;
+  // ✅ expose so Settings can open the modal
+  window.openSyncDevicesModal = openModal;
 
-// ✅ Person icon now opens Settings instead of the modal
-btns.forEach((b) => {
-  try {
-    b.addEventListener('click', () => {
-      try { showView('settings'); } catch (e) {}
-    });
-  } catch (e) {}
-});
+  // ✅ Delegated click so it works even after Home re-renders
+  document.addEventListener('click', (e) => {
+    const hit = e.target && e.target.closest
+      ? e.target.closest('#sync-devices-btn')
+      : null;
 
+    if (!hit) return;
+
+    // Person icon should open Settings
+    try { showView('settings'); } catch (err) {}
+  }, true);
 
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
@@ -3792,11 +3795,9 @@ btns.forEach((b) => {
         const val = String(pasteInput ? pasteInput.value : "").trim();
         if (!val) return;
 
-        // You already have a linking flow in your worker; keep this call if it exists:
         if (typeof window.setSyncCode === "function") {
           await window.setSyncCode(val);
         } else {
-          // fallback: just store it locally
           localStorage.setItem("app_user_id", val);
           window.APP_USER_ID = val;
         }
@@ -3810,6 +3811,7 @@ btns.forEach((b) => {
     });
   }
 })();
+
 
 // -----------------------
 // PLAY BUTTON (delegated)
