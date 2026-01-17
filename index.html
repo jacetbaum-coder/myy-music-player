@@ -11751,7 +11751,8 @@ let playlistMenuTargetId = null;
 function hidePlaylistMenu() {
   const m = document.getElementById('playlist-menu');
   if (m) m.classList.add('hidden');
-  playlistMenuTargetId = null;
+  playlistMenuTargetId = null; try { window.playlistMenuTargetId = null; } catch (e) {}
+
 }
 
 function showPlaylistMenuAt(x, y, playlistId) {
@@ -11762,7 +11763,8 @@ function showPlaylistMenuAt(x, y, playlistId) {
 window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
 
 
-  playlistMenuTargetId = playlistId;
+  playlistMenuTargetId = playlistId; try { window.playlistMenuTargetId = playlistId; } catch (e) {}
+
 
 
   const pinBtn   = document.getElementById('pm-pin');
