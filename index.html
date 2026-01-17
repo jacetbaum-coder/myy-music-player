@@ -5875,9 +5875,17 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     // Fetch library
   // ✅ FAST BOOT: show cached library immediately (if we have it),
   // then refresh from network in the background.
-  let renderedFromCache = false;
+    let renderedFromCache = false;
+
+  // ✅ Show the shell immediately (so cold starts don’t feel like 20 seconds of nothing)
+  try {
+    document.getElementById('loading')?.classList.add('hidden');
+    safe(window.showView, 'home');
+    safe(window.renderHome);
+  } catch (e) {}
 
   function buildTracksByIdFromLibrary(albums) {
+
     window.tracksById = new Map();
     try {
       (Array.isArray(albums) ? albums : []).forEach((album) => {
@@ -5906,7 +5914,7 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
     }
   }
 
-  function applyLibraryAndRender(albums) {
+    function applyLibraryAndRender(albums) {
     libraryData = Array.isArray(albums) ? albums : [];
     libraryDataOriginal = libraryData.slice();
 
@@ -5922,11 +5930,25 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
     // Show UI
     document.getElementById('loading')?.classList.add('hidden');
-    safe(window.showView, 'home');
+
+    // ✅ DO NOT force Home here.
+    // If the user already navigated (ex: clicked Library), keep them there.
+    const t = (window.navCurrent && window.navCurrent.type) ? window.navCurrent.type : 'home';
+    if (t === 'library') {
+      safe(window.showView, 'library');
+    } else if (t === 'home' || !t) {
+      safe(window.showView, 'home');
+    } else {
+      // For other views (playlist/artist/etc), don't override their navigation.
+      // Just let them stay where they are.
+    }
+
+    // Re-render home bits safely (this updates recents/playlists etc without changing tabs)
     safe(window.renderHome);
   }
 
   // 1) Try cache first (instant paint)
+
   try {
     const cached = loadLibraryCache();
     if (Array.isArray(cached) && cached.length) {
