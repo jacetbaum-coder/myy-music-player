@@ -3788,30 +3788,24 @@ window.loadPlaylistsFromCloud = async function () {
 
     // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
 try {
-  // Remember what cloud playlists used to exist (so we can detect deletions)
-  const prevCloudIds = new Set(
-    (Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [])
-      .map(r => (r && (r.playlist_id || r.id)) ? String(r.playlist_id || r.id) : "")
-      .filter(Boolean)
-  );
+  const uid2 = window.APP_USER_ID || localStorage.getItem("app_user_id") || "";
+  const uid = String(uid2 || "").trim();
 
+  // 1) Convert cloud rows to UI objects
   const cloudUi = data.playlists
     .map(cloudRowToUiPlaylist)
     .filter(pl => pl && pl.id);
 
-  const newCloudIds = new Set(cloudUi.map(p => String(p.id)));
-
   const localArr = Array.isArray(playlists) ? playlists : [];
   const byId = new Map(localArr.map(p => [p.id, p]));
 
-  // Merge: cloud wins for name/cover/count, but we KEEP any local songs/trackIds if cloud doesn't have them
+  // 2) Merge: cloud wins for name/cover/count, but keep local songs/trackIds if cloud doesn't have them
   for (const c of cloudUi) {
     const existing = byId.get(c.id);
     if (existing) {
       byId.set(c.id, {
         ...existing,
         ...c,
-        // preserve local-only content if cloud meta doesn't include it
         songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
         trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
       });
@@ -3820,19 +3814,31 @@ try {
     }
   }
 
-  // ✅ KEEP local-only playlists, but DROP ones that used to be in cloud and are now missing (deleted / recently deleted)
-  const merged = [];
-  for (const p of byId.values()) {
+  // 3) ✅ Ask cloud which playlists are recently deleted, and filter them out locally
+  let deletedPlaylistIds = new Set();
+  try {
+    if (uid) {
+      const rd = await fetch(
+        "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
+          encodeURIComponent(uid) + "&type=playlist"
+      ).then(r => r.json()).catch(() => null);
+
+      if (rd && rd.ok && Array.isArray(rd.items)) {
+        deletedPlaylistIds = new Set(
+          rd.items
+            .map(x => String(x?.id || "").trim())
+            .filter(Boolean)
+        );
+      }
+    }
+  } catch (e) {}
+
+  // Keep local-only playlists EXCEPT ones that are in recently deleted
+  playlists = Array.from(byId.values()).filter(p => {
     const id = String(p?.id || "").trim();
-    if (!id) continue;
-
-    // If this playlist USED TO be in cloud, but is NOT in cloud anymore -> remove it
-    if (prevCloudIds.has(id) && !newCloudIds.has(id)) continue;
-
-    merged.push(p);
-  }
-
-  playlists = merged;
+    if (!id) return false;
+    return !deletedPlaylistIds.has(id);
+  });
 
   // Persist locally so refresh works even if offline
   try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
