@@ -5842,7 +5842,32 @@ if (typeof window.loadPlaylistsFromCloud !== "function") {
 
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
-  try { if (typeof window.loadHistoryFromCloud === "function") await window.loadHistoryFromCloud(); } catch (e) {}
+  // -----------------------
+// HISTORY: two-way startup sync (seed cloud from desktop if needed)
+// -----------------------
+try {
+  // Local snapshot BEFORE we touch cloud
+  let localHist = [];
+  try { localHist = JSON.parse(localStorage.getItem("historyLog") || "[]"); } catch (e) {}
+  if (!Array.isArray(localHist)) localHist = [];
+
+  // Pull from cloud (this function overwrites localStorage if it succeeds)
+  let cloudHist = null;
+  if (typeof window.loadHistoryFromCloud === "function") {
+    cloudHist = await window.loadHistoryFromCloud();
+  }
+
+  // Decide: if cloud is empty but local has data, push local up to cloud (seed it)
+  const cloudArr = Array.isArray(cloudHist) ? cloudHist : [];
+  if (localHist.length > 0 && cloudArr.length === 0) {
+    if (typeof window.saveHistoryToCloud === "function") {
+      await window.saveHistoryToCloud(localHist);
+    }
+    // Restore local (because loadHistoryFromCloud may have set it to [])
+    try { localStorage.setItem("historyLog", JSON.stringify(localHist.slice(0, 16))); } catch (e) {}
+  }
+} catch (e) {}
+
 safe(window.renderHistory);
 
 
