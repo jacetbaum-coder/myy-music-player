@@ -3331,6 +3331,11 @@ let playContext = null;
 
         let menuTargetSong = null;
 
+// ✅ prevents the “open → instantly close” click from closing the menu
+let suppressContextMenuCloseUntil = 0;
+let suppressPlaylistMenuCloseUntil = 0;
+
+
 // -----------------------
 // SONG MULTI-SELECT (desktop + mobile)
 // -----------------------
@@ -11977,24 +11982,32 @@ function initResizers() {
     }, { passive: false });
   }
 
-    // Existing: click outside closes the context menu
-  document.addEventListener('click', (e) => {
-    if (window.innerWidth <= 768) return;
+      // Existing: click outside closes the context menu
+  // ✅ Bind ONCE so we don’t stack multiple “close” listeners (which causes instant close)
+  if (!window.__outsideMenuDismissBound) {
+    window.__outsideMenuDismissBound = true;
 
-    // ✅ If we JUST opened a menu, ignore this click
-    if (Date.now() < suppressContextMenuCloseUntil) return;
-    if (Date.now() < suppressPlaylistMenuCloseUntil) return;
+    document.addEventListener('click', (e) => {
+      if (window.innerWidth <= 768) return;
 
-    if (!contextMenu.contains(e.target)) closeContextMenu();
-  });
+      // ✅ If we JUST opened a menu, ignore this click
+      if (Date.now() < suppressContextMenuCloseUntil) return;
+      if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
-  document.addEventListener('touchstart', (e) => {
+      if (!contextMenu.contains(e.target)) closeContextMenu();
+    });
 
-    if (window.innerWidth > 768) return;
-    if (Date.now() < suppressContextMenuCloseUntil) return;
-    if (!contextMenu.contains(e.target)) closeContextMenu();
-  }, { passive: true });
-}
+    document.addEventListener('touchstart', (e) => {
+      if (window.innerWidth > 768) return;
+
+      // ✅ If we JUST opened a menu, ignore this touch
+      if (Date.now() < suppressContextMenuCloseUntil) return;
+      if (Date.now() < suppressPlaylistMenuCloseUntil) return;
+
+      if (!contextMenu.contains(e.target)) closeContextMenu();
+    }, { passive: true });
+  }
+            
         // Context Menu & Playlists
         function positionContextMenuForAnchor(anchorEl) {
   if (!anchorEl) return;
