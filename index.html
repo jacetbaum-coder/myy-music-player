@@ -10349,18 +10349,13 @@ function npResetDrag() {
 }
 
 function npStartAllowed(e) {
-  // Allow swipe start from controls OR the title/artist rows anywhere (even if lower),
+  // Allow swipe start from controls row anywhere (even if lower),
   // otherwise only allow in the upper 75% of the screen
-  if (e && e.target && e.target.closest) {
-    if (e.target.closest('#np-controls')) return true;
-    if (e.target.closest('#np-title')) return true;
-    if (e.target.closest('#np-artist')) return true;
-  }
+  if (e && e.target && e.target.closest && e.target.closest('#np-controls')) return true;
 
   const { y } = npGetXY(e);
   return y <= (window.innerHeight * 0.75);
 }
-
 
 
 if (nowPlayingOverlay) {
