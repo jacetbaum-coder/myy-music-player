@@ -8719,7 +8719,8 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
   // - Click dots = open menu
   // - Click title = play
   // - Click grey space = single-select (then Shift/Cmd expands)
-  const isDesktop = window.innerWidth > 768;
+  // isDesktop already defined above
+
 
   const isRange = !!(e && e.shiftKey);
   const isToggle = !!(e && (e.metaKey || e.ctrlKey));
