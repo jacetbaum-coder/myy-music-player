@@ -2914,7 +2914,8 @@ body.qs-lock {
   </div>
 
   <!-- content -->
-  <div id="np-sheet" class="h-[calc(100%-64px)] flex flefx-col items-center justify-center px-6 pb-28">
+    <div id="np-sheet" class="h-[calc(100%-64px)] flex flefx-col items-center justify-center px-6 pb-20">
+28">
 
     <div class="w-full max-w-[520px]">
       <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
@@ -2943,7 +2944,8 @@ body.qs-lock {
       </div>
 
       <!-- controls (play/pause + prev/next work) -->
-<div id="np-controls" class="mt-10 text-white">
+<div id="np-controls" class="mt-8 text-white">
+
 
   <!-- SHUFFLE (mobile) -->
   <button id="np-shuffle-btn"
@@ -7046,10 +7048,11 @@ function initSwipeBack() {
   //  -1 = right edge (swipe left to go back)
   let edgeDir = 0;
 
-  const EDGE_PX = 24;              // must start near an edge
-  const THRESHOLD_PX = 90;         // commit distance
-  const MOVE_DECIDE_PX = 6;        // when we decide direction
+    const EDGE_PX = 36;              // must start near an edge (bigger = easier)
+  const THRESHOLD_PX = 70;         // commit distance (smaller = easier)
+  const MOVE_DECIDE_PX = 4;        // when we decide direction (faster)
   const OPACITY_DROP = 0.20;
+
 
   function getXY(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -9643,7 +9646,11 @@ if (npMoreBtn && !npMoreBtn.__bound) {
 
     try {
       // Use your existing context/menu system
-      showContextMenuAt(0, 0, currentSong, npMoreBtn);
+      const r = npMoreBtn.getBoundingClientRect();
+      const x = Math.round(r.right);
+      const y = Math.round(r.bottom);
+      showContextMenuAt(x, y, currentSong, npMoreBtn);
+
     } catch (err) {
       console.warn("np-more menu failed:", err);
     }
@@ -11602,6 +11609,8 @@ const filled = pinnedPlaylists.slice(0, slotCount);
 }
 
         let mobileRecentsExpanded = false;
+        try { mobileRecentsExpanded = (localStorage.getItem('homeRecentsExpanded') === '1'); } catch (e) {}
+
 
 // -----------------------
 // HOME TOP TABS (Recents filter)
@@ -11615,8 +11624,8 @@ function setHomeTopTab(tab) {
   // keep the green pill correct
   try { updateMobileHomeTabUI(); } catch (e) {}
 
-  // keep mobile show-all sane when switching tabs
-  try { mobileRecentsExpanded = false; } catch (e) {}
+  // keep mobile show-all state as-is (persisted)
+
 
   // repaint ONLY the home recents areas
   try { renderHome(); } catch (e) {}
@@ -11807,13 +11816,15 @@ const dataAttrs =
   renderHomeRecentsRow('desktop-recents-row');
 }
 
-        const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
+                const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
 if (homeRecentsShowAllBtn) {
   homeRecentsShowAllBtn.addEventListener('click', () => {
     mobileRecentsExpanded = !mobileRecentsExpanded;
+    try { localStorage.setItem('homeRecentsExpanded', mobileRecentsExpanded ? '1' : '0'); } catch (e) {}
     renderHomeRecentsRow('home-recents-row');
   });
 }
+
 
 
        function renderMobileRecents() {
