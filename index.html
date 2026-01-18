@@ -183,7 +183,7 @@
   overscroll-behavior: contain;    /* prevent “rubber band” stealing the drag */
 
    /* Solid accent background (no gradient) */
-  background: rgb(var(--accent-rgb)) !important;
+  background: rgb(var(--accent-muted-rgb)) !important;
 
 }
 #now-playing-overlay.hidden { display: none !important; }
@@ -264,8 +264,9 @@
 body { 
   /* Spotify-style: colored glow at top fading to black */
   background: radial-gradient(1200px 900px at 50% 0%,
-      rgba(var(--accent-rgb), 0.55) 0%,
-      rgba(0,0,0,1) 60%);
+      rgba(var(--accent-muted-rgb), 0.18) 0%,
+      rgba(0,0,0,1) 65%);
+
   color: var(--text-main); 
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 -webkit-font-smoothing: antialiased;
@@ -845,7 +846,8 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             left: 0;
             right: 0;
             height: var(--nav-height);
-            background: linear-gradient(to top, #000 80%, transparent);
+            background: rgb(var(--accent-muted-rgb));
+
             z-index: 9999;
             justify-content: space-around;
             align-items: center;
@@ -5004,15 +5006,57 @@ function attachSwipeAddToQueue(rowEl, songObj) {
 
 
 function setAccentRGB(r, g, b) {
-  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+  // 1) Clamp
+  r = clamp255(r); g = clamp255(g); b = clamp255(b);
+
+  // 2) Desaturate a bit (prevents neon)
+  const avg = (r + g + b) / 3;
+  r = avg + (r - avg) * 0.70;
+  g = avg + (g - avg) * 0.70;
+  b = avg + (b - avg) * 0.70;
+
+  // 3) Clamp brightness to a usable UI range
+  let lum = (r * 0.299 + g * 0.587 + b * 0.114);
+  const MAX_LUM = 140;
+  const MIN_LUM = 55;
+
+  if (lum > MAX_LUM) {
+    const s = MAX_LUM / Math.max(1, lum);
+    r *= s; g *= s; b *= s;
+    lum = (r * 0.299 + g * 0.587 + b * 0.114);
+  }
+  if (lum < MIN_LUM) {
+    const s = MIN_LUM / Math.max(1, lum);
+    r *= s; g *= s; b *= s;
+    lum = (r * 0.299 + g * 0.587 + b * 0.114);
+  }
+
+  // 4) White-ish accents become gray (so white text stays readable)
+  const maxc = Math.max(r, g, b);
+  const minc = Math.min(r, g, b);
+  if (lum > 220 && (maxc - minc) < 25) {
+    r = 90; g = 90; b = 90;
+  }
+
+  // Primary accent (dock)
+  const pr = clamp255(r), pg = clamp255(g), pb = clamp255(b);
+  document.documentElement.style.setProperty('--accent-rgb', `${pr}, ${pg}, ${pb}`);
+
+  // Muted accent (tabs + fullscreen bg)
+  const mr = clamp255(pr * 0.45);
+  const mg = clamp255(pg * 0.45);
+  const mb = clamp255(pb * 0.45);
+  document.documentElement.style.setProperty('--accent-muted-rgb', `${mr}, ${mg}, ${mb}`);
 
   // Optional: update browser theme color (mobile address bar tint)
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    const hex = rgbToHex(r, g, b);
+    const hex = rgbToHex(pr, pg, pb);
     meta.setAttribute('content', hex);
   }
 }
+
+
 
         function loadLibraryCache() {
   try {
