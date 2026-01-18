@@ -5735,11 +5735,13 @@ function applyLibraryGridCols() {
     return;
   }
 
-  // Read stored cols (default 2)
-  let cols = 2;
+    // Read stored cols (default 3)
+  let cols = 3;
+
   try {
     const stored = parseInt(localStorage.getItem('libraryGridCols') || '2', 10);
-    if (!Number.isNaN(stored)) cols = Math.min(6, Math.max(1, stored));
+        const stored = parseInt(localStorage.getItem('libraryGridCols') || '3', 10);
+
   } catch (e) {}
 
   // Sync slider position if it exists
@@ -5855,9 +5857,11 @@ function initLibraryControls() {
 
   // Initialize slider value from storage
   if (colsSlider) {
-    let cols = 2;
+        let cols = 3;
+
     try {
-      const stored = parseInt(localStorage.getItem('libraryGridCols') || '2', 10);
+            const stored = parseInt(localStorage.getItem('libraryGridCols') || '3', 10);
+
       if (!Number.isNaN(stored)) cols = Math.min(6, Math.max(1, stored));
     } catch (e) {}
     colsSlider.value = String(cols);
