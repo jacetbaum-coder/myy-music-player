@@ -3300,11 +3300,19 @@ body.qs-lock {
 
 
     <script>
-        /**
-         * ---------------------------------------------------------------------
-         * GLOBAL APP STATE
-         * ---------------------------------------------------------------------
-         */
+        
+        // GLOBAL APP STATE
+
+// ✅ FIX: define onNavTap so inline onclick handlers do not crash JS
+// This is a safe no-op fallback.
+// Real navigation is handled elsewhere.
+function onNavTap(e) {
+  try {
+    if (e && e.preventDefault) e.preventDefault();
+  } catch (_) {}
+  return false;
+}
+
        let libraryData = [];
 let libraryDataOriginal = [];
 let currentSong = null;
