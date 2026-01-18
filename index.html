@@ -8957,12 +8957,20 @@ try {
   const dots = row.querySelector('button.track-menu');
 if (dots) {
 
+    // ✅ Mobile: prevent row/pointer handlers from immediately nuking the menu
+  dots.addEventListener('pointerdown', (e) => {
+    suppressContextMenuCloseUntil = Date.now() + 500;
+    suppressPlaylistMenuCloseUntil = Date.now() + 500;
+    e.stopPropagation();
+  });
+
   // ✅ Mobile: prevent the global touchstart "outside click" closer from instantly closing the menu
   dots.addEventListener('touchstart', (e) => {
     suppressContextMenuCloseUntil = Date.now() + 500;
     suppressPlaylistMenuCloseUntil = Date.now() + 500;
     e.stopPropagation();
   }, { passive: true });
+
 
   dots.addEventListener('click', (e) => {
     e.preventDefault();
@@ -14894,8 +14902,23 @@ if (hero && activePlaylistId) {
     // ✅ Dots should open the menu (and NOT trigger row.onclick play)
     try {
       const dots = row.querySelector('button.track-menu');
-      if (dots) {
+            if (dots) {
+
+        // ✅ Mobile: stop row/pointer handlers from firing when tapping dots
+        dots.addEventListener('pointerdown', (e) => {
+          suppressContextMenuCloseUntil = Date.now() + 500;
+          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          e.stopPropagation();
+        });
+
+        dots.addEventListener('touchstart', (e) => {
+          suppressContextMenuCloseUntil = Date.now() + 500;
+          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          e.stopPropagation();
+        }, { passive: true });
+
         dots.addEventListener('click', (e) => {
+
           e.preventDefault();
           e.stopPropagation();
 
