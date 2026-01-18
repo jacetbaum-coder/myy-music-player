@@ -11398,13 +11398,14 @@ const filled = pinnedPlaylists.slice(0, slotCount);
   for (let i = 0; i < slotCount; i++) {
      const pl = filled[i];
 
-    // Placeholder tile (keeps the “imaginary rectangle” space)
+   // Placeholder tile (keeps the “imaginary rectangle” space)
     if (!pl) {
       tiles.push(`
         <div class="min-w-0 flex-1"></div>
-        </div>
       `);
       continue;
+    }
+
     }
 
     const cover = getEffectivePlaylistCover(pl);
