@@ -5748,6 +5748,8 @@ const contextMenuBackdrop = document.getElementById('context-menu-backdrop');
 let contextMenuAnchor = null;
 
         let contextMenuScrollHandler = null;
+let contextMenuCloseTimer = null;
+
 
        function closeContextMenu() {
   // Mobile: animate down then hide
@@ -5760,7 +5762,12 @@ let contextMenuAnchor = null;
     contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
     contextMenu.style.transform = 'translateY(100%)';
 
-    setTimeout(() => {
+        if (contextMenuCloseTimer) {
+      clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = null;
+    }
+
+    contextMenuCloseTimer = setTimeout(() => {
       contextMenu.style.display = 'none';
       contextMenu.style.right = '';
       contextMenuAnchor = null;
@@ -5773,6 +5780,8 @@ let contextMenuAnchor = null;
         window.removeEventListener('scroll', contextMenuScrollHandler, true);
         contextMenuScrollHandler = null;
       }
+
+      contextMenuCloseTimer = null;
     }, 220);
 
     return;
@@ -12105,7 +12114,13 @@ function initResizers() {
     if (sub) sub.classList.remove('open');
 
     if (contextMenuBackdrop) {
-      contextMenuBackdrop.style.display = 'block';
+          if (contextMenuCloseTimer) {
+      clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = null;
+    }
+
+    contextMenu.style.display = 'block';
+
       contextMenuBackdrop.style.opacity = '0';
     }
 
