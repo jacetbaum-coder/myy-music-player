@@ -5089,11 +5089,51 @@ async function extractAccentFromImage(url) {
 
         if (wSum <= 0) return resolve([0, 0, 0]);
 
-        let r = rSum / wSum;
+                let r = rSum / wSum;
         let g = gSum / wSum;
         let b = bSum / wSum;
 
-                // Avoid super-dark accents (boost a bit)
+        // --- Vibrant fallback ---
+        // If the "average" is too gray, pick a more saturated pixel from the image.
+        const avgMax = Math.max(r, g, b);
+        const avgMin = Math.min(r, g, b);
+        if ((avgMax - avgMin) < 30) {
+          let bestScore = -1;
+          let br = r, bg = g, bb = b;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const a = data[i + 3];
+            if (a < 30) continue;
+
+            const pr = data[i];
+            const pg = data[i + 1];
+            const pb = data[i + 2];
+
+            const pMax = Math.max(pr, pg, pb);
+            const pMin = Math.min(pr, pg, pb);
+            const sat = pMax - pMin;
+
+            const bright = (pr * 0.299 + pg * 0.587 + pb * 0.114);
+
+            // ignore near-black and near-white pixels
+            if (bright < 35) continue;
+            if (bright > 240 && sat < 40) continue;
+
+            // score prefers saturation, but keeps some brightness
+            const score = sat * 1.2 + bright * 0.15;
+
+            if (score > bestScore) {
+              bestScore = score;
+              br = pr; bg = pg; bb = pb;
+            }
+          }
+
+          if (bestScore > 0) {
+            r = br; g = bg; b = bb;
+          }
+        }
+
+        // Avoid super-dark accents (boost a bit)
         const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
         if (brightness < 55) {
           const boost = 55 / Math.max(1, brightness);
@@ -5110,8 +5150,6 @@ async function extractAccentFromImage(url) {
 
         resolve([clamp255(r), clamp255(g), clamp255(b)]);
 
-
-        resolve([clamp255(r), clamp255(g), clamp255(b)]);
       } catch (e) {
         resolve([0, 0, 0]);
       }
