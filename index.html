@@ -7006,12 +7006,11 @@ function initSwipeBack() {
   //  -1 = right edge (swipe left to go back)
   let edgeDir = 0;
 
-    const EDGE_PX = 36;              // must start near an edge (bigger = easier)
-  const THRESHOLD_PX = 70;         // commit distance (smaller = easier)
+  const EDGE_PX = 40;              // must start near an edge (bigger = easier)
+  const THRESHOLD_PX = 50;         // commit distance (smaller = easier)
   const MOVE_DECIDE_PX = 2;        // when we decide direction (faster)
   const OPACITY_DROP = 0.20;
-
-
+    
   function getXY(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
