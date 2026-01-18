@@ -3412,7 +3412,34 @@ function syncRowSelectionFromSet(container){
   });
 }
 
+// ✅ Helpers we’ll use in the NEXT steps (long-press, circles UI, bulk menu)
+// (No behavior changes yet — just utilities.)
+
+function getSelectedSongUrls(){
+  return Array.from(window.__songSelect.urls || []);
+}
+
+function clearSelectedSongs(){
+  try { window.__songSelect.urls.clear(); } catch (e) {}
+  try { window.__songSelect.lastIndex = null; } catch (e) {}
+  try { syncRowSelectionFromSet(document); } catch (e) {}
+}
+
+function toggleRowSelected(row){
+  if (!row) return false;
+  const u = getSongUrlFromRow(row);
+  if (!u) return false;
+
+  const has = window.__songSelect.urls.has(u);
+  if (has) window.__songSelect.urls.delete(u);
+  else window.__songSelect.urls.add(u);
+
+  applyRowSelectedState(row, !has);
+  return !has;
+}
+
         let activePlaylistIndex = null;
+
         
         // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
