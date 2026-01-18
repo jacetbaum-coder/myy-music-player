@@ -1680,29 +1680,29 @@ body.qs-lock{
   }
 
 
-  /* --- MOBILE DOCK (Spotify-like) --- */
+    /* --- MOBILE DOCK (Spotify-like) --- */
   .player-bar {
     position: fixed;
-    /* move dock DOWN so it visually “connects” to the tab bar */
-    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) - 12px);
-    left: 10px;
-    right: 10px;
+
+    /* sit directly on top of the tab bar (no floating) */
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
 
     height: auto;
 
-    /* less transparent / more “solid” like Spotify */
-   background: linear-gradient(
-  180deg,
-  rgb(var(--accent-rgb, 0, 0, 0)) 0%,
-  rgb(0, 0, 0) 100%
-) !important;
+    background: linear-gradient(
+      180deg,
+      rgb(var(--accent-rgb, 0, 0, 0)) 0%,
+      rgb(0, 0, 0) 100%
+    ) !important;
 
-
-    border-radius: 12px;
+    border-radius: 0;
     border: none;
 
     padding: 10px 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+
+    box-shadow: none;
 
     display: flex;
     flex-direction: column;
