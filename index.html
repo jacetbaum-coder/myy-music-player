@@ -10377,12 +10377,11 @@ if (nowPlayingOverlay) {
     npLastDown = 0;
   npStartFromControls = !!(e.target && e.target.closest && e.target.closest('#np-controls, #np-sheet'));
 
-  npDecided = false;
+    npDecided = false;
   npIsVertical = false;
 
-
-  nowPlayingOverlay.classList.add('np-dragging');
-  try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
+  // ✅ Don't enter drag-mode yet.
+  // We'll only start dragging once we know it's a DOWNWARD vertical swipe.
 });
 
   nowPlayingOverlay.addEventListener('pointermove', (e) => {
@@ -10392,12 +10391,19 @@ if (nowPlayingOverlay) {
     const dy = y - npStartY;
     const dx = x - npStartX;
 
-    // Don’t decide until it actually moves (prevents taps closing)
+        // Don’t decide until it actually moves (prevents taps closing)
     if (!npDecided) {
-      if (Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
+      if (Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
       npDecided = true;
       npIsVertical = Math.abs(dy) > Math.abs(dx);
+
+      // ✅ Only "take over" the gesture if it's a DOWN swipe AND we're at the top of the scroll.
+      if (npIsVertical && dy > 0 && (!npSheet || npSheet.scrollTop <= 0)) {
+        nowPlayingOverlay.classList.add('np-dragging');
+        try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
+      }
     }
+
 
         if (!npIsVertical) return;
 
