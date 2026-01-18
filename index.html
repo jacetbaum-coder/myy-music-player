@@ -1679,7 +1679,8 @@ body.qs-lock{
   .sidebar, .resizer, .right-sidebar { display: none !important; }
   .mobile-nav { display: flex; }
 
-    .main-view { padding: 16px; }
+       .main-view { padding: 12px; }
+
 
   .home-recents-grid {
 
@@ -5747,10 +5748,12 @@ function applyLibraryGridCols() {
   // Sync slider position if it exists
   if (slider) slider.value = String(cols);
 
-  // Apply inline grid columns (beats tailwind classes on mobile)
+    // Apply inline grid columns (beats tailwind classes on mobile)
   if (grid) {
     grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    grid.style.gap = '4px';
   }
+
 }
 
 function getLibraryRecentsRank() {
