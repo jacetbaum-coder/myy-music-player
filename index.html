@@ -12038,9 +12038,11 @@ function initResizers() {
 
       if (!contextMenu.contains(e.target)) closeContextMenu();
     }, { passive: true });
-  }
+    }
+}
             
         // Context Menu & Playlists
+
         function positionContextMenuForAnchor(anchorEl) {
   if (!anchorEl) return;
   const rect = anchorEl.getBoundingClientRect();
