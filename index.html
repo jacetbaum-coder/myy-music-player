@@ -782,7 +782,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   border-radius: 2px;
   position: relative;
   cursor: pointer;
+  touch-action: none; /* ✅ allows smooth drag on mobile */
 }
+
 
 /* Bigger invisible hitbox so you can grab it (desktop + mobile) */
 .progress-bar-container::before {
@@ -810,7 +812,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 #np-progress-container {
   position: relative;
   cursor: pointer;
+  touch-action: none; /* ✅ allows smooth drag on mobile */
 }
+
 #np-progress-container::before {
   content: "";
   position: absolute;
@@ -2910,7 +2914,8 @@ body.qs-lock {
   </div>
 
   <!-- content -->
-  <div id="np-sheet" class="h-[calc(100%-64px)] flex flex-col items-center justify-center px-6">
+  <div id="np-sheet" class="h-[calc(100%-64px)] flex flefx-col items-center justify-center px-6 pb-28">
+
     <div class="w-full max-w-[520px]">
       <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
         <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
@@ -6520,7 +6525,36 @@ safe(window.renderHistory);
     }
   }
 
-    function applyLibraryAndRender(albums) {
+    function prewarmAlbumCovers(albums, limit = 80) {
+  try {
+    if (!Array.isArray(albums) || albums.length === 0) return;
+
+    const urls = [];
+    for (let i = 0; i < albums.length && urls.length < limit; i++) {
+      const a = albums[i];
+      let u = "";
+      try {
+        // prefer your canonical cover resolver if available
+        u = (typeof getAlbumCover === 'function')
+          ? getAlbumCover(a.artistName, a.albumName, a.coverArt)
+          : (a.coverArt || a.cover || "");
+      } catch (e) {
+        u = (a && (a.coverArt || a.cover)) ? (a.coverArt || a.cover) : "";
+      }
+      if (u && !urls.includes(u)) urls.push(u);
+    }
+
+    urls.forEach((u) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = u;
+      if (img.decode) img.decode().catch(() => {});
+    });
+  } catch (e) {}
+}
+
+function applyLibraryAndRender(albums) {
+
     libraryData = Array.isArray(albums) ? albums : [];
     libraryDataOriginal = libraryData.slice();
 
@@ -6549,8 +6583,14 @@ safe(window.renderHistory);
       // Just let them stay where they are.
     }
 
-    // Re-render home bits safely (this updates recents/playlists etc without changing tabs)
+        // Re-render home bits safely (this updates recents/playlists etc without changing tabs)
     safe(window.renderHome);
+
+    // ✅ Make the app "feel fast": warm up album covers in the background
+    const warm = () => { try { prewarmAlbumCovers(libraryData, 90); } catch (e) {} };
+    if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 1200 });
+    else setTimeout(warm, 0);
+
   }
 
   // 1) Try cache first (instant paint)
@@ -9592,6 +9632,24 @@ if ("mediaSession" in navigator && currentSong) {
 // -----------------------
 const nowPlayingOverlay = document.getElementById('now-playing-overlay');
 const npCloseBtn = document.getElementById('np-close');
+const npMoreBtn = document.getElementById('np-more');
+
+if (npMoreBtn && !npMoreBtn.__bound) {
+  npMoreBtn.__bound = true;
+  npMoreBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentSong) return;
+
+    try {
+      // Use your existing context/menu system
+      showContextMenuAt(0, 0, currentSong, npMoreBtn);
+    } catch (err) {
+      console.warn("np-more menu failed:", err);
+    }
+  });
+}
+
 
 function openArtistFromCurrentSong(e) {
   if (e) {
@@ -9600,10 +9658,8 @@ function openArtistFromCurrentSong(e) {
   }
   if (!currentSong || !currentSong.artist) return;
 
-  // Only allow artist navigation when you are INSIDE the album page
-  const albumView = document.getElementById('album-view');
-  const onAlbumPage = albumView && !albumView.classList.contains('hidden');
-  if (!onAlbumPage) return;
+   // ✅ Allow artist navigation from ANY view (mobile Now Playing needs this)
+
 
   // Close Now Playing if it’s open so it doesn’t sit on top
   try {
