@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 
-    <title>Reson</title>
+    <title>Reson</title>f
 
     <!-- App / tab icon -->
     <link rel="icon" href="favicon.ico">
@@ -2295,36 +2295,46 @@ body.qs-lock {
 
 
 
-        <!-- Home header (Spotify-style) -->
-    <div class="flex items-center gap-3 mb-3">
-      <!-- profile -->
-      <button id="sync-devices-btn" type="button"
-        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
-        aria-label="Sync devices">
-        <i class="fas fa-user text-white/70"></i>
-      </button>
+                <!-- Home header (Spotify-style) -->
+        <div class="md:hidden mb-4">
+          <!-- Top row -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- profile -->
+              <button id="sync-devices-btn" type="button"
+                class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+                aria-label="Sync devices">
+                <i class="fas fa-user text-white/70 text-sm"></i>
+              </button>
 
-      <!-- title -->
-      <div class="text-2xl font-black">Home</div>
+              <!-- title -->
+              <div class="text-3xl font-black leading-none">Home</div>
+            </div>
 
-           <!-- search (taps to Search view) -->
-      <button type="button"
-        onclick="showView('search')"
-        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
-        aria-label="Search">
-        <i class="fas fa-search text-white/70"></i>
-      </button>
+            <div class="flex items-center gap-4">
+              <!-- search (taps to Search view) -->
+              <button type="button"
+                onclick="showView('search')"
+                class="text-white/90 hover:text-white"
+                aria-label="Search">
+                <i class="fas fa-search text-xl"></i>
+              </button>
 
-      <button type="button"
-        onclick="createNewPlaylist()"
-        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
-        aria-label="Create new playlist">
-        <i class="fas fa-plus text-white/70"></i>
-      </button>
-    </div>
+              <!-- plus -->
+              <button type="button"
+                onclick="createNewPlaylist()"
+                class="text-white/90 hover:text-white"
+                aria-label="Create new playlist">
+                <i class="fas fa-plus text-xl"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
 
     <!-- Home tabs (line underneath) -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar mb-5">
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mt-4 mb-5">
+
       <button id="mobile-home-tab-playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
       <button id="mobile-home-tab-albums" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Albums</button>
       <button id="mobile-home-tab-artists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Artists</button>
