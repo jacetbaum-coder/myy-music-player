@@ -8705,65 +8705,99 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
     const isDesktop = window.innerWidth > 768;
 
-  // ✅ Selection ONLY when user holds Shift (range) OR Cmd/Ctrl (toggle)
+    // ✅ Desktop behavior:
+  // - Click dots = open menu
+  // - Click title = play
+  // - Click grey space = single-select (then Shift/Cmd expands)
+  const isDesktop = window.innerWidth > 768;
+
   const isRange = !!(e && e.shiftKey);
   const isToggle = !!(e && (e.metaKey || e.ctrlKey));
 
-  // "Play target" = clicking the title (we add data-play-target="1" in Step A1)
-  const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
+  const dotsEl = e && e.target && e.target.closest ? e.target.closest('.track-menu') : null;
+  if (dotsEl) {
+    try {
+      const r = dotsEl.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = r.bottom + 6;
 
-  // ✅ Desktop multi-select
-  if (isDesktop && (isRange || isToggle)) {
-    if (!window.__songSelect.enabled) setSongSelectEnabled(true);
+      showContextMenuAt(x, y, {
+        ...song,
+        url: songUrl,
+        title: songTitle,
+        album: album.albumName,
+        artist: album.artistName,
+        cover: cover
+      }, row);
+    } catch (err) {}
+    return;
+  }
+
+  const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
+  if (playTarget) {
+    // ✅ Always play if you clicked the title
+    if (isDesktop && window.__songSelect && window.__songSelect.enabled) {
+      setSongSelectEnabled(false);
+    }
+    // fall through to your existing play block below
+  } else if (isDesktop) {
+    // ✅ Grey-space click selects (single), unless Shift/Cmd are held
+    if (!window.__songSelect) return;
 
     const url = String(songUrl || '').trim();
     if (!url) return;
 
     const idx = Number(row.getAttribute('data-song-index') || i);
 
-    // Shift+click range select
-    if (isRange && window.__songSelect.lastIndex != null) {
-      const a = Math.min(window.__songSelect.lastIndex, idx);
-      const b = Math.max(window.__songSelect.lastIndex, idx);
+    if (isRange || isToggle) {
+      if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
-      const rows = Array.from(document.querySelectorAll('.track-row[data-song-index]'));
-      rows.forEach(r => {
-        const ri = Number(r.getAttribute('data-song-index'));
-        if (ri >= a && ri <= b) {
-          const ru = getSongUrlFromRow(r);
-          if (ru) window.__songSelect.urls.add(ru);
-        }
-      });
+      // Shift range
+      if (isRange && window.__songSelect.lastIndex != null) {
+        const a = Math.min(window.__songSelect.lastIndex, idx);
+        const b = Math.max(window.__songSelect.lastIndex, idx);
+
+        const rows = Array.from(document.querySelectorAll('.track-row[data-song-index]'));
+        rows.forEach(r => {
+          const ri = Number(r.getAttribute('data-song-index'));
+          if (ri >= a && ri <= b) {
+            const ru = getSongUrlFromRow(r);
+            if (ru) window.__songSelect.urls.add(ru);
+          }
+        });
+
+        window.__songSelect.lastIndex = idx;
+        syncRowSelectionFromSet(document);
+        return;
+      }
+
+      // Cmd/Ctrl toggle
+      if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+      else window.__songSelect.urls.add(url);
 
       window.__songSelect.lastIndex = idx;
-      syncRowSelectionFromSet(document);
+      applyRowSelectedState(row, window.__songSelect.urls.has(url));
       return;
     }
 
-    // Cmd/Ctrl toggle single
-    if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
-    else window.__songSelect.urls.add(url);
-
+    // ✅ Plain click = single select (clear others)
+    setSongSelectEnabled(true);
+    window.__songSelect.urls.clear();
+    window.__songSelect.urls.add(url);
     window.__songSelect.lastIndex = idx;
-    applyRowSelectedState(row, window.__songSelect.urls.has(url));
+    syncRowSelectionFromSet(document);
     return;
+  } else {
+    // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
+    if (window.__songSelect && window.__songSelect.enabled) {
+      const url = String(songUrl || '').trim();
+      if (!url) return;
+      if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+      else window.__songSelect.urls.add(url);
+      applyRowSelectedState(row, window.__songSelect.urls.has(url));
+      return;
+    }
   }
-
-  // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
-  if (!isDesktop && window.__songSelect && window.__songSelect.enabled) {
-    const url = String(songUrl || '').trim();
-    if (!url) return;
-    if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
-    else window.__songSelect.urls.add(url);
-    applyRowSelectedState(row, window.__songSelect.urls.has(url));
-    return;
-  }
-
-  // ✅ If selection mode was on, a normal click exits selection and plays
-  if (isDesktop && window.__songSelect && window.__songSelect.enabled && !(isRange || isToggle)) {
-    setSongSelectEnabled(false);
-  }
-
 
   // Otherwise: normal play (existing behavior)
   if (!songUrl) return;
@@ -14650,15 +14684,82 @@ if (hero && activePlaylistId) {
 
       const longPressState = { longPress: false };
       
-    row.onclick = () => {
-        if (longPressState.longPress) {
+        row.onclick = (e) => {
+      if (longPressState.longPress) {
         longPressState.longPress = false;
         return;
       }
 
+      const isDesktop = window.innerWidth > 768;
+
+      // ✅ If dots were clicked, never play
+      const dotsEl = e && e.target && e.target.closest ? e.target.closest('.track-menu') : null;
+      if (dotsEl) return;
+
+      // ✅ Title click always plays
+      const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
+      if (playTarget) {
+        if (isDesktop && window.__songSelect && window.__songSelect.enabled) setSongSelectEnabled(false);
+        currentIndex = i;
+        playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
+        return;
+      }
+
+      // ✅ Desktop: grey space selects (single) OR expands via Shift/Cmd
+      if (isDesktop && window.__songSelect) {
+        const url = String(song.url || '').trim();
+        if (!url) return;
+
+        const idx = Number(row.getAttribute('data-song-index') || row.dataset.index || i);
+
+        const isRange = !!(e && e.shiftKey);
+        const isToggle = !!(e && (e.metaKey || e.ctrlKey));
+
+        if (isRange || isToggle) {
+          if (!window.__songSelect.enabled) setSongSelectEnabled(true);
+
+          // Shift range
+          if (isRange && window.__songSelect.lastIndex != null) {
+            const a = Math.min(window.__songSelect.lastIndex, idx);
+            const b = Math.max(window.__songSelect.lastIndex, idx);
+
+            const rows = Array.from(document.querySelectorAll('.track-row[data-song-index], .track-row[data-index]'));
+            rows.forEach(r => {
+              const ri = Number(r.getAttribute('data-song-index') || r.dataset.index);
+              if (ri >= a && ri <= b) {
+                const ru = getSongUrlFromRow(r) || r.dataset.url || '';
+                if (ru) window.__songSelect.urls.add(ru);
+              }
+            });
+
+            window.__songSelect.lastIndex = idx;
+            syncRowSelectionFromSet(document);
+            return;
+          }
+
+          // Cmd/Ctrl toggle
+          if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+          else window.__songSelect.urls.add(url);
+
+          window.__songSelect.lastIndex = idx;
+          applyRowSelectedState(row, window.__songSelect.urls.has(url));
+          return;
+        }
+
+        // Plain grey click = single select
+        setSongSelectEnabled(true);
+        window.__songSelect.urls.clear();
+        window.__songSelect.urls.add(url);
+        window.__songSelect.lastIndex = idx;
+        syncRowSelectionFromSet(document);
+        return;
+      }
+
+      // Default: play (mobile tap)
       currentIndex = i;
       playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
     };
+
 
     row.oncontextmenu = (e) =>
       handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
@@ -14707,7 +14808,8 @@ if (hero && activePlaylistId) {
       <div class="flex items-center gap-3 min-w-0">
         ${isPlaylist ? thumbMarkup : ''}
         <div class="min-w-0">
-          <div data-role="title" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${displayTitle}</div>
+          <div data-role="title" data-play-target="1" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${displayTitle}</div>
+
           <div data-role="sub" class="md:hidden text-xs text-zinc-400 truncate">${displayArtist}</div>
         </div>
       </div>
