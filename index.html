@@ -3334,6 +3334,14 @@ let playContext = null;
 // -----------------------
 // SONG MULTI-SELECT (desktop + mobile)
 // -----------------------
+
+// ✅ SAFETY: some legacy onclicks still reference this
+// Prevents Safari from throwing and breaking clicks
+function onNavTap() {
+  return;
+}
+
+        
 window.__songSelect = window.__songSelect || {
   urls: new Set(),
   lastIndex: null,
