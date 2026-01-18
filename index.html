@@ -3342,9 +3342,18 @@ let suppressPlaylistMenuCloseUntil = 0;
 
 // ✅ SAFETY: some legacy onclicks still reference this
 // Prevents Safari from throwing and breaking clicks
-function onNavTap() {
-  return;
+window.onNavTap = window.onNavTap || function(viewType){
+  try {
+    const v = String(viewType || '').toLowerCase();
+    if (!v) return;
+    if (typeof showView === 'function') showView(v);
+  } catch (e) {}
+};
+
+function onNavTap(viewType) {
+  return window.onNavTap(viewType);
 }
+
 
         
 window.__songSelect = window.__songSelect || {
