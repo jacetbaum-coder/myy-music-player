@@ -12039,14 +12039,19 @@ function initResizers() {
     });
 
     document.addEventListener('touchstart', (e) => {
-      if (window.innerWidth > 768) return;
+  if (window.innerWidth > 768) return;
 
-      // ✅ If we JUST opened a menu, ignore this touch
-      if (Date.now() < suppressContextMenuCloseUntil) return;
-      if (Date.now() < suppressPlaylistMenuCloseUntil) return;
+  // ✅ If the user is tapping a track's "•••" button, don't treat it as an outside tap.
+  // (Otherwise the menu closes before it even opens on iOS.)
+  if (e.target && e.target.closest && e.target.closest('button.track-menu')) return;
 
-      if (!contextMenu.contains(e.target)) closeContextMenu();
-    }, { passive: true });
+  // ✅ If we JUST opened a menu, ignore this touch
+  if (Date.now() < suppressContextMenuCloseUntil) return;
+  if (Date.now() < suppressPlaylistMenuCloseUntil) return;
+
+  if (!contextMenu.contains(e.target)) closeContextMenu();
+}, { passive: true });
+
     }
 }
             
