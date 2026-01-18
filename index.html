@@ -938,7 +938,26 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   overflow: visible;
 }
 
+/* NOW PLAYING: Lyrics card uses NON-muted accent color */
+#np-lyrics-card{
+  background: rgba(var(--accent-rgb), 0.88);
+}
+
+/* NOW PLAYING: Lyrics collapse/expand */
+.np-lyrics-collapsed{
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.np-lyrics-expanded{
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
 .sidebar-hidden { display: none !important; }
+
 
 
 
@@ -3031,7 +3050,46 @@ body.qs-lock {
        class="text-lg leading-relaxed whitespace-pre-wrap"></div>
 </div>
 
+<!-- NOW PLAYING: LYRICS (mobile) -->
+<div id="np-lyrics-card"
+     class="w-full mt-4 rounded-2xl text-white p-4 relative overflow-hidden">
+
+  <div class="flex items-start justify-between gap-3">
+    <div class="text-sm font-semibold text-white/90">Lyrics</div>
+
+    <div class="flex items-center gap-2">
+      <!-- share -->
+      <button id="np-lyrics-share"
+              class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"
+              aria-label="Share lyrics"
+              onclick="shareNpLyrics(event)">
+        <i class="fas fa-arrow-up-from-bracket text-white/90 text-sm"></i>
+      </button>
+
+      <!-- expand -->
+      <button id="np-lyrics-expand"
+              class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"
+              aria-label="Expand lyrics"
+              onclick="toggleNpLyricsExpanded(event)">
+        <i id="np-lyrics-expand-icon" class="fas fa-up-right-and-down-left-from-center text-white/90 text-sm"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="np-lyrics-status" class="text-sm text-white/80 mt-2">Loading…</div>
+
+  <div id="np-lyrics-body"
+       class="mt-3 text-3xl font-extrabold leading-tight np-lyrics-collapsed"></div>
+
+  <a id="np-lyrics-source"
+     class="mt-3 inline-block text-sm text-white/80 underline hidden"
+     href="#"
+     target="_blank"
+     rel="noopener">Search on Genius</a>
+</div>
+
 <!-- NOW PLAYING: ABOUT ARTIST (mobile) -->
+
 <div id="np-about-artist-card"
      class="w-full mt-4 rounded-2xl bg-zinc-900 text-white p-4 cursor-pointer relative"
      onclick="openArtistFromNowPlayingCard(event)">
@@ -9824,6 +9882,8 @@ function updateNowPlayingUI() {
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
     if (artist) artist.textContent = currentSong.artist || "";
   try { loadNpBio(currentSong.artist); } catch (e) {}
+  try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), currentSong.artist); } catch (e) {}
+
 
 
   // ---- CONTEXT LABEL (mobile) ----
@@ -11473,7 +11533,124 @@ async function loadNpBio(artistName){
   }
 }
 
+function toggleNpLyricsExpanded(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const body = document.getElementById('np-lyrics-body');
+  const icon = document.getElementById('np-lyrics-expand-icon');
+  if (!body) return;
+
+  const expanded = body.classList.contains('np-lyrics-expanded');
+  body.classList.toggle('np-lyrics-expanded', !expanded);
+  body.classList.toggle('np-lyrics-collapsed', expanded);
+
+  if (icon) {
+    icon.className = !expanded
+      ? "fas fa-compress text-white/90 text-sm"
+      : "fas fa-up-right-and-down-left-from-center text-white/90 text-sm";
+  }
+}
+
+async function shareNpLyrics(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+
+  const text = (document.getElementById('np-lyrics-body')?.textContent || '').trim();
+  const title = (currentSong && (currentSong.title || currentSong.name)) ? String(currentSong.title || currentSong.name).replace('.mp3','').trim() : 'Lyrics';
+  const artist = (currentSong && currentSong.artist) ? String(currentSong.artist).trim() : '';
+
+  if (!text) return;
+
+  try{
+    if (navigator.share) {
+      await navigator.share({ title, text: (artist ? (artist + " — ") : "") + title + "\n\n" + text });
+      return;
+    }
+  }catch(err){}
+
+  try{
+    await navigator.clipboard.writeText((artist ? (artist + " — ") : "") + title + "\n\n" + text);
+  }catch(err){}
+}
+
+async function loadNpLyrics(trackTitle, artistName){
+  const status = document.getElementById('np-lyrics-status');
+  const bodyEl = document.getElementById('np-lyrics-body');
+  const source = document.getElementById('np-lyrics-source');
+
+  if (!status || !bodyEl || !source) return;
+
+  const cleanTitle  = String(trackTitle || '').replace('.mp3','').trim();
+  const cleanArtist = String(artistName || '').trim();
+
+  // reset UI
+  bodyEl.textContent = '';
+  status.textContent = 'Loading…';
+  source.classList.add('hidden');
+  source.href = '#';
+
+  // reset collapsed
+  bodyEl.classList.remove('np-lyrics-expanded');
+  bodyEl.classList.add('np-lyrics-collapsed');
+
+  if (!cleanTitle) {
+    status.textContent = 'Play a song to load lyrics.';
+    return;
+  }
+
+  const geniusUrl = 'https://genius.com/search?q=' + encodeURIComponent((cleanArtist ? (cleanArtist + ' ') : '') + cleanTitle);
+
+  // localStorage cache (same as your center lyrics pattern)
+  const cacheKey = (() => {
+    const a = cleanArtist.toLowerCase().trim();
+    const t = cleanTitle.toLowerCase().trim();
+    return `lyricsCache:v1:${a}||${t}`;
+  })();
+
+  try{
+    const cached = localStorage.getItem(cacheKey);
+    if (cached && cached.trim().length) {
+      status.textContent = 'Lyrics';
+      bodyEl.textContent = cached;
+      return;
+    }
+  }catch(err){}
+
+  try{
+    const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('LRCLIB not ok');
+
+    const data = await res.json();
+    const text = (data && (data.plainLyrics || data.syncedLyrics)) ? (data.plainLyrics || data.syncedLyrics) : '';
+
+    if (!text) {
+      status.textContent = 'No lyrics found for this track.';
+      source.textContent = 'Search on Genius';
+      source.href = geniusUrl;
+      source.classList.remove('hidden');
+      return;
+    }
+
+    // strip timestamps if synced
+    const cleaned = String(text).replace(/\[[0-9:.]+\]\s*/g, '').trim();
+    const finalText = cleaned || 'No lyrics found for this track.';
+
+    status.textContent = 'Lyrics';
+    bodyEl.textContent = finalText;
+
+    try{
+      if (finalText && finalText.trim().length) localStorage.setItem(cacheKey, finalText);
+    }catch(err){}
+
+  }catch(err){
+    status.textContent = 'Lyrics not available right now.';
+    source.textContent = 'Search on Genius';
+    source.href = geniusUrl;
+    source.classList.remove('hidden');
+  }
+}
+
 function initResizers() {
+
 
 
             const resizerL = document.getElementById('resizer-left');
