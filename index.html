@@ -2233,7 +2233,9 @@ body.qs-lock {
 
     <!-- Playlists -->
   <div class="flex items-center justify-between mb-3">
-    <h2 class="text-xl font-black">Playlists</h2>
+   <h2 id="home-top-grid-title-mobile" class="text-xl font-black">Playlists</h2>
+
+
   </div>
 
 
@@ -2339,7 +2341,7 @@ body.qs-lock {
 
         <!-- Playlists -->
     <div class="flex items-center justify-between mb-3">
-      <h2 class="text-2xl font-black">Playlists</h2>
+      <h2 id="home-top-grid-title" class="text-xl font-black">Playlists</h2>
       <button id="desktop-playlists-showall" class="text-sm font-extrabold text-zinc-400 hover:text-white" type="button">
         Show all
       </button>
@@ -11512,42 +11514,34 @@ function initMobileHomeTabsOnce() {
 }
 
 function getHomeRecentsItems() {
-  const src = Array.isArray(history) ? history.slice() : [];
+  const max = 12;
 
-  if (homeTopTab === 'albums') {
-    return src.filter(x => x && x.type === 'album');
-  }
+  // ✅ Single source of truth: historyLog in localStorage
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { history = []; }
+  if (!Array.isArray(history)) history = [];
 
-  if (homeTopTab === 'playlists') {
-    return src.filter(x => x && x.type === 'playlist');
-  }
+  // history entries are already objects like:
+  // {type:'playlist', id, name, cover} or {type:'album', album, artist, cover}
+  // but we normalize just in case
+  let out = history.map(h => {
+    const type = String(h?.type || '').trim().toLowerCase();
+    if (type === 'playlist') return { type:'playlist', id: h.id, name: h.name, cover: h.cover };
+    if (type === 'artist')   return { type:'artist', artist: h.artist, cover: h.cover };
+    return { type:'album', album: h.album, artist: h.artist, cover: h.cover };
+  });
 
-  if (homeTopTab === 'artists') {
-    // Build "recent artists" from the existing history rows (albums/playlists),
-    // without changing how history is stored.
-    const seen = new Set();
-    const out = [];
+  // ✅ filter based on homeTopTab
+  if (homeTopTab === 'playlists') out = out.filter(x => x.type === 'playlist');
+  if (homeTopTab === 'albums')    out = out.filter(x => x.type === 'album');
+  if (homeTopTab === 'artists')   out = out.filter(x => x.type === 'artist');
+  // 'all' = no filter
 
-    src.forEach(x => {
-      const a = String(x?.artist || '').trim();
-      if (!a) return;
-      const k = a.toLowerCase();
-      if (seen.has(k)) return;
-      seen.add(k);
-
-      out.push({
-        type: 'artist',
-        artist: a,
-        cover: x?.cover || ''
-      });
-    });
-
-    return out;
-  }
-
-  // default: all (keep everything together)
-  return src;
+  return out.slice(0, max);
 }
+
+function renderHomeRecentsRow(containerId) {
+
 
 function renderHomeRecentsRow(containerId) {
 
@@ -11638,6 +11632,21 @@ const dataAttrs =
 });
 
         function renderHome() {
+  // ✅ Update the Home section label (above Recents)
+  const t = document.getElementById(
+  window.innerWidth <= 768
+    ? 'home-top-grid-title-mobile'
+    : 'home-top-grid-title'
+);
+
+  if (t) {
+    t.textContent =
+      homeTopTab === 'albums'  ? 'Albums' :
+      homeTopTab === 'artists' ? 'Artists' :
+      homeTopTab === 'all'     ? 'All' :
+      'Playlists';
+  }
+
   // Mobile Home
   if (window.innerWidth <= 768) {
     renderHomeRecents('home-recent-grid');
