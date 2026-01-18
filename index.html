@@ -8866,10 +8866,29 @@ row.innerHTML = `
     </div>
   </div>
 
-    ${albumCell}
+      ${albumCell}
   <span class="hidden md:block">Just now</span>
   <button type="button" class="track-menu" aria-label="More options">•••</button>
 `;
+
+try {
+  const dots = row.querySelector('button.track-menu');
+  if (dots) {
+    dots.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // open menu near the dots
+      const r = dots.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = (r.top + r.bottom) / 2;
+
+      // keep your existing single-song menu logic:
+      menuTargetSong = song;
+      showContextMenuAt(x, y, song, dots);
+    });
+  }
+} catch (e) {}
 
 
     listEl.appendChild(row);
