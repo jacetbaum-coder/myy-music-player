@@ -8716,9 +8716,10 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     if (song && (song.trackId || song.id || song.r2Path)) {
       row.setAttribute('data-track-id', String(song.trackId || song.id || song.r2Path));
     }
-  }catch(err){}
+    }catch(err){}
 
-    const isDesktop = window.innerWidth > 768;
+    // isDesktop already defined above
+
 
     // ✅ Desktop behavior:
   // - Click dots = open menu
@@ -8752,11 +8753,13 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
   const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
   if (playTarget) {
     // ✅ Always play if you clicked the title
-    if (isDesktop && window.__songSelect && window.__songSelect.enabled) {
+    if (_isDesktop && window.__songSelect && window.__songSelect.enabled) {
+
       setSongSelectEnabled(false);
     }
     // fall through to your existing play block below
-  } else if (isDesktop) {
+  } else if (_isDesktop) {
+
     // ✅ Grey-space click selects (single), unless Shift/Cmd are held
     if (!window.__songSelect) return;
 
