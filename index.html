@@ -922,11 +922,25 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 @media (max-width: 768px) {
   body.np-open #main-dock { display: none !important; }
   body.np-open .mobile-nav { display: none !important; }
-  body.np-open { --nav-height: 0px !important; }
+    body.np-open { --nav-height: 0px !important; }
 }
 
+/* NOW PLAYING: About artist bio collapse/expand */
+.np-bio-collapsed{
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.np-bio-expanded{
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
 
 .sidebar-hidden { display: none !important; }
+
+
 
         .active-green { color: var(--spotify-green) !important; }
 
@@ -2968,7 +2982,8 @@ body.qs-lock {
       </div>
 
       <!-- controls (play/pause + prev/next work) -->
-<div id="np-controls" class="mt-10 text-white">
+<div id="np-controls" class="mt-8 text-white">
+
 
   <!-- SHUFFLE (mobile) -->
   <button id="np-shuffle-btn"
@@ -3018,14 +3033,38 @@ body.qs-lock {
 
 <!-- NOW PLAYING: ABOUT ARTIST (mobile) -->
 <div id="np-about-artist-card"
-     class="w-full mt-6 rounded-2xl bg-zinc-900 text-white p-5 cursor-pointer"
-     onclick="openArtistByName(currentSong?.artist)">
-  <div class="text-sm font-semibold text-white/70 mb-3">About the artist</div>
-  <div id="np-about-artist-name"
-       class="text-lg font-semibold"></div>
-  <div id="np-about-artist-meta"
-       class="text-sm text-white/60 mt-1"></div>
+     class="w-full mt-4 rounded-2xl bg-zinc-900 text-white p-4 cursor-pointer relative"
+     onclick="openArtistFromNowPlayingCard(event)">
+
+
+  <div class="flex items-start justify-between gap-3">
+    <div class="text-sm font-semibold text-white/70 mb-3">About the artist</div>
+
+    <!-- expand bio button (ONLY expands; does not open artist page) -->
+    <button id="np-about-expand"
+            class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center"
+            aria-label="Expand bio"
+            onclick="toggleNpBioExpanded(event)">
+      <i id="np-about-expand-icon" class="fas fa-up-right-and-down-left-from-center text-white/80 text-sm"></i>
+    </button>
+  </div>
+
+  <div id="np-about-artist-name" class="text-lg font-semibold"></div>
+  <div id="np-about-artist-meta" class="text-sm text-white/60 mt-1"></div>
+
+  <div id="np-about-artist-status" class="text-sm text-white/60 mt-3">Loading…</div>
+
+  <div id="np-about-artist-bio"
+       class="mt-2 text-sm leading-relaxed np-bio-collapsed"></div>
+
+  <a id="np-about-artist-source"
+     class="mt-3 inline-block text-sm text-white/60 underline hidden"
+     href="#"
+     target="_blank"
+     rel="noopener">Wikipedia</a>
+
 </div>
+
 
 </div>
     </div>
@@ -9783,7 +9822,9 @@ function updateNowPlayingUI() {
 
   if (cover) cover.src = currentSong.cover || "";
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
-  if (artist) artist.textContent = currentSong.artist || "";
+    if (artist) artist.textContent = currentSong.artist || "";
+  try { loadNpBio(currentSong.artist); } catch (e) {}
+
 
   // ---- CONTEXT LABEL (mobile) ----
   if (ctx) {
@@ -11204,6 +11245,24 @@ async function loadRightLyrics(title, artist) {
     toggleBioExpand();
   });
 })();
+        
+function toggleNpBioExpanded(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+
+  const bio = document.getElementById('np-about-artist-bio');
+  const icon = document.getElementById('np-about-expand-icon');
+  if (!bio) return;
+
+  const expanded = bio.classList.contains('np-bio-expanded');
+  bio.classList.toggle('np-bio-expanded', !expanded);
+  bio.classList.toggle('np-bio-collapsed', expanded);
+
+  if (icon) {
+    icon.className = !expanded
+      ? "fas fa-compress text-white/80 text-sm"
+      : "fas fa-up-right-and-down-left-from-center text-white/80 text-sm";
+  }
+}
 
 async function loadRightBio(artistName){
   if (window.innerWidth < 1024) return;
@@ -11315,7 +11374,107 @@ async function loadRightBio(artistName){
   }
 }
 
+function openArtistFromNowPlayingCard(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const name = (currentSong && currentSong.artist) ? String(currentSong.artist).trim() : '';
+  if (!name) return;
+  try { closeNowPlaying(); } catch (err) {}
+  try { openArtistByName(name); } catch (err) {}
+}
+
+function toggleNpBioExpanded(e){
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const bio = document.getElementById('np-about-artist-bio');
+  if (!bio) return;
+  const expanded = bio.classList.contains('np-bio-expanded');
+  bio.classList.toggle('np-bio-expanded', !expanded);
+  bio.classList.toggle('np-bio-collapsed', expanded);
+}
+
+async function loadNpBio(artistName){
+  const status = document.getElementById('np-about-artist-status');
+  const bio = document.getElementById('np-about-artist-bio');
+  const nameEl = document.getElementById('np-about-artist-name');
+  const metaEl = document.getElementById('np-about-artist-meta');
+
+  if (!bio) return;
+
+  const artist = String(artistName || '').trim();
+  if (nameEl) nameEl.textContent = artist || '';
+  if (metaEl) metaEl.textContent = artist ? 'Tap to open artist' : '';
+
+  bio.classList.remove('np-bio-expanded');
+  bio.classList.add('np-bio-collapsed');
+
+  if (!artist) {
+    if (status) status.textContent = 'Play a song to load artist info.';
+    bio.textContent = '';
+    return;
+  }
+
+  if (status) status.textContent = 'Loading…';
+  bio.textContent = '';
+
+  // same cache scheme as desktop
+  const aKey = artist.toLowerCase().replace(/\s+/g,' ').trim();
+  const key = 'artistBio:v1:' + aKey;
+
+  const NOW = Date.now();
+  const TTL_FOUND = 1000 * 60 * 60 * 24 * 30;
+  const TTL_NOTFOUND = 1000 * 60 * 60 * 12;
+
+  function readCache(){
+    try{
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.savedAt) return null;
+      const ttl = obj.notFound ? TTL_NOTFOUND : TTL_FOUND;
+      if ((NOW - obj.savedAt) > ttl) return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+  function writeCache(obj){
+    try{ localStorage.setItem(key, JSON.stringify({ ...obj, savedAt: Date.now() })); }catch(e){}
+  }
+
+  const cached = readCache();
+  if (cached){
+    if (cached.notFound){
+      if (status) status.textContent = 'No artist info found.';
+      bio.textContent = '';
+      return;
+    }
+    if (status) status.textContent = 'About the artist';
+    bio.textContent = (cached.bio || '').trim();
+    return;
+  }
+
+  try{
+    const url = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(artist);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Wiki ' + res.status);
+    const data = await res.json();
+
+    const extract = (data && data.extract) ? String(data.extract).trim() : '';
+    if (!extract || (data && data.type === 'disambiguation')){
+      if (status) status.textContent = 'No artist info found.';
+      bio.textContent = '';
+      writeCache({ notFound: true });
+      return;
+    }
+
+    if (status) status.textContent = 'About the artist';
+    bio.textContent = extract;
+    writeCache({ notFound: false, bio: extract });
+  }catch(err){
+    if (status) status.textContent = 'Could not load artist info.';
+    bio.textContent = '';
+  }
+}
+
 function initResizers() {
+
 
             const resizerL = document.getElementById('resizer-left');
             const sidebarL = document.getElementById('left-sidebar');
