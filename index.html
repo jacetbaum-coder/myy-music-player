@@ -760,19 +760,30 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
         }
 
         /* --- DOCK & PLAYER --- */
-        .player-bar {
-    position: fixed;
-    bottom: 0;
+.player-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0; /* default desktop */
+  height: 74px;
+  background: rgb(var(--accent-rgb));
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 12px;
+  z-index: 100;
+}
+
+/* Mobile: sit directly on top of the bottom tabs (no floating gap) */
+@media (max-width: 768px) {
+  .player-bar {
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
     left: 0;
     right: 0;
-    height: var(--player-height);
-    background: var(--bg-base);
-    border-top: 1px solid #282828;
-    display: grid;
-    grid-template-columns: 30% 40% 30%;
-    align-items: center;
-    padding: 0 20px;
-    z-index: 100;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
         .progress-bar-container {
@@ -5074,12 +5085,23 @@ async function extractAccentFromImage(url) {
         let g = gSum / wSum;
         let b = bSum / wSum;
 
-        // Avoid super-dark accents (boost a bit)
+                // Avoid super-dark accents (boost a bit)
         const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
         if (brightness < 55) {
           const boost = 55 / Math.max(1, brightness);
           r *= boost; g *= boost; b *= boost;
         }
+
+        // If the dominant is very close to white / very light gray, force a mid-gray
+        // so white UI text stays readable.
+        const maxc = Math.max(r, g, b);
+        const minc = Math.min(r, g, b);
+        if (brightness > 230 && (maxc - minc) < 25) {
+          r = 90; g = 90; b = 90;
+        }
+
+        resolve([clamp255(r), clamp255(g), clamp255(b)]);
+
 
         resolve([clamp255(r), clamp255(g), clamp255(b)]);
       } catch (e) {
