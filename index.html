@@ -304,6 +304,18 @@ img {
   max-width: 100%;
 }
 
+/* ✅ Scroll performance: isolate album tiles so offscreen ones don’t cost layout/paint */
+.album-card{
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 300px;
+  contain: layout paint style;
+}
+.album-card img{
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+
         /* --- DESKTOP LAYOUT --- */
         .sidebar { 
             width: 260px; 
@@ -7094,10 +7106,10 @@ function initSwipeBack() {
       }
     }
 
-    if (!isHorizontal) return;
+        if (!isHorizontal) return;
 
-    // Note: preventDefault() only works if { passive: false } is set
-    if (e.cancelable) e.preventDefault();
+    // ✅ passive move listener: no preventDefault (we’re already locking via touchAction when horizontal)
+
 
     // Only allow motion in the direction of the starting edge
     // left edge => dx must be positive
@@ -7120,7 +7132,8 @@ function initSwipeBack() {
     // Fade based on distance
     const p = Math.min(1, Math.abs(lastDx) / maxShift);
     area.style.opacity = String(1 - (p * OPACITY_DROP));
-  }, { passive: false });
+    }, { passive: true });
+
 
   area.addEventListener('pointerup', () => {
     if (!active) return;
@@ -7256,10 +7269,7 @@ function initSearchSwipeDownClose() {
       return;
     }
 
-    // Note: preventDefault() only works if { passive: false } is set
-    if (e.cancelable) e.preventDefault();
-
-    lastDy = dy;
+       // ✅ passive move listener: no preventDefault needed (we’re only translating the view)
 
     const maxShift = Math.max(140, Math.floor(window.innerHeight * 0.85));
     if (lastDy > maxShift) lastDy = maxShift;
@@ -7268,7 +7278,8 @@ function initSearchSwipeDownClose() {
 
     const p = Math.min(1, Math.abs(lastDy) / maxShift);
     area.style.opacity = String(1 - (p * OPACITY_DROP));
-  }, { passive: false });
+    }, { passive: true });
+
 
   searchView.addEventListener('pointerup', () => {
     if (!active) return;
@@ -7720,7 +7731,49 @@ function onNavTap(viewType) {
           * ---------------------------------------------------------------------
           */
 
+function scheduleIdle(fn){
+  try {
+    if ('requestIdleCallback' in window) return requestIdleCallback(fn, { timeout: 800 });
+  } catch (e) {}
+  return setTimeout(fn, 0);
+}
+
+const __imgPrefetchCache = new Map();
+
+function prefetchAndDecodeImage(url){
+  const u = String(url || '').trim();
+  if (!u) return;
+  if (__imgPrefetchCache.has(u)) return;
+
+  const img = new Image();
+  img.decoding = 'async';
+  img.loading = 'eager';
+  img.src = u;
+
+  __imgPrefetchCache.set(u, img);
+
+  if (typeof img.decode === 'function') {
+    try { img.decode().catch(() => {}); } catch (e) {}
+  }
+}
+
+function prefetchGridImages(gridEl){
+  if (!gridEl) return;
+
+  const imgs = Array.from(gridEl.querySelectorAll('img'));
+  const urls = imgs.map(im => (im.currentSrc || im.src || '')).filter(Boolean);
+
+  // First screenful + a bit extra
+  const slice = urls.slice(0, 48);
+  if (!slice.length) return;
+
+  scheduleIdle(() => {
+    slice.forEach(u => prefetchAndDecodeImage(u));
+  });
+}
+
 function renderGrid(data) {
+
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
@@ -7734,7 +7787,8 @@ function renderGrid(data) {
        data-no-swipe-back="1">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover">
+          <img src="${cover}" class="w-full h-full object-cover" loading="lazy" decoding="async" fetchpriority="low">
+
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
@@ -7746,7 +7800,11 @@ function renderGrid(data) {
         </div>
       </div>
     `;
-  }).join('');
+    }).join('');
+
+  // ✅ Smooth scrolling: prefetch/decode covers off the critical scroll path
+  prefetchGridImages(grid);
+
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
