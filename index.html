@@ -2939,7 +2939,8 @@ body.qs-lock {
   </div>
 
   <!-- content -->
-  <div id="np-sheet" class="h-[calc(100%-64px)] flex flex-col items-center justify-center px-6">
+  <div id="np-sheet" class="h-[calc(100%-64px)] overflow-y-auto flex flex-col items-center px-6 py-6">
+
     <div class="w-full max-w-[520px]">
       <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
         <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
@@ -3006,10 +3007,31 @@ body.qs-lock {
   </button>
 
 </div>
+
+<!-- NOW PLAYING: LYRICS (mobile) -->
+<div id="np-lyrics-card"
+     class="w-full mt-10 rounded-2xl bg-zinc-900 text-white p-5 hidden">
+  <div class="text-sm font-semibold text-white/70 mb-3">Lyrics</div>
+  <div id="np-lyrics-text"
+       class="text-lg leading-relaxed whitespace-pre-wrap"></div>
+</div>
+
+<!-- NOW PLAYING: ABOUT ARTIST (mobile) -->
+<div id="np-about-artist-card"
+     class="w-full mt-6 rounded-2xl bg-zinc-900 text-white p-5 cursor-pointer"
+     onclick="openArtistByName(currentSong?.artist)">
+  <div class="text-sm font-semibold text-white/70 mb-3">About the artist</div>
+  <div id="np-about-artist-name"
+       class="text-lg font-semibold"></div>
+  <div id="np-about-artist-meta"
+       class="text-sm text-white/60 mt-1"></div>
+</div>
+
 </div>
     </div>
   </div>
 </div>
+
 
     <!-- NOW PLAYING: options sheet (mobile + desktop) -->
     <div id="np-options-sheet" class="hidden fixed inset-0 z-[4000]">
