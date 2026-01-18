@@ -761,19 +761,31 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
         /* --- DOCK & PLAYER --- */
         .player-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: var(--player-height);
-    background: var(--bg-base);
-    border-top: 1px solid #282828;
-    display: grid;
-    grid-template-columns: 30% 40% 30%;
-    align-items: center;
-    padding: 0 20px;
-    z-index: 100;
+     position: fixed;
+     bottom: 0;
+     left: 0;
+     right: 0;
+     height: var(--player-height);
+    background: rgba(var(--accent-rgb), 0.85);
+     border-top: 1px solid #282828;
+     display: grid;
+     grid-template-columns: 30% 40% 30%;
+     align-items: center;
+     padding: 0 20px;
+     z-index: 100;
+ }
+
+/* ✅ MOBILE: make the Now Playing dock sit fully above the bottom tabs */
+@media (max-width: 768px) {
+  .player-bar{
+    left: 10px;
+    right: 10px;
+    border-top: 0;
+    border-radius: 16px;
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  }
 }
+
 
         .progress-bar-container {
   height: 4px;
@@ -4988,14 +5000,18 @@ function attachSwipeAddToQueue(rowEl, songObj) {
 
 
 function setAccentRGB(r, g, b) {
-  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+  r = Math.max(0, Math.min(255, parseInt(r || 0, 10)));
+  g = Math.max(0, Math.min(255, parseInt(g || 0, 10)));
+  b = Math.max(0, Math.min(255, parseInt(b || 0, 10)));
 
-  // Optional: update browser theme color (mobile address bar tint)
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    const hex = rgbToHex(r, g, b);
-    meta.setAttribute('content', hex);
+  // ✅ If the “dominant” color is basically white, force it to a mid-grey
+  // so white text always stays readable.
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000; // 0..255
+  if (brightness >= 235) {
+    r = 120; g = 120; b = 120;
   }
+
+  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
 }
 
         function loadLibraryCache() {
