@@ -8703,17 +8703,17 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     }
   }catch(err){}
 
-  const isDesktop = window.innerWidth > 768;
+    const isDesktop = window.innerWidth > 768;
 
-  // If selection mode is enabled OR user is using shift/meta, we select instead of play.
-  const wantsSelect = !!(window.__songSelect && (window.__songSelect.enabled || (e && (e.shiftKey || e.metaKey || e.ctrlKey))));
+  // ✅ Selection ONLY when user holds Shift (range) OR Cmd/Ctrl (toggle)
+  const isRange = !!(e && e.shiftKey);
+  const isToggle = !!(e && (e.metaKey || e.ctrlKey));
 
-  // "Play target" = clicking the cover image or title text (not empty space)
+  // "Play target" = clicking the title (we add data-play-target="1" in Step A1)
   const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
-  const clickedEmptySpace = !playTarget;
 
-  if (isDesktop && (wantsSelect || clickedEmptySpace)) {
-    // enable selection mode on first select
+  // ✅ Desktop multi-select
+  if (isDesktop && (isRange || isToggle)) {
     if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
     const url = String(songUrl || '').trim();
@@ -8721,12 +8721,11 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
     const idx = Number(row.getAttribute('data-song-index') || i);
 
-    // Shift+click range select (pic 3)
-    if (e && e.shiftKey && window.__songSelect.lastIndex != null) {
+    // Shift+click range select
+    if (isRange && window.__songSelect.lastIndex != null) {
       const a = Math.min(window.__songSelect.lastIndex, idx);
       const b = Math.max(window.__songSelect.lastIndex, idx);
 
-      // select all in range
       const rows = Array.from(document.querySelectorAll('.track-row[data-song-index]'));
       rows.forEach(r => {
         const ri = Number(r.getAttribute('data-song-index'));
@@ -8736,11 +8735,12 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
         }
       });
 
+      window.__songSelect.lastIndex = idx;
       syncRowSelectionFromSet(document);
       return;
     }
 
-    // Normal toggle
+    // Cmd/Ctrl toggle single
     if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
     else window.__songSelect.urls.add(url);
 
@@ -8748,6 +8748,22 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     applyRowSelectedState(row, window.__songSelect.urls.has(url));
     return;
   }
+
+  // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
+  if (!isDesktop && window.__songSelect && window.__songSelect.enabled) {
+    const url = String(songUrl || '').trim();
+    if (!url) return;
+    if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+    else window.__songSelect.urls.add(url);
+    applyRowSelectedState(row, window.__songSelect.urls.has(url));
+    return;
+  }
+
+  // ✅ If selection mode was on, a normal click exits selection and plays
+  if (isDesktop && window.__songSelect && window.__songSelect.enabled && !(isRange || isToggle)) {
+    setSongSelectEnabled(false);
+  }
+
 
   // Otherwise: normal play (existing behavior)
   if (!songUrl) return;
@@ -8844,7 +8860,7 @@ row.innerHTML = `
   <div class="flex items-center gap-3 min-w-0">
     ${thumbMarkup}
     <div class="flex flex-col min-w-0">
-      <div data-role="title" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+      <div data-role="title" data-play-target="1" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
       <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${displayArtist || ''}</div>
 
     </div>
@@ -12024,14 +12040,13 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
 
   row.addEventListener('touchstart', (e) => {
     if (!e.touches || !e.touches[0]) return;
-    const t = e.touches[0];
     state.longPress = false;
 
     pressTimer = setTimeout(() => {
       state.longPress = true;
 
-      // ✅ Mobile: long-press enters multi-select mode (instead of opening menu)
-      try{
+      // ✅ Mobile: long-press enters multi-select (NO menu here)
+      try {
         if (window.innerWidth <= 768 && window.__songSelect) {
           if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
@@ -12047,10 +12062,7 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
           }
           return;
         }
-      }catch(err){}
-
-      // Default behavior (desktop / fallback): open menu
-      showContextMenuAt(t.pageX, t.pageY, song);
+      } catch (err) {}
     }, 500);
   }, { passive: true });
 
@@ -12070,6 +12082,7 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
   row.addEventListener('touchmove', cancel, { passive: true });
   row.addEventListener('touchcancel', cancel, { passive: true });
 }
+
 
         function togglePlaylistSubmenu(e){
   if (e) {
@@ -12116,7 +12129,8 @@ function handleContextMenu(e, song){
 
 
 
-        function attachSongPressHandlers(row, song, state) {
+                function attachSongPressHandlers_OLD(row, song, state) {
+
   if (!row) return;
 
   let pressTimer = null;
