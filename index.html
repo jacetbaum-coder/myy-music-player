@@ -10328,6 +10328,8 @@ let npDragActive = false;
 let npStartY = 0;
 let npStartX = 0;
 let npLastDown = 0;
+let npStartFromControls = false;
+
 let npDecided = false;
 let npIsVertical = false;
 
@@ -10369,9 +10371,11 @@ if (nowPlayingOverlay) {
   npDragActive = true;
   npStartY = y;
   npStartX = x;
-  npLastDown = 0;
+    npLastDown = 0;
+  npStartFromControls = !!(e.target && e.target.closest && e.target.closest('#np-controls'));
   npDecided = false;
   npIsVertical = false;
+
 
   nowPlayingOverlay.classList.add('np-dragging');
   try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
@@ -10400,10 +10404,10 @@ if (nowPlayingOverlay) {
     nowPlayingOverlay.style.transform = `translateY(${down}px)`;
   });
 
-  nowPlayingOverlay.addEventListener('pointerup', () => {
+    nowPlayingOverlay.addEventListener('pointerup', () => {
     if (!npDragActive) return;
 
-    const threshold = 140;
+    const threshold = npStartFromControls ? 80 : 140;
     const shouldClose = npLastDown > threshold;
 
     if (shouldClose) closeNowPlaying();
@@ -10411,6 +10415,7 @@ if (nowPlayingOverlay) {
 
     npDragActive = false;
   });
+
 
   nowPlayingOverlay.addEventListener('pointercancel', () => {
     if (!npDragActive) return;
