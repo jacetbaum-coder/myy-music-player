@@ -656,18 +656,60 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
         .resizer:hover { background: rgba(255,255,255,0.2); }
 
 .track-row { 
-    display: grid; 
-    grid-template-columns: 40px 6fr 4fr 3fr 80px; 
-    gap: 16px; 
-    padding: 12px; 
-    border-radius: 6px; 
-    position: relative;
-    align-items: center; 
-    color: var(--text-sub); 
-    font-size: 14px; 
-    user-select: none; 
-    transition: background 0.1s;
+  display: grid; 
+  grid-template-columns: 48px 1fr auto auto; 
+  align-items: center; 
+  gap: 12px; 
+  padding: 10px 12px; 
+  border-radius: 8px; 
+  cursor: pointer;
+  position: relative;
 }
+
+/* Desktop hover like Spotify (pic 1) */
+@media (hover: hover) and (pointer: fine) {
+  .track-row:hover{
+    background: rgba(255,255,255,0.07);
+  }
+}
+
+/* Clicked / selected (pic 2 + pic 3) */
+.track-row.is-selected{
+  background: rgba(255,255,255,0.12);
+}
+
+/* Selection bubble (mobile + optional desktop) */
+.track-row .select-bubble{
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  flex: 0 0 auto;
+}
+.track-row .select-bubble::after{
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(29,185,84,1);
+  opacity: 0;
+}
+.track-row.is-selected .select-bubble{
+  border-color: rgba(29,185,84,1);
+}
+.track-row.is-selected .select-bubble::after{
+  opacity: 1;
+}
+
+/* Show bubbles when selection mode is on */
+body.song-multiselect .track-row .select-bubble{
+  display: inline-flex;
+}
+
 .track-row > * {
     min-width: 0;
 }
@@ -3288,6 +3330,45 @@ let playContext = null;
 // { type: 'album' | 'playlist' | 'search', label: string }
 
         let menuTargetSong = null;
+
+// -----------------------
+// SONG MULTI-SELECT (desktop + mobile)
+// -----------------------
+window.__songSelect = window.__songSelect || {
+  urls: new Set(),
+  lastIndex: null,
+  enabled: false,
+};
+
+function setSongSelectEnabled(on){
+  window.__songSelect.enabled = !!on;
+  document.body.classList.toggle('song-multiselect', window.__songSelect.enabled);
+  if (!window.__songSelect.enabled) {
+    window.__songSelect.urls.clear();
+    window.__songSelect.lastIndex = null;
+    // clear UI
+    document.querySelectorAll('.track-row.is-selected').forEach(el => el.classList.remove('is-selected'));
+  }
+}
+
+function getSongUrlFromRow(row){
+  if (!row) return '';
+  return String(row.getAttribute('data-song-url') || '').trim();
+}
+
+function applyRowSelectedState(row, on){
+  if (!row) return;
+  row.classList.toggle('is-selected', !!on);
+}
+
+function syncRowSelectionFromSet(container){
+  const root = container || document;
+  root.querySelectorAll('.track-row[data-song-url]').forEach(row => {
+    const u = getSongUrlFromRow(row);
+    applyRowSelectedState(row, window.__songSelect.urls.has(u));
+  });
+}
+
         let activePlaylistIndex = null;
         
         // Persistence
@@ -8592,25 +8673,95 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
     if (isCurrent) row.classList.add('active-track');
 
+    // ✅ Ensure select bubble exists at far-left of row (desktop + mobile)
+    try{
+      if (!row.querySelector('.select-bubble')) {
+        const b = document.createElement('span');
+        b.className = 'select-bubble';
+        b.setAttribute('aria-hidden','true');
+        row.insertBefore(b, row.firstChild);
+      }
+    }catch(e){}
+
       const longPressState = { longPress: false };
 
-    row.onclick = () => {
-         if (longPressState.longPress) {
-        longPressState.longPress = false;
-        return;
-      }
-      if (!songUrl) return;
-      currentIndex = i;
-            // ✅ Always use the real streaming link from the API (never reconstruct paths)
-      // songUrl must be a valid Worker streaming URL like /?id=Artist%2FTitle.mp3
-      const safeUrl =
-        (song && typeof song.link === "string" && song.link) ||
-        (song && typeof song.id === "string" && song.id
-          ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(song.id)
-          : songUrl);
 
-      playSpecificSong(safeUrl, songTitle, album.albumName, album.artistName, cover);
-    };
+    row.onclick = (e) => {
+  // ignore the click that ends a long-press
+  if (longPressState.longPress) {
+    longPressState.longPress = false;
+    return;
+  }
+
+  // mark row with url + index so selection can work
+  try{
+    if (songUrl) row.setAttribute('data-song-url', String(songUrl));
+    row.setAttribute('data-song-index', String(i));
+    // helpful for playlist removal when url is a worker link
+    if (song && (song.trackId || song.id || song.r2Path)) {
+      row.setAttribute('data-track-id', String(song.trackId || song.id || song.r2Path));
+    }
+  }catch(err){}
+
+  const isDesktop = window.innerWidth > 768;
+
+  // If selection mode is enabled OR user is using shift/meta, we select instead of play.
+  const wantsSelect = !!(window.__songSelect && (window.__songSelect.enabled || (e && (e.shiftKey || e.metaKey || e.ctrlKey))));
+
+  // "Play target" = clicking the cover image or title text (not empty space)
+  const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
+  const clickedEmptySpace = !playTarget;
+
+  if (isDesktop && (wantsSelect || clickedEmptySpace)) {
+    // enable selection mode on first select
+    if (!window.__songSelect.enabled) setSongSelectEnabled(true);
+
+    const url = String(songUrl || '').trim();
+    if (!url) return;
+
+    const idx = Number(row.getAttribute('data-song-index') || i);
+
+    // Shift+click range select (pic 3)
+    if (e && e.shiftKey && window.__songSelect.lastIndex != null) {
+      const a = Math.min(window.__songSelect.lastIndex, idx);
+      const b = Math.max(window.__songSelect.lastIndex, idx);
+
+      // select all in range
+      const rows = Array.from(document.querySelectorAll('.track-row[data-song-index]'));
+      rows.forEach(r => {
+        const ri = Number(r.getAttribute('data-song-index'));
+        if (ri >= a && ri <= b) {
+          const ru = getSongUrlFromRow(r);
+          if (ru) window.__songSelect.urls.add(ru);
+        }
+      });
+
+      syncRowSelectionFromSet(document);
+      return;
+    }
+
+    // Normal toggle
+    if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+    else window.__songSelect.urls.add(url);
+
+    window.__songSelect.lastIndex = idx;
+    applyRowSelectedState(row, window.__songSelect.urls.has(url));
+    return;
+  }
+
+  // Otherwise: normal play (existing behavior)
+  if (!songUrl) return;
+  currentIndex = i;
+
+  const safeUrl =
+    (song && typeof song.link === "string" && song.link) ||
+    (song && typeof song.id === "string" && song.id
+      ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(song.id)
+      : songUrl);
+
+  playSpecificSong(safeUrl, songTitle, album.albumName, album.artistName, cover);
+};
+
 
 
     row.oncontextmenu = (e) =>
@@ -11866,7 +12017,7 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
   showContextMenuAt(e.pageX, e.pageY, song);
 }
 
-        function attachSongPressHandlers(row, song, state) {
+                function attachSongPressHandlers(row, song, state) {
   if (!row) return;
 
   let pressTimer = null;
@@ -11875,9 +12026,31 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
     if (!e.touches || !e.touches[0]) return;
     const t = e.touches[0];
     state.longPress = false;
+
     pressTimer = setTimeout(() => {
       state.longPress = true;
-      showContextMenuAt(t.pageX, t.pageY, song, row);
+
+      // ✅ Mobile: long-press enters multi-select mode (instead of opening menu)
+      try{
+        if (window.innerWidth <= 768 && window.__songSelect) {
+          if (!window.__songSelect.enabled) setSongSelectEnabled(true);
+
+          const url = String(
+            (song && (song.link || song.url)) ||
+            row.getAttribute('data-song-url') ||
+            ""
+          ).trim();
+
+          if (url) {
+            window.__songSelect.urls.add(url);
+            applyRowSelectedState(row, true);
+          }
+          return;
+        }
+      }catch(err){}
+
+      // Default behavior (desktop / fallback): open menu
+      showContextMenuAt(t.pageX, t.pageY, song);
     }, 500);
   }, { passive: true });
 
@@ -11908,10 +12081,39 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
   sub.classList.toggle('open');
 }
 
-function handleContextMenu(e, song) {
+function handleContextMenu(e, song){
   e.preventDefault();
-  showContextMenuAt(e.pageX, e.pageY, song);
+  e.stopPropagation();
+
+  // If we have a multi-selection AND the right-clicked song is inside it,
+  // use the whole selection for the menu.
+  try{
+    const u = String(song && (song.url || song.link || song.id || '')).trim();
+    if (window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0) {
+      const has = u && window.__songSelect.urls.has(u);
+      if (has) {
+        // Build array of song-like objects from selected urls (minimal fields for remove/add)
+        const selectedArr = [];
+        document.querySelectorAll('.track-row.is-selected[data-song-url]').forEach(row => {
+          const ru = getSongUrlFromRow(row);
+          if (!ru) return;
+          selectedArr.push({ url: ru, trackId: row.getAttribute('data-track-id') || '' });
+        });
+
+        if (selectedArr.length) {
+          menuTargetSong = selectedArr;
+          showContextMenuAt(e.clientX, e.clientY, song);
+          return;
+        }
+      }
+    }
+  }catch(err){}
+
+  // default: single
+  menuTargetSong = song;
+  showContextMenuAt(e.clientX, e.clientY, song);
 }
+
 
 
         function attachSongPressHandlers(row, song, state) {
@@ -13769,55 +13971,69 @@ function renderPlaylists() {
 
     const pl = playlists[plIndex];
 
-    // ✅ Resolve trackId robustly (canonical ID is the R2 path)
-    const s = menuTargetSong;
-    let trackId =
-      s?.id ||
-      s?.r2Path ||
-      s?.track_id ||
-      s?.trackId ||
-      s?.key ||
-      s?.r2_key ||
-      "";
+        // ✅ Resolve trackId robustly (canonical ID is the R2 path)
+    const targets = Array.isArray(menuTargetSong) ? menuTargetSong : [menuTargetSong];
 
     // Fallback: parse ?id= from the song URL/link
-if (!trackId) {
-  trackId = __extractIdFromMaybeUrl(menuTargetSong?.url || menuTargetSong?.link || "");
-}
+    function canonTrackId(v) {
+      let s = String(v || "").trim();
+      if (!s) return "";
 
-// ✅ Canonicalize ids so comparisons always match
-function canonTrackId(v) {
-  let s = String(v || "").trim();
-  if (!s) return "";
+      // If we were given a full URL, pull out ?id=
+      try {
+        if (s.includes("://")) {
+          const u = new URL(s);
+          const id = u.searchParams.get("id");
+          if (id) s = id;
+        }
+      } catch (e) {}
 
-  // If we were given a full URL, pull out ?id=
-  try {
-    if (s.includes("://")) {
-      const u = new URL(s);
-      const id = u.searchParams.get("id");
-      if (id) s = id;
+      // If we were given just a query-ish string
+      if (s.includes("?id=")) {
+        try {
+          const part = s.split("?id=")[1] || "";
+          s = part.split("&")[0] || part;
+        } catch (e) {}
+      }
+
+      try { s = decodeURIComponent(s); } catch (e) {}
+      s = s.replace(/^\/+/, "").trim();
+      return s;
     }
-  } catch (e) {}
 
-  // If we were given just a query-ish string
-  if (s.includes("?id=")) {
-    try {
-      const part = s.split("?id=")[1] || "";
-      s = part.split("&")[0] || part;
-    } catch (e) {}
-  }
+    function getTrackIdForSong(s) {
+      if (!s) return "";
 
-  try { s = decodeURIComponent(s); } catch (e) {}
-  s = s.replace(/^\/+/, "").trim();
-  return s;
-}
+      let trackId =
+        s?.id ||
+        s?.r2Path ||
+        s?.track_id ||
+        s?.trackId ||
+        s?.key ||
+        s?.r2_key ||
+        "";
 
-trackId = canonTrackId(trackId);
+      if (!trackId) {
+        trackId = __extractIdFromMaybeUrl(s?.url || s?.link || "");
+      }
 
-if (!trackId) {
-  alert("Missing trackId for this song.");
-  return;
-}
+      return canonTrackId(trackId);
+    }
+
+    const trackIds = targets
+      .map(getTrackIdForSong)
+      .filter(Boolean);
+
+    if (!trackIds.length) {
+      alert("Missing trackId for this song.");
+      return;
+    }
+
+    // ✅ Store the full set for the actual remove call (Step 3A.2)
+    window.__pendingRemoveTrackIds = trackIds;
+
+    // Keep existing downstream logic working (it expects `trackId`)
+    let trackId = trackIds[0];
 
 // ✅ Update local IDs-only model first (UI updates instantly)
 let __plBeforeIds = null;
@@ -13827,7 +14043,12 @@ if (pl) {
   const arr = Array.isArray(pl.trackIds) ? pl.trackIds : [];
   __plBeforeIds = arr.slice();
 
-    pl.trackIds = arr.filter((id) => canonTrackId(id) !== trackId);
+        const __idsToRemove = Array.isArray(window.__pendingRemoveTrackIds) && window.__pendingRemoveTrackIds.length
+      ? window.__pendingRemoveTrackIds
+      : [trackId];
+
+    pl.trackIds = arr.filter((id) => !__idsToRemove.includes(canonTrackId(id)));
+
 
   // ✅ IDs-only: do NOT store song objects on playlist
   savePlaylists();
@@ -13840,7 +14061,16 @@ if (pl) {
 // Cloud delete (try to persist so it stays removed after refresh)
 try {
   if (typeof window.removeTrackFromPlaylistInCloud === "function") {
-    await window.removeTrackFromPlaylistInCloud(activePlaylistId, trackId);
+        const __idsToRemoveCloud = Array.isArray(window.__pendingRemoveTrackIds) && window.__pendingRemoveTrackIds.length
+      ? window.__pendingRemoveTrackIds
+      : [trackId];
+
+    for (const __tid of __idsToRemoveCloud) {
+      await window.removeTrackFromPlaylistInCloud(activePlaylistId, __tid);
+    }
+
+    try { window.__pendingRemoveTrackIds = null; } catch (e) {}
+
   }
   try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
 } catch (err) {
