@@ -11542,9 +11542,6 @@ function getHomeRecentsItems() {
 
 function renderHomeRecentsRow(containerId) {
 
-
-function renderHomeRecentsRow(containerId) {
-
           const row = document.getElementById(containerId);
           if (!row) return;
 
@@ -13960,111 +13957,21 @@ player.addEventListener('ended', () => {
         // Auto-hide dock interval
         setInterval(checkDockVisibility, 30000);
 
-        // ✅ Export dock/Now Playing controls to global scope
+               // ✅ Export dock/Now Playing controls to global scope
         // (Your dock buttons / inline onclick need these on window)
-                window.nextSong = nextSong;
+        window.nextSong = nextSong;
         window.prevSong = prevSong;
         window.cycleRepeat = cycleRepeat;
 
-}
-</script>
+        // ✅ Bottom nav taps (your HTML uses onclick="onNavTap('home')" etc)
+        window.onNavTap = function(viewType) {
+          try {
+            const v = String(viewType || '').toLowerCase();
+            if (!v) return;
+            if (typeof showView === 'function') showView(v);
+          } catch (e) {}
+        };
 
-
-
-<!-- PLAYLIST MENU (Pin/Unpin + Cover) -->
-<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
-
-  <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
-  <button id="pm-unpin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Unpin playlist</button>
-
-  <div class="my-2 border-t border-white/10"></div>
-
-  <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
-  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
-  <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
-
-  <div class="my-2 border-t border-white/10"></div>
-
-  <button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">
-    Delete playlist
-  </button>
-</div>
-
-<!-- hidden file input used by playlist “upload file” -->
-<input id="playlist-cover-file" type="file" accept="image/*" class="hidden">
-
-<!-- ALBUM COVER MENU (right-click album hero cover on desktop) -->
-<div id="album-cover-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[260px]">
-  <div class="px-3 py-2 text-xs text-zinc-400 font-bold uppercase tracking-widest">Album cover</div>
-  <button id="acm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
-  <button id="acm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
-  <button id="acm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
-</div>
-
-<!-- ARTIST MENU (3-dots on Artist page) -->
-<div id="artist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[260px]">
-  <div class="px-3 py-2 text-xs text-zinc-400 font-bold uppercase tracking-widest">Artist</div>
-  <button id="am-adjust-crop" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">
-    Adjust photo crop
-  </button>
-  <button id="am-reset-crop" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">
-    Reset photo crop
-  </button>
-</div>
-
-<!-- ARTIST CROP MODAL -->
-<div id="artist-crop-modal" class="hidden fixed inset-0 z-[60]">
-  <div class="absolute inset-0 bg-black/70"></div>
-
-  <div class="relative w-[92vw] max-w-[520px] mx-auto mt-24 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <div class="text-lg font-black">Adjust artist photo crop</div>
-      <button id="artist-crop-close" class="text-zinc-300 hover:text-white text-xl" aria-label="Close">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-
-    <div class="text-sm text-zinc-400 mb-4">
-      Move the crop until the face looks right. This saves per-artist on this device.
-    </div>
-
-    <div class="rounded-xl overflow-hidden border border-white/10 mb-4">
-      <div id="artist-crop-preview" class="h-[220px] bg-zinc-900" style="background-size: cover; background-position: 50% 50%; background-repeat:no-repeat;"></div>
-    </div>
-
-    <div class="space-y-3">
-      <div>
-        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Horizontal</div>
-        <input id="artist-crop-x" type="range" min="0" max="100" value="50" class="w-full">
-      </div>
-
-      <div>
-        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Vertical</div>
-        <input id="artist-crop-y" type="range" min="0" max="100" value="50" class="w-full">
-      </div>
-
-      <div>
-        <div class="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-1">Zoom</div>
-        <input id="artist-crop-zoom" type="range" min="100" max="170" value="100" class="w-full">
-      </div>
-    </div>
-
-    <div class="mt-5 flex items-center justify-end gap-3">
-      <button id="artist-crop-reset" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm">
-        Reset
-      </button>
-      <button id="artist-crop-done" class="px-4 py-2 rounded-lg bg-[#1db954] hover:opacity-90 text-black font-bold text-sm">
-        Done
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- hidden file input used by album “upload file” -->
-<input id="album-cover-file" type="file" accept="image/*" class="hidden">
-
-
-<script>
       // ✅ Link flow (Phase 1): share the same userId across devices
   async function startLink() {
     const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/link/start", {
