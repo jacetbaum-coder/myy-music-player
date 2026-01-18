@@ -778,11 +778,19 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 /* Mobile: sit directly on top of the bottom tabs (no floating gap) */
 @media (max-width: 768px) {
   .player-bar {
-    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
-    left: 0;
-    right: 0;
-    border-radius: 0;
-    box-shadow: none;
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom)) !important;
+    left: 0 !important;
+    right: 0 !important;
+
+    border-radius: 0 !important;
+    box-shadow: none !important;
+
+    /* keep the Spotify-ish gradient look, but driven by accent */
+    background: linear-gradient(
+      180deg,
+      rgb(var(--accent-rgb)) 0%,
+      rgb(0, 0, 0) 100%
+    ) !important;
   }
 }
 
