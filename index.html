@@ -8866,10 +8866,11 @@ row.innerHTML = `
     </div>
   </div>
 
-  ${albumCell}
+    ${albumCell}
   <span class="hidden md:block">Just now</span>
-  <span class="track-menu">•••</span>
+  <button type="button" class="track-menu" aria-label="More options">•••</button>
 `;
+
 
     listEl.appendChild(row);
     });
