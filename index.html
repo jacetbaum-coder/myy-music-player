@@ -845,8 +845,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             bottom: 0;
             left: 0;
             right: 0;
-            height: var(--nav-height);
-            background: rgb(var(--accent-muted-rgb));
+            height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+            background: #000 !important;
+
 
             z-index: 9999;
             justify-content: space-around;
