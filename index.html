@@ -917,7 +917,15 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
         /* --- UTILITIES --- */
         .hidden { display: none; }
         .dock-hidden { transform: translateY(100%); opacity: 0; }
-        .sidebar-hidden { display: none !important; }
+
+/* Mobile: when Now Playing is open, remove bottom tabs spacing entirely */
+@media (max-width: 768px) {
+  body.np-open #main-dock { display: none !important; }
+  body.np-open { --nav-height: 0px !important; }
+}
+
+.sidebar-hidden { display: none !important; }
+
         .active-green { color: var(--spotify-green) !important; }
 
 /* Repeat states:
@@ -10668,6 +10676,8 @@ function checkDockVisibility() {
     const np = document.getElementById('now-playing-overlay');
     const npOpen = !!(np && !np.classList.contains('hidden'));
     dock.classList.toggle('dock-hidden', npOpen);
+document.body.classList.toggle('np-open', npOpen);
+
     return;
   }
 
