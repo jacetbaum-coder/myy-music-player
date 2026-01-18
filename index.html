@@ -1236,6 +1236,11 @@ body.song-multiselect .track-row .select-bubble{
   background: rgba(255,255,255,0.06);
 }
 
+/* ✅ iOS slide-to-select highlight (used by touch handlers) */
+#context-menu .menu-item.cm-armed{
+  background: rgba(255,255,255,0.10);
+}
+
 #context-menu .submenu{
   display: none;
   margin: 6px 6px 0;
@@ -12260,15 +12265,84 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
 }
 
 
-        function togglePlaylistSubmenu(e){
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-  const sub = document.getElementById('playlist-submenu');
-  if (!sub) return;
-  sub.classList.toggle('open');
+        function togglePlaylistSubmenu(event) {
+  try { if (event) event.stopPropagation(); } catch (e) {}
+  const submenu = document.getElementById('playlist-submenu');
+  if (!submenu) return;
+  submenu.classList.toggle('open');
 }
+
+/* ✅ iOS menu “slide to choose”: highlight on move, fire on lift */
+(function bindContextMenuTouchPick() {
+  if (window.__cmTouchPickBound) return;
+  window.__cmTouchPickBound = true;
+
+  const menu = document.getElementById('context-menu');
+  if (!menu) return;
+
+  let armedEl = null;
+
+  function clearArmed() {
+    try { if (armedEl) armedEl.classList.remove('cm-armed'); } catch (e) {}
+    armedEl = null;
+  }
+
+  function arm(el) {
+    if (!el || el === armedEl) return;
+    clearArmed();
+    armedEl = el;
+    try { armedEl.classList.add('cm-armed'); } catch (e) {}
+  }
+
+  function pickFromPoint(touch) {
+    if (!touch) return null;
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!el) return null;
+
+    // only real menu rows
+    const item = el.closest ? el.closest('#context-menu .menu-item') : null;
+    if (!item) return null;
+
+    // ignore submenu container itself; only its rows are ok
+    return item;
+  }
+
+  // IMPORTANT: passive:false so preventDefault works (blocks “instant click”)
+  menu.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    const t = e.touches && e.touches[0];
+    const item = pickFromPoint(t);
+    if (!item) return;
+    arm(item);
+    try { e.preventDefault(); } catch (err) {}
+  }, { passive: false });
+
+  menu.addEventListener('touchmove', (e) => {
+    if (window.innerWidth > 768) return;
+    const t = e.touches && e.touches[0];
+    const item = pickFromPoint(t);
+    if (item) arm(item);
+    try { e.preventDefault(); } catch (err) {}
+  }, { passive: false });
+
+  menu.addEventListener('touchend', (e) => {
+    if (window.innerWidth > 768) return;
+
+    // If nothing armed, do nothing
+    if (!armedEl) return;
+
+    // Fire only on lift, using your existing onclick logic
+    const toClick = armedEl;
+    clearArmed();
+    try { e.preventDefault(); } catch (err) {}
+
+    try { toClick.click(); } catch (err) {}
+  }, { passive: false });
+
+  menu.addEventListener('touchcancel', () => {
+    clearArmed();
+  }, { passive: true });
+})();
 
 function handleContextMenu(e, song){
   e.preventDefault();
