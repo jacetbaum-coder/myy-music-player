@@ -921,8 +921,10 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 /* Mobile: when Now Playing is open, remove bottom tabs spacing entirely */
 @media (max-width: 768px) {
   body.np-open #main-dock { display: none !important; }
+  body.np-open .mobile-nav { display: none !important; }
   body.np-open { --nav-height: 0px !important; }
 }
+
 
 .sidebar-hidden { display: none !important; }
 
