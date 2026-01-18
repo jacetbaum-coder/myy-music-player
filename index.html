@@ -3331,6 +3331,19 @@ let playContext = null;
 
         let menuTargetSong = null;
 
+        // --------------------------------------------------
+// SAFETY: ensure inline onclick="onNavTap(...)"
+// never crashes the app (Safari strict mode)
+// --------------------------------------------------
+window.onNavTap = window.onNavTap || function(viewType){
+  try {
+    const v = String(viewType || '').toLowerCase();
+    if (!v) return;
+    if (typeof showView === 'function') showView(v);
+  } catch (e) {}
+};
+
+    
 // ✅ prevents the “open → instantly close” click from closing the menu
 let suppressContextMenuCloseUntil = 0;
 let suppressPlaylistMenuCloseUntil = 0;
