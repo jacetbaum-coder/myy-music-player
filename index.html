@@ -5738,11 +5738,11 @@ function applyLibraryGridCols() {
     // Read stored cols (default 3)
   let cols = 3;
 
-  try {
-    const stored = parseInt(localStorage.getItem('libraryGridCols') || '2', 10);
-        const stored = parseInt(localStorage.getItem('libraryGridCols') || '3', 10);
-
+    try {
+    const stored = parseInt(localStorage.getItem('libraryGridCols') || '3', 10);
+    if (!Number.isNaN(stored)) cols = Math.min(6, Math.max(1, stored));
   } catch (e) {}
+
 
   // Sync slider position if it exists
   if (slider) slider.value = String(cols);
