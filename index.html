@@ -8073,10 +8073,12 @@ function onNavTap(viewType) {
     __navTapLockUntil = now + 300; // 300ms debounce window
   }
 
-   // Normal navigation
+     // Normal navigation
   showView(viewType);
 
 }
+
+window.onNavTap = onNavTap;
 
 
 
