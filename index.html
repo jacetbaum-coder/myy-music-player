@@ -272,8 +272,10 @@ body {
 -webkit-font-smoothing: antialiased;
 -moz-osx-font-smoothing: grayscale;
 font-feature-settings: "liga" 1, "calt" 1;
-  height: 100vh; 
-  display: flex; 
+    height: 100vh;
+  height: 100dvh;
+  display: flex;
+
   flex-direction: column; 
   overflow: hidden; 
   overflow-x: hidden;
@@ -6831,7 +6833,15 @@ function showSwipeBackUnderlay() {
 function hideSwipeBackUnderlay() {
   const underlay = document.getElementById('swipe-back-underlay');
   if (underlay) underlay.style.display = 'none';
+
+  // ✅ CRITICAL: undo the z-index/position we apply during swipe
+  const area = document.getElementById('main-scroll-area');
+  if (area) {
+    area.style.zIndex = '';
+    area.style.position = '';
+  }
 }
+
 
 
 function setNavCurrent(state) {
