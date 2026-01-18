@@ -8955,22 +8955,31 @@ row.innerHTML = `
 
 try {
   const dots = row.querySelector('button.track-menu');
-  if (dots) {
-    dots.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+if (dots) {
 
-      // open menu near the dots
-      const r = dots.getBoundingClientRect();
-      const x = (r.left + r.right) / 2;
-      const y = (r.top + r.bottom) / 2;
+  // ✅ Mobile: prevent the global touchstart "outside click" closer from instantly closing the menu
+  dots.addEventListener('touchstart', (e) => {
+    suppressContextMenuCloseUntil = Date.now() + 500;
+    suppressPlaylistMenuCloseUntil = Date.now() + 500;
+    e.stopPropagation();
+  }, { passive: true });
 
-      // keep your existing single-song menu logic:
-      menuTargetSong = song;
-      showContextMenuAt(x, y, song, dots);
-    });
-  }
+  dots.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // open menu near the dots
+    const r = dots.getBoundingClientRect();
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
+
+    // keep your existing single-song menu logic:
+    menuTargetSong = song;
+    showContextMenuAt(x, y, song, dots);
+  });
+}
 } catch (e) {}
+
 
 
     listEl.appendChild(row);
