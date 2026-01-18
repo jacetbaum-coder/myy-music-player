@@ -9804,6 +9804,8 @@ function openNowPlaying() {
 
   nowPlayingOverlay.classList.remove('hidden');
   nowPlayingOverlay.classList.remove('np-dragging');
+  try { checkDockVisibility(); } catch (e) {}
+
 
   // start off-screen (same state as swipe-down logic)
   nowPlayingOverlay.style.transition = 'none';
@@ -10151,7 +10153,11 @@ function closeNowPlaying() {
   const done = () => {
     nowPlayingOverlay.classList.add('hidden');
     nowPlayingOverlay.style.transform = 'translateY(0)';
+        nowPlayingOverlay.classList.add('hidden');
+    try { checkDockVisibility(); } catch (e) {}
+    nowPlayingOverlay.style.transform = 'translateY(0)';
     nowPlayingOverlay.removeEventListener('transitionend', done);
+
   };
 
   nowPlayingOverlay.addEventListener('transitionend', done);
@@ -10657,9 +10663,11 @@ function checkDockVisibility() {
   const dock = document.getElementById('main-dock');
   if (!dock) return;
 
-  // ✅ Mobile: dock is ALWAYS visible (home, search, library, album, playlist, etc.)
+   // ✅ Mobile: dock visible everywhere EXCEPT while Now Playing is open
   if (window.innerWidth <= 768) {
-    dock.classList.remove('dock-hidden');
+    const np = document.getElementById('now-playing-overlay');
+    const npOpen = !!(np && !np.classList.contains('hidden'));
+    dock.classList.toggle('dock-hidden', npOpen);
     return;
   }
 
