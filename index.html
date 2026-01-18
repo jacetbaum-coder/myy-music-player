@@ -1679,7 +1679,7 @@ body.qs-lock{
   .sidebar, .resizer, .right-sidebar { display: none !important; }
   .mobile-nav { display: flex; }
 
-       .main-view { padding: 12px; }
+       .main-view { padding: 8px; }
 
 
   .home-recents-grid {
@@ -5750,8 +5750,8 @@ function applyLibraryGridCols() {
 
     // Apply inline grid columns (beats tailwind classes on mobile)
   if (grid) {
-    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    grid.style.gap = '4px';
+        grid.style.gap = '2px';
+
   }
 
 }
