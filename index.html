@@ -10343,15 +10343,18 @@ function npResetDrag() {
   npDragActive = false;
   npDecided = false;
   npIsVertical = false;
-  npLastDown = 0;
+    npLastDown = 0;
+  if (npSheet) npSheet.style.overflowY = '';
   nowPlayingOverlay.classList.remove('np-dragging');
+
   nowPlayingOverlay.style.transform = 'translateY(0)';
 }
 
 function npStartAllowed(e) {
   // Allow swipe start from controls row anywhere (even if lower),
   // otherwise only allow in the upper 75% of the screen
-  if (e && e.target && e.target.closest && e.target.closest('#np-controls')) return true;
+  if (e && e.target && e.target.closest && e.target.closest('#np-controls, #np-sheet')) return true;
+
 
   const { y } = npGetXY(e);
   return y <= (window.innerHeight * 0.75);
@@ -10372,7 +10375,8 @@ if (nowPlayingOverlay) {
   npStartY = y;
   npStartX = x;
     npLastDown = 0;
-  npStartFromControls = !!(e.target && e.target.closest && e.target.closest('#np-controls'));
+  npStartFromControls = !!(e.target && e.target.closest && e.target.closest('#np-controls, #np-sheet'));
+
   npDecided = false;
   npIsVertical = false;
 
@@ -10395,7 +10399,11 @@ if (nowPlayingOverlay) {
       npIsVertical = Math.abs(dy) > Math.abs(dx);
     }
 
-    if (!npIsVertical) return;
+        if (!npIsVertical) return;
+
+    if (npSheet) npSheet.style.overflowY = 'hidden';
+    try { e.preventDefault(); } catch (err) {}
+
 
     // Only drag downward
     const down = Math.max(0, dy);
@@ -10410,7 +10418,8 @@ if (nowPlayingOverlay) {
     const threshold = npStartFromControls ? 80 : 140;
     const shouldClose = npLastDown > threshold;
 
-    if (shouldClose) closeNowPlaying();
+        if (shouldClose) { if (npSheet) npSheet.style.overflowY = ''; closeNowPlaying(); }
+
     else npResetDrag();
 
     npDragActive = false;
