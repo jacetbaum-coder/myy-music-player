@@ -182,10 +182,9 @@
   touch-action: none;              /* stop browser from hijacking the gesture */
   overscroll-behavior: contain;    /* prevent “rubber band” stealing the drag */
 
-  /* OPAQUE accent -> black gradient (no transparency, so nothing shows through) */
-  background: radial-gradient(1200px 900px at 50% 0%,
-      rgb(var(--accent-rgb)) 0%,
-      rgb(0,0,0) 60%) !important;
+   /* Solid accent background (no gradient) */
+  background: rgb(var(--accent-rgb)) !important;
+
 }
 #now-playing-overlay.hidden { display: none !important; }
 
@@ -785,12 +784,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
     border-radius: 0 !important;
     box-shadow: none !important;
 
-    /* keep the Spotify-ish gradient look, but driven by accent */
-    background: linear-gradient(
-      180deg,
-      rgb(var(--accent-rgb)) 0%,
-      rgb(0, 0, 0) 100%
-    ) !important;
+        /* Solid accent background (no gradient) */
+    background: rgb(var(--accent-rgb)) !important;
+
   }
 }
 
