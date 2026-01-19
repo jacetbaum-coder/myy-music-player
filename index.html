@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 
 
     <title>Reson</title>f
@@ -15689,40 +15691,39 @@ return;
 
     // ✅ Dots should open the menu (and NOT trigger row.onclick play)
     try {
-      const dots = row.querySelector('button.track-menu');
-            if (dots) {
+  const dots = row.querySelector('button.track-menu');
+  if (dots) {
 
-        // ✅ Mobile: stop row/pointer handlers from firing when tapping dots
-        dots.addEventListener('pointerdown', (e) => {
-          suppressContextMenuCloseUntil = Date.now() + 500;
-          suppressPlaylistMenuCloseUntil = Date.now() + 500;
-          e.stopPropagation();
-        });
+    // ✅ Mobile: prevent row/pointer handlers from immediately nuking the menu
+    dots.addEventListener('pointerdown', (e) => {
+      suppressContextMenuCloseUntil = Date.now() + 500;
+      suppressPlaylistMenuCloseUntil = Date.now() + 500;
+      e.stopPropagation();
+    });
 
-        dots.addEventListener('touchstart', (e) => {
-          suppressContextMenuCloseUntil = Date.now() + 500;
-          suppressPlaylistMenuCloseUntil = Date.now() + 500;
-          e.stopPropagation();
-        }, { passive: true });
+    // ✅ Mobile: prevent the global touchstart "outside click" closer from instantly closing the menu
+    dots.addEventListener('touchstart', (e) => {
+      suppressContextMenuCloseUntil = Date.now() + 500;
+      suppressPlaylistMenuCloseUntil = Date.now() + 500;
+      e.stopPropagation();
+    }, { passive: true });
 
-        dots.addEventListener('click', (e) => {
+    dots.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-          e.preventDefault();
-          e.stopPropagation();
+      // open menu near the dots
+      const r = dots.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = (r.top + r.bottom) / 2;
 
-          const r = dots.getBoundingClientRect();
-          const x = (r.left + r.right) / 2;
-          const y = (r.top + r.bottom) / 2;
+      // keep your existing single-song menu logic:
+      menuTargetSong = song;
+      showContextMenuAt(x, y, song, dots);
+    });
+  }
+} catch (e) {}
 
-          showContextMenuAt(
-            x,
-            y,
-            { ...song, name: song.title, link: song.url, coverArt: song.cover },
-            dots
-          );
-        });
-      }
-    } catch (e) {}
 
     listEl.appendChild(row);
 
