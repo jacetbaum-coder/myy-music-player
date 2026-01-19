@@ -10806,12 +10806,12 @@ async function playSpecificSong(url, title, album, artist, cover) {
   }
 
   // Try to start playback immediately (user tapped a song)
-)
+    
   let started = false;
   try {
     const p = player.play();
     if (p && typeof p.then === 'function') await p;
-       started = !player.paused;
+    started = !player.paused;
 
     // ✅ Crossfade (safe): ramp volume up only if playback actually started
     if (started && __crossfadeOn) {
@@ -10828,7 +10828,7 @@ async function playSpecificSong(url, title, album, artist, cover) {
         }, stepMs);
       } catch (e) {}
     }
-
+  } catch (err) {
     console.warn('Playback did not start automatically:', err);
     started = false;
   }
