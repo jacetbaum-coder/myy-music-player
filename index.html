@@ -2272,24 +2272,27 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-  <div class="menu-item" onclick="openPlaylistSubmenu(event)">
-    Add to playlist
+   <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
+    Add songs to playlist
     <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
   </div>
 
   <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
-    Remove from this playlist
+    Remove songs from this playlist
   </div>
 
-  <div class="menu-item" onclick="menuAction('queue_add')">
+  <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
     Add to queue
   </div>
 
-  <div class="menu-item" onclick="menuAction('crate_add_artist')">
+  <div class="menu-item" id="menu-crate-add-artist-opt" onclick="menuAction('crate_add_artist')">
     Add artist to crate
   </div>
 
-  <div class="menu-item" onclick="menuAction('queue_go')">
+  <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
+    Go to queue
+  </div>
+
     Go to queue
   </div>
 </div>
@@ -12377,11 +12380,23 @@ function initResizers() {
     if (cEl) cEl.src = (song && (song.cover || song.coverUrl || song.art || song.image)) ? (song.cover || song.coverUrl || song.art || song.image) : (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
   } catch (err) {}
 
-  // Show / hide "Remove from playlist"
+    // Show / hide "Remove from playlist"
   const removeOpt = document.getElementById('menu-remove-opt');
   if (removeOpt) {
     removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
   }
+
+  // Default: show the normal single-song options
+  const addOpt = document.getElementById('menu-add-opt');
+  const qAddOpt = document.getElementById('menu-queue-add-opt');
+  const crateOpt = document.getElementById('menu-crate-add-artist-opt');
+  const qGoOpt = document.getElementById('menu-queue-go-opt');
+  if (addOpt) addOpt.style.display = 'flex';
+  if (qAddOpt) qAddOpt.style.display = 'flex';
+  if (crateOpt) crateOpt.style.display = 'flex';
+  if (qGoOpt) qGoOpt.style.display = 'flex';
+
+  // Mobile: bottom sheet (ignore x/y)
 
   // Mobile: bottom sheet (ignore x/y)
   if (window.innerWidth <= 768) {
@@ -12451,6 +12466,53 @@ suppressContextMenuCloseUntil = Date.now() + 400;
 window.__outsideDismissSkipUntil = Date.now() + 450;
 
 }
+
+// -----------------------
+// ✅ MULTI-SELECT MENU (mobile): opened from hero 3-dots
+// Shows ONLY:
+// - Add songs to playlist
+// - Remove songs from this playlist
+// -----------------------
+function showMultiSelectContextMenuFromHero(anchorEl){
+  const urls = (typeof getSelectedSongUrls === 'function') ? getSelectedSongUrls() : [];
+  if (!urls || !urls.length) return;
+
+  // Open the existing bottom-sheet menu first
+  try { showContextMenuAt(0, 0, {}, anchorEl || null); } catch (e) {}
+
+  // Now set the real multi-select target (array is supported by remove logic)
+  try {
+    menuTargetSong = urls.map(u => ({ url: u, link: u }));
+  } catch (e) {}
+
+  // Header: "X songs selected" + hide cover
+  try {
+    const tEl = document.getElementById('cm-title');
+    const aEl = document.getElementById('cm-artist');
+    const cEl = document.getElementById('cm-cover');
+    const n = urls.length;
+    if (tEl) tEl.textContent = `${n} song${n === 1 ? '' : 's'} selected`;
+    if (aEl) aEl.textContent = '';
+    if (cEl) {
+      cEl.src = '';
+      cEl.style.opacity = '0';
+    }
+  } catch (e) {}
+
+  // Only show the two actions
+  const addOpt = document.getElementById('menu-add-opt');
+  const removeOpt = document.getElementById('menu-remove-opt');
+  const qAddOpt = document.getElementById('menu-queue-add-opt');
+  const crateOpt = document.getElementById('menu-crate-add-artist-opt');
+  const qGoOpt = document.getElementById('menu-queue-go-opt');
+
+  if (addOpt) addOpt.style.display = 'flex';
+  if (removeOpt) removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
+  if (qAddOpt) qAddOpt.style.display = 'none';
+  if (crateOpt) crateOpt.style.display = 'none';
+  if (qGoOpt) qGoOpt.style.display = 'none';
+}
+
 
 
         function handleContextMenu(e, song) {
@@ -12522,21 +12584,103 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
     const div = document.createElement('div');
     div.className = 'menu-item';
     div.textContent = pl?.name || 'Playlist';
-    div.onclick = () => {
-      // reuse your existing add-to-playlist logic
-      // (you already have menuAction('add_to_playlist') patterns elsewhere)
-      try {
-        if (typeof addSongToPlaylist === 'function') {
-          addSongToPlaylist(pl.id);
-        } else if (typeof menuAction === 'function') {
-          // fallback if you route actions through menuAction
-          window.__pendingPlaylistId = pl.id;
-          menuAction('add_to_playlist');
+        div.onclick = async () => {
+      const targets = Array.isArray(menuTargetSong) ? menuTargetSong : [menuTargetSong];
+      if (!targets || !targets.length || !targets[0]) return;
+
+      // Resolve trackIds robustly (canonical ID is the R2 path)
+      function canonTrackIdLocal(v) {
+        let s = String(v || "").trim();
+        if (!s) return "";
+        // If we were given a full URL, pull out ?id=
+        try {
+          if (s.includes('://')) {
+            const u = new URL(s);
+            const id = u.searchParams.get('id');
+            if (id) s = id;
+          }
+        } catch (e) {}
+        if (s.includes('?id=')) {
+          try {
+            const part = s.split('?id=')[1] || "";
+            s = (part.split('&')[0] || part);
+          } catch (e) {}
         }
-      } catch(err) {}
+        try { s = decodeURIComponent(s); } catch (e) {}
+        s = s.replace(/^\/+/, "").trim();
+        return s;
+      }
+
+      function getTrackIdForSong(s) {
+        if (!s) return "";
+        let trackId =
+          s?.id ||
+          s?.r2Path ||
+          s?.track_id ||
+          s?.trackId ||
+          s?.key ||
+          s?.r2_key ||
+          "";
+        if (!trackId) {
+          try {
+            trackId = __extractIdFromMaybeUrl(s?.url || s?.link || "") || "";
+          } catch (e) {}
+        }
+        return canonTrackIdLocal(trackId);
+      }
+
+      const trackIds = targets.map(getTrackIdForSong).filter(Boolean);
+      if (!trackIds.length) {
+        alert('Missing trackId for these songs.');
+        return;
+      }
+
+      // 1) CLOUD FIRST
+      try {
+        if (typeof window.addTrackToPlaylistInCloud !== 'function') {
+          throw new Error('addTrackToPlaylistInCloud is missing');
+        }
+        for (const tid of trackIds) {
+          await window.addTrackToPlaylistInCloud(pl.id, tid);
+        }
+      } catch (e) {
+        console.warn('Cloud add failed:', e);
+        alert('Couldn\'t add to playlist (cloud sync failed). Try again.');
+        return;
+      }
+
+      // 2) LOCAL UPDATE (IDs-only) + SAVE
+      try {
+        const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
+        if (idx !== -1) {
+          const plRef = playlists[idx];
+          if (!Array.isArray(plRef.trackIds)) plRef.trackIds = [];
+          const existingCanon = new Set(plRef.trackIds.map(canonTrackIdLocal));
+          trackIds.forEach((tid) => {
+            if (!existingCanon.has(tid)) {
+              plRef.trackIds.push(tid);
+              existingCanon.add(tid);
+            }
+          });
+          plRef.songCount = plRef.trackIds.length;
+          plRef.updated_at = new Date().toISOString();
+        }
+        savePlaylists();
+      } catch (e) {}
+
+      // Update auto cover after adding
+      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+
+      try { renderPlaylists(); } catch (e) {}
+      try { if (activePlaylistId === pl.id) showView('playlist', playlists.findIndex(p => p.id === pl.id)); } catch (e) {}
+      try { closePlaylistSubmenu(); } catch (e) {}
       closeContextMenu(); // closes both sheets + backdrop
+
+      // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
+      try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e) {}
     };
     items.appendChild(div);
+
   });
 
   sub.classList.add('open');
@@ -13872,11 +14016,23 @@ function openPlaylistPinMenuFromHero(e) {
   if (!btn || btn.__bound) return;
   btn.__bound = true;
 
-  btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // ✅ Mobile: if song multi-select is on, hero 3-dots opens the multi-select action sheet
+    try {
+      if (window.innerWidth <= 768 && window.__songSelect && window.__songSelect.enabled) {
+        const urls = (typeof getSelectedSongUrls === 'function') ? getSelectedSongUrls() : [];
+        if (urls && urls.length) {
+          try { showMultiSelectContextMenuFromHero(btn); } catch (err) {}
+          return;
+        }
+      }
+    } catch (err) {}
+
     // If inside a playlist → open playlist menu
+
     if (typeof activePlaylistId !== 'undefined' && activePlaylistId) {
       try { openPlaylistPinMenuFromHero(e); } catch (err) {}
       return;
