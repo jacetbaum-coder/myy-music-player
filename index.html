@@ -9005,15 +9005,6 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
     if (isCurrent) row.classList.add('active-track');
 
-    // ✅ Ensure select bubble exists at far-left of row (desktop + mobile)
-    try{
-      if (!row.querySelector('.select-bubble')) {
-        const b = document.createElement('span');
-        b.className = 'select-bubble';
-        b.setAttribute('aria-hidden','true');
-        row.insertBefore(b, row.firstChild);
-      }
-    }catch(e){}
 
       const longPressState = { longPress: false };
 
@@ -9223,6 +9214,7 @@ const thumbMarkup = isPlaylist
 
 
 row.innerHTML = `
+  <span class="select-bubble md:hidden" aria-hidden="true"></span>
   <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
     ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
   </span>
@@ -15486,9 +15478,11 @@ if (hero && activePlaylistId) {
     }
 
    row.innerHTML = `
+      <span class="select-bubble md:hidden" aria-hidden="true"></span>
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
         ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : (i + 1)}
       </span>
+
 
       <div class="flex items-center gap-3 min-w-0">
         ${isPlaylist ? thumbMarkup : ''}
