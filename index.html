@@ -10392,15 +10392,105 @@ function playPlaylistById(playlistId) {
           return Math.max(0, Math.min(100, Math.round(score)));
         }
 
-        function handleSearch(query) {
+        // -----------------------
+// SEARCH: RECENTS (mobile + desktop)
+// -----------------------
+const __SEARCH_RECENTS_KEY = 'searchRecents:v1';
+
+function loadSearchRecents(){
+  try {
+    const arr = JSON.parse(localStorage.getItem(__SEARCH_RECENTS_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
+function saveSearchRecents(arr){
+  try { localStorage.setItem(__SEARCH_RECENTS_KEY, JSON.stringify(arr.slice(0, 12))); } catch (e) {}
+}
+
+function pushSearchRecent(term){
+  const t = String(term || '').trim();
+  if (!t) return;
+  const arr = loadSearchRecents().filter(x => String(x).toLowerCase() !== t.toLowerCase());
+  arr.unshift(t);
+  saveSearchRecents(arr);
+}
+
+function removeSearchRecent(term){
+  const t = String(term || '').trim().toLowerCase();
+  const arr = loadSearchRecents().filter(x => String(x).toLowerCase() !== t);
+  saveSearchRecents(arr);
+}
+
+function renderSearchRecents(){
+  const results = document.getElementById('search-results');
+  if (!results) return;
+
+  const rec = loadSearchRecents();
+  if (!rec.length) {
+    results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+    return;
+  }
+
+  let html = `
+    <div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">Recently searched</div>
+  `;
+
+  rec.forEach(term => {
+    const safe = String(term).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    html += `
+      <div class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/10">
+        <button class="flex-1 text-left min-w-0"
+                type="button"
+                data-search-recent-pick="1"
+                data-term="${safe}">
+          <div class="text-white text-sm font-bold truncate">${safe}</div>
+        </button>
+        <button class="text-zinc-400 hover:text-white"
+                type="button"
+                aria-label="Remove recent search"
+                data-search-recent-remove="1"
+                data-term="${safe}">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  results.innerHTML = html;
+
+  results.querySelectorAll('button[data-search-recent-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.getAttribute('data-term') || '';
+      const input = document.getElementById('global-search');
+      if (input) {
+        input.value = term;
+        handleSearch(term);
+        try { input.focus(); } catch (e) {}
+      }
+    });
+  });
+
+  results.querySelectorAll('button[data-search-recent-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.getAttribute('data-term') || '';
+      removeSearchRecent(term);
+      renderSearchRecents();
+    });
+  });
+}
+
+function handleSearch(query) {
+
           const results = document.getElementById('search-results');
           if (!results) return;
 
           const raw = String(query || "");
           if (!raw.trim()) {
-            results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
-            return;
-          }
+  renderSearchRecents();
+  return;
+}
+
 
           const q = raw.trim();
           let matches = [];
@@ -10625,32 +10715,125 @@ function playPlaylistById(playlistId) {
             results.appendChild(row);
           };
 
-          if (matches.length) {
-            appendSection('Songs');
-            matches.slice(0, 25).forEach(appendSongRow);
-          }
+         // Remember latest typed query for recents
+window.__lastSearchQuery = q;
 
-          if (albumResults.length) {
-            appendSection('Albums');
-            albumResults.slice(0, 8).forEach(appendAlbumRow);
-          }
+// Decide primary result type (best top score)
+const topAlbum = albumResults[0] || null;
+const topArtist = artistResults[0] || null;
+const topPlaylist = playlistMatches[0] || null;
 
-          if (artistResults.length) {
-            appendSection('Artists');
-            artistResults.slice(0, 8).forEach(appendArtistRow);
-          }
+const topType = (() => {
+  const a = topAlbum?._score || 0;
+  const ar = topArtist?._score || 0;
+  const p = topPlaylist?._score || 0;
+  const best = Math.max(a, ar, p);
+  if (best === 0) return null;
 
-          if (playlistMatches.length) {
-            appendSection('Playlists');
-            playlistMatches.slice(0, 8).forEach(appendPlaylistRow);
-          }
-        }
+  // tie-break: playlist > album > artist (feels best for "big booty bitches" type queries)
+  if (p === best) return 'playlist';
+  if (a === best) return 'album';
+  return 'artist';
+})();
+
+// Helper to push recents ONLY when user clicks something
+const markSearched = () => {
+  try { pushSearchRecent(window.__lastSearchQuery || q); } catch (e) {}
+};
+
+// Build “related” ordering for songs based on primary
+let songsOrdered = matches.slice(0);
+if (topType === 'album' && topAlbum?.album) {
+  const name = String(topAlbum.album);
+  songsOrdered.sort((s1, s2) => {
+    const a1 = (String(s1.album || '') === name) ? 1 : 0;
+    const a2 = (String(s2.album || '') === name) ? 1 : 0;
+    if (a1 !== a2) return a2 - a1;
+    return (s2._score || 0) - (s1._score || 0);
+  });
+} else if (topType === 'artist' && topArtist?.artist) {
+  const name = String(topArtist.artist);
+  songsOrdered.sort((s1, s2) => {
+    const a1 = (String(s1.artist || '') === name) ? 1 : 0;
+    const a2 = (String(s2.artist || '') === name) ? 1 : 0;
+    if (a1 !== a2) return a2 - a1;
+    return (s2._score || 0) - (s1._score || 0);
+  });
+} else if (topType === 'playlist' && topPlaylist?.id) {
+  // For playlist-first: prioritize songs that are in that playlist (if we can resolve them)
+  const pl = (Array.isArray(playlists) ? playlists : []).find(x => x.id === topPlaylist.id);
+  const ids = Array.isArray(pl?.trackIds) ? pl.trackIds : [];
+  const idSet = new Set(ids.map(x => String(x)));
+  songsOrdered.sort((s1, s2) => {
+    const a1 = idSet.has(String(s1.id || s1.track_id || s1.r2Path || s1.link || '')) ? 1 : 0;
+    const a2 = idSet.has(String(s2.id || s2.track_id || s2.r2Path || s2.link || '')) ? 1 : 0;
+    if (a1 !== a2) return a2 - a1;
+    return (s2._score || 0) - (s1._score || 0);
+  });
+}
+
+// If nothing matched at all, show empty state (and still allow recents)
+if (!songsOrdered.length && !albumResults.length && !artistResults.length && !playlistMatches.length) {
+  results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(q).replace(/</g,'&lt;')}"</div>`;
+} else {
+  // Render order per your rules:
+  // Album query: Album → Songs (from album first) → Artist
+  // Artist query: Artist → Albums → Songs
+  // Playlist query: Playlist → Songs (from playlist first)
+
+  // Primary row first
+  if (topType === 'album' && topAlbum) {
+    appendSection('Album');
+    // Patch click to mark recent
+    const original = openAlbumByName;
+    appendAlbumRow({ ...topAlbum, __onClick: () => { markSearched(); } });
+    openAlbumByName = original;
+  }
+
+  if (topType === 'artist' && topArtist) {
+    appendSection('Artist');
+    appendArtistRow({ ...topArtist, __onClick: () => { markSearched(); } });
+  }
+
+  if (topType === 'playlist' && topPlaylist) {
+    appendSection('Playlist');
+    appendPlaylistRow({ ...topPlaylist, __onClick: () => { markSearched(); } });
+  }
+
+  // Secondary sections
+  if (topType === 'artist' && topArtist?.artist) {
+    const byArtist = String(topArtist.artist);
+    const albumsBy = albumResults.filter(a => String(a.artist || '') === byArtist);
+    if (albumsBy.length) {
+      appendSection('Albums');
+      albumsBy.slice(0, 8).forEach(appendAlbumRow);
+    }
+  }
+
+  // Songs always next (but ordered by primary rules above)
+  if (songsOrdered.length) {
+    appendSection('Songs');
+    songsOrdered.slice(0, 25).forEach(appendSongRow);
+  }
+
+  // “Then the artist” for album searches
+  if (topType === 'album' && topAlbum?.artist) {
+    const aName = String(topAlbum.artist);
+    const artistObj = artistResults.find(a => String(a.artist || '') === aName) || { artist: aName, _score: topAlbum._score || 0 };
+    appendSection('Artist');
+    appendArtistRow(artistObj);
+  }
+}
 
         function exitSearch() {
-          const input = document.getElementById('global-search');
-          if (input) input.value = '';
-          handleSearch('');
-          showView('home');
+  const input = document.getElementById('global-search');
+  if (input) {
+    input.value = '';
+    try { input.focus(); } catch (e) {}
+  }
+  handleSearch('');
+}
+
         }
 
         /**
