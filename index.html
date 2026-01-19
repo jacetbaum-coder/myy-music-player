@@ -15762,9 +15762,11 @@ function __tryAutoplayFromCurrent() {
   }
 }
 
+/* ---------------------------------------------------------------------
    - Turns trackIds like "Artist/Album/Track.mp3" into full song objects
    - Prefers real metadata from libraryData when possible
 --------------------------------------------------------------------- */
+
 function __extractIdFromMaybeUrl(u) {
   const raw = String(u || "");
 
