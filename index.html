@@ -1159,7 +1159,7 @@ body.song-multiselect .track-row .select-bubble{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 70px;
   margin: 0 auto;
   max-width: 680px;
 
@@ -1266,7 +1266,7 @@ body.song-multiselect .track-row .select-bubble{
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: 0;
+    bottom: 70px;
   margin: 0 auto;
   max-width: 680px;
 
@@ -3661,11 +3661,15 @@ function toggleRowSelected(row){
     dragSeen = new Set();
   }, { passive: true });
 
-  // 4) When selection mode is ON, tapping a row toggles selection (and does NOT play)
-  document.addEventListener('click', (e) => {
+    // 4) When selection mode is ON, lifting your finger toggles selection immediately (and does NOT play)
+  document.addEventListener('pointerup', (e) => {
     if (!isMobile()) return;
+    if (e.pointerType === 'mouse') return;
 
     if (!window.__songSelect.enabled) return;
+
+    // If long-press just triggered, don't toggle again on lift
+    if (lpTriggered) return;
 
     const row = e.target.closest && e.target.closest('.track-row[data-song-url]');
     if (!row) return;
@@ -6086,7 +6090,86 @@ let contextMenuCloseTimer = null;
   }
 }
 
-        const greetingEl = document.getElementById('greeting-text');
+        (function initContextMenuDragToClose(){
+  if (window.__cmDragInit) return;
+  window.__cmDragInit = true;
+
+  function isMobile(){ return window.innerWidth <= 768; }
+
+  function attach(sheetId){
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+
+    const handle = sheet.querySelector('.cm-handle');
+    if (!handle) return;
+
+    let startY = 0;
+    let dragging = false;
+
+    handle.addEventListener('pointerdown', (e) => {
+      if (!isMobile()) return;
+      if (e.pointerType === 'mouse') return;
+
+      dragging = true;
+      startY = e.clientY;
+
+      try { sheet.style.transition = 'none'; } catch (err) {}
+      try { e.preventDefault(); } catch (err) {}
+    }, { passive: false });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      if (!isMobile()) return;
+      if (e.pointerType === 'mouse') return;
+
+      const dy = Math.max(0, e.clientY - startY);
+      sheet.style.transform = `translateY(${dy}px)`;
+
+      // fade backdrop a bit while dragging the main sheet
+      const bd = document.getElementById('context-menu-backdrop');
+      if (bd && sheetId === 'context-menu') {
+        const t = Math.min(1, dy / 160);
+        bd.style.opacity = String(1 - (t * 0.6));
+      }
+    }, { passive: true });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+
+      const dy = Math.max(0, e.clientY - startY);
+
+      // restore transition
+      sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+      if (dy > 80) {
+        // close everything
+        try { closeContextMenu(); } catch (err) {}
+      } else {
+        // snap back open
+        sheet.style.transform = 'translateY(0)';
+        const bd = document.getElementById('context-menu-backdrop');
+        if (bd) bd.style.opacity = '1';
+      }
+    }, { passive: true });
+
+    window.addEventListener('pointercancel', () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transform = 'translateY(0)';
+      const bd = document.getElementById('context-menu-backdrop');
+      if (bd) bd.style.opacity = '1';
+    }, { passive: true });
+  }
+
+  // main sheet + playlist sheet both get drag handle behavior
+  attach('context-menu');
+  attach('playlist-submenu');
+})();
+
+const greetingEl = document.getElementById('greeting-text');
+
 
         // Click/tap the dock left area to open Now Playing (mobile + desktop)
 const dockLeft = document.getElementById('dock-left');
