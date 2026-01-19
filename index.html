@@ -2242,8 +2242,9 @@ body.qs-lock {
 </head>
 <body>
 
-    <div id="context-menu-backdrop"></div>
+   <div id="context-menu-backdrop"></div>
 
+<!-- MAIN SHEET -->
 <div id="context-menu" role="dialog" aria-modal="true">
   <div class="cm-handle"></div>
 
@@ -2257,22 +2258,16 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-  <div class="menu-item" onclick="togglePlaylistSubmenu(event)">
+  <div class="menu-item" onclick="openPlaylistSubmenu(event)">
     Add to playlist
     <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
-  </div>
-
-  <div id="playlist-submenu" class="submenu">
-    <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">
-      <b>+ New Playlist</b>
-    </div>
   </div>
 
   <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
     Remove from this playlist
   </div>
 
-    <div class="menu-item" onclick="menuAction('queue_add')">
+  <div class="menu-item" onclick="menuAction('queue_add')">
     Add to queue
   </div>
 
@@ -2283,6 +2278,25 @@ body.qs-lock {
   <div class="menu-item" onclick="menuAction('queue_go')">
     Go to queue
   </div>
+</div>
+
+<!-- PLAYLIST PANEL (separate overlay sheet) -->
+<div id="playlist-submenu" role="dialog" aria-modal="true">
+  <div class="cm-handle"></div>
+
+  <div class="cm-submenu-header">
+    <div class="cm-back" onclick="closePlaylistSubmenu(event)">
+      <i class="fas fa-arrow-left"></i>
+    </div>
+    <div class="cm-submenu-title">Add to playlist</div>
+  </div>
+
+  <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">
+    <b>+ New Playlist</b>
+  </div>
+
+  <!-- playlists get appended here by JS -->
+  <div id="playlist-submenu-items"></div>
 </div>
 
 
@@ -5831,17 +5845,27 @@ let contextMenuCloseTimer = null;
 
 
        function closeContextMenu() {
+  const sub = document.getElementById('playlist-submenu');
+
   // Mobile: animate down then hide
   if (window.innerWidth <= 768) {
     if (contextMenuBackdrop) {
       contextMenuBackdrop.style.opacity = '0';
     }
 
-    // slide down
+    // hide playlist panel immediately (it has its own transform)
+    if (sub) {
+      sub.classList.remove('open');
+      sub.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease';
+      sub.style.transform = 'translateY(100%)';
+      sub.style.opacity = '0';
+    }
+
+    // slide main sheet down
     contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
     contextMenu.style.transform = 'translateY(100%)';
 
-        if (contextMenuCloseTimer) {
+    if (contextMenuCloseTimer) {
       clearTimeout(contextMenuCloseTimer);
       contextMenuCloseTimer = null;
     }
@@ -5851,6 +5875,12 @@ let contextMenuCloseTimer = null;
       contextMenu.style.right = '';
       contextMenuAnchor = null;
 
+      if (sub) {
+        sub.style.display = 'none';
+        sub.style.transform = '';
+        sub.style.opacity = '';
+      }
+
       if (contextMenuBackdrop) {
         contextMenuBackdrop.style.display = 'none';
       }
@@ -5859,6 +5889,26 @@ let contextMenuCloseTimer = null;
         window.removeEventListener('scroll', contextMenuScrollHandler, true);
         contextMenuScrollHandler = null;
       }
+
+      contextMenuCloseTimer = null;
+    }, 220);
+
+    return;
+  }
+
+  // Desktop
+  contextMenu.style.display = 'none';
+  contextMenu.style.transform = '';
+  contextMenu.style.right = '';
+  contextMenuAnchor = null;
+
+  if (sub) sub.classList.remove('open');
+
+  if (contextMenuScrollHandler) {
+    window.removeEventListener('scroll', contextMenuScrollHandler, true);
+    contextMenuScrollHandler = null;
+  }
+}
 
       contextMenuCloseTimer = null;
     }, 220);
@@ -12312,76 +12362,173 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
 }
 
 
-        function togglePlaylistSubmenu(event) {
-  try { if (event) event.stopPropagation(); } catch (e) {}
-  const submenu = document.getElementById('playlist-submenu');
-  if (!submenu) return;
-  submenu.classList.toggle('open');
+        function openPlaylistSubmenu(event){
+  try { if (event) event.stopPropagation(); } catch(e){}
+  const sub = document.getElementById('playlist-submenu');
+  const items = document.getElementById('playlist-submenu-items');
+  if (!sub || !items) return;
+
+  // build playlist list fresh each time
+  items.innerHTML = '';
+  const pls = Array.isArray(window.playlists) ? window.playlists : [];
+  pls.forEach(pl => {
+    const div = document.createElement('div');
+    div.className = 'menu-item';
+    div.textContent = pl?.name || 'Playlist';
+    div.onclick = () => {
+      // reuse your existing add-to-playlist logic
+      // (you already have menuAction('add_to_playlist') patterns elsewhere)
+      try {
+        if (typeof addSongToPlaylist === 'function') {
+          addSongToPlaylist(pl.id);
+        } else if (typeof menuAction === 'function') {
+          // fallback if you route actions through menuAction
+          window.__pendingPlaylistId = pl.id;
+          menuAction('add_to_playlist');
+        }
+      } catch(err) {}
+      closeContextMenu(); // closes both sheets + backdrop
+    };
+    items.appendChild(div);
+  });
+
+  sub.classList.add('open');
 }
 
-/* ✅ iOS menu “slide to choose”: highlight on move, fire on lift */
-/* ✅ Mobile: swipe down on the handle to dismiss */
+function closePlaylistSubmenu(event){
+  try { if (event) event.stopPropagation(); } catch(e){}
+  const sub = document.getElementById('playlist-submenu');
+  if (!sub) return;
+  sub.classList.remove('open');
+}
+
+/* ✅ iOS “slide to choose”: highlight while sliding, fire on lift (works for BOTH sheets) */
+(function bindMenuSlidePick(){
+  if (window.__cmSlidePickBound) return;
+  window.__cmSlidePickBound = true;
+
+  function bindOne(sheetId){
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+
+    let armedEl = null;
+    let tracking = false;
+
+    function clearArmed(){
+      if (armedEl) armedEl.classList.remove('cm-armed');
+      armedEl = null;
+    }
+
+    function pickAtTouch(touch){
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const item = el && el.closest ? el.closest('#' + sheetId + ' .menu-item') : null;
+      if (!item) return;
+
+      if (armedEl !== item){
+        clearArmed();
+        armedEl = item;
+        armedEl.classList.add('cm-armed');
+      }
+    }
+
+    sheet.addEventListener('touchstart', (e) => {
+      if (window.innerWidth > 768) return;
+      if (!e.touches || !e.touches[0]) return;
+
+      // don't hijack the handle drag gesture
+      if (e.target && e.target.closest && e.target.closest('.cm-handle')) return;
+
+      tracking = true;
+      pickAtTouch(e.touches[0]);
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', (e) => {
+      if (!tracking) return;
+      if (!e.touches || !e.touches[0]) return;
+      pickAtTouch(e.touches[0]);
+    }, { passive: true });
+
+    sheet.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+
+      const fire = armedEl;
+      clearArmed();
+
+      // fire on lift
+      if (fire) {
+        try { fire.click(); } catch(err){}
+      }
+    }, { passive: true });
+
+    sheet.addEventListener('touchcancel', () => {
+      tracking = false;
+      clearArmed();
+    }, { passive: true });
+  }
+
+  bindOne('context-menu');
+  bindOne('playlist-submenu');
+})();
+
+/* ✅ Mobile: swipe down on the handle to dismiss (works for BOTH sheets) */
 (function bindContextMenuSwipeDismiss(){
   if (window.__cmSwipeDismissBound) return;
   window.__cmSwipeDismissBound = true;
 
-  const menu = document.getElementById('context-menu');
-  if (!menu) return;
+  function bindOne(sheetId){
+    const menu = document.getElementById(sheetId);
+    if (!menu) return;
 
-  function getHandle(){
-    return menu.querySelector('.cm-handle') || null;
-  }
+    let startY = 0;
+    let dragging = false;
+    let dy = 0;
 
-  let startY = 0;
-  let dragging = false;
-  let dy = 0;
+    function onStart(e){
+      if (window.innerWidth > 768) return;
 
-  function onStart(e){
-    if (window.innerWidth > 768) return;
-    const h = getHandle();
-    if (!h) return;
+      // only start if touch begins on the handle
+      if (!e.target || !e.target.closest || !e.target.closest('.cm-handle')) return;
 
-    // only start if touch begins on the handle
-    if (!e.target || !e.target.closest || !e.target.closest('.cm-handle')) return;
+      dragging = true;
+      dy = 0;
+      startY = (e.touches && e.touches[0]) ? e.touches[0].clientY : 0;
 
-    dragging = true;
-    dy = 0;
-    startY = (e.touches && e.touches[0]) ? e.touches[0].clientY : 0;
-
-    try { menu.style.transition = 'none'; } catch (err) {}
-  }
-
-  function onMove(e){
-    if (!dragging) return;
-    const y = (e.touches && e.touches[0]) ? e.touches[0].clientY : startY;
-    dy = Math.max(0, y - startY);
-
-    // drag the sheet down
-    menu.style.transform = `translateY(${dy}px)`;
-
-    try { e.preventDefault(); } catch (err) {}
-  }
-
-  function onEnd(){
-    if (!dragging) return;
-    dragging = false;
-
-    // threshold to close
-    if (dy > 80) {
-      closeContextMenu();
-      return;
+      try { menu.style.transition = 'none'; } catch (err) {}
     }
 
-    // snap back
-    menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-    menu.style.transform = 'translateY(0)';
+    function onMove(e){
+      if (!dragging) return;
+      const y = (e.touches && e.touches[0]) ? e.touches[0].clientY : startY;
+      dy = Math.max(0, y - startY);
+
+      menu.style.transform = `translateY(${dy}px)`;
+      try { e.preventDefault(); } catch (err) {}
+    }
+
+    function onEnd(){
+      if (!dragging) return;
+      dragging = false;
+
+      if (dy > 80) {
+        closeContextMenu(); // closes everything
+        return;
+      }
+
+      menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      menu.style.transform = 'translateY(0)';
+    }
+
+    menu.addEventListener('touchstart', onStart, { passive: true });
+    menu.addEventListener('touchmove', onMove, { passive: false });
+    menu.addEventListener('touchend', onEnd, { passive: true });
+    menu.addEventListener('touchcancel', onEnd, { passive: true });
   }
 
-  menu.addEventListener('touchstart', onStart, { passive: true });
-  menu.addEventListener('touchmove', onMove, { passive: false });
-  menu.addEventListener('touchend', onEnd, { passive: true });
-  menu.addEventListener('touchcancel', onEnd, { passive: true });
+  bindOne('context-menu');
+  bindOne('playlist-submenu');
 })();
+
 
 function handleContextMenu(e, song){
   e.preventDefault();
