@@ -9719,13 +9719,16 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
       return;
     }
 
-    // ✅ Plain click = single select (clear others)
-    setSongSelectEnabled(true);
-    window.__songSelect.urls.clear();
-    window.__songSelect.urls.add(url);
-    window.__songSelect.lastIndex = idx;
-    syncRowSelectionFromSet(document);
-    return;
+        // ✅ Plain click = play (and clear any prior selection)
+    if (window.__songSelect) {
+      // clear selection visuals (if any) but DO NOT enter selection mode
+      window.__songSelect.urls.clear();
+      window.__songSelect.lastIndex = idx;
+      syncRowSelectionFromSet(document);
+      setSongSelectEnabled(false);
+    }
+    // (no return — fall through to normal play)
+
   } else {
     // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
     if (window.__songSelect && window.__songSelect.enabled) {
