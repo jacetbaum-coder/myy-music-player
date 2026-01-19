@@ -3071,33 +3071,47 @@ body.qs-lock {
       <div class="text-2xl font-black">Features</div>
     </div>
 
-    <div class="bg-white/10 rounded-2xl p-4 space-y-3">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-extrabold">Crossfade</div>
-          <div class="text-sm text-white/60">Apply between every song</div>
+        <div class="bg-white/10 rounded-2xl p-4 space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-white text-2xl font-black">Crossfade</div>
+          <div class="text-white/60 text-base">Apply between every song</div>
+
+          <div class="mt-3 flex items-center gap-3">
+            <input id="crossfade-slider"
+                   type="range"
+                   min="0"
+                   max="20"
+                   step="1"
+                   value="0"
+                   class="w-full">
+            <div id="crossfade-seconds"
+                 class="text-white/70 text-sm font-extrabold w-14 text-right">0s</div>
+          </div>
         </div>
-        <button type="button" class="px-4 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold" onclick="toggleFeatureFlag('crossfade')">
-          Toggle
-        </button>
+
+        <button id="feature-toggle-crossfade"
+                class="px-4 py-2 rounded-full bg-white/15 text-white font-extrabold"
+                onclick="toggleFeatureFlag('crossfade')">Toggle</button>
       </div>
 
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-extrabold">Autoplay</div>
-          <div class="text-sm text-white/60">Continue with similar songs</div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-white text-2xl font-black">Autoplay</div>
+          <div class="text-white/60 text-base">Continue with similar songs</div>
         </div>
-        <button type="button" class="px-4 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold" onclick="toggleFeatureFlag('autoplay')">
-          Toggle
-        </button>
+
+        <button id="feature-toggle-autoplay"
+                class="px-4 py-2 rounded-full bg-white/15 text-white font-extrabold"
+                onclick="toggleFeatureFlag('autoplay')">Toggle</button>
       </div>
 
-      <div class="text-sm text-white/60">
-        Toggle wiring comes next — this screen is the shell so we don’t touch playback yet.
+      <div class="text-xs text-white/50 mt-4">
+                Crossfade seconds are saved to this device.
       </div>
     </div>
-  </div>
 
+  </div>
 </div>
 
 <div id="album-view" class="hidden">
@@ -16874,9 +16888,111 @@ function renderCrateStats() {
   `;
 }
 
+/* -----------------------
+   FEATURES UI WIRING
+   - Crossfade slider: 0..20 seconds
+   - Keeps existing toggleFeatureFlag/isFeatureOn if you already have them
+------------------------ */
+
+(function initFeaturesWiring(){
+  const CROSSFADE_SECONDS_KEY = 'reson_crossfade_seconds_v1';
+
+  function clamp(n, a, b){ n = Number(n); if (!isFinite(n)) n = 0; return Math.max(a, Math.min(b, n)); }
+
+  function getCrossfadeSeconds(){
+    const raw = localStorage.getItem(CROSSFADE_SECONDS_KEY);
+    return clamp(raw == null ? 0 : raw, 0, 20);
+  }
+
+  function setCrossfadeSeconds(v){
+    const sec = clamp(v, 0, 20);
+    try { localStorage.setItem(CROSSFADE_SECONDS_KEY, String(sec)); } catch (e) {}
+
+    // expose for any playback code that wants it
+    try { window.__crossfadeSeconds = sec; } catch (e) {}
+
+    // update UI
+    const label = document.getElementById('crossfade-seconds');
+    const slider = document.getElementById('crossfade-slider');
+    if (label) label.textContent = sec + 's';
+    if (slider && String(slider.value) !== String(sec)) slider.value = String(sec);
+  }
+
+  // If your app doesn't already have these, provide minimal versions.
+  if (typeof window.isFeatureOn !== 'function') {
+    window.isFeatureOn = function(flag){
+      try {
+        return localStorage.getItem('reson_feature_' + flag) === '1';
+      } catch (e) { return false; }
+    };
+  }
+
+  // UI refresh (button labels + colors)
+  function refreshFeatureUI(){
+    const crossBtn = document.getElementById('feature-toggle-crossfade');
+    const autoBtn = document.getElementById('feature-toggle-autoplay');
+
+    const crossOn = !!window.isFeatureOn('crossfade');
+    const autoOn = !!window.isFeatureOn('autoplay');
+
+    if (crossBtn) crossBtn.textContent = crossOn ? 'On' : 'Off';
+    if (autoBtn) autoBtn.textContent = autoOn ? 'On' : 'Off';
+  }
+
+  // Wrap existing toggleFeatureFlag so UI always updates after toggling.
+  if (typeof window.toggleFeatureFlag === 'function' && !window.__featuresToggleWrapped) {
+    window.__featuresToggleWrapped = true;
+    const original = window.toggleFeatureFlag;
+    window.toggleFeatureFlag = function(flag){
+      const out = original.apply(this, arguments);
+      try { refreshFeatureUI(); } catch (e) {}
+      return out;
+    };
+  }
+
+  // If toggleFeatureFlag doesn't exist, create a minimal one.
+  if (typeof window.toggleFeatureFlag !== 'function') {
+    window.toggleFeatureFlag = function(flag){
+      const key = 'reson_feature_' + String(flag || '');
+      let next = '1';
+      try { next = (localStorage.getItem(key) === '1') ? '0' : '1'; } catch (e) {}
+      try { localStorage.setItem(key, next); } catch (e) {}
+      refreshFeatureUI();
+    };
+  }
+
+  // Hook slider
+  function bindSlider(){
+    const slider = document.getElementById('crossfade-slider');
+    if (!slider || slider.__bound) return;
+    slider.__bound = true;
+
+    slider.addEventListener('input', () => {
+      const sec = clamp(slider.value, 0, 20);
+      setCrossfadeSeconds(sec);
+
+      // ✅ if slider > 0 => turn crossfade ON, if 0 => OFF
+      try {
+        localStorage.setItem('reson_feature_crossfade', sec > 0 ? '1' : '0');
+      } catch (e) {}
+
+      refreshFeatureUI();
+    });
+  }
+
+  // Initial paint (works even if you open Features later)
+  function paint(){
+    setCrossfadeSeconds(getCrossfadeSeconds());
+    refreshFeatureUI();
+    bindSlider();
+  }
+
+  // run now + shortly after (in case the view wasn’t in DOM yet)
+  try { paint(); } catch (e) {}
+  setTimeout(() => { try { paint(); } catch (e) {} }, 250);
+})();
 </script>
 
-  <!-- SYNC DEVICES MODAL -->
 
   <!-- SYNC DEVICES MODAL -->
   <div id="sync-devices-modal" class="hidden fixed inset-0 z-[9999]">
