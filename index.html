@@ -1806,14 +1806,23 @@ body.qs-lock{
   }
 
 
-  .track-row {
+    .track-row {
     grid-template-columns: 1fr 36px;
     padding: 18px 4px;
   }
-  .track-row span:nth-child(1),
-  .track-row span:nth-child(3),
-  .track-row span:nth-child(4),
-  .track-row span:nth-child(5) { display: none; }
+
+  /* Mobile select mode: smaller gutter so text isn't pushed way right */
+  body.song-multiselect .track-row{
+    padding-left: 32px;
+  }
+  body.song-multiselect .track-row .select-bubble{
+    left: 6px;
+  }
+
+  /* Hide the track number on mobile (keeps working even if we insert a bubble span) */
+  .track-row [data-role="index"] { display: none; }
+
+
 
   .track-row .track-title {
     font-size: 18px;
