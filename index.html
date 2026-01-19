@@ -2321,6 +2321,54 @@ body.qs-lock {
   padding: 0 2px;
 }
 
+/* --- Crate Home (2x2 tiles) --- */
+.crate-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.crate-tile{
+  text-align: left;
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: transform 0.08s ease;
+}
+
+.crate-tile:active{
+  transform: scale(0.98);
+}
+
+.crate-tile.disabled{
+  opacity: 0.5;
+}
+
+.crate-tile-icon{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.crate-tile-title{
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.crate-tile-sub{
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+}
+
+
 @media (max-width: 768px){
   .crate-shell{ padding: 10px 12px 24px; }
   .crate-title{ font-size: 18px; }
@@ -2874,43 +2922,161 @@ body.qs-lock {
 </div>
 
 <div id="crate-view" class="hidden">
-  <div class="crate-shell">
-    <div class="crate-topbar">
-      <button type="button" class="crate-back" onclick="goBackFromCrate()" aria-label="Back">
-        <i class="fas fa-chevron-left"></i>
-      </button>
 
-      <input id="crate-title"
-             class="crate-title"
-             type="text"
-             placeholder="Crate"
-             autocomplete="off" />
-
-      <button type="button" class="crate-done" onclick="goBackFromCrate()">
-        Done
+  <!-- CRATE HOME (2x2 grid) -->
+  <div id="crate-home" class="pb-30 md:pb-0">
+    <div class="flex items-center gap-3 mb-5">
+      <button type="button"
+        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+        aria-label="Back"
+        onclick="goBackFromCrate()">
+        <i class="fas fa-arrow-left text-white/70"></i>
       </button>
+      <div class="text-2xl font-black">Crate</div>
     </div>
 
-    <div class="crate-body">
-      <div id="crate-items" class="crate-items"></div>
+    <div class="crate-grid">
+      <button type="button" class="crate-tile" onclick="openCrateSection('crate')">
+        <div class="crate-tile-icon"><i class="fas fa-box-archive"></i></div>
+        <div class="crate-tile-title">Crate</div>
+        <div class="crate-tile-sub">Notes + checklist</div>
+      </button>
 
-      <div class="crate-actions">
-        <button type="button" id="crate-add-check" class="crate-action-btn">
-          <i class="far fa-circle"></i>
-          New checklist item
+      <button type="button" class="crate-tile" onclick="openCrateSection('stats')">
+        <div class="crate-tile-icon"><i class="fas fa-chart-simple"></i></div>
+        <div class="crate-tile-title">Stats</div>
+        <div class="crate-tile-sub">Listening insights</div>
+      </button>
+
+      <button type="button" class="crate-tile" onclick="openCrateSection('features')">
+        <div class="crate-tile-icon"><i class="fas fa-sliders"></i></div>
+        <div class="crate-tile-title">Features</div>
+        <div class="crate-tile-sub">Playback options</div>
+      </button>
+
+      <button type="button" class="crate-tile disabled" disabled>
+        <div class="crate-tile-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+        <div class="crate-tile-title">Coming soon</div>
+        <div class="crate-tile-sub">More tools</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- SUBVIEW: CRATE EDITOR (your existing UI moved here, IDs preserved) -->
+  <div id="crate-editor" class="hidden">
+    <div class="crate-shell">
+      <div class="crate-topbar">
+        <button type="button" class="crate-back" onclick="openCrateSection('home')" aria-label="Back">
+          <i class="fas fa-chevron-left"></i>
         </button>
 
-        <button type="button" id="crate-add-text" class="crate-action-btn">
-          <i class="fas fa-plus"></i>
-          New note line
+        <input id="crate-title"
+               class="crate-title"
+               type="text"
+               placeholder="Crate"
+               autocomplete="off" />
+
+        <button type="button" class="crate-done" onclick="openCrateSection('home')">
+          Done
         </button>
       </div>
 
-      <div class="crate-hint">
-        Tip: tap the circle to check off. Tap text to edit.
+      <div class="crate-body">
+        <div id="crate-items" class="crate-items"></div>
+
+        <div class="crate-actions">
+          <button type="button" id="crate-add-check" class="crate-action-btn">
+            <i class="far fa-circle"></i>
+            New checklist item
+          </button>
+
+          <button type="button" id="crate-add-text" class="crate-action-btn">
+            <i class="fas fa-plus"></i>
+            New note line
+          </button>
+        </div>
+
+        <div class="crate-hint">
+          Tip: tap the circle to check off. Tap text to edit.
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- SUBVIEW: STATS (placeholder UI for now) -->
+  <div id="crate-stats" class="hidden pb-30 md:pb-0">
+    <div class="flex items-center gap-3 mb-5">
+      <button type="button"
+        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+        aria-label="Back"
+        onclick="openCrateSection('home')">
+        <i class="fas fa-arrow-left text-white/70"></i>
+      </button>
+      <div class="text-2xl font-black">Stats</div>
+    </div>
+
+    <div class="bg-white/10 rounded-2xl p-4">
+      <div class="text-sm text-white/70 mb-3">Time range</div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Week</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Month</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">6 mo</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Year</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">All time</button>
+      </div>
+
+      <div class="text-sm text-white/70 mb-3">Group by</div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Artist</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Album</button>
+        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Playlist</button>
+      </div>
+
+      <div class="mt-4 text-sm text-white/60">
+        Stats logic comes next — this screen is just the shell so we don’t break anything.
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBVIEW: FEATURES (placeholder UI for now) -->
+  <div id="crate-features" class="hidden pb-30 md:pb-0">
+    <div class="flex items-center gap-3 mb-5">
+      <button type="button"
+        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+        aria-label="Back"
+        onclick="openCrateSection('home')">
+        <i class="fas fa-arrow-left text-white/70"></i>
+      </button>
+      <div class="text-2xl font-black">Features</div>
+    </div>
+
+    <div class="bg-white/10 rounded-2xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-extrabold">Crossfade</div>
+          <div class="text-sm text-white/60">Apply between every song</div>
+        </div>
+        <button type="button" class="px-4 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold" onclick="toggleFeatureFlag('crossfade')">
+          Toggle
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-extrabold">Autoplay</div>
+          <div class="text-sm text-white/60">Continue with similar songs</div>
+        </div>
+        <button type="button" class="px-4 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold" onclick="toggleFeatureFlag('autoplay')">
+          Toggle
+        </button>
+      </div>
+
+      <div class="text-sm text-white/60">
+        Toggle wiring comes next — this screen is the shell so we don’t touch playback yet.
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div id="album-view" class="hidden">
@@ -4806,7 +4972,41 @@ function goBackFromCrate() {
   showView("home");
 }
 
+function openCrateSection(which) {
+  const home = document.getElementById("crate-home");
+  const editor = document.getElementById("crate-editor");
+  const stats = document.getElementById("crate-stats");
+  const features = document.getElementById("crate-features");
+
+  const w = String(which || "home");
+
+  if (home) home.classList.toggle("hidden", w !== "home");
+  if (editor) editor.classList.toggle("hidden", w !== "crate");
+  if (stats) stats.classList.toggle("hidden", w !== "stats");
+  if (features) features.classList.toggle("hidden", w !== "features");
+
+  // If user opens the editor, make sure it renders
+  if (w === "crate") {
+    try { initCrateUIOnce(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
+  }
+}
+
+function toggleFeatureFlag(key) {
+  const k = String(key || "").trim();
+  if (!k) return;
+
+  const lsKey = "reson_feature_" + k;
+  const current = localStorage.getItem(lsKey);
+  const next = (current === "1") ? "0" : "1";
+  localStorage.setItem(lsKey, next);
+
+  // For now: just a tiny confirmation without touching playback yet
+  try { console.log("[feature]", k, "=", next); } catch (e) {}
+}
+
 function initCrateUIOnce() {
+
   if (window.__crateUIBound) return;
   window.__crateUIBound = true;
 
