@@ -675,27 +675,21 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 /* Clicked / selected (pic 2 + pic 3) */
 .track-row.is-selected{
-  background: rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.12);
 }
 
-/* Selection bubble (mobile multi-select) */
+/* Selection bubble (mobile + optional desktop) */
 .track-row .select-bubble{
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-
   width: 18px;
   height: 18px;
   border-radius: 999px;
   border: 2px solid rgba(255,255,255,0.35);
-
-  display: none;            /* hidden by default */
+  display: none;
   align-items: center;
   justify-content: center;
-  pointer-events: none;     /* purely visual */
+  margin-right: 8px;
+  flex: 0 0 auto;
 }
-
 .track-row .select-bubble::after{
   content: "";
   width: 10px;
@@ -704,7 +698,6 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   background: rgba(29,185,84,1);
   opacity: 0;
 }
-
 .track-row.is-selected .select-bubble{
   border-color: rgba(29,185,84,1);
 }
@@ -712,21 +705,10 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   opacity: 1;
 }
 
-/* Show bubbles + shift content right when selection mode is on */
-body.song-multiselect .track-row{
-  padding-left: 44px;       /* makes room for bubble */
-}
-
-/* ✅ THIS is the missing/critical line */
+/* Show bubbles when selection mode is on */
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
 }
-
-/* In selection mode, hide the left index/number so bubble owns that space */
-body.song-multiselect .track-row [data-role="index"]{
-  opacity: 0;
-}
-
 
 .track-row > * {
     min-width: 0;
@@ -753,13 +735,11 @@ body.song-multiselect .track-row [data-role="index"]{
     letter-spacing: 2px;
 }
 
-        /* ✅ Only apply hover styling on real hover devices (prevents iOS sticky hover) */
-@media (hover: hover) and (pointer: fine) {
-  .track-row:hover { 
-    background: rgba(255,255,255,0.1); 
-    color: white; 
-    cursor: pointer; 
-  }
+        .track-row:hover { 
+            background: rgba(255,255,255,0.1); 
+            color: white; 
+            cursor: pointer; 
+        }
 
 .track-row.is-current,
 .track-row.active-track {
@@ -3473,49 +3453,10 @@ function setSongSelectEnabled(on){
   window.__songSelect.enabled = !!on;
   document.body.classList.toggle('song-multiselect', window.__songSelect.enabled);
 
-  // Create/ensure exit X button (mobile)
-  const BTN_ID = 'song-select-exit';
-  let btn = document.getElementById(BTN_ID);
-
-  if (window.__songSelect.enabled) {
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.id = BTN_ID;
-      btn.type = 'button';
-      btn.textContent = '✕';
-      btn.setAttribute('aria-label', 'Exit selection mode');
-      btn.style.position = 'fixed';
-      btn.style.top = 'calc(env(safe-area-inset-top) + 10px)';
-      btn.style.right = '12px';
-      btn.style.width = '38px';
-      btn.style.height = '38px';
-      btn.style.borderRadius = '999px';
-      btn.style.border = '1px solid rgba(255,255,255,0.18)';
-      btn.style.background = 'rgba(0,0,0,0.35)';
-      btn.style.backdropFilter = 'blur(10px)';
-      btn.style.webkitBackdropFilter = 'blur(10px)';
-      btn.style.color = 'rgba(255,255,255,0.92)';
-      btn.style.fontSize = '18px';
-      btn.style.fontWeight = '900';
-      btn.style.zIndex = '5000';
-
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setSongSelectEnabled(false);
-      });
-
-      document.body.appendChild(btn);
-    }
-  } else {
+  if (!window.__songSelect.enabled) {
     window.__songSelect.urls.clear();
     window.__songSelect.lastIndex = null;
-
-    // clear UI
     document.querySelectorAll('.track-row.is-selected').forEach(el => el.classList.remove('is-selected'));
-
-    // remove exit button
-    if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
   }
 
   // debug
