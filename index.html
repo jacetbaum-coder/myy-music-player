@@ -5228,13 +5228,19 @@ try {
 }
 
 return data.playlists;
+}
+} catch (e) {
+  console.warn("Failed to merge cloud playlists:", e);
+}
 
+return data.playlists;
 
-  }
-
-   window.cloudPlaylists = [];
+} catch (e) {
+  window.cloudPlaylists = [];
   return [];
+}
 };
+
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
