@@ -9371,28 +9371,28 @@ if (isPlaylist) {
   } catch (e) {}
 
   if (!thumbSrc) {
-  // 1) use whatever the playlist item already has
-  thumbSrc = String(
-    (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
-  ).trim();
+    // 1) use whatever the playlist item already has
+    thumbSrc = String(
+      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
+    ).trim();
 
-  // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
-  if (!thumbSrc) {
-    try {
-      const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
-      if (key && window.tracksById && typeof window.tracksById.get === "function") {
-        const lib = window.tracksById.get(key);
-        if (lib) {
-          thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+    // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
+    if (!thumbSrc) {
+      try {
+        const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
+        if (key && window.tracksById && typeof window.tracksById.get === "function") {
+          const lib = window.tracksById.get(key);
+          if (lib) {
+            thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
   }
 }
 
-}
-
 const thumbMarkup = isPlaylist
+
   ? (thumbSrc
       ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
       : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
