@@ -5896,26 +5896,6 @@ let contextMenuCloseTimer = null;
     return;
   }
 
-  // Desktop
-  contextMenu.style.display = 'none';
-  contextMenu.style.transform = '';
-  contextMenu.style.right = '';
-  contextMenuAnchor = null;
-
-  if (sub) sub.classList.remove('open');
-
-  if (contextMenuScrollHandler) {
-    window.removeEventListener('scroll', contextMenuScrollHandler, true);
-    contextMenuScrollHandler = null;
-  }
-}
-
-      contextMenuCloseTimer = null;
-    }, 220);
-
-    return;
-  }
-
   // Desktop: old behavior
   contextMenu.style.display = 'none';
   contextMenu.style.transform = '';
