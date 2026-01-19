@@ -3677,8 +3677,11 @@ function onNavTap(e) {
   return false;
 }
 
-       let libraryData = [];
+              let libraryData = [];
 let libraryDataOriginal = [];
+window.libraryData = libraryData;
+window.libraryDataOriginal = libraryDataOriginal;
+
 let currentSong = null;
 window.currentSong = currentSong;
 
@@ -7775,8 +7778,11 @@ safe(window.renderHistory);
     function applyLibraryAndRender(albums) {
     libraryData = Array.isArray(albums) ? albums : [];
     libraryDataOriginal = libraryData.slice();
+    window.libraryData = libraryData;
+    window.libraryDataOriginal = libraryDataOriginal;
 
     buildTracksByIdFromLibrary(libraryData);
+
 
     // Sort library alphabetically by album (Library grid)
     try {
