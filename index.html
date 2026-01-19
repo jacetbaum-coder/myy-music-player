@@ -720,11 +720,28 @@ body.song-multiselect .track-row .select-bubble{
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  pointer-events: none;          /* tap toggles the row, not the bubble itself */
+
+  /* Bigger visible bubble */
+  width: 22px;
+  height: 22px;
+
+  /* ✅ Let the bubble receive taps */
+  pointer-events: auto;
 }
 
+/* Bigger invisible hitbox (so you can tap “near” it) */
+body.song-multiselect .track-row .select-bubble::before{
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  right: -14px;
+  bottom: -14px;
+  background: transparent;
+}
 
 .track-row > * {
+
     min-width: 0;
 }
 .track-row .track-title {
@@ -9288,16 +9305,15 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     syncRowSelectionFromSet(document);
     return;
   } else {
-    // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
-    if (window.__songSelect && window.__songSelect.enabled) {
-      const url = String(songUrl || '').trim();
-      if (!url) return;
-      if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
-      else window.__songSelect.urls.add(url);
-      applyRowSelectedState(row, window.__songSelect.urls.has(url));
-      return;
-    }
-  }
+    // ✅ Mobile: if selection mode is ON, taps should NOT run normal play.
+// Selection is handled by the pointerup handler (so it works with a larger tap range).
+if (window.__songSelect.enabled) {
+  e.preventDefault();
+  e.stopPropagation();
+  return;
+}
+
+// Otherwise: normal play
 
   // Otherwise: normal play (existing behavior)
   if (!songUrl) return;
