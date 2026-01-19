@@ -9678,7 +9678,8 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
       setSongSelectEnabled(false);
     }
     // fall through to your existing play block below
-  } else if (_isDesktop) {
+  } else if (_isDesktop && window.__songSelect) {
+
 
     // ✅ Grey-space click selects (single), unless Shift/Cmd are held
     if (!window.__songSelect) return;
