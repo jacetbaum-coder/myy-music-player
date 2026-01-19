@@ -2550,12 +2550,12 @@ body.qs-lock {
           <!-- Top row -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <!-- profile -->
-              <button id="sync-devices-btn" type="button"
-                class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
-                aria-label="Sync devices">
-                <i class="fas fa-user text-white/70 text-sm"></i>
-              </button>
+              <button id="profile-menu-btn" type="button"
+  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+  aria-label="Profile menu">
+  <i class="fas fa-user text-white/70 text-sm"></i>
+</button>
+
 
               <!-- title -->
               <div class="text-3xl font-black leading-none">Home</div>
@@ -2725,10 +2725,13 @@ body.qs-lock {
           <!-- Top row -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <!-- placeholder profile pic -->
-              <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-                <i class="fas fa-user text-white/70 text-sm"></i>
-              </div>
+              <!-- profile -->
+<button id="library-profile-btn" type="button"
+  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+  aria-label="Profile menu">
+  <i class="fas fa-user text-white/70 text-sm"></i>
+</button>
+
               <div class="text-3xl font-black leading-none">My Library</div>
             </div>
 
@@ -4824,9 +4827,54 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   }
 })();
 
+// -----------------------
+// PROFILE MENU UI (Home + Library profile buttons)
+// -----------------------
+(function bindProfileMenuUI(){
+  if (window.__profileMenuBound) return;
+  window.__profileMenuBound = true;
+
+  const open = () => {
+    const m = document.getElementById('profile-menu-modal');
+    if (m) m.classList.remove('hidden');
+  };
+
+  const close = () => {
+    const m = document.getElementById('profile-menu-modal');
+    if (m) m.classList.add('hidden');
+  };
+
+  // Delegated open (works after re-renders)
+  document.addEventListener('click', (e) => {
+    const hit = e.target && e.target.closest
+      ? e.target.closest('#profile-menu-btn, #library-profile-btn')
+      : null;
+    if (!hit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    open();
+  }, true);
+
+  const bd = document.getElementById('profile-menu-backdrop');
+  if (bd) bd.addEventListener('click', close);
+
+  const settingsBtn = document.getElementById('profile-menu-settings');
+  if (settingsBtn) settingsBtn.addEventListener('click', () => {
+    close();
+    try { showView('settings'); } catch (e) {}
+  });
+
+  const profileBtn = document.getElementById('profile-menu-profile');
+  if (profileBtn) profileBtn.addEventListener('click', () => {
+    close();
+    try { alert('Profile (coming soon)'); } catch (e) {}
+  });
+})();
+
 
 // -----------------------
 // PLAY BUTTON (delegated)
+
 // -----------------------
 (function bindPlayButtons() {
   if (window.__playButtonsBound) return;
@@ -6654,10 +6702,12 @@ function setLibrarySortMode(mode) {
   const label = document.getElementById('library-sort-label');
   if (label) label.textContent = mode;
 
-  // If you're currently in Library, re-render the grid
+  // If you're currently in Library, re-render the CURRENT tab (Playlists/Albums/Artists/All)
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridData());
+    renderLibraryMain();
   }
+}
+
 }
 
 function setLibraryViewMode(mode) {
@@ -6665,10 +6715,11 @@ function setLibraryViewMode(mode) {
   localStorage.setItem('libraryViewMode', mode);
 
   // If you're currently in Library, re-render the grid
-  if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridData());
+    if (navCurrent && navCurrent.type === 'library') {
+    renderLibraryMain(); // ✅ respects Playlists/Albums/Artists/All
     applyLibraryGridCols(); // ✅ re-apply columns after render
   } else {
+
     // Still keep the slider UI correct if menu is opened later
     applyLibraryGridCols();
   }
@@ -6684,7 +6735,9 @@ function applyLibraryGridCols() {
   const isGridMode = (libraryViewMode === 'grid');
 
   // Show slider only on mobile + grid view
-  if (wrap) wrap.classList.toggle('hidden', !(isMobile && isGridMode));
+  if (wrap) wrap.classList.add('hidden'); // always hidden (fixed 3-per-row on mobile)
+
+
 
   if (!isMobile) {
     // desktop: let your tailwind grid-cols classes handle it
@@ -6698,23 +6751,16 @@ function applyLibraryGridCols() {
     return;
   }
 
-    // Read stored cols (default 3)
+      // Fixed: always 3 per row on mobile
   let cols = 3;
 
-    try {
-    const stored = parseInt(localStorage.getItem('libraryGridCols') || '3', 10);
-    if (!Number.isNaN(stored)) cols = Math.min(6, Math.max(1, stored));
-  } catch (e) {}
+
+   // Apply inline grid columns (beats tailwind classes on mobile)
+if (grid) {
+  grid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+}
 
 
-  // Sync slider position if it exists
-  if (slider) slider.value = String(cols);
-
-    // Apply inline grid columns (beats tailwind classes on mobile)
-  if (grid) {
-        grid.style.gap = '1px';
-
-  }
 
 }
 
@@ -7376,7 +7422,8 @@ showView = function(viewType, playlistIndex = null) {
 
   // If we entered Library, apply sort immediately
   if (navCurrent && navCurrent.type === 'library') {
-    renderGrid(getLibraryGridData());
+        renderLibraryMain();
+
   }
 };
 
@@ -9431,13 +9478,12 @@ function openAlbumByName(name) {
     }
   } catch (e) {}
 
-  // BACK STACK: push current view before entering album
-
-
-
 
   // BACK STACK: push current view before entering album
-  pushNavCurrent();
+  // Lock the correct root tab so swipe-back returns to the right place
+try { window.__rootTab = 'home'; } catch (e) {}
+
+pushNavCurrent();
   setNavCurrent({ type: 'album', albumName: name });
 
   playContext = { type: 'album', label: name };
@@ -17227,6 +17273,40 @@ function renderCrateStats() {
     </div>
   </div>
 
+  <!-- PROFILE MENU MODAL -->
+  <div id="profile-menu-modal" class="fixed inset-0 z-[999999] hidden">
+    <div id="profile-menu-backdrop" class="absolute inset-0 bg-black/60"></div>
+
+    <div class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden">
+      <button id="profile-menu-settings" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Settings
+      </button>
+      <div class="h-px bg-white/10"></div>
+      <button id="profile-menu-profile" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- PROFILE MENU (Settings / Profile) -->
+  <div id="profile-menu-modal" class="fixed inset-0 z-[999999] hidden">
+    <div id="profile-menu-backdrop" class="absolute inset-0 bg-black/60"></div>
+
+    <div class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden">
+      <button id="profile-menu-settings" type="button"
+        class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Settings
+      </button>
+      <div class="h-px bg-white/10"></div>
+      <button id="profile-menu-profile" type="button"
+        class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Profile
+      </button>
+    </div>
+  </div>
+
 </body>
+
+
 
 </html>
