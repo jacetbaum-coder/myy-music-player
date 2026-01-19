@@ -5156,89 +5156,83 @@ window.loadPlaylistsFromCloud = async function () {
 
   const data = await res.json().catch(() => ({}));
 
-  if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
-    window.cloudPlaylists = data.playlists;
+if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
+  window.cloudPlaylists = data.playlists;
 
-    // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
-try {
-  const uid2 = window.APP_USER_ID || localStorage.getItem("app_user_id") || "";
-  const uid = String(uid2 || "").trim();
-
-  // 1) Convert cloud rows to UI objects
-  const cloudUi = data.playlists
-    .map(cloudRowToUiPlaylist)
-    .filter(pl => pl && pl.id);
-
-  const localArr = Array.isArray(playlists) ? playlists : [];
-  const byId = new Map(localArr.map(p => [p.id, p]));
-
-  // 2) Merge: cloud wins for name/cover/count, but keep local songs/trackIds if cloud doesn't have them
-  for (const c of cloudUi) {
-    const existing = byId.get(c.id);
-    if (existing) {
-      byId.set(c.id, {
-        ...existing,
-        ...c,
-        songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
-        trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
-      });
-    } else {
-      byId.set(c.id, c);
-    }
-  }
-
-  // 3) ✅ Ask cloud which playlists are recently deleted, and filter them out locally
-  let deletedPlaylistIds = new Set();
+  // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
   try {
-    if (uid) {
-      const rd = await fetch(
-        "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
-          encodeURIComponent(uid) + "&type=playlist"
-      ).then(r => r.json()).catch(() => null);
+    const uid2 = window.APP_USER_ID || localStorage.getItem("app_user_id") || "";
+    const uid = String(uid2 || "").trim();
 
-      if (rd && rd.ok && Array.isArray(rd.items)) {
-        deletedPlaylistIds = new Set(
-          rd.items
-            .map(x => String(x?.id || "").trim())
-            .filter(Boolean)
-        );
+    // 1) Convert cloud rows to UI objects
+    const cloudUi = data.playlists
+      .map(cloudRowToUiPlaylist)
+      .filter(pl => pl && pl.id);
+
+    const localArr = Array.isArray(playlists) ? playlists : [];
+    const byId = new Map(localArr.map(p => [p.id, p]));
+
+    // 2) Merge: cloud wins for name/cover/count, but keep local songs/trackIds if cloud doesn't have them
+    for (const c of cloudUi) {
+      const existing = byId.get(c.id);
+      if (existing) {
+        byId.set(c.id, {
+          ...existing,
+          ...c,
+          songs: Array.isArray(existing.songs) && (!Array.isArray(c.songs) || c.songs.length === 0) ? existing.songs : c.songs,
+          trackIds: Array.isArray(existing.trackIds) && (!Array.isArray(c.trackIds) || c.trackIds.length === 0) ? existing.trackIds : c.trackIds,
+        });
+      } else {
+        byId.set(c.id, c);
       }
     }
-  } catch (e) {}
 
-  // Keep local-only playlists EXCEPT ones that are in recently deleted
-  playlists = Array.from(byId.values()).filter(p => {
-    const id = String(p?.id || "").trim();
-    if (!id) return false;
-    return !deletedPlaylistIds.has(id);
-  });
+    // 3) ✅ Ask cloud which playlists are recently deleted, and filter them out locally
+    let deletedPlaylistIds = new Set();
+    try {
+      if (uid) {
+        const rd = await fetch(
+          "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
+            encodeURIComponent(uid) + "&type=playlist"
+        ).then(r => r.json()).catch(() => null);
 
-  // Persist locally so refresh works even if offline
-  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+        if (rd && rd.ok && Array.isArray(rd.items)) {
+          deletedPlaylistIds = new Set(
+            rd.items
+              .map(x => String(x?.id || "").trim())
+              .filter(Boolean)
+          );
+        }
+      }
+    } catch (e) {}
 
-  // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
-  try {
-    if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
-      window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
-    }
-  } catch (e) {}
+    // Keep local-only playlists EXCEPT ones that are in recently deleted
+    playlists = Array.from(byId.values()).filter(p => {
+      const id = String(p?.id || "").trim();
+      if (!id) return false;
+      return !deletedPlaylistIds.has(id);
+    });
 
-} catch (e) {
-  console.warn("Failed to merge cloud playlists:", e);
+    // Persist locally so refresh works even if offline
+    try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+
+    // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
+    try {
+      if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
+        window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
+      }
+    } catch (e) {}
+
+  } catch (e) {
+    console.warn("Failed to merge cloud playlists:", e);
+  }
+
+  return data.playlists;
 }
 
-return data.playlists;
-}
-} catch (e) {
-  console.warn("Failed to merge cloud playlists:", e);
-}
-
-return data.playlists;
-
-} catch (e) {
-  window.cloudPlaylists = [];
-  return [];
-}
+// fallback
+window.cloudPlaylists = [];
+return [];
 };
 
 
