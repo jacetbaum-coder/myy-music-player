@@ -258,8 +258,10 @@
   overscroll-behavior: none;
 
   /* If iOS tries to reveal the “page behind”, make it black */
-  background: #000;
+  background: #000 !important;
+  background-color: #000 !important;
 }
+
 
 body { 
   /* Spotify-style: colored glow at top fading to black */
@@ -675,8 +677,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 /* Clicked / selected (pic 2 + pic 3) */
 .track-row.is-selected{
-  background: rgba(255,255,255,0.12);
+  background: transparent !important;   /* ✅ bubble-only selection indicator */
 }
+
 
 /* Selection bubble (mobile + optional desktop) */
 .track-row .select-bubble{
@@ -702,12 +705,16 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 .track-row .select-bubble::before{
   content: "";
   position: absolute;
-  left: -14px;
-  top: -14px;
-  right: -14px;
-  bottom: -14px;
+
+  /* ✅ Bigger invisible tap zone (does NOT affect visuals) */
+  left: -20px;
+  top: -20px;
+  right: -20px;
+  bottom: -20px;
+
   background: transparent;
 }
+
 
 .track-row .select-bubble::after{
   content: "";
@@ -3711,12 +3718,22 @@ if (!window.__mobileTrackSelectTapGuard) {
     const row = e.target.closest && e.target.closest('.track-row[data-song-url]');
     if (!row) return;
 
-    // If pressing the 3-dots menu, do NOT start selection
-    if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
-      return;
-    }
+   // If pressing the 3-dots menu, do NOT start selection
+if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
+  return;
+}
 
-    lpTriggered = false;
+// ✅ If selection mode is already ON, a tap should toggle immediately
+if (window.__songSelect && window.__songSelect.enabled) {
+  try { e.preventDefault(); } catch (err) {}
+  try { e.stopPropagation(); } catch (err) {}
+  toggleRowSelected(row);
+  return;
+}
+
+lpTriggered = false;
+
+
     dragActive = false;
     dragSeen = new Set();
 
