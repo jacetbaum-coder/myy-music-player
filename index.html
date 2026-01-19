@@ -706,9 +706,23 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 /* Show bubbles when selection mode is on */
+.track-row{
+  transition: padding-left 180ms ease;
+}
+
+body.song-multiselect .track-row{
+  padding-left: 44px;            /* creates the new left gutter */
+}
+
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;          /* tap toggles the row, not the bubble itself */
 }
+
 
 .track-row > * {
     min-width: 0;
