@@ -680,16 +680,35 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 /* Selection bubble (mobile + optional desktop) */
 .track-row .select-bubble{
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
   border: 2px solid rgba(255,255,255,0.35);
+
   display: none;
   align-items: center;
   justify-content: center;
-  margin-right: 8px;
-  flex: 0 0 auto;
+
+  /* ✅ bubble can receive taps */
+  pointer-events: auto;
 }
+
+/* ✅ invisible bigger tap target (so you can tap “near” it) */
+.track-row .select-bubble::before{
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  right: -14px;
+  bottom: -14px;
+  background: transparent;
+}
+
 .track-row .select-bubble::after{
   content: "";
   width: 10px;
@@ -3630,7 +3649,33 @@ function toggleRowSelected(row){
    - Drag finger over rows => selects as you slide (fires on move, not on lift)
    ========================================================= */
 
+// ✅ When multi-select is ON, taps on rows should ONLY toggle selection.
+// This runs in capture phase to stop other click handlers from undoing selection.
+if (!window.__mobileTrackSelectTapGuard) {
+  window.__mobileTrackSelectTapGuard = true;
+  document.addEventListener('click', (e) => {
+    try {
+      if (window.innerWidth > 768) return;
+      if (!window.__songSelect || !window.__songSelect.enabled) return;
+
+      const row = e.target && e.target.closest ? e.target.closest('.track-row[data-song-url]') : null;
+      if (!row) return;
+
+      // Ignore taps on 3-dots/menu buttons
+      if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      toggleRowSelected(row);
+    } catch (err) {}
+  }, true);
+}
+
 (function initMobileTracklistMultiSelect(){
+
   if (window.__mobileTrackSelectInit) return;
   window.__mobileTrackSelectInit = true;
 
@@ -12556,10 +12601,23 @@ function initResizers() {
   const qAddOpt = document.getElementById('menu-queue-add-opt');
   const crateOpt = document.getElementById('menu-crate-add-artist-opt');
   const qGoOpt = document.getElementById('menu-queue-go-opt');
+
   if (addOpt) addOpt.style.display = 'flex';
   if (qAddOpt) qAddOpt.style.display = 'flex';
   if (crateOpt) crateOpt.style.display = 'flex';
   if (qGoOpt) qGoOpt.style.display = 'flex';
+
+  // ✅ Labels
+  try { if (qAddOpt) qAddOpt.querySelector('.menu-label') ? (qAddOpt.querySelector('.menu-label').textContent = 'Add to queue') : (qAddOpt.textContent = 'Add to queue'); } catch(e){}
+  try { if (qGoOpt)  qGoOpt.querySelector('.menu-label')  ? (qGoOpt.querySelector('.menu-label').textContent  = 'Go to queue')  : (qGoOpt.textContent  = 'Go to queue');  } catch(e){}
+
+  // ✅ Order: Add to queue above Go to queue
+  try {
+    if (qAddOpt && qGoOpt && qGoOpt.parentNode) {
+      qGoOpt.parentNode.insertBefore(qAddOpt, qGoOpt);
+    }
+  } catch (e) {}
+
 
   // Mobile: bottom sheet (ignore x/y)
 
@@ -12589,7 +12647,8 @@ function initResizers() {
       requestAnimationFrame(() => {
         if (contextMenuBackdrop) contextMenuBackdrop.style.opacity = '1';
         contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-        contextMenu.style.transform = 'translateY(0)';
+        contextMenu.style.transform = 'translateY(10px)';
+
       });
     });
 
