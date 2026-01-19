@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 
-    <title>Reson</title>f
+    <title>Reson</title>
 
     <!-- App / tab icon -->
     <link rel="icon" href="favicon.ico">
@@ -759,7 +759,7 @@ body.song-multiselect .track-row::before{
   left: -18px;         /* extends tap zone leftwards */
   top: 0;
   bottom: 0;
-  width: 72px;         /* covers bubble + extra padding */
+  width: 120px;        /* ✅ bigger “red area” tap zone */
   background: transparent;
 }
 
@@ -777,6 +777,15 @@ body.song-multiselect .track-row:active{
   background: transparent !important;
 }
 body.song-multiselect .track-row.is-selected{
+  background: transparent !important;
+}
+
+/* ✅ kill iOS tap highlight + hover flash in multiselect */
+body.song-multiselect .track-row,
+body.song-multiselect .track-row *{
+  -webkit-tap-highlight-color: transparent;
+}
+body.song-multiselect .track-row:hover{
   background: transparent !important;
 }
 
