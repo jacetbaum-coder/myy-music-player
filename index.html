@@ -9454,16 +9454,15 @@ if (dots) {
 
     // keep your existing single-song menu logic:
     menuTargetSong = song;
-    showContextMenuAt(x, y, song, dots);
+        showContextMenuAt(x, y, song, dots);
   });
-}
 } catch (e) {}
 
+listEl.appendChild(row);
+  });
 
-
-       listEl.appendChild(row);
-  }
-    });
+  // ensure current track highlight is correct immediately after rendering
+  updateTrackListActiveState();
 }
 
 // ARTIST MENU + CROP (per-artist saved)
