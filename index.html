@@ -3452,12 +3452,18 @@ window.__songSelect = window.__songSelect || {
 function setSongSelectEnabled(on){
   window.__songSelect.enabled = !!on;
   document.body.classList.toggle('song-multiselect', window.__songSelect.enabled);
+
   if (!window.__songSelect.enabled) {
     window.__songSelect.urls.clear();
     window.__songSelect.lastIndex = null;
-    // clear UI
     document.querySelectorAll('.track-row.is-selected').forEach(el => el.classList.remove('is-selected'));
   }
+
+  // debug
+  try {
+    console.log("[Select] enabled:", window.__songSelect.enabled);
+    console.log("[Select] selected count:", window.__songSelect.urls.size);
+  } catch (e) {}
 }
 
 function getSongUrlFromRow(row){
@@ -3478,9 +3484,6 @@ function syncRowSelectionFromSet(container){
   });
 }
 
-// ✅ Helpers we’ll use in the NEXT steps (long-press, circles UI, bulk menu)
-// (No behavior changes yet — just utilities.)
-
 function getSelectedSongUrls(){
   return Array.from(window.__songSelect.urls || []);
 }
@@ -3489,6 +3492,10 @@ function clearSelectedSongs(){
   try { window.__songSelect.urls.clear(); } catch (e) {}
   try { window.__songSelect.lastIndex = null; } catch (e) {}
   try { syncRowSelectionFromSet(document); } catch (e) {}
+  try {
+    console.log("[Select] cleared");
+    console.log("[Select] selected count:", window.__songSelect.urls.size);
+  } catch (e) {}
 }
 
 function toggleRowSelected(row){
@@ -3501,8 +3508,154 @@ function toggleRowSelected(row){
   else window.__songSelect.urls.add(u);
 
   applyRowSelectedState(row, !has);
+
+  try {
+    console.log("[Select] selected count:", window.__songSelect.urls.size);
+  } catch (e) {}
+
   return !has;
 }
+
+/* =========================================================
+   ✅ MOBILE TRACKLIST MULTI-SELECT BEHAVIOR
+   - Long-press a row => enables selection mode + selects it
+   - Tap rows while enabled => toggles selection (does NOT play)
+   - Drag finger over rows => selects as you slide (fires on move, not on lift)
+   ========================================================= */
+
+(function initMobileTracklistMultiSelect(){
+  if (window.__mobileTrackSelectInit) return;
+  window.__mobileTrackSelectInit = true;
+
+  const LONGPRESS_MS = 320;
+  const MOVE_CANCEL_PX = 10;
+
+  let lpTimer = null;
+  let lpStartX = 0;
+  let lpStartY = 0;
+  let lpTriggered = false;
+
+  let dragActive = false;
+  let dragSeen = new Set();
+
+  function isMobile(){ return window.innerWidth <= 768; }
+
+  function findTrackRowFromPoint(x, y){
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest ? el.closest('.track-row[data-song-url]') : null;
+  }
+
+  function clearLongPress(){
+    if (lpTimer) clearTimeout(lpTimer);
+    lpTimer = null;
+  }
+
+  // 1) Long-press anywhere on a track row to enter selection mode
+  document.addEventListener('pointerdown', (e) => {
+    if (!isMobile()) return;
+    if (e.pointerType === 'mouse') return; // mobile-only feel
+
+    const row = e.target.closest && e.target.closest('.track-row[data-song-url]');
+    if (!row) return;
+
+    // If pressing the 3-dots menu, do NOT start selection
+    if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
+      return;
+    }
+
+    lpTriggered = false;
+    dragActive = false;
+    dragSeen = new Set();
+
+    lpStartX = e.clientX;
+    lpStartY = e.clientY;
+
+    clearLongPress();
+
+    lpTimer = setTimeout(() => {
+      lpTriggered = true;
+
+      if (!window.__songSelect.enabled) setSongSelectEnabled(true);
+
+      // select this row immediately
+      toggleRowSelected(row);
+
+      // begin drag-paint selection right away
+      dragActive = true;
+      dragSeen.add(getSongUrlFromRow(row));
+
+      // prevent the normal tap-to-play after long press
+      try { e.preventDefault(); } catch (err) {}
+    }, LONGPRESS_MS);
+  }, { passive: false });
+
+  // 2) Cancel long-press if user scrolls/moves too far
+  document.addEventListener('pointermove', (e) => {
+    if (!isMobile()) return;
+    if (e.pointerType === 'mouse') return;
+
+    const dx = Math.abs(e.clientX - lpStartX);
+    const dy = Math.abs(e.clientY - lpStartY);
+
+    if (!lpTriggered && (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX)) {
+      clearLongPress();
+    }
+
+    // 3) Drag to select (“paint” selections) while in selection mode
+    if (window.__songSelect.enabled && dragActive) {
+      const row = findTrackRowFromPoint(e.clientX, e.clientY);
+      if (!row) return;
+
+      const u = getSongUrlFromRow(row);
+      if (!u) return;
+
+      // only add (don’t toggle off) while dragging
+      if (!dragSeen.has(u) && !window.__songSelect.urls.has(u)) {
+        window.__songSelect.urls.add(u);
+        applyRowSelectedState(row, true);
+        dragSeen.add(u);
+
+        try {
+          console.log("[Select] selected count:", window.__songSelect.urls.size);
+        } catch (err) {}
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('pointerup', () => {
+    clearLongPress();
+    dragActive = false;
+    dragSeen = new Set();
+  }, { passive: true });
+
+  document.addEventListener('pointercancel', () => {
+    clearLongPress();
+    dragActive = false;
+    dragSeen = new Set();
+  }, { passive: true });
+
+  // 4) When selection mode is ON, tapping a row toggles selection (and does NOT play)
+  document.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+
+    if (!window.__songSelect.enabled) return;
+
+    const row = e.target.closest && e.target.closest('.track-row[data-song-url]');
+    if (!row) return;
+
+    // allow the 3-dots menu to still work
+    if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    toggleRowSelected(row);
+  }, true);
+
+})();
 
         let activePlaylistIndex = null;
 
