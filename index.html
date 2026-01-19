@@ -7489,12 +7489,10 @@ return data.playlists;
     } catch (e) {
       console.warn("loadPlaylistsFromCloud failed:", e);
       window.cloudPlaylists = [];
-      return [];
+     return [];
     }
   };
-}
 
-// ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 // ✅ Load playlist items (tracks) from Cloudflare for a specific playlist
 
 
