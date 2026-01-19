@@ -10797,15 +10797,38 @@ async function playSpecificSong(url, title, album, artist, cover) {
   // Reset audio cleanly first (helps iOS)
   try { player.pause(); } catch (e) {}
   player.src = url;
-  player.load();
+    player.load();
+
+  // ✅ Crossfade (safe): fade-in the new track
+  const __crossfadeOn = (window.isFeatureOn && window.isFeatureOn('crossfade'));
+  if (__crossfadeOn) {
+    try { player.volume = 0; } catch (e) {}
+  }
 
   // Try to start playback immediately (user tapped a song)
+)
   let started = false;
   try {
     const p = player.play();
     if (p && typeof p.then === 'function') await p;
-    started = !player.paused;
-  } catch (err) {
+       started = !player.paused;
+
+    // ✅ Crossfade (safe): ramp volume up only if playback actually started
+    if (started && __crossfadeOn) {
+      try {
+        const ms = 350;
+        const stepMs = 25;
+        const steps = Math.max(1, Math.round(ms / stepMs));
+        let i = 0;
+        const t = setInterval(() => {
+          i++;
+          const v = Math.min(1, i / steps);
+          try { player.volume = v; } catch (e) {}
+          if (i >= steps) clearInterval(t);
+        }, stepMs);
+      } catch (e) {}
+    }
+
     console.warn('Playback did not start automatically:', err);
     started = false;
   }
@@ -10861,9 +10884,28 @@ if (window.innerWidth >= 1024) {
 
   updateHeartUI();
 
-  addToHistory(album, artist, cover);
+    addToHistory(album, artist, cover);
 
-    // Update the existing rows in-place (so the green row updates immediately)
+  // ✅ Stats: lightweight play log (local only)
+  try {
+    const key = "reson_play_events_v1";
+    const raw = localStorage.getItem(key);
+    const arr = raw ? (JSON.parse(raw) || []) : [];
+    arr.push({
+      ts: Date.now(),
+      title: titleClean,
+      artist: String(artist || ""),
+      album: String(albumFolder || ""),
+      url: String(url || ""),
+      started: !!started
+    });
+    // cap to last 500 so it never grows forever
+    while (arr.length > 500) arr.shift();
+    localStorage.setItem(key, JSON.stringify(arr));
+  } catch (e) {}
+
+  // Update the existing rows in-place (so the green row updates immediately)
+
   updateTrackListActiveState();
 
 
@@ -15617,6 +15659,13 @@ function nextSong() {
 
         player.pause();
         player.currentTime = 0;
+                // ✅ Autoplay: if enabled, build a new queue from current context instead of stopping
+        try {
+          if (window.isFeatureOn && window.isFeatureOn('autoplay')) {
+            if (typeof __tryAutoplayFromCurrent === 'function' && __tryAutoplayFromCurrent()) return;
+          }
+        } catch (e) {}
+
         setAllPlayIconsToPlay();
         return;
 
@@ -15653,7 +15702,16 @@ function nextSong() {
           if (__tryAutoplayFromCurrent()) return;
 
           player.pause();
-          player.currentTime = 0;
+                    // ✅ Autoplay: if enabled, build a new queue from current context instead of stopping
+          try {
+            if (window.isFeatureOn && window.isFeatureOn('autoplay')) {
+              if (typeof __tryAutoplayFromCurrent === 'function' && __tryAutoplayFromCurrent()) return;
+            }
+          } catch (e) {}
+
+          setAllPlayIconsToPlay();
+          return;
+
           setAllPlayIconsToPlay();
           return;
 
