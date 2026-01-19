@@ -3003,7 +3003,7 @@ body.qs-lock {
     </div>
   </div>
 
-  <!-- SUBVIEW: STATS (placeholder UI for now) -->
+    <!-- SUBVIEW: STATS (working) -->
   <div id="crate-stats" class="hidden pb-30 md:pb-0">
     <div class="flex items-center gap-3 mb-5">
       <button type="button"
@@ -3018,27 +3018,48 @@ body.qs-lock {
     <div class="bg-white/10 rounded-2xl p-4">
       <div class="text-sm text-white/70 mb-3">Time range</div>
       <div class="flex flex-wrap gap-2 mb-4">
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Week</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Month</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">6 mo</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Year</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">All time</button>
+        <button id="stats-range-week" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsRange('week')">Week</button>
+
+        <button id="stats-range-month" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsRange('month')">Month</button>
+
+        <button id="stats-range-6mo" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsRange('6mo')">6 mo</button>
+
+        <button id="stats-range-year" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsRange('year')">Year</button>
+
+        <button id="stats-range-all" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsRange('all')">All time</button>
       </div>
 
       <div class="text-sm text-white/70 mb-3">Group by</div>
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Artist</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Album</button>
-        <button type="button" class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold">Playlist</button>
+        <button id="stats-group-artist" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsGroupBy('artist')">Artist</button>
+
+        <button id="stats-group-album" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsGroupBy('album')">Album</button>
+
+        <button id="stats-group-playlist" type="button"
+          class="px-3 py-2 rounded-full bg-white/10 text-white text-sm font-extrabold"
+          onclick="setStatsGroupBy('playlist')">Playlist</button>
       </div>
 
-      <div class="mt-4 text-sm text-white/60">
-        Stats logic comes next — this screen is just the shell so we don’t break anything.
-      </div>
+      <div id="stats-results" class="mt-4"></div>
     </div>
   </div>
 
   <!-- SUBVIEW: FEATURES (placeholder UI for now) -->
+
   <div id="crate-features" class="hidden pb-30 md:pb-0">
     <div class="flex items-center gap-3 mb-5">
       <button type="button"
@@ -5011,8 +5032,14 @@ function openCrateSection(which) {
   // If user opens the editor, make sure it renders
   if (w === "crate") {
     try { initCrateUIOnce(); } catch (e) {}
-    try { renderCrate(); } catch (e) {}
+        try { renderCrate(); } catch (e) {}
   }
+
+  // If user opens stats, render it
+  if (w === "stats") {
+    try { renderCrateStats(); } catch (e) {}
+  }
+
 }
 
 function toggleFeatureFlag(key) {
@@ -16691,7 +16718,164 @@ try {
 })();
 
 
+/* -----------------------
+   STATS (reads reson_play_events_v1)
+------------------------ */
+
+const RESON_STATS_KEY = 'reson_play_events_v1';
+const RESON_STATS_UI_RANGE_KEY = 'reson_stats_ui_range_v1';
+const RESON_STATS_UI_GROUP_KEY = 'reson_stats_ui_group_v1';
+
+function getStatsUIRange() {
+  return String(localStorage.getItem(RESON_STATS_UI_RANGE_KEY) || 'week');
+}
+function getStatsUIGroup() {
+  return String(localStorage.getItem(RESON_STATS_UI_GROUP_KEY) || 'artist');
+}
+
+function setStatsRange(range) {
+  try { localStorage.setItem(RESON_STATS_UI_RANGE_KEY, String(range || 'week')); } catch (e) {}
+  renderCrateStats();
+}
+
+function setStatsGroupBy(group) {
+  try { localStorage.setItem(RESON_STATS_UI_GROUP_KEY, String(group || 'artist')); } catch (e) {}
+  renderCrateStats();
+}
+
+function readPlayEvents() {
+  try {
+    const raw = localStorage.getItem(RESON_STATS_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function rangeToSinceMs(range) {
+  const r = String(range || 'week');
+  const day = 24 * 60 * 60 * 1000;
+  if (r === 'week') return Date.now() - 7 * day;
+  if (r === 'month') return Date.now() - 30 * day;
+  if (r === '6mo') return Date.now() - 183 * day;
+  if (r === 'year') return Date.now() - 365 * day;
+  return 0; // all time
+}
+
+function setActiveChip(btn, isActive) {
+  if (!btn) return;
+  if (isActive) {
+    btn.classList.remove('bg-white/10');
+    btn.classList.add('bg-[var(--spotify-green)]', 'text-black');
+  } else {
+    btn.classList.add('bg-white/10', 'text-white');
+    btn.classList.remove('bg-[var(--spotify-green)]', 'text-black');
+  }
+}
+
+function updateStatsChips(range, group) {
+  setActiveChip(document.getElementById('stats-range-week'), range === 'week');
+  setActiveChip(document.getElementById('stats-range-month'), range === 'month');
+  setActiveChip(document.getElementById('stats-range-6mo'), range === '6mo');
+  setActiveChip(document.getElementById('stats-range-year'), range === 'year');
+  setActiveChip(document.getElementById('stats-range-all'), range === 'all');
+
+  setActiveChip(document.getElementById('stats-group-artist'), group === 'artist');
+  setActiveChip(document.getElementById('stats-group-album'), group === 'album');
+  setActiveChip(document.getElementById('stats-group-playlist'), group === 'playlist');
+}
+
+function getGroupKey(ev, group) {
+  const artist = String(ev?.artistName || '').trim();
+  const album = String(ev?.albumName || '').trim();
+  const playlist = String(ev?.playlistName || ev?.contextName || '').trim();
+
+  if (group === 'album') {
+    if (!artist && !album) return '(Unknown album)';
+    if (!artist) return album || '(Unknown album)';
+    if (!album) return artist;
+    return `${artist} — ${album}`;
+  }
+
+  if (group === 'playlist') {
+    return playlist || '(Unknown playlist)';
+  }
+
+  return artist || '(Unknown artist)';
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderCrateStats() {
+  const box = document.getElementById('stats-results');
+  if (!box) return;
+
+  const range = getStatsUIRange();
+  const group = getStatsUIGroup();
+
+  updateStatsChips(range, group);
+
+  const since = rangeToSinceMs(range);
+  const events = readPlayEvents().filter(ev => Number(ev?.ts || 0) >= since);
+
+  if (!events.length) {
+    box.innerHTML = `
+      <div class="text-sm text-white/60">
+        No play history yet for this range.
+        <div class="mt-1 text-xs text-white/40">Play a few songs, then come back here.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const counts = new Map();
+  for (const ev of events) {
+    const k = getGroupKey(ev, group);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+
+  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 25);
+
+  const totalPlays = events.length;
+  const distinct = sorted.length;
+
+  const rows = top.map(([name, plays], idx) => `
+    <div class="flex items-center justify-between gap-3 py-2 border-b border-white/10">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-7 text-right text-xs text-white/40">${idx + 1}</div>
+        <div class="min-w-0">
+          <div class="text-sm font-extrabold text-white truncate">${escapeHtml(name)}</div>
+        </div>
+      </div>
+      <div class="text-sm font-extrabold text-white/80">${plays}</div>
+    </div>
+  `).join("");
+
+  box.innerHTML = `
+    <div class="mb-3">
+      <div class="text-sm text-white/80">
+        <span class="font-extrabold">${totalPlays}</span> plays •
+        <span class="font-extrabold">${distinct}</span> ${escapeHtml(group)}${distinct === 1 ? '' : 's'}
+      </div>
+      <div class="text-xs text-white/40 mt-1">Top 25</div>
+    </div>
+    <div class="rounded-2xl bg-black/20 border border-white/10 overflow-hidden">
+      <div class="px-3">${rows}</div>
+    </div>
+  `;
+}
+
 </script>
+
   <!-- SYNC DEVICES MODAL -->
 
   <!-- SYNC DEVICES MODAL -->
