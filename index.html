@@ -3658,6 +3658,29 @@ let isShuffle = false;     // shuffle enabled flag
 
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
 
+// -----------------------
+// CRATE FEATURES (global flags)
+// -----------------------
+window.isFeatureOn = window.isFeatureOn || function(key){
+  const k = String(key || '').trim().toLowerCase();
+  if (!k) return false;
+  try { return localStorage.getItem('reson_feature_' + k) === '1'; } catch(e){ return false; }
+};
+
+window.setFeatureOn = window.setFeatureOn || function(key, on){
+  const k = String(key || '').trim().toLowerCase();
+  if (!k) return;
+  try { localStorage.setItem('reson_feature_' + k, on ? '1' : '0'); } catch(e){}
+};
+
+window.toggleFeatureFlag = window.toggleFeatureFlag || function(key){
+  const on = !window.isFeatureOn(key);
+  window.setFeatureOn(key, on);
+  try { console.log('[feature]', key, '=', on ? 'ON' : 'OFF'); } catch(e){}
+  return on;
+};
+
+
 
 // ---- PLAY CONTEXT (mobile "listening from") ----
 let playContext = null;
@@ -15585,10 +15608,14 @@ function nextSong() {
         shufflePos = 0;
         playedStack = [currentIndex];
       } else {
+                // ✅ Autoplay (if enabled) instead of stopping at end
+        if (__tryAutoplayFromCurrent()) return;
+
         player.pause();
         player.currentTime = 0;
         setAllPlayIconsToPlay();
         return;
+
       }
     }
 
@@ -15618,10 +15645,14 @@ function nextSong() {
         if (isRepeatAllOn()) {
           currentIndex = 0;
         } else {
+                    // ✅ Autoplay (if enabled) instead of stopping at end
+          if (__tryAutoplayFromCurrent()) return;
+
           player.pause();
           player.currentTime = 0;
           setAllPlayIconsToPlay();
           return;
+
         }
       } else {
         currentIndex = currentIndex + 1;
@@ -15666,8 +15697,67 @@ function normalizeSong(song, fallback = {}) {
   return { url, title, album, artist, cover };
 }
 
-/* ---------------------------------------------------------------------
-   PLAYLIST TRACK ID RESOLVER
+// ✅ Autoplay helper: build a “next up” pool from same artist
+function __buildAutoplayQueueFromCurrent() {
+  try {
+    if (!currentSong) return null;
+
+    const artist = String(currentSong.artist || "").trim();
+    if (!artist) return null;
+
+    if (!Array.isArray(libraryData)) return null;
+
+    const pool = [];
+
+    for (const a of libraryData) {
+      if (!a) continue;
+      if (String(a.artistName || "").trim() !== artist) continue;
+
+      const cover = getAlbumCover(a.artistName, a.albumName, a.coverArt);
+      const songs = Array.isArray(a.songs) ? a.songs : [];
+
+      for (const s of songs) {
+        const norm = normalizeSong(s, { album: a.albumName, artist: a.artistName, cover });
+        if (!norm) continue;
+        pool.push(norm);
+      }
+    }
+
+    if (!pool.length) return null;
+
+    // light shuffle so it doesn’t feel repetitive
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+
+    return pool;
+  } catch (e) {
+    return null;
+  }
+}
+
+function __tryAutoplayFromCurrent() {
+  try {
+    if (!window.isFeatureOn || !window.isFeatureOn('autoplay')) return false;
+
+    const q = __buildAutoplayQueueFromCurrent();
+    if (!q || !q.length) return false;
+
+    currentQueue = q;
+    currentIndex = 0;
+
+    const s = currentQueue[0];
+    isAutoNav = true;
+    playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+    isAutoNav = false;
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
    - Turns trackIds like "Artist/Album/Track.mp3" into full song objects
    - Prefers real metadata from libraryData when possible
 --------------------------------------------------------------------- */
