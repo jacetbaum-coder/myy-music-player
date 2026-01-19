@@ -688,9 +688,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  border: 2px solid rgba(255,255,255,0.35);
+  border: 2px solid rgba(255,255,255,0.42);
 
-  display: none;            /* hidden by default */
+  display: none;            /* only visible in selection mode */
   align-items: center;
   justify-content: center;
   pointer-events: none;     /* purely visual */
@@ -714,10 +714,10 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 /* Show bubbles + shift content right when selection mode is on */
 body.song-multiselect .track-row{
-  padding-left: 44px;       /* makes room for bubble */
+  padding-left: 52px;       /* a bit more so bubble is actually visible */
 }
 
-/* ✅ THIS is the missing/critical line */
+/* Show the bubble */
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
 }
@@ -726,6 +726,7 @@ body.song-multiselect .track-row .select-bubble{
 body.song-multiselect .track-row [data-role="index"]{
   opacity: 0;
 }
+
 
 
 .track-row > * {
@@ -770,9 +771,11 @@ body.song-multiselect .track-row [data-role="index"]{
    SWIPE LEFT (Add to queue) — Spotify-ish
 ------------------------ */
 .track-row {
+  position: relative;               /* ✅ required for .select-bubble (absolute) */
   overflow: hidden;                 /* lets the green underlay reveal cleanly */
   touch-action: pan-y;              /* allow vertical scroll unless we “take over” horizontally */
 }
+
 
 .track-row .swipe-underlay {
   position: absolute;
@@ -3532,8 +3535,22 @@ function getSongUrlFromRow(row){
 
 function applyRowSelectedState(row, on){
   if (!row) return;
+
+  // ✅ Ensure the bubble exists (some track rows were built without it)
+  let bub = row.querySelector('.select-bubble');
+  if (!bub) {
+    bub = document.createElement('span');
+    bub.className = 'select-bubble';
+    bub.setAttribute('aria-hidden', 'true');
+
+    // put bubble FIRST so it sits at the far-left
+    row.insertBefore(bub, row.firstChild);
+  }
+
+  // ✅ Apply visual state immediately
   row.classList.toggle('is-selected', !!on);
 }
+
 
 function syncRowSelectionFromSet(container){
   const root = container || document;
