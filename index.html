@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
 
 
     <title>Reson</title>f
@@ -722,28 +720,11 @@ body.song-multiselect .track-row .select-bubble{
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-
-  /* Bigger visible bubble */
-  width: 22px;
-  height: 22px;
-
-  /* ✅ Let the bubble receive taps */
-  pointer-events: auto;
+  pointer-events: none;          /* tap toggles the row, not the bubble itself */
 }
 
-/* Bigger invisible hitbox (so you can tap “near” it) */
-body.song-multiselect .track-row .select-bubble::before{
-  content: "";
-  position: absolute;
-  left: -14px;
-  top: -14px;
-  right: -14px;
-  bottom: -14px;
-  background: transparent;
-}
 
 .track-row > * {
-
     min-width: 0;
 }
 .track-row .track-title {
@@ -9307,15 +9288,16 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     syncRowSelectionFromSet(document);
     return;
   } else {
-    // ✅ Mobile: if selection mode is ON, taps should NOT run normal play.
-// Selection is handled by the pointerup handler (so it works with a larger tap range).
-if (window.__songSelect.enabled) {
-  e.preventDefault();
-  e.stopPropagation();
-  return;
-}
-
-// Otherwise: normal play
+    // ✅ Mobile: if selection mode is ON, taps toggle selection (no play)
+    if (window.__songSelect && window.__songSelect.enabled) {
+      const url = String(songUrl || '').trim();
+      if (!url) return;
+      if (window.__songSelect.urls.has(url)) window.__songSelect.urls.delete(url);
+      else window.__songSelect.urls.add(url);
+      applyRowSelectedState(row, window.__songSelect.urls.has(url));
+      return;
+    }
+  }
 
   // Otherwise: normal play (existing behavior)
   if (!songUrl) return;
@@ -9373,28 +9355,28 @@ if (isPlaylist) {
   } catch (e) {}
 
   if (!thumbSrc) {
-    // 1) use whatever the playlist item already has
-    thumbSrc = String(
-      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
-    ).trim();
+  // 1) use whatever the playlist item already has
+  thumbSrc = String(
+    (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
+  ).trim();
 
-    // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
-    if (!thumbSrc) {
-      try {
-        const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
-        if (key && window.tracksById && typeof window.tracksById.get === "function") {
-          const lib = window.tracksById.get(key);
-          if (lib) {
-            thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
-          }
+  // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
+  if (!thumbSrc) {
+    try {
+      const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
+      if (key && window.tracksById && typeof window.tracksById.get === "function") {
+        const lib = window.tracksById.get(key);
+        if (lib) {
+          thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
   }
 }
 
-const thumbMarkup = isPlaylist
+}
 
+const thumbMarkup = isPlaylist
   ? (thumbSrc
       ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
       : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -9454,21 +9436,18 @@ if (dots) {
 
     // keep your existing single-song menu logic:
     menuTargetSong = song;
-        showContextMenuAt(x, y, song, dots);
+    showContextMenuAt(x, y, song, dots);
   });
 }
 } catch (e) {}
 
 
-listEl.appendChild(row);
-  });
 
-  // ensure current track highlight is correct immediately after rendering
-  updateTrackListActiveState();
+    listEl.appendChild(row);
+    });
 }
 
 // ARTIST MENU + CROP (per-artist saved)
-
 
 // ✅ Worker base (matches the rest of your file)
 const ARTIST_API_BASE = "https://music-streamer.jacetbaum.workers.dev";
@@ -15694,39 +15673,40 @@ return;
 
     // ✅ Dots should open the menu (and NOT trigger row.onclick play)
     try {
-  const dots = row.querySelector('button.track-menu');
-  if (dots) {
+      const dots = row.querySelector('button.track-menu');
+            if (dots) {
 
-    // ✅ Mobile: prevent row/pointer handlers from immediately nuking the menu
-    dots.addEventListener('pointerdown', (e) => {
-      suppressContextMenuCloseUntil = Date.now() + 500;
-      suppressPlaylistMenuCloseUntil = Date.now() + 500;
-      e.stopPropagation();
-    });
+        // ✅ Mobile: stop row/pointer handlers from firing when tapping dots
+        dots.addEventListener('pointerdown', (e) => {
+          suppressContextMenuCloseUntil = Date.now() + 500;
+          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          e.stopPropagation();
+        });
 
-    // ✅ Mobile: prevent the global touchstart "outside click" closer from instantly closing the menu
-    dots.addEventListener('touchstart', (e) => {
-      suppressContextMenuCloseUntil = Date.now() + 500;
-      suppressPlaylistMenuCloseUntil = Date.now() + 500;
-      e.stopPropagation();
-    }, { passive: true });
+        dots.addEventListener('touchstart', (e) => {
+          suppressContextMenuCloseUntil = Date.now() + 500;
+          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          e.stopPropagation();
+        }, { passive: true });
 
-    dots.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+        dots.addEventListener('click', (e) => {
 
-      // open menu near the dots
-      const r = dots.getBoundingClientRect();
-      const x = (r.left + r.right) / 2;
-      const y = (r.top + r.bottom) / 2;
+          e.preventDefault();
+          e.stopPropagation();
 
-      // keep your existing single-song menu logic:
-      menuTargetSong = song;
-      showContextMenuAt(x, y, song, dots);
-    });
-  }
-} catch (e) {}
+          const r = dots.getBoundingClientRect();
+          const x = (r.left + r.right) / 2;
+          const y = (r.top + r.bottom) / 2;
 
+          showContextMenuAt(
+            x,
+            y,
+            { ...song, name: song.title, link: song.url, coverArt: song.cover },
+            dots
+          );
+        });
+      }
+    } catch (e) {}
 
     listEl.appendChild(row);
 
