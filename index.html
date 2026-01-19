@@ -7750,9 +7750,15 @@ safe(window.renderHistory);
     // ✅ Let the first paint happen, then refresh
     const run = () => {
       fetchLibraryFromNetwork().catch((error) => {
-        console.warn("Background refresh failed:", error);
-        // Keep cached UI; do not block user
-      });
+  // AbortError is normal when a refresh is canceled (new refresh, nav, background, etc.)
+  if (error && (error.name === "AbortError" || String(error).includes("AbortError"))) {
+    return;
+  }
+
+  console.warn("Background refresh failed:", error);
+  // Keep cached UI; do not block user
+});
+
     };
 
     if ('requestIdleCallback' in window) {
