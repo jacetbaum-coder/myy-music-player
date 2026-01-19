@@ -690,7 +690,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   border-radius: 999px;
   border: 2px solid rgba(255,255,255,0.35);
 
-  display: none;            /* only show in multi-select mode */
+  display: none;            /* hidden by default */
   align-items: center;
   justify-content: center;
   pointer-events: none;     /* purely visual */
@@ -717,10 +717,10 @@ body.song-multiselect .track-row{
   padding-left: 44px;       /* makes room for bubble */
 }
 
+/* ✅ THIS is the missing/critical line */
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
 }
-
 
 /* In selection mode, hide the left index/number so bubble owns that space */
 body.song-multiselect .track-row [data-role="index"]{
@@ -760,8 +760,6 @@ body.song-multiselect .track-row [data-role="index"]{
     color: white; 
     cursor: pointer; 
   }
-}
-
 
 .track-row.is-current,
 .track-row.active-track {
