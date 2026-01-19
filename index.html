@@ -1154,13 +1154,19 @@ body.song-multiselect .track-row .select-bubble{
   -webkit-backdrop-filter: blur(18px);
 
   border-radius: 18px 18px 0 0;
-  padding: 10px 12px 18px;
+  padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
   z-index: 2000;
+
+  /* ✅ don’t get clipped behind nav / allow scrolling */
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
   display: none;
   transform: translateY(100%);
   transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
 
 #context-menu .cm-handle{
   width: 44px;
@@ -1241,23 +1247,64 @@ body.song-multiselect .track-row .select-bubble{
   background: rgba(255,255,255,0.10);
 }
 
-#context-menu .submenu{
+/* ✅ MOBILE: playlist submenu becomes its own overlay panel */
+#playlist-submenu{
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 680px;
+
+  background: rgba(22,22,22,0.96);
+  border-radius: 18px 18px 0 0;
+
+  padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
+  z-index: 2100;
+
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* hidden by default */
   display: none;
-  margin: 6px 6px 0;
-  padding: 6px;
-  background: rgba(0,0,0,0.25);
-  border-radius: 14px;
+  transform: translateY(12px);
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
 }
 
-#context-menu .submenu.open{
+#playlist-submenu.open{
   display: block;
+  transform: translateY(0);
+  opacity: 1;
 }
 
-#context-menu .submenu .menu-item{
-  padding: 14px 12px;
-  font-size: 16px;
-  border-radius: 12px;
+/* header row injected by JS */
+#playlist-submenu .cm-submenu-header{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 12px;
 }
+
+#playlist-submenu .cm-back{
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(255,255,255,0.10);
+  user-select: none;
+}
+
+#playlist-submenu .cm-submenu-title{
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+
 /* ===== QUEUE TOAST (mobile) ===== */
 #queue-toast{
   position: fixed;
@@ -12273,75 +12320,67 @@ window.__outsideDismissSkipUntil = Date.now() + 450;
 }
 
 /* ✅ iOS menu “slide to choose”: highlight on move, fire on lift */
-(function bindContextMenuTouchPick() {
-  if (window.__cmTouchPickBound) return;
-  window.__cmTouchPickBound = true;
+/* ✅ Mobile: swipe down on the handle to dismiss */
+(function bindContextMenuSwipeDismiss(){
+  if (window.__cmSwipeDismissBound) return;
+  window.__cmSwipeDismissBound = true;
 
   const menu = document.getElementById('context-menu');
   if (!menu) return;
 
-  let armedEl = null;
-
-  function clearArmed() {
-    try { if (armedEl) armedEl.classList.remove('cm-armed'); } catch (e) {}
-    armedEl = null;
+  function getHandle(){
+    return menu.querySelector('.cm-handle') || null;
   }
 
-  function arm(el) {
-    if (!el || el === armedEl) return;
-    clearArmed();
-    armedEl = el;
-    try { armedEl.classList.add('cm-armed'); } catch (e) {}
+  let startY = 0;
+  let dragging = false;
+  let dy = 0;
+
+  function onStart(e){
+    if (window.innerWidth > 768) return;
+    const h = getHandle();
+    if (!h) return;
+
+    // only start if touch begins on the handle
+    if (!e.target || !e.target.closest || !e.target.closest('.cm-handle')) return;
+
+    dragging = true;
+    dy = 0;
+    startY = (e.touches && e.touches[0]) ? e.touches[0].clientY : 0;
+
+    try { menu.style.transition = 'none'; } catch (err) {}
   }
 
-  function pickFromPoint(touch) {
-    if (!touch) return null;
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (!el) return null;
+  function onMove(e){
+    if (!dragging) return;
+    const y = (e.touches && e.touches[0]) ? e.touches[0].clientY : startY;
+    dy = Math.max(0, y - startY);
 
-    // only real menu rows
-    const item = el.closest ? el.closest('#context-menu .menu-item') : null;
-    if (!item) return null;
+    // drag the sheet down
+    menu.style.transform = `translateY(${dy}px)`;
 
-    // ignore submenu container itself; only its rows are ok
-    return item;
+    try { e.preventDefault(); } catch (err) {}
   }
 
-  // IMPORTANT: passive:false so preventDefault works (blocks “instant click”)
-  menu.addEventListener('touchstart', (e) => {
-    if (window.innerWidth > 768) return;
-    const t = e.touches && e.touches[0];
-    const item = pickFromPoint(t);
-    if (!item) return;
-    arm(item);
-    try { e.preventDefault(); } catch (err) {}
-  }, { passive: false });
+  function onEnd(){
+    if (!dragging) return;
+    dragging = false;
 
-  menu.addEventListener('touchmove', (e) => {
-    if (window.innerWidth > 768) return;
-    const t = e.touches && e.touches[0];
-    const item = pickFromPoint(t);
-    if (item) arm(item);
-    try { e.preventDefault(); } catch (err) {}
-  }, { passive: false });
+    // threshold to close
+    if (dy > 80) {
+      closeContextMenu();
+      return;
+    }
 
-  menu.addEventListener('touchend', (e) => {
-    if (window.innerWidth > 768) return;
+    // snap back
+    menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    menu.style.transform = 'translateY(0)';
+  }
 
-    // If nothing armed, do nothing
-    if (!armedEl) return;
-
-    // Fire only on lift, using your existing onclick logic
-    const toClick = armedEl;
-    clearArmed();
-    try { e.preventDefault(); } catch (err) {}
-
-    try { toClick.click(); } catch (err) {}
-  }, { passive: false });
-
-  menu.addEventListener('touchcancel', () => {
-    clearArmed();
-  }, { passive: true });
+  menu.addEventListener('touchstart', onStart, { passive: true });
+  menu.addEventListener('touchmove', onMove, { passive: false });
+  menu.addEventListener('touchend', onEnd, { passive: true });
+  menu.addEventListener('touchcancel', onEnd, { passive: true });
 })();
 
 function handleContextMenu(e, song){
@@ -12379,7 +12418,7 @@ function handleContextMenu(e, song){
 
 
 
-                function attachSongPressHandlers_OLD(row, song, state) {
+ function attachSongPressHandlers_OLD(row, song, state) {
 
   if (!row) return;
 
