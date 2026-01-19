@@ -681,7 +681,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 /* Selection bubble (mobile multi-select) */
 .track-row .select-bubble{
   position: absolute;
-  left: 14px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
 
@@ -693,7 +693,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   display: none;            /* only show in multi-select mode */
   align-items: center;
   justify-content: center;
-  pointer-events: none;     /* bubble is purely visual */
+  pointer-events: none;     /* purely visual */
 }
 
 .track-row .select-bubble::after{
@@ -714,12 +714,13 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 
 /* Show bubbles + shift content right when selection mode is on */
 body.song-multiselect .track-row{
-  padding-left: 44px;       /* makes space for the bubble */
+  padding-left: 44px;       /* makes room for bubble */
 }
 
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
 }
+
 
 /* In selection mode, hide the left index/number so bubble owns that space */
 body.song-multiselect .track-row [data-role="index"]{
@@ -752,11 +753,15 @@ body.song-multiselect .track-row [data-role="index"]{
     letter-spacing: 2px;
 }
 
-        .track-row:hover { 
-            background: rgba(255,255,255,0.1); 
-            color: white; 
-            cursor: pointer; 
-        }
+        /* ✅ Only apply hover styling on real hover devices (prevents iOS sticky hover) */
+@media (hover: hover) and (pointer: fine) {
+  .track-row:hover { 
+    background: rgba(255,255,255,0.1); 
+    color: white; 
+    cursor: pointer; 
+  }
+}
+
 
 .track-row.is-current,
 .track-row.active-track {
