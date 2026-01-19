@@ -1159,7 +1159,7 @@ body.song-multiselect .track-row .select-bubble{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 70px;
+  bottom: calc(110px + env(safe-area-inset-bottom));
   margin: 0 auto;
   max-width: 680px;
 
@@ -1266,7 +1266,7 @@ body.song-multiselect .track-row .select-bubble{
   position: fixed;
   left: 12px;
   right: 12px;
-    bottom: 70px;
+  bottom: calc(110px + env(safe-area-inset-bottom));
   margin: 0 auto;
   max-width: 680px;
 
@@ -3448,6 +3448,87 @@ window.onNavTap = window.onNavTap || function(viewType){
 let suppressContextMenuCloseUntil = 0;
 let suppressPlaylistMenuCloseUntil = 0;
 
+// ✅ iOS-style drag-down-to-close for the context menu sheet
+(function initContextMenuDragToClose(){
+  if (window.__cmDragInit) return;
+  window.__cmDragInit = true;
+
+  function isMobile(){ return window.innerWidth <= 768; }
+  function getMenu(){ return document.getElementById('context-menu'); }
+  function getBackdrop(){ return document.getElementById('context-menu-backdrop'); }
+
+  function closeSheet(){
+    try { closeContextMenu(); } catch (e) {
+      // fallback close if closeContextMenu isn't in scope for any reason
+      const m = getMenu(), b = getBackdrop();
+      if (b) b.style.opacity = '0';
+      if (m) {
+        m.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        m.style.transform = 'translateY(100%)';
+        setTimeout(() => { try { m.style.display = 'none'; } catch(_){} }, 210);
+      }
+      setTimeout(() => { try { if (b) b.style.display = 'none'; } catch(_){} }, 210);
+    }
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!isMobile()) return;
+
+    const menu = getMenu();
+    if (!menu || menu.style.display !== 'block') return;
+
+    const handle = e.target && e.target.closest ? e.target.closest('#context-menu .cm-handle') : null;
+    if (!handle) return;
+
+    let startY = e.clientY;
+    let dy = 0;
+
+    const backdrop = getBackdrop();
+
+    menu.classList.add('cm-dragging');
+    menu.style.transition = 'none';
+
+    try { menu.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(ev){
+      dy = Math.max(0, ev.clientY - startY);
+      // follow finger
+      menu.style.transform = `translateY(${dy}px)`;
+      // fade backdrop a bit as you pull down
+      if (backdrop) {
+        const t = Math.min(1, dy / 220);
+        backdrop.style.opacity = String(1 - (t * 0.55));
+      }
+      ev.preventDefault();
+    }
+
+    function onUp(ev){
+      try { menu.releasePointerCapture(e.pointerId); } catch (_) {}
+
+      menu.classList.remove('cm-dragging');
+
+      // if pulled far enough -> close
+      if (dy > 90) {
+        closeSheet();
+      } else {
+        // snap back open
+        menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        menu.style.transform = 'translateY(0)';
+        if (backdrop) backdrop.style.opacity = '1';
+      }
+
+      menu.removeEventListener('pointermove', onMove);
+      menu.removeEventListener('pointerup', onUp);
+      menu.removeEventListener('pointercancel', onUp);
+      menu.removeEventListener('pointerleave', onUp);
+    }
+
+    menu.addEventListener('pointermove', onMove, { passive: false });
+    menu.addEventListener('pointerup', onUp, { passive: true });
+    menu.addEventListener('pointercancel', onUp, { passive: true });
+    menu.addEventListener('pointerleave', onUp, { passive: true });
+  }, { passive: false });
+})();
 
 // -----------------------
 // SONG MULTI-SELECT (desktop + mobile)
@@ -15515,13 +15596,13 @@ if (hero && activePlaylistId) {
           return;
         }
 
-        // Plain grey click = single select
-        setSongSelectEnabled(true);
-        window.__songSelect.urls.clear();
-        window.__songSelect.urls.add(url);
-        window.__songSelect.lastIndex = idx;
-        syncRowSelectionFromSet(document);
-        return;
+        // ✅ Selection mode: DO NOT single-select (no clearing).
+// The global pointer/touch handlers manage multi-select.
+// Here we ONLY block tap-to-play while in selection mode.
+try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
+try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
+return;
+
       }
 
       // Default: play (mobile tap)
