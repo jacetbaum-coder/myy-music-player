@@ -8743,7 +8743,8 @@ function renderGrid(data) {
        data-no-swipe-back="1">
 
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover" loading="lazy" decoding="async" fetchpriority="low">
+          <img src="${cover}" class="w-full h-full object-cover" loading="eager" decoding="sync" fetchpriority="high">
+
 
         </div>
 
@@ -9065,6 +9066,21 @@ function renderLibraryAll() {
 
 function renderLibraryMain() {
   initMobileLibraryTabsOnce();
+
+  // ✅ If Library hasn't changed, do NOT rebuild the DOM (prevents cover "pop-in" reload)
+  try {
+    const key =
+      String(libraryTopTab || '') + '|' +
+      String(Array.isArray(libraryData) ? libraryData.length : 0) + '|' +
+      String(Array.isArray(playlists) ? playlists.length : 0) + '|' +
+      String(Array.isArray(allSongs) ? allSongs.length : 0);
+
+    if (window.__libraryRenderKey === key) {
+      return; // keep existing grid/images in place
+    }
+    window.__libraryRenderKey = key;
+  } catch (e) {}
+
 
   // ✅ For every tab EXCEPT "All": force alphabetical behavior
   window.__librarySortModeOverride = (libraryTopTab === 'all') ? null : 'Alphabetical by artist';
