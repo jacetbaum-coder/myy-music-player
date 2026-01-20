@@ -13280,19 +13280,22 @@ function initResizers() {
       if (!contextMenu.contains(e.target)) closeContextMenu();
     });
 
-    document.addEventListener('touchstart', (e) => {
-  if (window.innerWidth > 768) return;
+    if (window.innerWidth > 768) return;
 
-  // ✅ If the user is tapping a track's "•••" button, don't treat it as an outside tap.
-  // (Otherwise the menu closes before it even opens on iOS.)
-  if (
-  e.target &&
-  e.target.closest &&
-  (
-    e.target.closest('button.track-menu') ||
-    e.target.closest('#np-more')
-  )
-) return;
+// ✅ If we JUST opened a menu (or just tapped a button that opens it), ignore this touch
+if (Date.now() < (window.__outsideDismissSkipUntil || 0)) return;
+
+// ✅ If the user is tapping the Now Playing "•••" button, don't treat it as an outside tap.
+// (Use contains() so taps on the inner <i> always count.)
+try {
+  const npMore = document.getElementById('np-more');
+  if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
+} catch (e) {}
+
+// ✅ If the user is tapping a track row "•••" button, don't treat it as an outside tap.
+if (e.target && e.target.closest && e.target.closest('button.track-menu')) return;
+
+// ✅ If we JUST opened a menu, ignore this touch
 
 
   // ✅ If we JUST opened a menu, ignore this touch
