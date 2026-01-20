@@ -10747,12 +10747,25 @@ function handleSearch(query) {
             });
 
             const iconWrap = document.createElement('div');
-            iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center';
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-list-ul text-zinc-400';
-            iconWrap.appendChild(icon);
+iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 overflow-hidden flex items-center justify-center';
 
-            const info = document.createElement('div');
+const realPl = playlists.find(p => p.id === playlist.id) || playlist;
+const cover = (typeof getEffectivePlaylistCover === 'function') ? (getEffectivePlaylistCover(realPl) || '') : '';
+
+if (cover) {
+  const img = document.createElement('img');
+  img.src = cover;
+  img.alt = '';
+  img.className = 'w-full h-full object-cover';
+  iconWrap.appendChild(img);
+} else {
+  const icon = document.createElement('i');
+  icon.className = 'fas fa-list-ul text-zinc-400';
+  iconWrap.appendChild(icon);
+}
+
+const info = document.createElement('div');
+
             info.className = 'flex-1 overflow-hidden';
 
             const title = document.createElement('div');
@@ -14001,15 +14014,30 @@ const dataAttrs =
   : (item.type === 'artist') ? `data-type="artist" data-artist="${safeArtist}"`
   : `data-type="album" data-album="${safeAlbum}"`;
 
-            return `
-              <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
-                <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
-                  <img src="${item.cover || ''}" class="w-full h-full object-cover" alt="">
-                </div>
-                <div class="mt-3 font-extrabold text-white truncate">${title}</div>
-                <div class="text-sm text-zinc-400 truncate">${sub}</div>
-              </div>
-            `;
+            let coverUrl = item.cover || '';
+if (item.type === 'playlist') {
+  const pl2 = playlists.find(pl => String(pl.id) === String(item.id));
+  if (pl2 && typeof getEffectivePlaylistCover === 'function') {
+    coverUrl = getEffectivePlaylistCover(pl2) || coverUrl;
+  }
+}
+
+return `
+  <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
+    <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
+      ${
+        coverUrl
+          ? `<img src="${coverUrl}" class="w-full h-full object-cover" alt="">`
+          : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
+               <i class="fas fa-music text-3xl text-zinc-500"></i>
+             </div>`
+      }
+    </div>
+    <div class="mt-3 font-extrabold text-white truncate">${title}</div>
+    <div class="text-sm text-zinc-400 truncate">${sub}</div>
+  </div>
+`;
+
                     }).join('');
 
           Array.from(row.querySelectorAll('.recents-row-card')).forEach((card) => {
