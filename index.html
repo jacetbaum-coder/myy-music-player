@@ -14483,10 +14483,10 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
   }
 
   // ✅ Build from song covers (this is what enables the 2x2 grid reliably)
-  const songs =
-    (Array.isArray(pl?.songs) && pl.songs.length)
-      ? pl.songs
-      : resolveTrackIdsToSongs(Array.isArray(pl?.trackIds) ? pl.trackIds : []);
+  const songs = resolveTrackIdsToSongs(
+  Array.isArray(pl?.trackIds) ? pl.trackIds : []
+);
+
 
   // ✅ Build cover list from songs, but prefer UNIQUE non-empty covers (in order)
   const covers = [];
