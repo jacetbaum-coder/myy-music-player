@@ -9300,12 +9300,19 @@ function renderLibraryAll() {
   pls.forEach((pl, idx) => {
     const name = String(pl?.name || pl?.title || "Untitled Playlist");
     const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
+        const cover =
+      (typeof getEffectivePlaylistCover === "function")
+        ? String(getEffectivePlaylistCover(pl) || "").trim()
+        : String(pl?.cover || pl?.autoCover || "").trim();
+
     items.push({
       kind: "playlist",
       key: idOrIdx,
       title: name,
-      sub: "Playlist"
+      sub: "Playlist",
+      cover: cover
     });
+
   });
 
   // 2) Albums
@@ -9345,9 +9352,10 @@ function renderLibraryAll() {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-    const coverHtml = (it.kind === "album" && it.cover)
+        const coverHtml = (it.cover)
       ? `<img src="${it.cover}" class="w-full h-full object-cover">`
       : `<i class="fas fa-music text-white/50 text-3xl"></i>`;
+
 
     return `
       <div class="album-card p-4"
@@ -10610,13 +10618,25 @@ function handleSearch(query) {
           });
             
  const playlistMatches = (Array.isArray(playlists) ? playlists : [])
-            .map(pl => {
-              const score = fuzzyScore(q, pl.name || '');
-              return score >= 55
-                ? { type: 'playlist', id: pl.id, name: pl.name || 'Playlist', _score: score }
-                : null;
-            })
-            .filter(Boolean);
+  .map(pl => {
+    const score = fuzzyScore(q, pl.name || '');
+    if (score < 55) return null;
+
+    // ✅ include cover so the row renderer can show an image
+    const cover = (typeof getEffectivePlaylistCover === 'function')
+      ? String(getEffectivePlaylistCover(pl) || '').trim()
+      : (pl && pl.cover ? String(pl.cover).trim() : '');
+
+    return {
+      type: 'playlist',
+      id: pl.id,
+      name: pl.name || 'Playlist',
+      cover,
+      _score: score
+    };
+  })
+  .filter(Boolean);
+
 
           const albumResults = [...albumMatches.values()];
           const artistResults = [...artistMatches.values()];
@@ -10686,7 +10706,12 @@ function handleSearch(query) {
             });
 
             const img = document.createElement('img');
-            img.src = album.cover || '';
+            const cover = (typeof getAlbumCover === 'function')
+  ? getAlbumCover(album.artist || '', album.album || '', album.cover || album.coverArt || '')
+  : (album.cover || album.coverArt || '');
+
+img.src = cover || '';
+
             img.className = 'w-12 h-12 rounded object-cover';
 
             const info = document.createElement('div');
@@ -10747,11 +10772,9 @@ function handleSearch(query) {
             });
 
             const iconWrap = document.createElement('div');
-iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 overflow-hidden flex items-center justify-center';
+iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
 
-const realPl = playlists.find(p => p.id === playlist.id) || playlist;
-const cover = (typeof getEffectivePlaylistCover === 'function') ? (getEffectivePlaylistCover(realPl) || '') : '';
-
+const cover = String(playlist.cover || '').trim();
 if (cover) {
   const img = document.createElement('img');
   img.src = cover;
@@ -10763,6 +10786,7 @@ if (cover) {
   icon.className = 'fas fa-list-ul text-zinc-400';
   iconWrap.appendChild(icon);
 }
+
 
 const info = document.createElement('div');
 
