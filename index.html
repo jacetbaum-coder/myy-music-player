@@ -9798,6 +9798,7 @@ const displayArtist = String(
 
 let thumbSrc = "";
 if (isPlaylist) {
+  // 0) best: let your helper compute it (it already knows playlist edge cases)
   try {
     if (typeof getSongCoverFromPlaylistSong === "function") {
       thumbSrc = String(getSongCoverFromPlaylistSong(song) || "").trim();
@@ -9807,7 +9808,14 @@ if (isPlaylist) {
   if (!thumbSrc) {
     // 1) use whatever the playlist item already has
     thumbSrc = String(
-      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.cover_url || song.cover_art)) || ""
+      (song && (
+        song.coverUrl ||
+        song.coverURL ||
+        song.cover_url ||
+        song.cover ||
+        song.coverArt ||
+        song.cover_art
+      )) || ""
     ).trim();
 
     // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
