@@ -13285,7 +13285,15 @@ function initResizers() {
 
   // ✅ If the user is tapping a track's "•••" button, don't treat it as an outside tap.
   // (Otherwise the menu closes before it even opens on iOS.)
-  if (e.target && e.target.closest && e.target.closest('button.track-menu')) return;
+  if (
+  e.target &&
+  e.target.closest &&
+  (
+    e.target.closest('button.track-menu') ||
+    e.target.closest('#np-more')
+  )
+) return;
+
 
   // ✅ If we JUST opened a menu, ignore this touch
   if (Date.now() < suppressContextMenuCloseUntil) return;
