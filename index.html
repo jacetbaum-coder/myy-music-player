@@ -9588,6 +9588,16 @@ pushNavCurrent();
 
        const songUrl = song.url || song.link;
 
+// ✅ set row metadata immediately (so console + selection logic can find rows without a click)
+try{
+  if (songUrl) row.setAttribute('data-song-url', String(songUrl));
+  row.setAttribute('data-song-index', String(i));
+  if (song && (song.trackId || song.id || song.r2Path)) {
+    row.setAttribute('data-track-id', String(song.trackId || song.id || song.r2Path));
+  }
+}catch(err){}
+
+
 // ✅ Title cleanup (display): normalize weird formats like
 // "Artist - Track", "Artist/Track", and remove file extensions
 let songTitle = song.title || song.name || "";
@@ -9635,15 +9645,6 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     return;
   }
 
-  // mark row with url + index so selection can work
-  try{
-    if (songUrl) row.setAttribute('data-song-url', String(songUrl));
-    row.setAttribute('data-song-index', String(i));
-    // helpful for playlist removal when url is a worker link
-    if (song && (song.trackId || song.id || song.r2Path)) {
-      row.setAttribute('data-track-id', String(song.trackId || song.id || song.r2Path));
-    }
-    }catch(err){}
 
     // isDesktop already defined above
 
@@ -9856,7 +9857,8 @@ if (isPlaylist) {
 
 const thumbMarkup = isPlaylist
   ? (thumbSrc
-      ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
+      ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.outerHTML=\`<div class='w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0'><i class='fas fa-music text-white/40 text-xs'></i></div>\`;">`
+
       : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
            <i class="fas fa-music text-white/40 text-xs"></i>
          </div>`
