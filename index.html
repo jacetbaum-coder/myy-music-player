@@ -9805,40 +9805,45 @@ if (isPlaylist) {
   } catch (e) {}
 
   if (!thumbSrc) {
-  // 1) use whatever the playlist item already has
-  thumbSrc = String(
-    (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.coverUrl)) || ""
-  ).trim();
+    // 1) use whatever the playlist item already has
+    thumbSrc = String(
+      (song && (song.coverUrl || song.coverURL || song.cover || song.coverArt || song.cover_url || song.cover_art)) || ""
+    ).trim();
 
     // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
-  if (!thumbSrc) {
-    try {
-      const key = String((song && (song.trackId || song.id || song.r2Path)) || "").trim();
+    if (!thumbSrc) {
+      try {
+        const key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
 
-      // 2a) tracksById map
-      if (key && window.tracksById && typeof window.tracksById.get === "function") {
-        const lib = window.tracksById.get(key);
-        if (lib) {
-          thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+        // 2a) tracksById map
+        if (key && window.tracksById && typeof window.tracksById.get === "function") {
+          const lib = window.tracksById.get(key);
+          if (lib) {
+            thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+          }
         }
-      }
 
-// 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
-if (!thumbSrc && key.includes("/")) {
-  const parts = key.split("/");
-  if (parts.length >= 3) {
-    const artist = parts[0];
-    const album = parts[1];
+        // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
+        if (!thumbSrc && key.includes("/")) {
+          const parts = key.split("/").filter(Boolean);
+          if (parts.length >= 3) {
+            const artist = parts[0];
+            const album = parts[1];
 
-    if (typeof getAlbumCover === "function") {
-      thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
-    } else {
-      const base = String(window.WORKER_ORIGIN || location.origin);
-      const coverPath = `${artist}/${album}/cover.jpg`;
-      thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
+            if (typeof getAlbumCover === "function") {
+              thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
+            } else {
+              const base = String(window.WORKER_ORIGIN || location.origin);
+              const coverPath = `${artist}/${album}/cover.jpg`;
+              thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
+            }
+          }
+        }
+      } catch (e) {}
     }
   }
 }
+
 
 
 const thumbMarkup = isPlaylist
