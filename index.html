@@ -11445,7 +11445,52 @@ function openNowPlaying() {
   });
 }
 
+// ✅ Now Playing top 3-dots should open the SAME context menu as tracklist dots
+(function bindNowPlayingDotsMenu(){
+  if (window.__npDotsMenuBound) return;
+  window.__npDotsMenuBound = true;
+
+  function getDotsBtn(){
+    return (
+      document.getElementById('np-more') ||
+      document.querySelector('#now-playing-overlay button#np-more') ||
+      document.querySelector('#now-playing-overlay button[aria-label="More options"]') ||
+      document.querySelector('#now-playing-overlay button[aria-label="More"]')
+    );
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = getDotsBtn();
+    if (!btn) return;
+    if (e.target !== btn && !(e.target && e.target.closest && e.target.closest('#' + btn.id))) {
+      // also allow clicking an icon inside the button
+      if (!(btn.contains && btn.contains(e.target))) return;
+    }
+
+    try { e.preventDefault(); } catch (err) {}
+    try { e.stopPropagation(); } catch (err) {}
+
+    // If nothing is playing, do nothing
+    const song = (window.currentSong || currentSong);
+    if (!song) return;
+
+    const r = btn.getBoundingClientRect();
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
+
+    // Make sure menu has url/link if available
+    const songForMenu = {
+      ...song,
+      url: song.url || song.link || songForMenu?.url,
+      link: song.link || song.url || songForMenu?.link
+    };
+
+    showContextMenuAt(x, y, songForMenu, btn);
+  }, true);
+})();
+
 // --- QUEUE SHEET: swipe down to dismiss (same feel as Now Playing) ---
+
 function initQueueSheetSwipe() {
   const sheet = document.getElementById('queue-sheet');
   if (!sheet) return;
