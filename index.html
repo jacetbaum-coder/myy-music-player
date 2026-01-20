@@ -7648,8 +7648,7 @@ safe(window.renderHistory);
 
 
   // Auto covers helper exists in some versions; keep it optional
-  try { if (typeof ensureAllPlaylistAutoCovers === 'function') await ensureAllPlaylistAutoCovers(); } catch (e) {}
-
+  
   safe(window.renderPlaylists);
 
   // Library controls/search helpers (optional safety)
@@ -14617,7 +14616,8 @@ async function updatePlaylistAutoCoverById(playlistId) {
   // If user has a manual cover, we do NOT overwrite it.
   if (getPlaylistManualCover(pl)) {
     pl.autoCoverSig = playlistAutoCoverSignature(pl); // still track sig
-    savePlaylists();
+    savePlaylists(); // persist autoCover + autoCoverSig exactly once
+
     return;
   }
 
@@ -14672,14 +14672,6 @@ pl.autoCoverSig = sig;
   savePlaylists();
 }
 
-async function ensureAllPlaylistAutoCovers() {
-  // Run once at startup to fix existing playlists
-  if (!Array.isArray(playlists)) return;
-  for (const pl of playlists) {
-    if (!pl?.id) continue;
-    await updatePlaylistAutoCoverById(pl.id);
-  }
-}
 
 // Menu plumbing
 let playlistMenuTargetId = null;
