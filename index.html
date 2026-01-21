@@ -7754,7 +7754,7 @@ safe(window.renderHistory);
           const id = String(s?.id || s?.r2Path || "").trim();
           if (!id) return;
 
-          const track = {
+                    const track = {
             ...s,
             id,
             r2Path: id,
@@ -7762,8 +7762,11 @@ safe(window.renderHistory);
             name: s?.name || s?.title || id.split("/").pop() || id,
             artistName: s?.artistName || album?.artistName || "",
             albumName: s?.albumName || album?.albumName || "",
+            cover: s?.cover || album?.coverArt || album?.fallbackArt || "",
             link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
             url: s?.url || s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`
+          };
+ponent(id)}`
           };
 
           window.tracksById.set(id, track);
@@ -12316,10 +12319,21 @@ function restorePlayerStateIfRecent() {
   }
 
 
-  currentSong = state.song;
+    currentSong = state.song;
+
+  // ✅ Ensure cover is always present (playlist/queue/search restore safety)
+  try {
+    if (currentSong && !currentSong.cover && window.tracksById && currentSong.url) {
+      const u = new URL(currentSong.url, window.location.origin);
+      const id = String(u.searchParams.get("id") || "").trim();
+      const hit = id ? window.tracksById.get(id) : null;
+      if (hit && hit.cover) currentSong.cover = hit.cover;
+    }
+  } catch (e) {}
 
   // Restore audio source + time (do NOT autoplay)
   player.src = currentSong.url;
+
   player.currentTime = Number(state.currentTime || 0);
 
     updateMediaSessionMetadata();
