@@ -13277,10 +13277,12 @@ function initResizers() {
       if (Date.now() < suppressContextMenuCloseUntil) return;
       if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
-      if (!contextMenu.contains(e.target)) closeContextMenu();
+            if (!contextMenu.contains(e.target)) closeContextMenu();
     });
 
-    if (window.innerWidth > 768) return;
+    document.addEventListener('touchstart', (e) => {
+      if (window.innerWidth > 768) return;
+
 
 // ✅ If we JUST opened a menu (or just tapped a button that opens it), ignore this touch
 if (Date.now() < (window.__outsideDismissSkipUntil || 0)) return;
