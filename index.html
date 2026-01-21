@@ -1874,10 +1874,19 @@ body.qs-lock{
   }
 
 
-    .track-row {
-    grid-template-columns: 1fr 36px;
-    padding: 18px 4px;
-  }
+        .track-row {
+      /* 6 children: bubble | index | (cover+text) | album | time | menu */
+      /* On mobile we collapse index/album/time columns to 0 so cover+text can breathe */
+      grid-template-columns: 0px 0px 1fr 0px 0px 36px;
+      padding: 18px 4px;
+      align-items: center;
+    }
+
+    /* Never allow thumbs to be hidden by mobile rules */
+    .track-row img {
+      display: block !important;
+    }
+
 
   /* Mobile select mode: smaller gutter so text isn't pushed way right */
   body.song-multiselect .track-row{
@@ -4699,18 +4708,17 @@ function makeUserId() {
 function readUserIdFromUrl() {
   try {
     const sp = new URLSearchParams(window.location.search || "");
-        return (
+    return (
       sp.get("userId") ||
       sp.get("uid") ||
       sp.get("sync") ||
       ""
     );
-
-
   } catch (e) {
     return "";
   }
 }
+
 
 function normalizeUserId(id) {
   return String(id || "").trim();
