@@ -16354,27 +16354,26 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       const parts = key.split("/");
 
 const artist = parts[0] ? parts[0] : "Unknown Artist";
-const album = parts[1] ? parts[1] : "Unknown Album";
-const file = parts[2] ? parts[2] : key;
-const title = String(file).replace(/\.mp3$/i, "");
+      const album = parts[1] ? parts[1] : "Unknown Album";
+      const file = parts[2] ? parts[2] : key;
+      const title = String(file).replace(/\.mp3$/i, "");
 
-// ✅ Give playlist fallback tracks a real album-cover URL
-const coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(`${artist}/${album}/cover.jpg`)}`;
+      // ✅ Give playlist fallback tracks a real album-cover URL
+      const coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(`${artist}/${album}/cover.jpg`)}`;
 
-return {
-  id: key,
-  key: key,
-  r2_key: key,
-  track_id: key,
-  url: u,
-  link: u,
-  title: title || key,
-  name: title || key,
-  artist,
-  album,
-  cover: coverUrl,
-  coverArt: coverUrl
-};
+      return {
+        id: key,
+        key: key,
+        r2_key: key,
+        track_id: key,
+        url: u,
+        link: u,
+        title: title || key,
+        name: title || key,
+        artist,
+        album,
+        cover: coverUrl,
+        coverArt: coverUrl
 
       };
     })
