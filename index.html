@@ -4699,11 +4699,13 @@ function makeUserId() {
 function readUserIdFromUrl() {
   try {
     const sp = new URLSearchParams(window.location.search || "");
-    return (
+        return (
       sp.get("userId") ||
       sp.get("uid") ||
       sp.get("sync") ||
       ""
+    );
+
 
   } catch (e) {
     return "";
