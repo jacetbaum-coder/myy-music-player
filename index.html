@@ -8805,6 +8805,12 @@ const normalizedIds = itemsArr
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
 
+  } catch (e) {
+    console.error("playlist load failed", e);
+  }
+})();
+
+
 // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
 const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
 
