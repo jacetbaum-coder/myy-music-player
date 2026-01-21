@@ -2046,7 +2046,7 @@ body.qs-lock{
   #album-hero .album-hero-artist img {
     width: 28px;
     height: 28px;
-    border-radius: 9999px;
+    border-radius: 9999px;f    ).trim();
     object-fit: cover;
   }
 
@@ -2056,10 +2056,16 @@ body.qs-lock{
     margin-bottom: 6px !important; /* brings tracklist up */
   }
 
-  #track-list {
+    #track-list {
     margin-top: 0 !important;
     padding-top: 0 !important;
   }
+
+  /* ✅ Mobile: allow playlist track thumbs to render */
+  #track-list .track-row img {
+    display: block !important;
+  }
+
 
 
   /* nudge play a bit higher/right-side feels closer to Spotify */
@@ -4698,7 +4704,7 @@ function readUserIdFromUrl() {
       sp.get("uid") ||
       sp.get("sync") ||
       ""
-    ).trim();
+
   } catch (e) {
     return "";
   }
@@ -9835,12 +9841,28 @@ if (isPlaylist) {
         song.coverArt ||
         song.cover_art
       )) || ""
-    ).trim();
+     ).trim();
+
+    // ✅ Guard: some playlist items accidentally carry "Song.mp3/cover.jpg" (not a real album folder)
+    if (thumbSrc && /\.(mp3|m4a|flac|wav|ogg|aac)\/cover\.jpg(\?|$)/i.test(thumbSrc)) {
+      thumbSrc = "";
+    }
+
 
     // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
     if (!thumbSrc) {
       try {
-        const key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
+                let key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
+
+        // ✅ If we only have a stream URL, pull the real R2 key from ?id=
+        if (!key) {
+          try {
+            const u = new URL(String(songUrl || ""), location.href);
+            const id = u.searchParams.get("id");
+            if (id) key = decodeURIComponent(id);
+          } catch (e) {}
+        }
+").trim();
 
         // 2a) tracksById map
         if (key && window.tracksById && typeof window.tracksById.get === "function") {
