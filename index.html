@@ -7778,16 +7778,39 @@ safe(window.renderHistory);
     function applyLibraryAndRender(albums) {
     libraryData = Array.isArray(albums) ? albums : [];
     libraryDataOriginal = libraryData.slice();
-    window.libraryData = libraryData;
-    window.libraryDataOriginal = libraryDataOriginal;
+window.libraryData = libraryData;
+window.libraryDataOriginal = libraryDataOriginal;
+
+// ✅ Track "first seen" for Recently added (proxy for newest from cloud)
+window.__albumFirstSeen = window.__albumFirstSeen || {};
+try {
+  for (const a of (libraryDataOriginal || [])) {
+    const k = `${String(a?.artistName || "").trim()}///${String(a?.albumName || "").trim()}`;
+    if (!window.__albumFirstSeen[k]) window.__albumFirstSeen[k] = Date.now();
+  }
+} catch (e) {}
+
 
     buildTracksByIdFromLibrary(libraryData);
 
 
-    // Sort library alphabetically by album (Library grid)
-    try {
-      libraryData.sort((a, b) => String(a?.albumName || "").localeCompare(String(b?.albumName || "")));
-    } catch (e) {}
+    // ✅ Sort library based on selected mode
+try {
+  if (librarySortMode === 'Recently added') {
+    const seen = window.__albumFirstSeen || {};
+    libraryData.sort((a, b) => {
+      const ka = `${String(a?.artistName || "").trim()}///${String(a?.albumName || "").trim()}`;
+      const kb = `${String(b?.artistName || "").trim()}///${String(b?.albumName || "").trim()}`;
+      return Number(seen[kb] || 0) - Number(seen[ka] || 0);
+    });
+  } else {
+    // default: alphabetical by album
+    libraryData.sort((a, b) =>
+      String(a?.albumName || "").localeCompare(String(b?.albumName || ""))
+    );
+  }
+} catch (e) {}
+
 
     // Cache it (best-effort)
     try { saveLibraryCache(libraryDataOriginal); } catch (e) {}
@@ -16329,24 +16352,30 @@ window.resolveTrackIdsToSongs = function (trackIds) {
 
       // Fallback: parse from "Artist/Album/Track.mp3"
       const parts = key.split("/");
-      const artist = parts[0] ? parts[0] : "Unknown Artist";
-      const album = parts[1] ? parts[1] : "Unknown Album";
-      const file = parts[2] ? parts[2] : key;
-      const title = String(file).replace(/\.mp3$/i, "");
 
-      return {
-        id: key,
-        key: key,
-        r2_key: key,
-        track_id: key,
-        url: u,
-        link: u,
-        title: title || key,
-        name: title || key,
-        artist,
-        album,
-        cover: "",
-        coverArt: ""
+const artist = parts[0] ? parts[0] : "Unknown Artist";
+const album = parts[1] ? parts[1] : "Unknown Album";
+const file = parts[2] ? parts[2] : key;
+const title = String(file).replace(/\.mp3$/i, "");
+
+// ✅ Give playlist fallback tracks a real album-cover URL
+const coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(`${artist}/${album}/cover.jpg`)}`;
+
+return {
+  id: key,
+  key: key,
+  r2_key: key,
+  track_id: key,
+  url: u,
+  link: u,
+  title: title || key,
+  name: title || key,
+  artist,
+  album,
+  cover: coverUrl,
+  coverArt: coverUrl
+};
+
       };
     })
     .filter(Boolean);
