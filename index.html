@@ -11185,10 +11185,11 @@ async function playSpecificSong(url, title, album, artist, cover) {
   // UI Updates
   dock.classList.remove('dock-hidden');
   document.getElementById('p-cover').src = resolvedCover || "";
-  updateAccentFromCover(resolvedCover || "");
+    updateAccentFromCover(resolvedCover || "");
 
-  setMarqueeTitle('p-title', title.replace('.mp3', ''));
+  setMarqueeTitle('p-title', titleClean);
   document.getElementById('p-artist').innerText = artist;
+
 
   // Set all play/pause icons based on what actually happened
   const desktopIcon = document.getElementById('play-icon');
