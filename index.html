@@ -14156,24 +14156,33 @@ const dataAttrs =
   : (item.type === 'artist') ? `data-type="artist" data-artist="${safeArtist}"`
   : `data-type="album" data-album="${safeAlbum}"`;
 
-            let coverUrl = item.cover || '';
-if (item.type === 'playlist') {
-  const pl2 = playlists.find(pl => String(pl.id) === String(item.id));
-  if (pl2 && typeof getEffectivePlaylistCover === 'function') {
-    coverUrl = getEffectivePlaylistCover(pl2) || coverUrl;
-  }
-}
+                        let coverUrl = item.cover || '';
+            let coverMarkup = '';
+
+            if (item.type === 'playlist') {
+              const pl2 = playlists.find(pl => String(pl.id) === String(item.id));
+              if (pl2 && typeof getPlaylistCoverMarkup === 'function') {
+                coverMarkup = getPlaylistCoverMarkup(pl2, "w-full h-full");
+              } else if (pl2 && typeof getEffectivePlaylistCover === 'function') {
+                coverUrl = getEffectivePlaylistCover(pl2) || coverUrl;
+              }
+            }
+
 
 return `
   <div class="cursor-pointer recents-row-card ${isMobile ? '' : 'min-w-[160px] max-w-[160px]'}" ${dataAttrs}>
     <div class="rounded-xl overflow-hidden bg-white/10 aspect-square shadow-lg">
-      ${
-        coverUrl
-          ? `<img src="${coverUrl}" class="w-full h-full object-cover" alt="">`
-          : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
-               <i class="fas fa-music text-3xl text-zinc-500"></i>
-             </div>`
+            ${
+        coverMarkup
+          ? coverMarkup
+          : (coverUrl
+              ? `<img src="${coverUrl}" class="w-full h-full object-cover" alt="">`
+              : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
+                   <i class="fas fa-music text-3xl text-zinc-500"></i>
+                 </div>`
+            )
       }
+
     </div>
     <div class="mt-3 font-extrabold text-white truncate">${title}</div>
     <div class="text-sm text-zinc-400 truncate">${sub}</div>
@@ -14658,9 +14667,8 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
 );
 
 
-  // ✅ Build cover list from songs, but prefer UNIQUE non-empty covers (in order)
+    // ✅ Build cover list from songs (NO dedupe — your rule is first 4 songs)
   const covers = [];
-  const seen = new Set();
 
   for (const s of (songs || [])) {
     const c = (typeof getSongCoverFromPlaylistSong === "function")
@@ -14668,14 +14676,13 @@ function getPlaylistCoverMarkup(pl, sizeClass) {
       : "";
 
     if (!c) continue;
-    if (seen.has(c)) continue;
 
-    seen.add(c);
     covers.push(c);
 
     // we only need enough for a 2x2
     if (covers.length >= 4) break;
   }
+
 
   // helper: safe for single quotes in URLs
   const safeUrl = (u) => String(u || "").replace(/'/g, "%27");
@@ -16315,8 +16322,23 @@ function __buildTrackIndexIfNeeded() {
     });
   } catch (e) {}
 
-  window.__trackIndexMap = map;
+    window.__trackIndexMap = map;
+
+  // ✅ Build shortId -> fullId index (for playlists that store "Artist/Track.mp3")
+  // shortId format: "Artist/Track.mp3"
+  try {
+    const shortMap = new Map();
+    for (const fullId of map.keys()) {
+      const parts = String(fullId || "").split("/").filter(Boolean);
+      if (parts.length >= 3) {
+        const shortId = `${parts[0]}/${parts[parts.length - 1]}`;
+        if (!shortMap.has(shortId)) shortMap.set(shortId, fullId);
+      }
+    }
+    window.__shortTrackIdToFullId = shortMap;
+  } catch (e) {}
 }
+
 
 window.resolveTrackIdsToSongs = function (trackIds) {
   const ids = Array.isArray(trackIds) ? trackIds : [];
@@ -16324,10 +16346,24 @@ window.resolveTrackIdsToSongs = function (trackIds) {
 
   return ids
     .map((rawId) => {
-      const key = String(rawId || "").trim();
-      if (!key) return null;
+      const rawKey = String(rawId || "").trim();
+      if (!rawKey) return null;
+
+      // ✅ If playlist stores short ids like "Artist/Track.mp3", expand to full id
+      let key = rawKey;
+      if (
+        window.__shortTrackIdToFullId &&
+        typeof window.__shortTrackIdToFullId.get === "function"
+      ) {
+        const parts = key.split("/").filter(Boolean);
+        if (parts.length === 2) {
+          const full = window.__shortTrackIdToFullId.get(key);
+          if (full) key = full;
+        }
+      }
 
       const hit = window.__trackIndexMap ? window.__trackIndexMap.get(key) : null;
+
 
       // Always build worker URL from the id
       const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`;
