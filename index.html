@@ -1874,13 +1874,20 @@ body.qs-lock{
   }
 
 
-        .track-row {
-      /* 6 children: bubble | index | (cover+text) | album | time | menu */
-      /* On mobile we collapse index/album/time columns to 0 so cover+text can breathe */
-      grid-template-columns: 0px 0px 1fr 0px 0px 36px;
+         .track-row {
+      /* 6 children:
+         0 select bubble (hidden)
+         1 index (hidden)
+         2 cover + title container  ← THIS MUST GET WIDTH
+         3 album (hidden)
+         4 time (hidden)
+         5 menu button
+      */
+      grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px 36px;
       padding: 18px 4px;
       align-items: center;
     }
+
 
     /* Never allow thumbs to be hidden by mobile rules */
     .track-row img {
