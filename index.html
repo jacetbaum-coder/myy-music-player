@@ -8817,19 +8817,6 @@ try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
 renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
-
-
-
-    } catch (err) {
-      console.warn(err);
-pl.trackIds = Array.isArray(pl.trackIds) ? pl.trackIds : [];
-
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
-
-renderCollection(pl.name, playlistSongs, true, playlistIndex);
-
-    }
-  })();
 }
 
 
