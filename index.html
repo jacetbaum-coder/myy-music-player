@@ -1874,19 +1874,10 @@ body.qs-lock{
   }
 
 
-        .track-row {
-      /* 6 children: bubble | index | (cover+text) | album | time | menu */
-      /* On mobile we collapse index/album/time columns to 0 so cover+text can breathe */
-      grid-template-columns: 0px 0px 1fr 0px 0px 36px;
-      padding: 18px 4px;
-      align-items: center;
-    }
-
-    /* Never allow thumbs to be hidden by mobile rules */
-    .track-row img {
-      display: block !important;
-    }
-
+    .track-row {
+    grid-template-columns: 1fr 36px;
+    padding: 18px 4px;
+  }
 
   /* Mobile select mode: smaller gutter so text isn't pushed way right */
   body.song-multiselect .track-row{
@@ -2055,7 +2046,7 @@ body.qs-lock{
   #album-hero .album-hero-artist img {
     width: 28px;
     height: 28px;
-    border-radius: 9999px;f    ).trim();
+    border-radius: 9999px;
     object-fit: cover;
   }
 
@@ -2065,16 +2056,10 @@ body.qs-lock{
     margin-bottom: 6px !important; /* brings tracklist up */
   }
 
-    #track-list {
+  #track-list {
     margin-top: 0 !important;
     padding-top: 0 !important;
   }
-
-  /* ✅ Mobile: allow playlist track thumbs to render */
-  #track-list .track-row img {
-    display: block !important;
-  }
-
 
 
   /* nudge play a bit higher/right-side feels closer to Spotify */
@@ -4713,12 +4698,11 @@ function readUserIdFromUrl() {
       sp.get("uid") ||
       sp.get("sync") ||
       ""
-    );
+    ).trim();
   } catch (e) {
     return "";
   }
 }
-
 
 function normalizeUserId(id) {
   return String(id || "").trim();
@@ -9832,8 +9816,6 @@ const displayArtist = String(
 ).trim();
 
 let thumbSrc = "";
-let key = "";
-
 if (isPlaylist) {
   // 0) best: let your helper compute it (it already knows playlist edge cases)
   try {
@@ -9842,8 +9824,8 @@ if (isPlaylist) {
     }
   } catch (e) {}
 
-  // 1) use whatever the playlist item already has
   if (!thumbSrc) {
+    // 1) use whatever the playlist item already has
     thumbSrc = String(
       (song && (
         song.coverUrl ||
@@ -9854,52 +9836,42 @@ if (isPlaylist) {
         song.cover_art
       )) || ""
     ).trim();
-  }
 
-  // ✅ Guard: some playlist items accidentally carry "Song.mp3/cover.jpg" (not a real album folder)
-  if (thumbSrc && /\.(mp3|m4a|flac|wav|ogg|aac)\/cover\.jpg(\?|$)/i.test(thumbSrc)) {
-    thumbSrc = "";
-  }
-
-  // 2) Build a key we can use to look up the real library song (tracksById)
-  try {
-    key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
-
-    // ✅ If we only have a stream URL, pull the real R2 key from ?id=
-    if (!key) {
+    // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
+    if (!thumbSrc) {
       try {
-        const u = new URL(String(songUrl || ""), location.href);
-        const id = u.searchParams.get("id");
-        if (id) key = decodeURIComponent(id);
+        const key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
+
+        // 2a) tracksById map
+        if (key && window.tracksById && typeof window.tracksById.get === "function") {
+          const lib = window.tracksById.get(key);
+          if (lib) {
+            thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+          }
+        }
+
+        // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
+        if (!thumbSrc && key.includes("/")) {
+          const parts = key.split("/").filter(Boolean);
+          if (parts.length >= 3) {
+            const artist = parts[0];
+            const album = parts[1];
+
+            if (typeof getAlbumCover === "function") {
+              thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
+            } else {
+              const base = String(window.WORKER_ORIGIN || location.origin);
+              const coverPath = `${artist}/${album}/cover.jpg`;
+              thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
+            }
+          }
+        }
       } catch (e) {}
-    }
-  } catch (e) {}
-
-  // 2a) tracksById map
-  if (!thumbSrc && key && window.tracksById && typeof window.tracksById.get === "function") {
-    const lib = window.tracksById.get(key);
-    if (lib) {
-      thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
-    }
-  }
-
-  // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
-  if (!thumbSrc && key && key.includes("/")) {
-    const parts = key.split("/").filter(Boolean);
-    if (parts.length >= 3) {
-      const artist = parts[0];
-      const album = parts[1];
-
-      if (typeof getAlbumCover === "function") {
-        thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
-      } else {
-        const base = String(window.WORKER_ORIGIN || location.origin);
-        const coverPath = `${artist}/${album}/cover.jpg`;
-        thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
-      }
     }
   }
 }
+
+
 
 const thumbMarkup = isPlaylist
   ? (thumbSrc
