@@ -9824,6 +9824,8 @@ const displayArtist = String(
 ).trim();
 
 let thumbSrc = "";
+let key = "";
+
 if (isPlaylist) {
   // 0) best: let your helper compute it (it already knows playlist edge cases)
   try {
@@ -9832,8 +9834,8 @@ if (isPlaylist) {
     }
   } catch (e) {}
 
+  // 1) use whatever the playlist item already has
   if (!thumbSrc) {
-    // 1) use whatever the playlist item already has
     thumbSrc = String(
       (song && (
         song.coverUrl ||
@@ -9843,59 +9845,53 @@ if (isPlaylist) {
         song.coverArt ||
         song.cover_art
       )) || ""
-     ).trim();
+    ).trim();
+  }
 
-    // ✅ Guard: some playlist items accidentally carry "Song.mp3/cover.jpg" (not a real album folder)
-    if (thumbSrc && /\.(mp3|m4a|flac|wav|ogg|aac)\/cover\.jpg(\?|$)/i.test(thumbSrc)) {
-      thumbSrc = "";
-    }
+  // ✅ Guard: some playlist items accidentally carry "Song.mp3/cover.jpg" (not a real album folder)
+  if (thumbSrc && /\.(mp3|m4a|flac|wav|ogg|aac)\/cover\.jpg(\?|$)/i.test(thumbSrc)) {
+    thumbSrc = "";
+  }
 
+  // 2) Build a key we can use to look up the real library song (tracksById)
+  try {
+    key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
 
-    // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
-    if (!thumbSrc) {
+    // ✅ If we only have a stream URL, pull the real R2 key from ?id=
+    if (!key) {
       try {
-                let key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
-
-        // ✅ If we only have a stream URL, pull the real R2 key from ?id=
-        if (!key) {
-          try {
-            const u = new URL(String(songUrl || ""), location.href);
-            const id = u.searchParams.get("id");
-            if (id) key = decodeURIComponent(id);
-          } catch (e) {}
-        }
-").trim();
-
-        // 2a) tracksById map
-        if (key && window.tracksById && typeof window.tracksById.get === "function") {
-          const lib = window.tracksById.get(key);
-          if (lib) {
-            thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
-          }
-        }
-
-        // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
-        if (!thumbSrc && key.includes("/")) {
-          const parts = key.split("/").filter(Boolean);
-          if (parts.length >= 3) {
-            const artist = parts[0];
-            const album = parts[1];
-
-            if (typeof getAlbumCover === "function") {
-              thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
-            } else {
-              const base = String(window.WORKER_ORIGIN || location.origin);
-              const coverPath = `${artist}/${album}/cover.jpg`;
-              thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
-            }
-          }
-        }
+        const u = new URL(String(songUrl || ""), location.href);
+        const id = u.searchParams.get("id");
+        if (id) key = decodeURIComponent(id);
       } catch (e) {}
+    }
+  } catch (e) {}
+
+  // 2a) tracksById map
+  if (!thumbSrc && key && window.tracksById && typeof window.tracksById.get === "function") {
+    const lib = window.tracksById.get(key);
+    if (lib) {
+      thumbSrc = String(lib.cover || lib.coverArt || lib.coverUrl || lib.coverURL || "").trim();
+    }
+  }
+
+  // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
+  if (!thumbSrc && key && key.includes("/")) {
+    const parts = key.split("/").filter(Boolean);
+    if (parts.length >= 3) {
+      const artist = parts[0];
+      const album = parts[1];
+
+      if (typeof getAlbumCover === "function") {
+        thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
+      } else {
+        const base = String(window.WORKER_ORIGIN || location.origin);
+        const coverPath = `${artist}/${album}/cover.jpg`;
+        thumbSrc = `${base}/?id=${encodeURIComponent(coverPath)}`;
+      }
     }
   }
 }
-
-
 
 const thumbMarkup = isPlaylist
   ? (thumbSrc
