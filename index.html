@@ -16335,11 +16335,11 @@ function __buildTrackIndexIfNeeded() {
     });
   } catch (e) {}
 
-  window.__trackIndexMap = map;
+   window.__trackIndexMap = map;
   window.__trackShortIndexMap = shortMap;
-}
 
   // ✅ Build shortId -> fullId index (for playlists that store "Artist/Track.mp3")
+
   // shortId format: "Artist/Track.mp3"
   try {
     const shortMap = new Map();
