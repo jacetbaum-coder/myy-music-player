@@ -10802,7 +10802,15 @@ function handleSearch(query) {
     `.trim());
 
   const thumb = document.createElement('img');
-  const coverSrc = String(s.cover || '').trim();
+  const coverSrc = String(
+  s.cover ||
+  s.coverArt ||
+  s.cover_url ||
+  s.coverUrl ||
+  (typeof getSongCoverFromPlaylistSong === 'function' ? getSongCoverFromPlaylistSong(s) : '') ||
+  ''
+).trim();
+
   thumb.src = coverSrc || fallbackSvg;
   thumb.className = 'w-12 h-12 rounded object-cover flex-shrink-0 bg-white/10';
   thumb.draggable = false;
