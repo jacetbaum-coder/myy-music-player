@@ -9816,7 +9816,7 @@ const displayArtist = String(
 ).trim();
 
 let thumbSrc = "";
-if (isPlaylist) {
+if (true) {
   // 0) best: let your helper compute it (it already knows playlist edge cases)
   try {
     if (typeof getSongCoverFromPlaylistSong === "function") {
@@ -9873,15 +9873,12 @@ if (isPlaylist) {
 
 
 
-const thumbMarkup = isPlaylist
-  ? (thumbSrc
-      ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.outerHTML=\`<div class='w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0'><i class='fas fa-music text-white/40 text-xs'></i></div>\`;">`
-
-      : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
-           <i class="fas fa-music text-white/40 text-xs"></i>
-         </div>`
-    )
-  : '';
+const thumbMarkup = (thumbSrc
+  ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.outerHTML=\`<div class='w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0'><i class='fas fa-music text-white/40 text-xs'></i></div>\`;">`
+  : `<div class="w-10 h-10 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+       <i class="fas fa-music text-white/40 text-xs"></i>
+     </div>`
+);
 
 
 row.innerHTML = `
@@ -10684,6 +10681,69 @@ function handleSearch(query) {
     };
   })
   .filter(Boolean);
+
+          // ✅ Also allow searching songs that only exist inside playlists (trackIds),
+          // even if they are not present in libraryData yet.
+          try {
+            const playlistSongMatches = [];
+            const seenIds = new Set();
+
+            for (const pl of (Array.isArray(playlists) ? playlists : [])) {
+              const ids = Array.isArray(pl?.trackIds) ? pl.trackIds : [];
+              for (const rawId of ids) {
+                const id = String(rawId || "").trim();
+                if (!id || seenIds.has(id)) continue;
+                seenIds.add(id);
+
+                const parts = id.split('/').filter(Boolean);
+                const artistGuess = parts[0] || "";
+                const albumGuess = (parts.length >= 3) ? parts[1] : "";
+                const file = parts[parts.length - 1] || "";
+                const titleGuess = file.replace(/\.[^/.]+$/, "");
+
+                const sTitle = fuzzyScore(q, titleGuess);
+                const sArtist = fuzzyScore(q, artistGuess);
+                const sAlbum = albumGuess ? fuzzyScore(q, albumGuess) : 0;
+                const score = Math.max(sTitle, Math.round(sArtist * 0.90), Math.round(sAlbum * 0.85));
+
+                if (score < 55) continue;
+
+                let resolved = null;
+                try {
+                  if (typeof resolveTrackIdsToSongs === 'function') {
+                    const arr = resolveTrackIdsToSongs([id]);
+                    if (arr && arr[0]) resolved = arr[0];
+                  }
+                } catch (_) {}
+
+                const songObj = resolved || {};
+                playlistSongMatches.push({
+                  type: 'song',
+                  _score: score,
+                  id: songObj.id || id,
+                  r2Path: songObj.r2Path || songObj.id || id,
+                  name: songObj.title || songObj.name || titleGuess,
+                  title: songObj.title || songObj.name || titleGuess,
+                  artist: songObj.artistName || songObj.artist || artistGuess,
+                  album: songObj.albumName || songObj.album || albumGuess || '',
+                  cover: songObj.coverArt || songObj.cover || '',
+                  coverArt: songObj.coverArt || songObj.cover || '',
+                  link: songObj.link || songObj.url || ((window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(id)),
+                });
+              }
+            }
+
+            if (playlistSongMatches.length) {
+              const have = new Set(matches.map(m => String(m.id || m.r2Path || '').trim()).filter(Boolean));
+              for (const m of playlistSongMatches) {
+                const k = String(m.id || m.r2Path || '').trim();
+                if (!k || have.has(k)) continue;
+                have.add(k);
+                matches.push(m);
+              }
+            }
+          } catch (_) {}
+
 
 
           const albumResults = [...albumMatches.values()];
@@ -16665,7 +16725,7 @@ return;
 
 
       <div class="flex items-center gap-3 min-w-0">
-        ${isPlaylist ? thumbMarkup : ''}
+        ${thumbMarkup}
         <div class="min-w-0">
           <div data-role="title" data-play-target="1" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${displayTitle}</div>
 
