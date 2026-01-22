@@ -10904,8 +10904,18 @@ function handleSearch(query) {
 
               // Fallback: play just this one song (still sets cover + dock/NP via playSpecificSong)
               const cover = String(s?.cover || s?.coverArt || '').trim();
-              playContext = { type: 'search', label: 'Search' };
-              playSpecificSong(url, title, album, artist, cover);
+              // ✅ Search context label should be the actual query (so it shows: "talk" IN SEARCH)
+const qLabel = String(window.__lastSearchQuery || "").trim();
+playContext = { type: 'search', label: (qLabel || 'Search') };
+playSpecificSong(
+  url,
+  title,
+  (album && album.toLowerCase() === 'unknown album' ? '' : album),
+  artist,
+  cover
+);
+
+
             } catch (e) {
               console.warn("playSongFromSearchResult failed:", e);
             }
