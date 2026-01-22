@@ -10622,21 +10622,17 @@ function handleSearch(query) {
 
               // Threshold: typo-tolerant but avoids junk
               if (score >= 55) {
-  matches.push({
-    type: 'song',
-    ...song,
+                matches.push({
+                    type: 'song',
+                  ...song,
+                  album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
 
-    artist: artistName,
-    album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
-
-    // ✅ THIS is the entire fix:
-    // attach album art at search-build time
-    cover: album.coverArt || '',
-
-    _score: score
-  });
-}
-
+                  artist: artistName,
+                  cover: album.coverArt,
+                  _score: score
+                });
+              }
+            });
 
               const albumScore = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
             if (albumScore >= 55 && albumName) {
@@ -10666,7 +10662,6 @@ function handleSearch(query) {
               }
             }
           });
-        });
             
  const playlistMatches = (Array.isArray(playlists) ? playlists : [])
   .map(pl => {
@@ -11031,9 +11026,7 @@ if (!songsOrdered.length && !albumResults.length && !artistResults.length && !pl
   }
 }
 
-}
-        
-function exitSearch() {
+        function exitSearch() {
   const input = document.getElementById('global-search');
   if (input) {
     input.value = '';
@@ -11042,6 +11035,7 @@ function exitSearch() {
   handleSearch('');
 }
 
+        }
 
         /**
          * ---------------------------------------------------------------------
