@@ -10839,31 +10839,8 @@ function handleSearch(query) {
 };
 
 
-            const img = document.createElement('img');
-            img.src = s.cover;
-            img.className = 'w-12 h-12 rounded object-cover';
+                      const appendAlbumRow = (album) => {
 
-            const info = document.createElement('div');
-            info.className = 'flex-1 overflow-hidden';
-
-            const title = document.createElement('div');
-            title.className = 'text-white font-bold truncate';
-            title.textContent = (s.name || '').replace('.mp3', '');
-
-            const meta = document.createElement('div');
-            meta.className = 'text-sm text-zinc-400 truncate';
-            meta.textContent = `${s.artist} • ${s.album}`;
-
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
-
-            info.appendChild(title);
-            info.appendChild(meta);
-            row.appendChild(img);
-            row.appendChild(info);
-            row.appendChild(icon);
-            results.appendChild(row);
-          };
 
           const appendAlbumRow = (album) => {
             const row = document.createElement('div');
@@ -10953,18 +10930,53 @@ img.className = 'w-12 h-12 rounded object-cover';
             const iconWrap = document.createElement('div');
 iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
 
-const cover = String(playlist.cover || '').trim();
+let cover = "";
+try {
+  cover = String(
+    (typeof getEffectivePlaylistCover === "function" ? getEffectivePlaylistCover(playlist) : "") ||
+    playlist.cover_url ||
+    playlist.cover ||
+    ""
+  ).trim();
+} catch (e) {
+  cover = String(playlist.cover || "").trim();
+}
+
+// If no playlist cover, try first song cover (so “one random song” still shows art)
+if (!cover) {
+  try {
+    const tids = Array.isArray(playlist?.trackIds) ? playlist.trackIds : [];
+    const songs = (typeof resolveTrackIdsToSongs === "function") ? resolveTrackIdsToSongs(tids) : [];
+    const first = (songs && songs[0]) ? songs[0] : null;
+    cover = first && (typeof getSongCoverFromPlaylistSong === "function")
+      ? String(getSongCoverFromPlaylistSong(first) || "").trim()
+      : "";
+  } catch (e) {
+    cover = "";
+  }
+}
+
+iconWrap.innerHTML = "";
+
 if (cover) {
   const img = document.createElement('img');
   img.src = cover;
   img.alt = '';
   img.className = 'w-full h-full object-cover';
+  img.onerror = () => {
+    img.onerror = null;
+    iconWrap.innerHTML = "";
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-list-ul text-zinc-400';
+    iconWrap.appendChild(icon);
+  };
   iconWrap.appendChild(img);
 } else {
   const icon = document.createElement('i');
   icon.className = 'fas fa-list-ul text-zinc-400';
   iconWrap.appendChild(icon);
 }
+
 
 
 const info = document.createElement('div');
@@ -10987,7 +10999,8 @@ const info = document.createElement('div');
           };
 
          // Remember latest typed query for recents
-window.__lastSearchQuery = q;
+window.__lastSearchQuery = (typeof q !== 'undefined' ? q : (typeof raw !== 'undefined' ? String(raw).trim() : (window.__lastSearchQuery || '')));
+
 
 // Decide primary result type (best top score)
 const topAlbum = albumResults[0] || null;
