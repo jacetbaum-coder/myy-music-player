@@ -10771,15 +10771,61 @@ function handleSearch(query) {
           };
 
           const appendSongRow = (s) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+  row.addEventListener('click', () => {
+    playSongFromSearchResult(s);
+  });
 
-            row.addEventListener('click', () => {
-              // Mobile top label: ".... in Search"
-              playContext = { type: 'search', label: q };
+  // Always have a visible icon, even if cover URL 404s
+  const fallbackSvg =
+    "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+        <rect width="96" height="96" rx="18" fill="rgba(255,255,255,0.08)"/>
+        <path d="M58 20v38.2c-2.3-1.4-5-2.2-8-2.2-7.2 0-13 4.3-13 9.6S42.8 75 50 75s13-4.3 13-9.6V33.5l18-4.6V20L58 26.1V20z"
+              fill="rgba(255,255,255,0.55)"/>
+      </svg>
+    `.trim());
 
-              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
-            });
+  const thumb = document.createElement('img');
+  const coverSrc = String(s.cover || '').trim();
+  thumb.src = coverSrc || fallbackSvg;
+  thumb.className = 'w-12 h-12 rounded object-cover flex-shrink-0 bg-white/10';
+  thumb.draggable = false;
+  thumb.onerror = () => {
+    thumb.onerror = null;
+    thumb.src = fallbackSvg;
+  };
+
+  const text = document.createElement('div');
+  text.className = 'min-w-0 flex-1';
+
+  const title = document.createElement('div');
+  title.className = 'text-white font-semibold truncate';
+  title.textContent = s.name || '';
+
+  const meta = document.createElement('div');
+  meta.className = 'text-zinc-400 text-sm truncate';
+
+  // Hide “Unknown Album”
+  const artist = String(s.artist || '').trim();
+  const album = String(s.album || '').trim();
+  const showAlbum = album && album.toLowerCase() !== 'unknown album';
+
+  if (artist && showAlbum) meta.textContent = `${artist} • ${album}`;
+  else if (artist) meta.textContent = artist;
+  else if (showAlbum) meta.textContent = album;
+  else meta.textContent = '';
+
+  text.appendChild(title);
+  text.appendChild(meta);
+
+  row.appendChild(thumb);
+  row.appendChild(text);
+  results.appendChild(row);
+};
+
 
             const img = document.createElement('img');
             img.src = s.cover;
@@ -10815,13 +10861,25 @@ function handleSearch(query) {
             });
 
             const img = document.createElement('img');
-            const cover = (typeof getAlbumCover === 'function')
-  ? getAlbumCover(album.artist || '', album.album || '', album.cover || album.coverArt || '')
-  : (album.cover || album.coverArt || '');
 
-img.src = cover || '';
+const fallbackSvg =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+      <rect width="96" height="96" rx="18" fill="rgba(255,255,255,0.08)"/>
+      <path d="M48 24c13.3 0 24 10.7 24 24S61.3 72 48 72 24 61.3 24 48s10.7-24 24-24zm0 8a16 16 0 100 32 16 16 0 000-32zm0 6a10 10 0 110 20 10 10 0 010-20z"
+            fill="rgba(255,255,255,0.55)"/>
+    </svg>
+  `.trim());
 
-            img.className = 'w-12 h-12 rounded object-cover';
+const coverSrc = String(album.coverUrl || '').trim();
+img.src = coverSrc || fallbackSvg;
+img.onerror = () => {
+  img.onerror = null;
+  img.src = fallbackSvg;
+};
+img.className = 'w-12 h-12 rounded object-cover';
+
 
             const info = document.createElement('div');
             info.className = 'flex-1 overflow-hidden';
