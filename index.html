@@ -10625,7 +10625,8 @@ function handleSearch(query) {
                 matches.push({
                     type: 'song',
                   ...song,
-                  album: albumName,
+                  album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
+
                   artist: artistName,
                   cover: album.coverArt,
                   _score: score
