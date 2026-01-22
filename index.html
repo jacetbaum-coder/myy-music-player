@@ -11105,11 +11105,14 @@ if (!songsOrdered.length && !albumResults.length && !artistResults.length && !pl
     const aName = String(topAlbum.artist);
     const artistObj = artistResults.find(a => String(a.artist || '') === aName) || { artist: aName, _score: topAlbum._score || 0 };
     appendSection('Artist');
-    appendArtistRow(artistObj);
+        appendArtistRow(artistObj);
   }
 }
 
+}
+
 function exitSearch() {
+
   const input = document.getElementById('global-search');
   if (input) {
     input.value = '';
