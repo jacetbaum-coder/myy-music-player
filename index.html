@@ -10593,7 +10593,19 @@ function handleSearch(query) {
           const results = document.getElementById('search-results');
           if (!results) return;
 
-          const raw = String(query || "");
+          // ✅ Accept: handleSearch("text"), handleSearch(event), handleSearch()
+          const raw = (() => {
+            // If oninput passes an event
+            if (query && typeof query === 'object' && query.target) {
+              return String(query.target.value || "");
+            }
+            // If caller passed a string
+            if (typeof query === 'string') return query;
+            // Fallback: read from the actual input
+            const input = document.getElementById('global-search');
+            return input ? String(input.value || "") : "";
+          })();
+
           if (!raw.trim()) {
   renderSearchRecents();
   return;
@@ -11033,7 +11045,8 @@ if (topType === 'album' && topAlbum?.album) {
 
 // If nothing matched at all, show empty state (and still allow recents)
 if (!songsOrdered.length && !albumResults.length && !artistResults.length && !playlistMatches.length) {
-  results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(q).replace(/</g,'&lt;')}"</div>`;
+  results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(raw).trim().replace(/</g,'&lt;')}"</div>`;
+
 } else {
   // Render order per your rules:
   // Album query: Album → Songs (from album first) → Artist
