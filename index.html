@@ -10593,19 +10593,7 @@ function handleSearch(query) {
           const results = document.getElementById('search-results');
           if (!results) return;
 
-          // ✅ Accept: handleSearch("text"), handleSearch(event), handleSearch()
-          const raw = (() => {
-            // If oninput passes an event
-            if (query && typeof query === 'object' && query.target) {
-              return String(query.target.value || "");
-            }
-            // If caller passed a string
-            if (typeof query === 'string') return query;
-            // Fallback: read from the actual input
-            const input = document.getElementById('global-search');
-            return input ? String(input.value || "") : "";
-          })();
-
+          const raw = String(query || "");
           if (!raw.trim()) {
   renderSearchRecents();
   return;
@@ -10634,17 +10622,21 @@ function handleSearch(query) {
 
               // Threshold: typo-tolerant but avoids junk
               if (score >= 55) {
-                matches.push({
-                    type: 'song',
-                  ...song,
-                  album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
+  matches.push({
+    type: 'song',
+    ...song,
 
-                  artist: artistName,
-                  cover: album.coverArt,
-                  _score: score
-                });
-              }
-            });
+    artist: artistName,
+    album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
+
+    // ✅ THIS is the entire fix:
+    // attach album art at search-build time
+    cover: album.coverArt || '',
+
+    _score: score
+  });
+}
+
 
               const albumScore = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
             if (albumScore >= 55 && albumName) {
@@ -10769,8 +10761,7 @@ function handleSearch(query) {
           playlistMatches.sort((a, b) => b._score - a._score);
 
           if (matches.length === 0 && albumResults.length === 0 && artistResults.length === 0 && playlistMatches.length === 0) {
-            results.innerHTML = `<p class="text-zinc-500">No results found for "${String(window.__lastSearchQuery || raw || query || '').trim()}"</p>`;
-
+            results.innerHTML = `<p class="text-zinc-500">No results found for "${q}"</p>`;
             return;
           }
 
@@ -10784,145 +10775,43 @@ function handleSearch(query) {
           };
 
           const appendSongRow = (s) => {
-  const row = document.createElement('div');
-  row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-  row.addEventListener('click', () => {
-    playSongFromSearchResult(s);
-  });
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
 
-  // Always have a visible icon, even if cover URL 404s
-  const fallbackSvg =
-    "data:image/svg+xml;charset=utf-8," +
-    encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-        <rect width="96" height="96" rx="18" fill="rgba(255,255,255,0.08)"/>
-        <path d="M58 20v38.2c-2.3-1.4-5-2.2-8-2.2-7.2 0-13 4.3-13 9.6S42.8 75 50 75s13-4.3 13-9.6V33.5l18-4.6V20L58 26.1V20z"
-              fill="rgba(255,255,255,0.55)"/>
-      </svg>
-    `.trim());
+            row.addEventListener('click', () => {
+              // Mobile top label: ".... in Search"
+              playContext = { type: 'search', label: q };
 
-  const thumb = document.createElement('img');
-  const coverSrc = String(
-  s.cover ||
-  s.coverArt ||
-  s.cover_url ||
-  s.coverUrl ||
-  (typeof getSongCoverFromPlaylistSong === 'function' ? getSongCoverFromPlaylistSong(s) : '') ||
-  ''
-).trim();
+              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+            });
 
-  thumb.src = coverSrc || fallbackSvg;
-  thumb.className = 'w-12 h-12 rounded object-cover flex-shrink-0 bg-white/10';
-  thumb.draggable = false;
-  thumb.onerror = () => {
-    thumb.onerror = null;
-    thumb.src = fallbackSvg;
-  };
+            const img = document.createElement('img');
+            img.src = s.cover;
+            img.className = 'w-12 h-12 rounded object-cover';
 
-  const text = document.createElement('div');
-  text.className = 'min-w-0 flex-1';
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
 
-  const title = document.createElement('div');
-  title.className = 'text-white font-semibold truncate';
-  title.textContent = s.name || '';
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = (s.name || '').replace('.mp3', '');
 
-  const meta = document.createElement('div');
-  meta.className = 'text-zinc-400 text-sm truncate';
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = `${s.artist} • ${s.album}`;
 
-  // Hide “Unknown Album”
-  const artist = String(s.artist || '').trim();
-  const album = String(s.album || '').trim();
-  const showAlbum = album && album.toLowerCase() !== 'unknown album';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
 
-  if (artist && showAlbum) meta.textContent = `${artist} • ${album}`;
-  else if (artist) meta.textContent = artist;
-  else if (showAlbum) meta.textContent = album;
-  else meta.textContent = '';
-
-  text.appendChild(title);
-  text.appendChild(meta);
-
-  row.appendChild(thumb);
-  row.appendChild(text);
-    results.appendChild(row);
-};
-
-          // ✅ Search song click → build a proper queue + play + keep cover for dock/now playing
-          function playSongFromSearchResult(s) {
-            try {
-              const artist = String(s?.artist || s?.artistName || '').trim();
-              const album  = String(s?.album  || s?.albumName  || '').trim();
-
-              // Prefer real URL fields
-              let url = String(s?.url || s?.link || '').trim();
-
-              // If we only have an id/r2Path, build a Worker URL
-              if (!url) {
-                const key = String(s?.id || s?.r2Path || '').trim();
-                if (key) {
-                  url = "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(key);
-                }
-              }
-
-              const title = String(s?.title || s?.name || '').trim();
-
-              // If we can find the album in libraryData, play as an album queue (better UX)
-              let albumObj = null;
-              try {
-                if (typeof libraryData !== 'undefined' && Array.isArray(libraryData) && artist && album) {
-                  albumObj = libraryData.find(a =>
-                    String(a?.artistName || '').trim() === artist &&
-                    String(a?.albumName || '').trim() === album
-                  ) || null;
-                }
-              } catch (e) { albumObj = null; }
-
-              if (albumObj && Array.isArray(albumObj.songs) && albumObj.songs.length) {
-                const queue = buildQueueFromSongs(albumObj.songs, { artist, album, cover: albumObj.coverArt || "" });
-
-                // Find the matching song index (by id/url/title)
-                let idx = 0;
-                try {
-                  const targetId = String(s?.id || '').trim();
-                  const targetUrl = url;
-                  const targetTitle = title;
-
-                  const found = queue.findIndex(qs => {
-                    const qid = String(qs?.id || qs?.key || qs?.r2_key || '').trim();
-                    const qur = String(qs?.url || qs?.link || '').trim();
-                    const qtt = String(qs?.title || qs?.name || '').trim();
-                    return (targetId && qid === targetId) || (targetUrl && qur === targetUrl) || (targetTitle && qtt === targetTitle);
-                  });
-                  if (found >= 0) idx = found;
-                } catch (e) {}
-
-                // Label context + play
-                try { playContext = { type: 'album', label: albumObj.albumName || album }; } catch (e) {}
-                playQueue(queue, idx);
-                return;
-              }
-
-              // Fallback: play just this one song (still sets cover + dock/NP via playSpecificSong)
-              const cover = String(s?.cover || s?.coverArt || '').trim();
-              // ✅ Search context label should be the actual query (so it shows: "talk" IN SEARCH)
-const qLabel = String(window.__lastSearchQuery || "").trim();
-playContext = { type: 'search', label: (qLabel || 'Search') };
-playSpecificSong(
-  url,
-  title,
-  (album && album.toLowerCase() === 'unknown album' ? '' : album),
-  artist,
-  cover
-);
-
-
-            } catch (e) {
-              console.warn("playSongFromSearchResult failed:", e);
-            }
-          }
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          };
 
           const appendAlbumRow = (album) => {
-
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
             row.addEventListener('click', () => {
@@ -10930,26 +10819,13 @@ playSpecificSong(
             });
 
             const img = document.createElement('img');
+            const cover = (typeof getAlbumCover === 'function')
+  ? getAlbumCover(album.artist || '', album.album || '', album.cover || album.coverArt || '')
+  : (album.cover || album.coverArt || '');
 
-const fallbackSvg =
-  "data:image/svg+xml;charset=utf-8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-      <rect width="96" height="96" rx="18" fill="rgba(255,255,255,0.08)"/>
-      <path d="M48 24c13.3 0 24 10.7 24 24S61.3 72 48 72 24 61.3 24 48s10.7-24 24-24zm0 8a16 16 0 100 32 16 16 0 000-32zm0 6a10 10 0 110 20 10 10 0 010-20z"
-            fill="rgba(255,255,255,0.55)"/>
-    </svg>
-  `.trim());
+img.src = cover || '';
 
-const coverSrc = String(album.cover || album.coverArt || album.coverUrl || '').trim();
-
-img.src = coverSrc || fallbackSvg;
-img.onerror = () => {
-  img.onerror = null;
-  img.src = fallbackSvg;
-};
-img.className = 'w-12 h-12 rounded object-cover';
-
+            img.className = 'w-12 h-12 rounded object-cover';
 
             const info = document.createElement('div');
             info.className = 'flex-1 overflow-hidden';
@@ -11011,53 +10887,18 @@ img.className = 'w-12 h-12 rounded object-cover';
             const iconWrap = document.createElement('div');
 iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
 
-let cover = "";
-try {
-  cover = String(
-    (typeof getEffectivePlaylistCover === "function" ? getEffectivePlaylistCover(playlist) : "") ||
-    playlist.cover_url ||
-    playlist.cover ||
-    ""
-  ).trim();
-} catch (e) {
-  cover = String(playlist.cover || "").trim();
-}
-
-// If no playlist cover, try first song cover (so “one random song” still shows art)
-if (!cover) {
-  try {
-    const tids = Array.isArray(playlist?.trackIds) ? playlist.trackIds : [];
-    const songs = (typeof resolveTrackIdsToSongs === "function") ? resolveTrackIdsToSongs(tids) : [];
-    const first = (songs && songs[0]) ? songs[0] : null;
-    cover = first && (typeof getSongCoverFromPlaylistSong === "function")
-      ? String(getSongCoverFromPlaylistSong(first) || "").trim()
-      : "";
-  } catch (e) {
-    cover = "";
-  }
-}
-
-iconWrap.innerHTML = "";
-
+const cover = String(playlist.cover || '').trim();
 if (cover) {
   const img = document.createElement('img');
   img.src = cover;
   img.alt = '';
   img.className = 'w-full h-full object-cover';
-  img.onerror = () => {
-    img.onerror = null;
-    iconWrap.innerHTML = "";
-    const icon = document.createElement('i');
-    icon.className = 'fas fa-list-ul text-zinc-400';
-    iconWrap.appendChild(icon);
-  };
   iconWrap.appendChild(img);
 } else {
   const icon = document.createElement('i');
   icon.className = 'fas fa-list-ul text-zinc-400';
   iconWrap.appendChild(icon);
 }
-
 
 
 const info = document.createElement('div');
@@ -11080,8 +10921,7 @@ const info = document.createElement('div');
           };
 
          // Remember latest typed query for recents
-window.__lastSearchQuery = (typeof q !== 'undefined' ? q : (typeof raw !== 'undefined' ? String(raw).trim() : (window.__lastSearchQuery || '')));
-
+window.__lastSearchQuery = q;
 
 // Decide primary result type (best top score)
 const topAlbum = albumResults[0] || null;
@@ -11103,9 +10943,8 @@ const topType = (() => {
 
 // Helper to push recents ONLY when user clicks something
 const markSearched = () => {
-  try { pushSearchRecent(String(window.__lastSearchQuery || '').trim()); } catch (e) {}
+  try { pushSearchRecent(window.__lastSearchQuery || q); } catch (e) {}
 };
-
 
 // Build “related” ordering for songs based on primary
 let songsOrdered = matches.slice(0);
@@ -11140,8 +10979,7 @@ if (topType === 'album' && topAlbum?.album) {
 
 // If nothing matched at all, show empty state (and still allow recents)
 if (!songsOrdered.length && !albumResults.length && !artistResults.length && !playlistMatches.length) {
-  results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(raw).trim().replace(/</g,'&lt;')}"</div>`;
-
+  results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(q).replace(/</g,'&lt;')}"</div>`;
 } else {
   // Render order per your rules:
   // Album query: Album → Songs (from album first) → Artist
@@ -11188,14 +11026,11 @@ if (!songsOrdered.length && !albumResults.length && !artistResults.length && !pl
     const aName = String(topAlbum.artist);
     const artistObj = artistResults.find(a => String(a.artist || '') === aName) || { artist: aName, _score: topAlbum._score || 0 };
     appendSection('Artist');
-        appendArtistRow(artistObj);
+    appendArtistRow(artistObj);
   }
 }
 
-}
-
-function exitSearch() {
-
+        function exitSearch() {
   const input = document.getElementById('global-search');
   if (input) {
     input.value = '';
@@ -11203,6 +11038,8 @@ function exitSearch() {
   }
   handleSearch('');
 }
+
+        }
 
         /**
          * ---------------------------------------------------------------------
