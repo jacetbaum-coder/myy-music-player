@@ -10769,7 +10769,8 @@ function handleSearch(query) {
           playlistMatches.sort((a, b) => b._score - a._score);
 
           if (matches.length === 0 && albumResults.length === 0 && artistResults.length === 0 && playlistMatches.length === 0) {
-            results.innerHTML = `<p class="text-zinc-500">No results found for "${q}"</p>`;
+            results.innerHTML = `<p class="text-zinc-500">No results found for "${String(window.__lastSearchQuery || raw || query || '').trim()}"</p>`;
+
             return;
           }
 
@@ -10857,7 +10858,8 @@ const fallbackSvg =
     </svg>
   `.trim());
 
-const coverSrc = String(album.coverUrl || '').trim();
+const coverSrc = String(album.cover || album.coverArt || album.coverUrl || '').trim();
+
 img.src = coverSrc || fallbackSvg;
 img.onerror = () => {
   img.onerror = null;
@@ -11018,8 +11020,9 @@ const topType = (() => {
 
 // Helper to push recents ONLY when user clicks something
 const markSearched = () => {
-  try { pushSearchRecent(window.__lastSearchQuery || q); } catch (e) {}
+  try { pushSearchRecent(String(window.__lastSearchQuery || '').trim()); } catch (e) {}
 };
+
 
 // Build “related” ordering for songs based on primary
 let songsOrdered = matches.slice(0);
