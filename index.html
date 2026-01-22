@@ -11192,20 +11192,69 @@ async function playSpecificSong(url, title, album, artist, cover) {
   const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(albumRaw);
   const albumFolder = albumIsFile ? "" : albumRaw;
 
-  // ✅ Cover fallback rules:
+   // ✅ Cover fallback rules:
   // Album track  → Artist/Album/cover.jpg
-  // Single track → Artist/cover.jpg
+  // Playlist/bad-id track (Artist/File.mp3) → try to resolve via libraryData → use matched album.coverArt
+  // Single track → Artist/cover.jpg (rare)
   let resolvedCover = String(cover || "").trim();
   if (!resolvedCover) {
     const a = String(artist || "").trim();
-    if (a && albumFolder) {
-      resolvedCover =
-        "https://music-streamer.jacetbaum.workers.dev/?id=" +
-        encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
-    } else if (a) {
-      resolvedCover =
-        "https://music-streamer.jacetbaum.workers.dev/?id=" +
-        encodeURIComponent(a + "/cover.jpg");
+
+    // ---- NEW: If album is missing/unknown, try to resolve cover from libraryData using the URL id ----
+    const albumLooksMissing = !albumFolder || albumFolder.toLowerCase() === "unknown album";
+
+    // Try to extract decoded R2 id from the worker URL (supports url being a string)
+    let decodedId = "";
+    try {
+      const u = new URL(String(url || ""));
+      decodedId = decodeURIComponent(u.searchParams.get("id") || "");
+    } catch (e) {}
+
+    // Only attempt this resolver when the id looks like "Artist/File.mp3" (2 segments)
+    if (albumLooksMissing && decodedId && decodedId.split("/").length === 2) {
+      try {
+        const lib = window.libraryData || window.allAlbums || window.cachedData || window.__libraryData;
+        const fileName = decodedId.split("/").pop() || "";
+
+        // Find the first library song whose artist matches AND whose id/r2Path ends with "/<fileName>"
+        let matchedCover = "";
+        if (Array.isArray(lib) && a && fileName) {
+          for (const alb of lib) {
+            const songs = Array.isArray(alb?.songs) ? alb.songs : [];
+            for (const s of songs) {
+              const sid = String(s?.id || s?.r2Path || "");
+              const sArtist = String(s?.artistName || "");
+              if (
+                sArtist.toLowerCase() === a.toLowerCase() &&
+                sid &&
+                sid.endsWith("/" + fileName) &&
+                alb?.coverArt
+              ) {
+                matchedCover = String(alb.coverArt);
+                break;
+              }
+            }
+            if (matchedCover) break;
+          }
+        }
+
+        if (matchedCover) {
+          resolvedCover = matchedCover;
+        }
+      } catch (e) {}
+    }
+
+    // ---- Existing behavior (unchanged) ----
+    if (!resolvedCover) {
+      if (a && albumFolder) {
+        resolvedCover =
+          "https://music-streamer.jacetbaum.workers.dev/?id=" +
+          encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
+      } else if (a) {
+        resolvedCover =
+          "https://music-streamer.jacetbaum.workers.dev/?id=" +
+          encodeURIComponent(a + "/cover.jpg");
+      }
     }
   }
 
