@@ -5494,11 +5494,89 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
 };
 
 // -----------------------
+// -----------------------
 // PLAYLIST COVER HYDRATION (safe, read-only)
 // Purpose: cloud playlists list only has {id,name}, so covers are blank.
 // We prefetch trackIds for a few playlists in the background so getPlaylistCoverMarkup() can build covers.
 // -----------------------
+
+// ✅ Expand playlist short IDs ("Artist/Title.mp3") into full canonical IDs ("Artist/Album/Title.ext")
+// Uses libraryData songs' .title (extension-insensitive). Only expands when UNIQUE.
+window.expandPlaylistShortIdsFromLibrary = function expandPlaylistShortIdsFromLibrary(trackIds) {
+  const ids = Array.isArray(trackIds) ? trackIds.slice() : [];
+
+  const lib = window.libraryData || window.library_data || window.__libraryData || null;
+  const albums = Array.isArray(lib) ? lib : (lib && Array.isArray(lib.albums) ? lib.albums : null);
+  if (!albums) return ids;
+
+  const canonTrackId = (v) => {
+    let s = String(v || "").trim();
+    if (!s) return "";
+    try {
+      if (s.includes("://")) {
+        const u = new URL(s);
+        const id = u.searchParams.get("id");
+        if (id) s = id;
+      }
+    } catch {}
+    if (s.includes("?id=")) {
+      try { s = s.split("?id=")[1].split("&")[0]; } catch {}
+    }
+    try { s = decodeURIComponent(s); } catch {}
+    return s.replace(/^\/+/, "").trim();
+  };
+
+  const norm = (t) => String(t || "")
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, "")     // drop extension
+    .replace(/\([^)]*\)/g, " ")   // drop (...) like (Remastered)
+    .replace(/\[[^\]]*\]/g, " ")  // drop [...]
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Build unique map: "artist|title" -> fullId
+  const map = new Map();
+  const dup = new Set();
+
+  for (const a of albums) {
+    const fallbackArtist = String(a?.artistName || "").trim();
+    const songs = Array.isArray(a?.songs) ? a.songs : [];
+    for (const s of songs) {
+      const full = canonTrackId(s?.id || s?.r2Path || s?.link || "");
+      if (!full) continue;
+
+      const artist = String(s?.artistName || fallbackArtist || "").trim();
+      const title = String(s?.title || "").trim();
+      if (!artist || !title) continue;
+
+      const key = `${artist.toLowerCase()}|${norm(title)}`;
+      if (dup.has(key)) continue;
+
+      if (!map.has(key)) map.set(key, full);
+      else if (map.get(key) !== full) { map.delete(key); dup.add(key); }
+    }
+  }
+
+  for (let i = 0; i < ids.length; i++) {
+    const id = canonTrackId(ids[i]);
+    const segs = id.split("/").filter(Boolean);
+    if (segs.length !== 2) continue;
+
+    const artist = segs[0];
+    const file = segs[1];
+    const baseTitle = file.replace(/\.[^/.]+$/, "");
+
+    const key = `${artist.toLowerCase()}|${norm(baseTitle)}`;
+    const mapped = map.get(key) || "";
+    if (mapped) ids[i] = mapped;
+  }
+
+  return ids;
+};
+
 window.hydratePlaylistTrackIdsInBackground = async function (opts) {
+
   opts = opts || {};
   const max = Number.isFinite(opts.max) ? opts.max : 12;         // how many playlists to hydrate per run
   const concurrency = Number.isFinite(opts.concurrency) ? opts.concurrency : 3;
@@ -7555,6 +7633,17 @@ try {
   }
 
   playlists = merged;
+
+  // ✅ Expand short IDs into full canonical IDs BEFORE saving and BEFORE hydration
+  try {
+    if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+      playlists.forEach(pl => {
+        if (Array.isArray(pl?.trackIds) && pl.trackIds.length) {
+          pl.trackIds = window.expandPlaylistShortIdsFromLibrary(pl.trackIds);
+        }
+      });
+    }
+  } catch (e) {}
 
   // Persist locally so refresh works even if offline
   try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
