@@ -3677,116 +3677,12 @@ function onNavTap(e) {
   return false;
 }
 
-              window.libraryDataOriginal = libraryDataOriginal;
-
-// -----------------------
-// PLAYLIST TRACKID NORMALIZER (short "Artist/Track.mp3" -> full "Artist/Album/Track.mp3")
-// -----------------------
-function __reson_getBasename(p) {
-  const s = String(p || '').replace(/\\/g, '/');
-  const parts = s.split('/');
-  return parts[parts.length - 1] || '';
-}
-function __reson_extractFullPathFromSong(song) {
-  if (!song || typeof song !== 'object') return '';
-  return String(
-    song.id ||
-    song.r2Path ||
-    song.path ||
-    song.key ||
-    song.url ||
-    song.link ||
-    song.src ||
-    ''
-  ).trim();
-}
-function __reson_walkSongsFromLibraryData(ld) {
-  const out = [];
-  if (!Array.isArray(ld)) return out;
-  for (const item of ld) {
-    if (!item) continue;
-    const songsArr =
-      (Array.isArray(item.songs) && item.songs) ||
-      (Array.isArray(item.tracks) && item.tracks) ||
-      (Array.isArray(item.items) && item.items) ||
-      null;
-    if (songsArr) {
-      for (const s of songsArr) out.push({ song: s, parent: item });
-    } else {
-      out.push({ song: item, parent: null });
-    }
-  }
-  return out;
-}
-function buildShortToFullTrackIdMapFromLibraryData() {
-  const map = Object.create(null);
-  const pairs = __reson_walkSongsFromLibraryData(window.libraryData || libraryData);
-  for (const { song, parent } of pairs) {
-    const full = __reson_extractFullPathFromSong(song);
-    if (!full || full.indexOf('/') === -1) continue;
-
-    const artist = String(
-      song.artist || song.artistName || (parent && (parent.artist || parent.artistName)) || ''
-    ).trim();
-    if (!artist) continue;
-
-    const base = __reson_getBasename(full);
-    if (!base) continue;
-
-    const shortId = `${artist}/${base}`;
-    if (!map[shortId]) map[shortId] = full;
-  }
-  return map;
-}
-function normalizeLocalPlaylistsTrackIdsToFullPaths() {
-  let pls;
-  try { pls = JSON.parse(localStorage.getItem('playlists') || '[]'); }
-  catch (e) { return { ok: false, reason: 'playlists JSON parse failed', error: String(e) }; }
-
-  if (!Array.isArray(pls) || !pls.length) return { ok: true, playlists: 0, changed: 0, note: 'no playlists found' };
-
-  const map = buildShortToFullTrackIdMapFromLibraryData();
-  let changed = 0, scanned = 0;
-  const samples = [];
-
-  for (const p of pls) {
-    if (!p || !Array.isArray(p.trackIds)) continue;
-    p.trackIds = p.trackIds.map((id) => {
-      const s = String(id || '').trim();
-      scanned++;
-
-      // already looks like full Artist/Album/Track.ext
-      if (s.split('/').length >= 3 && !s.includes('Unknown Album')) return s;
-
-      const full = map[s];
-      if (full) {
-        changed++;
-        if (samples.length < 10) samples.push({ playlist: p.name || p.id || '(unknown)', from: s, to: full });
-        return full;
-      }
-      return s;
-    });
-  }
-
-  try { localStorage.setItem('playlists', JSON.stringify(pls)); }
-  catch (e) { return { ok: false, reason: 'localStorage set failed', error: String(e), scanned, changed, samples }; }
-
-  return { ok: true, playlists: pls.length, scanned, changed, samples };
-}
-
-window.normalizeLocalPlaylistsTrackIdsToFullPaths = normalizeLocalPlaylistsTrackIdsToFullPaths;
-window.buildShortToFullTrackIdMapFromLibraryData = buildShortToFullTrackIdMapFromLibraryData;
-
-// -----------------------
-// LIBRARY GLOBALS (must exist before any Home/Library helpers run)
-// -----------------------
-let libraryData = Array.isArray(window.libraryData) ? window.libraryData : [];
-let libraryDataOriginal = Array.isArray(window.libraryDataOriginal) ? window.libraryDataOriginal : [];
+              let libraryData = [];
+let libraryDataOriginal = [];
 window.libraryData = libraryData;
 window.libraryDataOriginal = libraryDataOriginal;
 
 let currentSong = null;
-
 window.currentSong = currentSong;
 
 let currentQueue = [];
@@ -9872,84 +9768,22 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     }
   }
 
-   // Otherwise: normal play (existing behavior)
+  // Otherwise: normal play (existing behavior)
   if (!songUrl) return;
   currentIndex = i;
 
-   // ✅ Prefer a path-like id (trackId/r2Path) for playback when present
-  const rawKey = String(
-    (song && (song.trackId || song.track_id || song.id || song.r2Path)) || ""
-  ).trim();
-
-  // ✅ Resolve "Artist/Track.ext" → "Artist/Album/Track.ext" using library keys (tracksById)
-  let resolvedKey = rawKey;
-
-  try {
-    const parts = rawKey.split("/").filter(Boolean);
-
-    // Only map if it looks like "Artist/Track.ext" (2 parts)
-    if (parts.length === 2 && window.tracksById && typeof window.tracksById.keys === "function") {
-      const wantArtist = parts[0];
-      const wantFile = parts[1];
-
-      // Build cache once per session: "Artist/Track.ext" -> "Artist/Album/Track.ext"
-      if (!window.__playlistLooseKeyMap || !(window.__playlistLooseKeyMap instanceof Map)) {
-        const m = new Map();
-        for (const k of window.tracksById.keys()) {
-          const kk = String(k || "").trim();
-          if (!kk) continue;
-          const kp = kk.split("/").filter(Boolean);
-          if (kp.length >= 3) {
-            const loose = kp[0] + "/" + kp.slice(2).join("/");
-            if (!m.has(loose)) m.set(loose, kk);
-          }
-        }
-        window.__playlistLooseKeyMap = m;
-      }
-
-      const mapped = window.__playlistLooseKeyMap.get(rawKey);
-      if (mapped) resolvedKey = mapped;
-      else {
-        // fallback: scan keys (slower, but only hits if cache miss)
-        for (const k of window.tracksById.keys()) {
-          const kk = String(k || "");
-          if (!kk.startsWith(wantArtist + "/")) continue;
-          if (kk.endsWith("/" + wantFile)) { resolvedKey = kk; break; }
-        }
-      }
-    }
-  } catch (e) {}
-
-  // ✅ Build safeUrl only when we have a real album path (Artist/Album/Track.ext)
   const safeUrl =
     (song && typeof song.link === "string" && song.link) ||
-    (() => {
-      const p = String(resolvedKey || "").split("/").filter(Boolean);
-      if (p.length >= 3) {
-        return (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(resolvedKey);
-      }
-      return songUrl;
-    })();
+    (song && typeof song.id === "string" && song.id
+      ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(song.id)
+      : songUrl);
 
-  // ✅ If album/artist are missing on playlist stubs, derive from resolvedKey
-  let derivedArtist = "";
-  let derivedAlbum = "";
-  try {
-    const parts = String(resolvedKey || "").split("/").filter(Boolean);
-    if (parts.length >= 2) derivedArtist = parts[0] || "";
-    if (parts.length >= 3) derivedAlbum = parts[1] || "";
-  } catch (e) {}
+  playSpecificSong(safeUrl, songTitle, album.albumName, album.artistName, cover);
+};
 
 
-  const playAlbum = String((song && (song.album || song.albumName)) || derivedAlbum || album.albumName || "").trim();
-  const playArtist = String((song && (song.artist || song.artistName)) || derivedArtist || album.artistName || "").trim();
-
-  // ✅ Cover: keep your existing value for now (we’ll fix row thumbs separately)
-  playSpecificSong(safeUrl, songTitle, playAlbum || "Unknown Album", playArtist || "Unknown Artist", cover);
-    };
 
     row.oncontextmenu = (e) =>
-
       handleContextMenu(e, {
         ...song,
         url: songUrl,
@@ -10006,17 +9840,7 @@ if (true) {
     // 2) if still empty, try your library map (tracksById) using trackId/id/r2Path
     if (!thumbSrc) {
       try {
-        const rawKey = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
-        let key = rawKey;
-
-        // ✅ Resolve "Artist/Track.ext" -> "Artist/Album/Track.ext" using the cached map if available
-        try {
-          if (rawKey && window.__playlistLooseKeyMap && typeof window.__playlistLooseKeyMap.get === "function") {
-            const mapped = window.__playlistLooseKeyMap.get(rawKey);
-            if (mapped) key = mapped;
-          }
-        } catch (e) {}
-
+        const key = String((song && (song.trackId || song.track_id || song.id || song.r2Path)) || "").trim();
 
         // 2a) tracksById map
         if (key && window.tracksById && typeof window.tracksById.get === "function") {
@@ -16627,39 +16451,10 @@ window.resolveTrackIdsToSongs = function (trackIds) {
         }
       }
 
-            // ✅ If this playlist id is "Artist/File.mp3", the AUDIO often lives at that short id.
-      // So keep audio URL using the original rawKey, but still allow cover to resolve from the library.
-      const rawParts = rawKey.split("/").filter(Boolean);
-      const urlKey = (rawParts.length === 2) ? rawKey : resolvedKey;
-
-      // Always build worker URL from the id we will actually stream
-      const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(urlKey)}`;
-
-      // ✅ If we still don't have a library hit AND it's short form, try to find a library entry by artist + filename
-      if (!hit && rawParts.length === 2 && window.__trackIndexMap && typeof window.__trackIndexMap.forEach === "function") {
-        const wantArtist = String(rawParts[0] || "").toLowerCase();
-        const wantFile = String(rawParts[1] || "").toLowerCase();
-
-        try {
-          window.__trackIndexMap.forEach((v, k) => {
-            if (hit) return;
-            const kk = String(k || "");
-            const parts = kk.split("/").filter(Boolean);
-            if (parts.length < 3) return;
-
-            const a0 = String(parts[0] || "").toLowerCase();
-            const file0 = String(parts[parts.length - 1] || "").toLowerCase();
-            if (a0 === wantArtist && file0 === wantFile) {
-              hit = v;
-              // IMPORTANT: we do NOT change resolvedKey here, because audio might not exist at the full id.
-              // We only want the cover/album/artist metadata from the library.
-            }
-          });
-        } catch (e) {}
-      }
+      // Always build worker URL from the *resolved* id
+      const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(resolvedKey)}`;
 
       if (hit) {
-
         const cleanTitle = String(hit.title || "").replace(/\.mp3$/i, "");
         return {
           id: resolvedKey,
