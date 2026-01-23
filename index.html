@@ -3677,10 +3677,107 @@ function onNavTap(e) {
   return false;
 }
 
-              let libraryData = [];
-let libraryDataOriginal = [];
-window.libraryData = libraryData;
-window.libraryDataOriginal = libraryDataOriginal;
+              window.libraryDataOriginal = libraryDataOriginal;
+
+// -----------------------
+// PLAYLIST TRACKID NORMALIZER (short "Artist/Track.mp3" -> full "Artist/Album/Track.mp3")
+// -----------------------
+function __reson_getBasename(p) {
+  const s = String(p || '').replace(/\\/g, '/');
+  const parts = s.split('/');
+  return parts[parts.length - 1] || '';
+}
+function __reson_extractFullPathFromSong(song) {
+  if (!song || typeof song !== 'object') return '';
+  return String(
+    song.id ||
+    song.r2Path ||
+    song.path ||
+    song.key ||
+    song.url ||
+    song.link ||
+    song.src ||
+    ''
+  ).trim();
+}
+function __reson_walkSongsFromLibraryData(ld) {
+  const out = [];
+  if (!Array.isArray(ld)) return out;
+  for (const item of ld) {
+    if (!item) continue;
+    const songsArr =
+      (Array.isArray(item.songs) && item.songs) ||
+      (Array.isArray(item.tracks) && item.tracks) ||
+      (Array.isArray(item.items) && item.items) ||
+      null;
+    if (songsArr) {
+      for (const s of songsArr) out.push({ song: s, parent: item });
+    } else {
+      out.push({ song: item, parent: null });
+    }
+  }
+  return out;
+}
+function buildShortToFullTrackIdMapFromLibraryData() {
+  const map = Object.create(null);
+  const pairs = __reson_walkSongsFromLibraryData(window.libraryData || libraryData);
+  for (const { song, parent } of pairs) {
+    const full = __reson_extractFullPathFromSong(song);
+    if (!full || full.indexOf('/') === -1) continue;
+
+    const artist = String(
+      song.artist || song.artistName || (parent && (parent.artist || parent.artistName)) || ''
+    ).trim();
+    if (!artist) continue;
+
+    const base = __reson_getBasename(full);
+    if (!base) continue;
+
+    const shortId = `${artist}/${base}`;
+    if (!map[shortId]) map[shortId] = full;
+  }
+  return map;
+}
+function normalizeLocalPlaylistsTrackIdsToFullPaths() {
+  let pls;
+  try { pls = JSON.parse(localStorage.getItem('playlists') || '[]'); }
+  catch (e) { return { ok: false, reason: 'playlists JSON parse failed', error: String(e) }; }
+
+  if (!Array.isArray(pls) || !pls.length) return { ok: true, playlists: 0, changed: 0, note: 'no playlists found' };
+
+  const map = buildShortToFullTrackIdMapFromLibraryData();
+  let changed = 0, scanned = 0;
+  const samples = [];
+
+  for (const p of pls) {
+    if (!p || !Array.isArray(p.trackIds)) continue;
+    p.trackIds = p.trackIds.map((id) => {
+      const s = String(id || '').trim();
+      scanned++;
+
+      // already looks like full Artist/Album/Track.ext
+      if (s.split('/').length >= 3 && !s.includes('Unknown Album')) return s;
+
+      const full = map[s];
+      if (full) {
+        changed++;
+        if (samples.length < 10) samples.push({ playlist: p.name || p.id || '(unknown)', from: s, to: full });
+        return full;
+      }
+      return s;
+    });
+  }
+
+  try { localStorage.setItem('playlists', JSON.stringify(pls)); }
+  catch (e) { return { ok: false, reason: 'localStorage set failed', error: String(e), scanned, changed, samples }; }
+
+  return { ok: true, playlists: pls.length, scanned, changed, samples };
+}
+
+window.normalizeLocalPlaylistsTrackIdsToFullPaths = normalizeLocalPlaylistsTrackIdsToFullPaths;
+window.buildShortToFullTrackIdMapFromLibraryData = buildShortToFullTrackIdMapFromLibraryData;
+
+
 
 let currentSong = null;
 window.currentSong = currentSong;
