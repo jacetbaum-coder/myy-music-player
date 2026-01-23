@@ -17598,7 +17598,66 @@ function renderCrateStats() {
   try { paint(); } catch (e) {}
   setTimeout(() => { try { paint(); } catch (e) {} }, 250);
 })();
+<script>
+/* ✅ FINAL OVERRIDE: make playlist songs derive album/cover from full R2 id even if not in libraryData */
+(function () {
+  function workerUrlFromId(id) {
+    return "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(id);
+  }
+
+  window.resolveTrackIdsToSongs = function (trackIds) {
+    const ids = Array.isArray(trackIds) ? trackIds : [];
+    const out = [];
+
+    for (const rawId of ids) {
+      let key = "";
+      try { key = (typeof window.canonTrackId === "function") ? window.canonTrackId(rawId) : String(rawId || "").trim(); }
+      catch (e) { key = String(rawId || "").trim(); }
+      if (!key) continue;
+
+      // If your library map knows it, prefer that.
+      try {
+        if (window.tracksById && typeof window.tracksById.get === "function") {
+          const hit = window.tracksById.get(key);
+          if (hit) { out.push(hit); continue; }
+        }
+      } catch (e) {}
+
+      // Expand short "Artist/File.mp3" to full if we have a short->full map
+      try {
+        if (window.__shortTrackIdToFullId && typeof window.__shortTrackIdToFullId.get === "function") {
+          const parts0 = key.split("/").filter(Boolean);
+          if (parts0.length === 2) {
+            const full = window.__shortTrackIdToFullId.get(key);
+            if (full) key = String(full).trim();
+          }
+        }
+      } catch (e) {}
+
+      // Fallback: derive artist/album/cover directly from full id
+      const parts = key.split("/").filter(Boolean);
+      const artist = parts[0] || "";
+      const album = parts.length >= 3 ? parts[1] : "";
+      const file = parts[parts.length - 1] || "";
+      const title = file.replace(/\.[^/.]+$/, "");
+
+      const coverId = (artist && album) ? (artist + "/" + album + "/cover.jpg") : "";
+
+      out.push({
+        id: key,
+        title,
+        artist,
+        album,
+        cover: coverId ? workerUrlFromId(coverId) : "",
+        url: workerUrlFromId(key)
+      });
+    }
+
+    return out;
+  };
+})();
 </script>
+
 
 
   <!-- SYNC DEVICES MODAL -->
