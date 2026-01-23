@@ -9772,27 +9772,70 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
   if (!songUrl) return;
   currentIndex = i;
 
-  // ✅ Prefer a path-like id (trackId/r2Path) for playback when present
+   // ✅ Prefer a path-like id (trackId/r2Path) for playback when present
   const rawKey = String(
     (song && (song.trackId || song.track_id || song.id || song.r2Path)) || ""
   ).trim();
 
-  // If rawKey looks like "Artist/Album/Track.ext", use Worker URL from it.
-  // Otherwise fall back to the existing songUrl.
+  // ✅ Resolve "Artist/Track.ext" → "Artist/Album/Track.ext" using library keys (tracksById)
+  let resolvedKey = rawKey;
+
+  try {
+    const parts = rawKey.split("/").filter(Boolean);
+
+    // Only map if it looks like "Artist/Track.ext" (2 parts)
+    if (parts.length === 2 && window.tracksById && typeof window.tracksById.keys === "function") {
+      const wantArtist = parts[0];
+      const wantFile = parts[1];
+
+      // Build cache once per session: "Artist/Track.ext" -> "Artist/Album/Track.ext"
+      if (!window.__playlistLooseKeyMap || !(window.__playlistLooseKeyMap instanceof Map)) {
+        const m = new Map();
+        for (const k of window.tracksById.keys()) {
+          const kk = String(k || "").trim();
+          if (!kk) continue;
+          const kp = kk.split("/").filter(Boolean);
+          if (kp.length >= 3) {
+            const loose = kp[0] + "/" + kp.slice(2).join("/");
+            if (!m.has(loose)) m.set(loose, kk);
+          }
+        }
+        window.__playlistLooseKeyMap = m;
+      }
+
+      const mapped = window.__playlistLooseKeyMap.get(rawKey);
+      if (mapped) resolvedKey = mapped;
+      else {
+        // fallback: scan keys (slower, but only hits if cache miss)
+        for (const k of window.tracksById.keys()) {
+          const kk = String(k || "");
+          if (!kk.startsWith(wantArtist + "/")) continue;
+          if (kk.endsWith("/" + wantFile)) { resolvedKey = kk; break; }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // ✅ Build safeUrl only when we have a real album path (Artist/Album/Track.ext)
   const safeUrl =
     (song && typeof song.link === "string" && song.link) ||
-    (rawKey && rawKey.includes("/")
-      ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(rawKey)
-      : songUrl);
+    (() => {
+      const p = String(resolvedKey || "").split("/").filter(Boolean);
+      if (p.length >= 3) {
+        return (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(resolvedKey);
+      }
+      return songUrl;
+    })();
 
-  // ✅ If album/artist are missing on playlist stubs, derive from rawKey
+  // ✅ If album/artist are missing on playlist stubs, derive from resolvedKey
   let derivedArtist = "";
   let derivedAlbum = "";
   try {
-    const parts = rawKey.split("/").filter(Boolean);
+    const parts = String(resolvedKey || "").split("/").filter(Boolean);
     if (parts.length >= 2) derivedArtist = parts[0] || "";
     if (parts.length >= 3) derivedAlbum = parts[1] || "";
   } catch (e) {}
+
 
   const playAlbum = String((song && (song.album || song.albumName)) || derivedAlbum || album.albumName || "").trim();
   const playArtist = String((song && (song.artist || song.artistName)) || derivedArtist || album.artistName || "").trim();
