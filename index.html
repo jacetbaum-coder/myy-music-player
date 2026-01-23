@@ -10771,41 +10771,52 @@ function handleSearch(query) {
           };
 
           const appendSongRow = (s) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+             const row = document.createElement('div');
+             row.className = 'flex items-center gap-3 px-1 py-2 cursor-pointer group';
 
-            row.addEventListener('click', () => {
-              // Mobile top label: ".... in Search"
-              playContext = { type: 'search', label: q };
+             const coverSrc = String(
+               s.cover || s.coverArt || s.cover_url || s.coverUrl || s.coverArtUrl || ''
+             ).trim();
 
-              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
-            });
+             const img = document.createElement('img');
+             img.className = 'w-12 h-12 rounded bg-zinc-800 object-cover flex-shrink-0';
+             img.alt = s.title || 'Song cover';
+             img.src = coverSrc || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='100%25' height='100%25' fill='%2318181b'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='36' fill='%23a1a1aa'>♪</text></svg>";
+             row.appendChild(img);
 
-            const img = document.createElement('img');
-            img.src = s.cover;
-            img.className = 'w-12 h-12 rounded object-cover';
+             const txt = document.createElement('div');
+             txt.className = 'min-w-0 flex-1';
+             txt.innerHTML = `
+               <div class="text-white font-semibold truncate">${s.title}</div>
+               <div class="text-zinc-400 text-sm truncate"></div>
+             `;
+             const meta = txt.querySelector('div.text-zinc-400');
 
-            const info = document.createElement('div');
-            info.className = 'flex-1 overflow-hidden';
+             const alb = String(s.album || '').trim();
+             const showAlb = alb && alb.toLowerCase() !== 'unknown album' && !alb.toLowerCase().endsWith('.mp3');
+             meta.textContent = showAlb ? `${s.artist} • ${alb}` : `${s.artist}`;
 
-            const title = document.createElement('div');
-            title.className = 'text-white font-bold truncate';
-            title.textContent = (s.name || '').replace('.mp3', '');
+             row.appendChild(txt);
 
-            const meta = document.createElement('div');
-            meta.className = 'text-sm text-zinc-400 truncate';
-            meta.textContent = `${s.artist} • ${s.album}`;
+             row.addEventListener('click', () => {
+               // Mobile top label
+               if (window.innerWidth <= 768) {
+                 setSearchTopLabelText(s.title);
+                 setTimeout(() => setSearchTopLabelText("Search"), 2500);
+               }
 
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
+               playSpecificSong(
+                 s.link,
+                 s.title,
+                 showAlb ? alb : "",
+                 s.artist,
+                 coverSrc
+               );
+             });
 
-            info.appendChild(title);
-            info.appendChild(meta);
-            row.appendChild(img);
-            row.appendChild(info);
-            row.appendChild(icon);
-            results.appendChild(row);
-          };
+             results.appendChild(row);
+           };
+
 
           const appendAlbumRow = (album) => {
             const row = document.createElement('div');
@@ -11142,7 +11153,11 @@ async function updateRightLyricsForSong(songObj) {
 
 async function playSpecificSong(url, title, album, artist, cover) {
 
+  // ✅ Hide bogus album labels like "Unknown Album"
+  if (String(album || "").trim().toLowerCase() === "unknown album") album = "";
+
   // ✅ Guard: if the stream URL doesn't exist, show a friendly modal instead of "dead dock"
+
   try {
     const head = await fetch(url, { method: "HEAD" });
     const ct = String(head.headers.get("content-type") || "");
@@ -16673,7 +16688,8 @@ if (hero && activePlaylistId) {
           song.title,
           song.album,
           song.artist,
-          (song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+          (getSongCoverFromPlaylistSong(song) || song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+
         );
         return;
       }
@@ -16736,7 +16752,8 @@ return;
         song.title,
         song.album,
         song.artist,
-        (song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+        (getSongCoverFromPlaylistSong(song) || song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+
       );
     };
 
