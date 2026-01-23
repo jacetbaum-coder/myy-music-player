@@ -5407,14 +5407,38 @@ window.resolveTrackIdsToSongs = function (trackIds) {
 
   const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
 
-  for (const id of ids) {
-    const key = String(id || "").trim();
+    for (const id of ids) {
+    // ✅ normalize id (handles full URLs and ?id= encoded forms)
+    let key = "";
+    try {
+      key = (typeof window.canonTrackId === "function")
+        ? window.canonTrackId(id)
+        : String(id || "").trim();
+    } catch (e) {
+      key = String(id || "").trim();
+    }
     if (!key) continue;
 
+    // ✅ build fast lookup maps from libraryData (once)
+    try { if (typeof __buildTrackIndexIfNeeded === "function") __buildTrackIndexIfNeeded(); } catch (e) {}
+
+    // ✅ if playlists contain old short ids like "Artist/Track.mp3", upgrade to full key
+    try {
+      if (window.__trackShortIndexMap && typeof window.__trackShortIndexMap.get === "function") {
+        const shortHit = window.__trackShortIndexMap.get(key);
+        if (shortHit && shortHit.id) key = String(shortHit.id).trim();
+      }
+    } catch (e) {}
+
     const found =
-      (window.tracksById && typeof window.tracksById.get === "function")
-        ? (window.tracksById.get(key) || null)
-        : null;
+      (window.__trackIndexMap && typeof window.__trackIndexMap.get === "function")
+        ? (window.__trackIndexMap.get(key) || null)
+        : (
+            (window.tracksById && typeof window.tracksById.get === "function")
+              ? (window.tracksById.get(key) || null)
+              : null
+          );
+
 
     // ✅ Best case: we have the real track from the library
     if (found) {
@@ -7556,10 +7580,33 @@ try {
 
   playlists = merged;
 
-  // Persist locally so refresh works even if offline
-  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+ // Persist locally so refresh works even if offline
+    try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
 
-  // ✅ Background-hydrate trackIds so playlist covers can render
+    // ✅ Immediately normalize any old short trackIds ("Artist/Track.mp3") into full ids ("Artist/Album/Track.mp3")
+    // so cloud sync can't keep re-breaking covers/playback.
+    try {
+      if (typeof __buildTrackIndexIfNeeded === "function") __buildTrackIndexIfNeeded();
+
+      const pls = JSON.parse(localStorage.getItem("playlists") || "[]");
+      let changed = 0;
+
+      if (Array.isArray(pls) && window.__trackShortIndexMap && typeof window.__trackShortIndexMap.get === "function") {
+        for (const p of pls) {
+          if (!p || !Array.isArray(p.trackIds)) continue;
+          p.trackIds = p.trackIds.map((tid) => {
+            const s = String(tid || "").trim();
+            const hit = window.__trackShortIndexMap.get(s);
+            if (hit && hit.id) { changed++; return String(hit.id).trim(); }
+            return s;
+          });
+        }
+        if (changed) localStorage.setItem("playlists", JSON.stringify(pls));
+      }
+    } catch (e) {}
+
+    // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
+
   try {
     if (typeof window.hydratePlaylistTrackIdsInBackground === "function") {
       window.hydratePlaylistTrackIdsInBackground({ max: 12, concurrency: 3 });
