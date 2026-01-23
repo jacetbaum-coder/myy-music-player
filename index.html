@@ -16663,14 +16663,21 @@ if (hero && activePlaylistId) {
       const dotsEl = e && e.target && e.target.closest ? e.target.closest('.track-menu') : null;
       if (dotsEl) return;
 
-      // ✅ Title click always plays
+            // ✅ Title click always plays
       const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
       if (playTarget) {
         if (isDesktop && window.__songSelect && window.__songSelect.enabled) setSongSelectEnabled(false);
         currentIndex = i;
-        playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
+        playSpecificSong(
+          song.url,
+          song.title,
+          song.album,
+          song.artist,
+          (song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+        );
         return;
       }
+
 
       // ✅ Desktop: grey space selects (single) OR expands via Shift/Cmd
       if (isDesktop && window.__songSelect) {
@@ -16722,18 +16729,27 @@ return;
 
       }
 
-      // Default: play (mobile tap)
+            // Default: play (mobile tap)
       currentIndex = i;
-      playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
+      playSpecificSong(
+        song.url,
+        song.title,
+        song.album,
+        song.artist,
+        (song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
+      );
     };
 
 
-    row.oncontextmenu = (e) =>
-      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
+
+        row.oncontextmenu = (e) =>
+      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: (song.cover || song.coverUrl || song.cover_url || song.coverArt || "") });
+
       attachSongPressHandlers(
-      row,
-      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+            row,
+      { ...song, name: song.title, link: song.url, coverArt: (song.cover || song.coverUrl || song.cover_url || song.coverArt || "") },
       longPressState
+
     );
 
        // ✅ needed by updateTrackListActiveState()
@@ -16758,7 +16774,8 @@ return;
     if (isPlaylist) {
       let thumbSrc = '';
       try { thumbSrc = String(getSongCoverFromPlaylistSong(song) || '').trim(); } catch (e) {}
-      if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
+      if (!thumbSrc) thumbSrc = String(song.cover || song.coverUrl || song.cover_url || song.coverArt || '').trim();
+
 
       thumbMarkup = thumbSrc
         ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
