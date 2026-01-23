@@ -9799,10 +9799,10 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
   // ✅ Cover: keep your existing value for now (we’ll fix row thumbs separately)
   playSpecificSong(safeUrl, songTitle, playAlbum || "Unknown Album", playArtist || "Unknown Artist", cover);
-
-
+    };
 
     row.oncontextmenu = (e) =>
+
       handleContextMenu(e, {
         ...song,
         url: songUrl,
