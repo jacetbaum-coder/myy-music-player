@@ -16480,10 +16480,39 @@ window.resolveTrackIdsToSongs = function (trackIds) {
         }
       }
 
-      // Always build worker URL from the *resolved* id
-      const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(resolvedKey)}`;
+            // ✅ If this playlist id is "Artist/File.mp3", the AUDIO often lives at that short id.
+      // So keep audio URL using the original rawKey, but still allow cover to resolve from the library.
+      const rawParts = rawKey.split("/").filter(Boolean);
+      const urlKey = (rawParts.length === 2) ? rawKey : resolvedKey;
+
+      // Always build worker URL from the id we will actually stream
+      const u = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(urlKey)}`;
+
+      // ✅ If we still don't have a library hit AND it's short form, try to find a library entry by artist + filename
+      if (!hit && rawParts.length === 2 && window.__trackIndexMap && typeof window.__trackIndexMap.forEach === "function") {
+        const wantArtist = String(rawParts[0] || "").toLowerCase();
+        const wantFile = String(rawParts[1] || "").toLowerCase();
+
+        try {
+          window.__trackIndexMap.forEach((v, k) => {
+            if (hit) return;
+            const kk = String(k || "");
+            const parts = kk.split("/").filter(Boolean);
+            if (parts.length < 3) return;
+
+            const a0 = String(parts[0] || "").toLowerCase();
+            const file0 = String(parts[parts.length - 1] || "").toLowerCase();
+            if (a0 === wantArtist && file0 === wantFile) {
+              hit = v;
+              // IMPORTANT: we do NOT change resolvedKey here, because audio might not exist at the full id.
+              // We only want the cover/album/artist metadata from the library.
+            }
+          });
+        } catch (e) {}
+      }
 
       if (hit) {
+
         const cleanTitle = String(hit.title || "").replace(/\.mp3$/i, "");
         return {
           id: resolvedKey,
