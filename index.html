@@ -3777,9 +3777,16 @@ function normalizeLocalPlaylistsTrackIdsToFullPaths() {
 window.normalizeLocalPlaylistsTrackIdsToFullPaths = normalizeLocalPlaylistsTrackIdsToFullPaths;
 window.buildShortToFullTrackIdMapFromLibraryData = buildShortToFullTrackIdMapFromLibraryData;
 
-
+// -----------------------
+// LIBRARY GLOBALS (must exist before any Home/Library helpers run)
+// -----------------------
+let libraryData = Array.isArray(window.libraryData) ? window.libraryData : [];
+let libraryDataOriginal = Array.isArray(window.libraryDataOriginal) ? window.libraryDataOriginal : [];
+window.libraryData = libraryData;
+window.libraryDataOriginal = libraryDataOriginal;
 
 let currentSong = null;
+
 window.currentSong = currentSong;
 
 let currentQueue = [];
