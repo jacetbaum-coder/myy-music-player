@@ -11212,7 +11212,15 @@ async function playSpecificSong(url, title, album, artist, cover) {
   // Playlist/bad-id track (Artist/File.mp3) → try to resolve via libraryData → use matched album.coverArt
   // Single track → Artist/cover.jpg (rare)
   let resolvedCover = String(cover || "").trim();
-  if (!resolvedCover) {
+
+// Treat playlist-provided cover URLs like ".../SomeSong.mp3/cover.jpg" as bogus (those 404 in your worker)
+const coverLooksBogus =
+  !!resolvedCover &&
+  (resolvedCover.includes(".mp3/cover.jpg") || resolvedCover.includes(".mp3%2Fcover.jpg"));
+
+if (!resolvedCover || coverLooksBogus) {
+  if (coverLooksBogus) resolvedCover = "";
+
     const a = String(artist || "").trim();
 
     // ---- NEW: If album is missing/unknown, try to resolve cover from libraryData using the URL id ----
@@ -14690,18 +14698,59 @@ function savePlaylists() {
 function getSongCoverFromPlaylistSong(s) {
   if (!s) return "";
 
-  // 1) If the song already has a cover field, use it
-  const direct =
-    s.cover_url ||
-    s.coverURL ||
-    s.cover ||
-    s.coverArt ||
-    s.cover_art ||
-    (s.track && (s.track.cover_url || s.track.cover)) ||
-    "";
+ // 1) If the song already has a cover field, use it (unless it points to a non-existent "...mp3/cover.jpg")
+const direct =
+  s.cover || s.coverArt || s.cover_url || s.coverUrl ||
+  (s.meta && (s.meta.cover || s.meta.coverArt)) ||
+  "";
+let directClean = String(direct || "").trim();
 
-  const directClean = String(direct || "").trim();
-  if (directClean) return directClean;
+const directLooksBogus =
+  !!directClean &&
+  (directClean.includes(".mp3/cover.jpg") || directClean.includes(".mp3%2Fcover.jpg"));
+
+if (directClean && !directLooksBogus) return directClean;
+
+// 1b) If it's bogus (playlist API gives Artist/File.mp3/cover.jpg), resolve via libraryData to an album cover
+try {
+  const lib = window.libraryData || window.allAlbums || window.cachedData || window.__libraryData;
+  if (Array.isArray(lib)) {
+    const raw = String(s.trackId || s.id || s.r2Path || s.url || s.link || "").trim();
+    let decodedId = raw;
+
+    // If it's a worker URL or has ?id=, extract & decode
+    try {
+      if (decodedId.includes("?id=")) {
+        decodedId = decodeURIComponent(decodedId.split("?id=")[1] || "");
+      } else if (decodedId.startsWith("http")) {
+        const u = new URL(decodedId);
+        decodedId = decodeURIComponent(u.searchParams.get("id") || decodedId);
+      }
+    } catch (e) {}
+
+    const parts = decodedId.split("/");
+    const fileName = parts[parts.length - 1] || "";
+    const artistHint = String(s.artist || s.artistName || parts[0] || "").trim();
+
+    if (fileName && parts.length >= 2) {
+      for (const alb of lib) {
+        const songs = Array.isArray(alb?.songs) ? alb.songs : [];
+        for (const song of songs) {
+          const sid = String(song?.id || song?.r2Path || "").trim();
+          const sArtist = String(song?.artistName || "").trim();
+
+          const artistOk = !artistHint || !sArtist ? true : (sArtist.toLowerCase() === artistHint.toLowerCase());
+          const fileOk = sid && (sid === decodedId || sid.endsWith("/" + fileName));
+
+          if (artistOk && fileOk && alb?.coverArt) {
+            return String(alb.coverArt);
+          }
+        }
+      }
+    }
+  }
+} catch (e) {}
+
 
   // 2) Otherwise, compute album/parent-folder cover from track id/path
   // Supports:
