@@ -8838,10 +8838,9 @@ function canonTrackId(v) {
   return "";
 }
 
-
 const itemsArr = Array.isArray(rawItems) ? rawItems : [];
 
-const normalizedIds = itemsArr
+let normalizedIds = itemsArr
   .map((x) => {
     if (typeof x === "string") return canonTrackId(x);
     if (x && typeof x === "object") {
@@ -8850,6 +8849,22 @@ const normalizedIds = itemsArr
     return "";
   })
   .filter(Boolean);
+
+// ✅ Expand old short ids ("Artist/File.mp3") to full ids ("Artist/Album/File.mp3") when possible
+try {
+  if (typeof __buildTrackIndexIfNeeded === "function") __buildTrackIndexIfNeeded();
+  if (window.__shortTrackIdToFullId && typeof window.__shortTrackIdToFullId.get === "function") {
+    normalizedIds = normalizedIds.map((id) => {
+      const key = String(id || "").trim();
+      const parts = key.split("/").filter(Boolean);
+      if (parts.length === 2) {
+        const full = window.__shortTrackIdToFullId.get(key);
+        return full ? String(full).trim() : key;
+      }
+      return key;
+    });
+  }
+} catch (e) {}
 
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
@@ -16473,8 +16488,10 @@ window.resolveTrackIdsToSongs = function (trackIds) {
 
   return ids
     .map((rawId) => {
-      const rawKey = String(rawId || "").trim();
-      if (!rawKey) return null;
+      const rawKey = (typeof window.canonTrackId === "function")
+  ? window.canonTrackId(rawId)
+  : String(rawId || "").trim();
+if (!rawKey) return null;
 
       // ✅ If playlist stores short ids like "Artist/Track.mp3", expand to full id
       let key = rawKey;
