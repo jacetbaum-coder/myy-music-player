@@ -5327,10 +5327,101 @@ window.cloudPlaylists = [];
 return [];
 };
 
+// ✅ Expand playlist short IDs ("Artist/Title.mp3") into full canonical IDs
+// using loaded libraryData. Only expands when the match is UNIQUE.
+window.expandPlaylistShortIdsFromLibrary = function expandPlaylistShortIdsFromLibrary(trackIds) {
+  const ids = Array.isArray(trackIds) ? trackIds.slice() : [];
+  const lib = window.libraryData || window.library_data || window.__libraryData || null;
+  const albums = Array.isArray(lib) ? lib : (lib && Array.isArray(lib.albums) ? lib.albums : null);
+  if (!albums) return ids;
+
+  const canonTrackId = (v) => {
+    let s = String(v || "").trim();
+    if (!s) return "";
+    try {
+      if (s.includes("://")) {
+        const u = new URL(s);
+        const id = u.searchParams.get("id");
+        if (id) s = id;
+      }
+    } catch {}
+    if (s.includes("?id=")) {
+      try { s = s.split("?id=")[1].split("&")[0]; } catch {}
+    }
+    try { s = decodeURIComponent(s); } catch {}
+    return s.replace(/^\/+/, "").trim();
+  };
+
+  const norm = (t) => String(t || "")
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, "")          // drop extension
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // looser: drops (...) and [...] and common suffix patterns (still NOT album guessing)
+  const normLoose = (t) => norm(String(t || "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s-\s.*$/g, " ")
+  );
+
+  // Build maps: artist|titleNorm -> fullId, but only if unique
+  const exactMap = new Map();
+  const exactDup = new Set();
+  const looseMap = new Map();
+  const looseDup = new Set();
+
+  for (const a of albums) {
+    const songs = Array.isArray(a?.songs) ? a.songs : [];
+    for (const s of songs) {
+      const full = canonTrackId(s?.id || s?.r2Path || s?.link || "");
+      if (!full) continue;
+
+      const artist = String(s?.artistName || a?.artistName || "").trim();
+      const title = String(s?.title || "").trim();
+      if (!artist || !title) continue;
+
+      const k1 = `${artist.toLowerCase()}|${norm(title)}`;
+      if (!exactDup.has(k1)) {
+        if (!exactMap.has(k1)) exactMap.set(k1, full);
+        else { exactDup.add(k1); exactMap.delete(k1); }
+      }
+
+      const k2 = `${artist.toLowerCase()}|${normLoose(title)}`;
+      if (!looseDup.has(k2)) {
+        if (!looseMap.has(k2)) looseMap.set(k2, full);
+        else { looseDup.add(k2); looseMap.delete(k2); }
+      }
+    }
+  }
+
+  for (let i = 0; i < ids.length; i++) {
+    const raw = ids[i];
+    const id = canonTrackId(raw);
+    const segs = id.split("/").filter(Boolean);
+
+    // Only expand true short form: Artist/File.ext (2 segments)
+    if (segs.length !== 2) continue;
+
+    const artist = segs[0];
+    const file = segs[1];
+
+    const titleFromFile = file.replace(/\.[^/.]+$/, "");
+    const k1 = `${artist.toLowerCase()}|${norm(titleFromFile)}`;
+    const k2 = `${artist.toLowerCase()}|${normLoose(titleFromFile)}`;
+
+    const mapped = exactMap.get(k1) || looseMap.get(k2) || "";
+    if (mapped) ids[i] = mapped;
+  }
+
+  return ids;
+};
 
 // -----------------------
 // AUTO CLOUD PULL (background sync)
 // -----------------------
+
 window.__cloudPlaylistSig = "";
 window.__cloudPlaylistSyncTimer = null;
 
@@ -7554,7 +7645,18 @@ try {
     merged.push(p);
   }
 
-  playlists = merged;
+   playlists = merged;
+
+  // ✅ Expand any short IDs ("Artist/Title.mp3") into full canonical IDs BEFORE saving/rendering
+  try {
+    if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+      playlists.forEach(pl => {
+        if (Array.isArray(pl?.trackIds) && pl.trackIds.length) {
+          pl.trackIds = window.expandPlaylistShortIdsFromLibrary(pl.trackIds);
+        }
+      });
+    }
+  } catch (e) {}
 
   // Persist locally so refresh works even if offline
   try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
@@ -14635,15 +14737,15 @@ function getSongCoverFromPlaylistSong(s) {
     s.cover_art ||
     (s.track && (s.track.cover_url || s.track.cover)) ||
     "";
-
   const directClean = String(direct || "").trim();
   if (directClean) return directClean;
 
   // 2) Otherwise, compute album/parent-folder cover from track id/path
   // Supports:
   // - "Artist/Album/Song.mp3"          => "Artist/Album/cover.jpg"
-  // - "Artist/Song.mp3"               => "Artist/cover.jpg"
   // - "My Collection/Artists/Artist/Album/Song.mp3" => "Artist/Album/cover.jpg"
+  // NOTE: We intentionally do NOT fall back to "Artist/cover.jpg"
+  // because your canonical rules say album covers only exist at Artist/Album/cover.jpg.
   const rawId =
     s.id ||
     s.key ||
@@ -14663,16 +14765,16 @@ function getSongCoverFromPlaylistSong(s) {
   if (parts.length < 1) return "";
 
   // If it ends in a filename (has a dot), drop it to get the parent folder
-  // e.g. ["berlioz","deep in it.mp3"] => ["berlioz"]
   const last = parts[parts.length - 1];
   if (last.includes(".")) parts.pop();
 
-  if (parts.length < 1) return "";
+  // If we only have "Artist", we can't form an album cover path
+  if (parts.length < 2) return "";
 
   const coverPath = `${parts.join("/")}/cover.jpg`;
-
   return `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
 }
+
 
 function getPlaylistManualCover(pl) {
 
