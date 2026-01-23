@@ -10771,52 +10771,41 @@ function handleSearch(query) {
           };
 
           const appendSongRow = (s) => {
-             const row = document.createElement('div');
-             row.className = 'flex items-center gap-3 px-1 py-2 cursor-pointer group';
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
 
-             const coverSrc = String(
-               s.cover || s.coverArt || s.cover_url || s.coverUrl || s.coverArtUrl || ''
-             ).trim();
+            row.addEventListener('click', () => {
+              // Mobile top label: ".... in Search"
+              playContext = { type: 'search', label: q };
 
-             const img = document.createElement('img');
-             img.className = 'w-12 h-12 rounded bg-zinc-800 object-cover flex-shrink-0';
-             img.alt = s.title || 'Song cover';
-             img.src = coverSrc || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='100%25' height='100%25' fill='%2318181b'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='36' fill='%23a1a1aa'>♪</text></svg>";
-             row.appendChild(img);
+              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+            });
 
-             const txt = document.createElement('div');
-             txt.className = 'min-w-0 flex-1';
-             txt.innerHTML = `
-               <div class="text-white font-semibold truncate">${s.title}</div>
-               <div class="text-zinc-400 text-sm truncate"></div>
-             `;
-             const meta = txt.querySelector('div.text-zinc-400');
+            const img = document.createElement('img');
+            img.src = s.cover;
+            img.className = 'w-12 h-12 rounded object-cover';
 
-             const alb = String(s.album || '').trim();
-             const showAlb = alb && alb.toLowerCase() !== 'unknown album' && !alb.toLowerCase().endsWith('.mp3');
-             meta.textContent = showAlb ? `${s.artist} • ${alb}` : `${s.artist}`;
+            const info = document.createElement('div');
+            info.className = 'flex-1 overflow-hidden';
 
-             row.appendChild(txt);
+            const title = document.createElement('div');
+            title.className = 'text-white font-bold truncate';
+            title.textContent = (s.name || '').replace('.mp3', '');
 
-             row.addEventListener('click', () => {
-               // Mobile top label
-               if (window.innerWidth <= 768) {
-                 setSearchTopLabelText(s.title);
-                 setTimeout(() => setSearchTopLabelText("Search"), 2500);
-               }
+            const meta = document.createElement('div');
+            meta.className = 'text-sm text-zinc-400 truncate';
+            meta.textContent = `${s.artist} • ${s.album}`;
 
-               playSpecificSong(
-                 s.link,
-                 s.title,
-                 showAlb ? alb : "",
-                 s.artist,
-                 coverSrc
-               );
-             });
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
 
-             results.appendChild(row);
-           };
-
+            info.appendChild(title);
+            info.appendChild(meta);
+            row.appendChild(img);
+            row.appendChild(info);
+            row.appendChild(icon);
+            results.appendChild(row);
+          };
 
           const appendAlbumRow = (album) => {
             const row = document.createElement('div');
@@ -11153,11 +11142,7 @@ async function updateRightLyricsForSong(songObj) {
 
 async function playSpecificSong(url, title, album, artist, cover) {
 
-  // ✅ Hide bogus album labels like "Unknown Album"
-  if (String(album || "").trim().toLowerCase() === "unknown album") album = "";
-
   // ✅ Guard: if the stream URL doesn't exist, show a friendly modal instead of "dead dock"
-
   try {
     const head = await fetch(url, { method: "HEAD" });
     const ct = String(head.headers.get("content-type") || "");
@@ -11207,77 +11192,20 @@ async function playSpecificSong(url, title, album, artist, cover) {
   const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(albumRaw);
   const albumFolder = albumIsFile ? "" : albumRaw;
 
-   // ✅ Cover fallback rules:
+  // ✅ Cover fallback rules:
   // Album track  → Artist/Album/cover.jpg
-  // Playlist/bad-id track (Artist/File.mp3) → try to resolve via libraryData → use matched album.coverArt
-  // Single track → Artist/cover.jpg (rare)
+  // Single track → Artist/cover.jpg
   let resolvedCover = String(cover || "").trim();
-
-// Treat playlist-provided cover URLs like ".../SomeSong.mp3/cover.jpg" as bogus (those 404 in your worker)
-const coverLooksBogus =
-  !!resolvedCover &&
-  (resolvedCover.includes(".mp3/cover.jpg") || resolvedCover.includes(".mp3%2Fcover.jpg"));
-
-if (!resolvedCover || coverLooksBogus) {
-  if (coverLooksBogus) resolvedCover = "";
-
+  if (!resolvedCover) {
     const a = String(artist || "").trim();
-
-    // ---- NEW: If album is missing/unknown, try to resolve cover from libraryData using the URL id ----
-    const albumLooksMissing = !albumFolder || albumFolder.toLowerCase() === "unknown album";
-
-    // Try to extract decoded R2 id from the worker URL (supports url being a string)
-    let decodedId = "";
-    try {
-      const u = new URL(String(url || ""));
-      decodedId = decodeURIComponent(u.searchParams.get("id") || "");
-    } catch (e) {}
-
-    // Only attempt this resolver when the id looks like "Artist/File.mp3" (2 segments)
-    if (albumLooksMissing && decodedId && decodedId.split("/").length === 2) {
-      try {
-        const lib = window.libraryData || window.allAlbums || window.cachedData || window.__libraryData;
-        const fileName = decodedId.split("/").pop() || "";
-
-        // Find the first library song whose artist matches AND whose id/r2Path ends with "/<fileName>"
-        let matchedCover = "";
-        if (Array.isArray(lib) && a && fileName) {
-          for (const alb of lib) {
-            const songs = Array.isArray(alb?.songs) ? alb.songs : [];
-            for (const s of songs) {
-              const sid = String(s?.id || s?.r2Path || "");
-              const sArtist = String(s?.artistName || "");
-              if (
-                sArtist.toLowerCase() === a.toLowerCase() &&
-                sid &&
-                sid.endsWith("/" + fileName) &&
-                alb?.coverArt
-              ) {
-                matchedCover = String(alb.coverArt);
-                break;
-              }
-            }
-            if (matchedCover) break;
-          }
-        }
-
-        if (matchedCover) {
-          resolvedCover = matchedCover;
-        }
-      } catch (e) {}
-    }
-
-    // ---- Existing behavior (unchanged) ----
-    if (!resolvedCover) {
-      if (a && albumFolder) {
-        resolvedCover =
-          "https://music-streamer.jacetbaum.workers.dev/?id=" +
-          encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
-      } else if (a) {
-        resolvedCover =
-          "https://music-streamer.jacetbaum.workers.dev/?id=" +
-          encodeURIComponent(a + "/cover.jpg");
-      }
+    if (a && albumFolder) {
+      resolvedCover =
+        "https://music-streamer.jacetbaum.workers.dev/?id=" +
+        encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
+    } else if (a) {
+      resolvedCover =
+        "https://music-streamer.jacetbaum.workers.dev/?id=" +
+        encodeURIComponent(a + "/cover.jpg");
     }
   }
 
@@ -14698,59 +14626,18 @@ function savePlaylists() {
 function getSongCoverFromPlaylistSong(s) {
   if (!s) return "";
 
- // 1) If the song already has a cover field, use it (unless it points to a non-existent "...mp3/cover.jpg")
-const direct =
-  s.cover || s.coverArt || s.cover_url || s.coverUrl ||
-  (s.meta && (s.meta.cover || s.meta.coverArt)) ||
-  "";
-let directClean = String(direct || "").trim();
+  // 1) If the song already has a cover field, use it
+  const direct =
+    s.cover_url ||
+    s.coverURL ||
+    s.cover ||
+    s.coverArt ||
+    s.cover_art ||
+    (s.track && (s.track.cover_url || s.track.cover)) ||
+    "";
 
-const directLooksBogus =
-  !!directClean &&
-  (directClean.includes(".mp3/cover.jpg") || directClean.includes(".mp3%2Fcover.jpg"));
-
-if (directClean && !directLooksBogus) return directClean;
-
-// 1b) If it's bogus (playlist API gives Artist/File.mp3/cover.jpg), resolve via libraryData to an album cover
-try {
-  const lib = window.libraryData || window.allAlbums || window.cachedData || window.__libraryData;
-  if (Array.isArray(lib)) {
-    const raw = String(s.trackId || s.id || s.r2Path || s.url || s.link || "").trim();
-    let decodedId = raw;
-
-    // If it's a worker URL or has ?id=, extract & decode
-    try {
-      if (decodedId.includes("?id=")) {
-        decodedId = decodeURIComponent(decodedId.split("?id=")[1] || "");
-      } else if (decodedId.startsWith("http")) {
-        const u = new URL(decodedId);
-        decodedId = decodeURIComponent(u.searchParams.get("id") || decodedId);
-      }
-    } catch (e) {}
-
-    const parts = decodedId.split("/");
-    const fileName = parts[parts.length - 1] || "";
-    const artistHint = String(s.artist || s.artistName || parts[0] || "").trim();
-
-    if (fileName && parts.length >= 2) {
-      for (const alb of lib) {
-        const songs = Array.isArray(alb?.songs) ? alb.songs : [];
-        for (const song of songs) {
-          const sid = String(song?.id || song?.r2Path || "").trim();
-          const sArtist = String(song?.artistName || "").trim();
-
-          const artistOk = !artistHint || !sArtist ? true : (sArtist.toLowerCase() === artistHint.toLowerCase());
-          const fileOk = sid && (sid === decodedId || sid.endsWith("/" + fileName));
-
-          if (artistOk && fileOk && alb?.coverArt) {
-            return String(alb.coverArt);
-          }
-        }
-      }
-    }
-  }
-} catch (e) {}
-
+  const directClean = String(direct || "").trim();
+  if (directClean) return directClean;
 
   // 2) Otherwise, compute album/parent-folder cover from track id/path
   // Supports:
@@ -16727,22 +16614,14 @@ if (hero && activePlaylistId) {
       const dotsEl = e && e.target && e.target.closest ? e.target.closest('.track-menu') : null;
       if (dotsEl) return;
 
-            // ✅ Title click always plays
+      // ✅ Title click always plays
       const playTarget = e && e.target && e.target.closest && e.target.closest('[data-play-target="1"]');
       if (playTarget) {
         if (isDesktop && window.__songSelect && window.__songSelect.enabled) setSongSelectEnabled(false);
         currentIndex = i;
-        playSpecificSong(
-          song.url,
-          song.title,
-          song.album,
-          song.artist,
-          (getSongCoverFromPlaylistSong(song) || song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
-
-        );
+        playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
         return;
       }
-
 
       // ✅ Desktop: grey space selects (single) OR expands via Shift/Cmd
       if (isDesktop && window.__songSelect) {
@@ -16794,28 +16673,18 @@ return;
 
       }
 
-            // Default: play (mobile tap)
+      // Default: play (mobile tap)
       currentIndex = i;
-      playSpecificSong(
-        song.url,
-        song.title,
-        song.album,
-        song.artist,
-        (getSongCoverFromPlaylistSong(song) || song.cover || song.coverUrl || song.cover_url || song.coverArt || song.coverArtUrl || "")
-
-      );
+      playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
     };
 
 
-
-        row.oncontextmenu = (e) =>
-      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: (song.cover || song.coverUrl || song.cover_url || song.coverArt || "") });
-
+    row.oncontextmenu = (e) =>
+      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
       attachSongPressHandlers(
-            row,
-      { ...song, name: song.title, link: song.url, coverArt: (song.cover || song.coverUrl || song.cover_url || song.coverArt || "") },
+      row,
+      { ...song, name: song.title, link: song.url, coverArt: song.cover },
       longPressState
-
     );
 
        // ✅ needed by updateTrackListActiveState()
@@ -16840,8 +16709,7 @@ return;
     if (isPlaylist) {
       let thumbSrc = '';
       try { thumbSrc = String(getSongCoverFromPlaylistSong(song) || '').trim(); } catch (e) {}
-      if (!thumbSrc) thumbSrc = String(song.cover || song.coverUrl || song.cover_url || song.coverArt || '').trim();
-
+      if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
 
       thumbMarkup = thumbSrc
         ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
