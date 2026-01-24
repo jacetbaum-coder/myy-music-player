@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 
@@ -25,6 +26,7 @@
     <meta name="theme-color" content="#000000">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14209,7 +14211,7 @@ function handleContextMenu(e, song){
 
   // If we have a multi-selection AND the right-clicked song is inside it,
   // use the whole selection for the menu.
-  try{
+  try {
     const u = String(song && (song.url || song.link || song.id || '')).trim();
     if (window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0) {
       const has = u && window.__songSelect.urls.has(u);
@@ -14223,7 +14225,7 @@ function handleContextMenu(e, song){
         });
 
         if (selectedArr.length) {
-                    menuTargetSong = selectedArr;
+        menuTargetSong = selectedArr;
           try { window.menuTargetSong = menuTargetSong; } catch (e) {}
           showContextMenuAt(
             e.clientX,
@@ -14232,6 +14234,17 @@ function handleContextMenu(e, song){
             (e.target && e.target.closest) ? e.target.closest("button.track-menu, .track-row, .track-row.group") : null
           );
           return;
+            }
+      }
+    }
+  } catch (err) {}
+
+  showContextMenuAt(
+    e.clientX,
+    e.clientY,
+    song,
+    (e.target && e.target.closest) ? e.target.closest("button.track-menu, .track-row, .track-row.group") : null
+  );  
 
 }
 
