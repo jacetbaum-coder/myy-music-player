@@ -10717,7 +10717,8 @@ function handleSearch(query) {
                  album: (albumName && albumName !== 'Unknown Album') ? albumName : '',
 
 artist: artistName,
-cover: album.coverArt || '',
+                  cover: (typeof getSongCoverFromPlaylistSong === 'function' ? getSongCoverFromPlaylistSong(song) : '') || album.coverArt || '',
+
 coverArt: album.coverArt || '',
 _score: score
 
@@ -10818,8 +10819,9 @@ _score: score
                   title: songObj.title || songObj.name || titleGuess,
                   artist: songObj.artistName || songObj.artist || artistGuess,
                   album: songObj.albumName || songObj.album || albumGuess || '',
-                  cover: songObj.coverArt || songObj.cover || '',
-                  coverArt: songObj.coverArt || songObj.cover || '',
+                  cover: (typeof getSongCoverFromPlaylistSong === 'function' ? getSongCoverFromPlaylistSong(songObj && Object.keys(songObj).length ? songObj : { id }) : '') || songObj.coverArt || songObj.cover || '',
+                  coverArt: (typeof getSongCoverFromPlaylistSong === 'function' ? getSongCoverFromPlaylistSong(songObj && Object.keys(songObj).length ? songObj : { id }) : '') || songObj.coverArt || songObj.cover || '',
+
                   link: songObj.link || songObj.url || ((window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(id)),
                 });
               }
