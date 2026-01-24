@@ -14927,13 +14927,15 @@ function getSongCoverFromPlaylistSong(s) {
   // If it ends in a filename (has a dot), drop it to get the parent folder
   const last = parts[parts.length - 1];
   const lastClean = String(last || "").split("?")[0].split("#")[0];
-    if (lastClean.includes(".")) parts.pop();
+      // ✅ If we only have "Artist" (meaning original was "Artist/File.mp3"),
+  // we *can* use Artist/cover.jpg as a fallback (ONLY for these orphan tracks).
+  if (parts.length < 2) {
+    const artistOnly = parts[0] || "";
+    if (!artistOnly) return "";
+    const coverPath = `${artistOnly}/cover.jpg`;
+    return `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
+  }
 
-  // ✅ If we only have "Artist" (meaning original was "Artist/File.mp3"),
-  // we do NOT know an album folder, so DO NOT invent a cover URL.
-  if (parts.length < 2) return "";
-
-  if (parts.length < 1) return "";
 
 
   const coverPath = `${parts.join("/")}/cover.jpg`;
