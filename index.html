@@ -16258,88 +16258,11 @@ function renderPlaylists() {
             updateCounts();
             updateHeartUI();
         }
-        
         async function menuAction(type) {
 
   if (!menuTargetSong) return;
 
-  // GO TO ALBUM
-  if (type === 'go_album') {
-    try {
-      const t = Array.isArray(menuTargetSong) ? menuTargetSong[0] : menuTargetSong;
-
-      // Try common fields first
-      const rawUrl =
-        (t && (t.url || t.songUrl || t.song_url || t.link || t.streamUrl)) ||
-        (typeof t === 'string' ? t : '');
-
-      let id = '';
-      try {
-        const u = new URL(String(rawUrl || ''));
-        id = u.searchParams.get('id') || '';
-        id = id ? decodeURIComponent(id) : '';
-      } catch (e) {}
-
-      // If we didn't get ?id=, try if the target itself is already an id/path
-      if (!id && t && (t.id || t.tid || t.trackId || t.r2Path)) {
-        id = String(t.id || t.tid || t.trackId || t.r2Path || '');
-      }
-
-      const parts = String(id || '').split('/').filter(Boolean);
-
-            // Artist/Album/Track.ext -> albumName = parts[1]
-      // Artist/Track.ext -> create/enter a virtual "Singles" album for that artist
-      const artistName = parts[0] || (t && (t.artist || t.artistName)) || '';
-      const albumName = (parts.length >= 3) ? parts[1] : 'Singles';
-
-      // If it's a 2-part path (Artist/Track.ext), we likely don't have a real album folder.
-      // Create a minimal virtual Singles album so openAlbumByName("Singles") has something to open.
-      if (albumName === 'Singles' && parts.length === 2) {
-        try {
-          const hasSingles = Array.isArray(window.libraryData) &&
-            window.libraryData.some(a => a && a.albumName === 'Singles' && (a.artistName === artistName || a.artist === artistName));
-
-          if (!hasSingles && Array.isArray(window.libraryData)) {
-            const trackObj = {
-              title: t && (t.title || t.name) ? (t.title || t.name) : parts[1],
-              artist: artistName,
-              artistName: artistName,
-              album: 'Singles',
-              albumName: 'Singles',
-              url: rawUrl || (t && t.url) || '',
-              link: rawUrl || (t && t.link) || '',
-              cover: (t && (t.cover || t.coverArt)) ? (t.cover || t.coverArt) : ''
-            };
-
-            window.libraryData.unshift({
-              albumName: 'Singles',
-              artistName: artistName,
-              artist: artistName,
-              cover: trackObj.cover || '',
-              tracks: [trackObj],
-              songs: [trackObj]
-            });
-          }
-        } catch (e) {
-          console.warn("[go_album] could not create virtual Singles", e);
-        }
-      }
-
-        window.openAlbumByName(albumName);
-      } else {
-        console.warn("[go_album] openAlbumByName missing");
-      }
-
-      // If you have a menu close function, call it safely
-      try { if (typeof closeMenu === "function") closeMenu(); } catch (e) {}
-    } catch (e) {
-      console.warn("[go_album] failed", e);
-    }
-    return;
-  }
-
    // REMOVE FROM PLAYLIST
-
   if (type === 'remove') {
     if (!activePlaylistId) return;
 
@@ -17259,7 +17182,7 @@ return;
 
       // Default: play (mobile tap)
       currentIndex = i;
-                  // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
+            // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
       const playUrl = String(row.dataset.url || song.url || '').trim();
 
       // If we still only have "Artist/File.ext", force "Artist/Singles/File.ext"
@@ -17276,35 +17199,7 @@ return;
         }
       } catch (e) {}
 
-      // ✅ Cover for dock / now playing:
-      // 1) row.dataset.cover (we'll set this in Fix 2)
-      // 2) the row's <img> src
-      // 3) derive from finalUrl id => Artist/Album/cover.jpg
-      let finalCover = String(row.dataset.cover || '').trim();
-
-      if (!finalCover) {
-        const img = row.querySelector('img');
-        const src = img ? String(img.getAttribute('src') || img.src || '').trim() : '';
-        if (src) finalCover = src;
-      }
-
-      if (!finalCover) {
-        try {
-          if (finalUrl.includes("?id=")) {
-            const enc2 = finalUrl.split("?id=")[1].split("&")[0];
-            const id2 = decodeURIComponent(enc2);
-            const p2 = id2.split("/").filter(Boolean);
-            const artist2 = p2.length >= 1 ? p2[0] : "";
-            const album2  = p2.length >= 2 ? p2[1] : "";
-            if (artist2 && album2) {
-              finalCover = "https://music-streamer.jacetbaum.workers.dev/?id=" +
-                encodeURIComponent(`${artist2}/${album2}/cover.jpg`);
-            }
-          }
-        } catch (e) {}
-      }
-
-      playSpecificSong(finalUrl, song.title, song.album, song.artist, finalCover || song.cover);
+      playSpecificSong(finalUrl, song.title, song.album, song.artist, song.cover);
 
     };
 
@@ -17339,9 +17234,7 @@ return;
     if (isPlaylist) {
       let thumbSrc = '';
       try { thumbSrc = String(getSongCoverFromPlaylistSong(song) || '').trim(); } catch (e) {}
-            if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
-      row.dataset.cover = thumbSrc || '';
-
+      if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
 
       thumbMarkup = thumbSrc
         ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
