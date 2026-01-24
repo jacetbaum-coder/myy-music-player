@@ -94,7 +94,11 @@ export default async function handler(req, res) {
 
     const drive = google.drive({ version: "v3", auth });
 
-    // ✅ Drive listings are paginated. This helper returns ALL pages.
+// Base for streaming URLs
+const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+
+// ✅ Drive listings are paginated. This helper returns ALL pages.
+
     async function driveListAll({ q, fields, pageSize = 1000 }) {
       let pageToken = undefined;
       const all = [];
@@ -137,7 +141,62 @@ export default async function handler(req, res) {
           fields: "id, name",
         });
 
+        // -----------------------
+        // "Singles" = audio files directly under Artist/ (no Album folder)
+        // -----------------------
+        const artistRootContents = await driveListAll({
+          q: `'${artist.id}' in parents and trashed = false`,
+          fields: "id, name, mimeType",
+        });
+
+        const singlesSongs = artistRootContents.filter((f) => {
+          // exclude folders; only audio
+          if (String(f?.mimeType || "") === "application/vnd.google-apps.folder") return false;
+          return looksLikeAudio(f);
+        });
+
+        if (singlesSongs.length) {
+          const singlesStorageKey = makeCoverStorageKey(artist.name, "Singles");
+
+          let singlesCoverUrl = null;
+          try {
+            singlesCoverUrl = await kv.get(singlesStorageKey);
+          } catch (e) {
+            singlesCoverUrl = null;
+          }
+
+          const singlesCoverPath = `${artist.name}/Singles/cover.jpg`;
+          if (!singlesCoverUrl) {
+            singlesCoverUrl = `${r2Base}${encodeURIComponent(singlesCoverPath)}`;
+          }
+
+          allAlbums.push({
+            artistName: artist.name,
+            albumName: "Singles",
+            coverArt: singlesCoverUrl,
+            fallbackArt: "",
+            songs: singlesSongs.map((s) => {
+              // IMPORTANT: Singles live at Artist/Singles/Track.ext in your R2 (per your rclone result)
+              const r2Path = `${artist.name}/Singles/${s.name}`;
+              const title = String(s.name || "").replace(/\.[^/.]+$/, "");
+
+              return {
+                id: r2Path,
+                r2Path,
+                fileName: s.name,
+                title,
+                artistName: artist.name,
+                albumName: "Singles",
+                link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(
+                  r2Path
+                )}`,
+              };
+            }),
+          });
+        }
+
         for (const album of albums) {
+
           const contents = await driveListAll({
             q: `'${album.id}' in parents and trashed = false`,
             fields: "id, name, mimeType",
@@ -158,8 +217,8 @@ export default async function handler(req, res) {
             coverUrl = null;
           }
 
-                    const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
-          const albumCoverPath = `${artist.name}/${album.name}/cover.jpg`;
+                              const albumCoverPath = `${artist.name}/${album.name}/cover.jpg`;
+
 
           // Primary cover (KV override → otherwise album cover in R2)
           if (!coverUrl) {
