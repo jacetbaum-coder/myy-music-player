@@ -911,11 +911,22 @@ body.song-multiselect .track-row:hover{
     border-radius: 0 !important;
     box-shadow: none !important;
 
-        /* Solid accent background (no gradient) */
+    /* Solid accent background (no gradient) */
     background: rgb(var(--accent-rgb)) !important;
-
   }
 }
+
+/* Desktop: Spotify-like dark dock (ignore accent color) */
+@media (min-width: 769px) {
+  .player-bar {
+    background: rgba(18, 18, 18, 0.92) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.55);
+  }
+}
+
 
         .progress-bar-container {
   height: 4px;
