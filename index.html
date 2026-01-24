@@ -5409,14 +5409,52 @@ try { window.startCloudPlaylistSync(); } catch (e) {}
 // ✅ Resolve playlist trackIds into master-library track objects (tracksById).
 // If a track isn't in the library yet, return a playable fallback object.
 window.resolveTrackIdsToSongs = function (trackIds) {
-  const ids = Array.isArray(trackIds) ? trackIds : [];
+  const idsRaw = Array.isArray(trackIds) ? trackIds : [];
+
+  // ✅ If we can, expand short ids using the library (unique title match).
+  // Example: "Artist/Title.mp3" -> "Artist/Album/Title.mp3"
+  let ids = idsRaw;
+  try {
+    if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+      ids = window.expandPlaylistShortIdsFromLibrary(idsRaw);
+    }
+  } catch (e) {}
+
   const out = [];
 
   const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
 
-  for (const id of ids) {
-    const key = String(id || "").trim();
+    for (const id of ids) {
+    let key = String(id || "").trim();
     if (!key) continue;
+
+    // ✅ If the id is a full URL, extract ?id=... first
+    try {
+      if (key.includes("://")) {
+        const u = new URL(key);
+        const qp = u.searchParams.get("id");
+        if (qp) key = qp;
+      }
+    } catch (e) {}
+
+    // ✅ Handle "...?id=..." even if it's not a full URL object parse
+    if (key.includes("?id=")) {
+      try { key = key.split("?id=")[1].split("&")[0]; } catch (e) {}
+    }
+
+    try { key = decodeURIComponent(key); } catch (e) {}
+    key = key.replace(/^\/+/, "").trim();
+    if (!key) continue;
+
+    // ✅ CRITICAL FIX:
+    // If we only have "Artist/File.ext", treat it as "Artist/Singles/File.ext"
+    const parts0 = key.split("/").filter(Boolean);
+    if (parts0.length === 2) {
+      key = `${parts0[0]}/Singles/${parts0[1]}`;
+    }
+
+    const found =
+
 
     const found =
       (window.tracksById && typeof window.tracksById.get === "function")
