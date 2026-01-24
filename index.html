@@ -9666,26 +9666,30 @@ if (!album) {
     const artistHint = __hintArtist;
     if (artistHint) {
       const prefix = (name === "Singles")
-  ? `${artistHint}/`
-  : `${artistHint}/${name}/`;
+        ? `${artistHint}/`
+        : `${artistHint}/${name}/`;
 
-const ids = [];
-for (const p of pls) {
-  const t = Array.isArray(p?.trackIds) ? p.trackIds : [];
-  for (const id of t) {
-    if (typeof id !== "string") continue;
-    if (!id.startsWith(prefix)) continue;
+      const plsRaw = localStorage.getItem("playlists") || "[]";
+      const plsData = JSON.parse(plsRaw);
+      const pls = Array.isArray(plsData)
+        ? plsData
+        : (plsData && Array.isArray(plsData.playlists) ? plsData.playlists : []);
 
-    if (name === "Singles") {
-      // Only accept 2-part ids: Artist/Track.ext (rest must NOT contain "/")
-      const rest = id.slice(prefix.length);
-      if (!rest || rest.includes("/")) continue;
-    }
+      const ids = [];
+      for (const p of pls) {
+        const t = Array.isArray(p?.trackIds) ? p.trackIds : [];
+        for (const id of t) {
+          if (typeof id !== "string") continue;
+          if (!id.startsWith(prefix)) continue;
 
-    ids.push(id);
-  }
-}
+          if (name === "Singles") {
+            // Only accept 2-part ids: Artist/Track.ext (rest must NOT contain "/")
+            const rest = id.slice(prefix.length);
+            if (!rest || rest.includes("/")) continue;
+          }
 
+          ids.push(id);
+        }
       }
 
       if (ids.length) {
@@ -9703,6 +9707,7 @@ for (const p of pls) {
     }
   } catch (e) {}
 }
+
 
 if (!album) return;
 
