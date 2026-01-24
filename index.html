@@ -17232,13 +17232,57 @@ return;
     };
 
 
-    row.oncontextmenu = (e) =>
-      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
-      attachSongPressHandlers(
+   row.oncontextmenu = (e) => {
+  // ✅ Ensure the menu gets the SAME corrected URL + album as playback
+  let menuAlbum = String(song.album || song.albumName || '').trim();
+  try {
+    if (!menuAlbum && finalUrl && finalUrl.includes("?id=")) {
+      const enc = finalUrl.split("?id=")[1].split("&")[0];
+      const id = decodeURIComponent(enc);
+      const parts = id.split("/").filter(Boolean);
+      if (parts.length >= 2) menuAlbum = parts[1];
+    }
+  } catch (e) {}
+
+  handleContextMenu(e, {
+    ...song,
+    name: song.title,
+    link: finalUrl,
+    url: finalUrl,
+    album: menuAlbum || song.album || song.albumName || "",
+    albumName: menuAlbum || song.albumName || song.album || "",
+    cover: finalCover || song.cover || "",
+    coverArt: finalCover || song.cover || ""
+  });
+};
+});
+            attachSongPressHandlers(
       row,
-      { ...song, name: song.title, link: song.url, coverArt: song.cover },
+      (() => {
+        let menuAlbum = String(song.album || song.albumName || '').trim();
+        try {
+          if (!menuAlbum && finalUrl && finalUrl.includes("?id=")) {
+            const enc = finalUrl.split("?id=")[1].split("&")[0];
+            const id = decodeURIComponent(enc);
+            const parts = id.split("/").filter(Boolean);
+            if (parts.length >= 2) menuAlbum = parts[1];
+          }
+        } catch (e) {}
+
+        return {
+          ...song,
+          name: song.title,
+          link: finalUrl,
+          url: finalUrl,
+          album: menuAlbum || song.album || song.albumName || "",
+          albumName: menuAlbum || song.albumName || song.album || "",
+          cover: finalCover || song.cover || "",
+          coverArt: finalCover || song.cover || ""
+        };
+      })(),
       longPressState
     );
+
 
        // ✅ needed by updateTrackListActiveState()
     row.dataset.url = song.url || '';
