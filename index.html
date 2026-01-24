@@ -17244,7 +17244,7 @@ return;
     }
   } catch (e) {}
 
-  handleContextMenu(e, {
+     handleContextMenu(e, {
     ...song,
     name: song.title,
     link: finalUrl,
@@ -17255,8 +17255,10 @@ return;
     coverArt: finalCover || song.cover || ""
   });
 };
-});
+
             attachSongPressHandlers(
+
+
       row,
       (() => {
         let menuAlbum = String(song.album || song.albumName || '').trim();
