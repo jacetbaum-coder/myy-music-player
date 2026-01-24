@@ -2406,7 +2406,7 @@ body.qs-lock {
     Remove songs from this playlist
   </div>
 
-  <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
+    <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
     Add to queue
   </div>
 
@@ -2414,13 +2414,15 @@ body.qs-lock {
     Add artist to crate
   </div>
 
+  <div class="menu-item" id="menu-go-album-opt" onclick="menuAction('go_album')" style="display:none;">
+    Go to album
+  </div>
+
   <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
     Go to queue
   </div>
-
-    Go to queue
-  </div>
 </div>
+
 
 <!-- PLAYLIST PANEL (separate overlay sheet) -->
 <div id="playlist-submenu" role="dialog" aria-modal="true">
@@ -13641,13 +13643,20 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   // Default: show the normal single-song options
   const addOpt = document.getElementById('menu-add-opt');
   const qAddOpt = document.getElementById('menu-queue-add-opt');
-  const crateOpt = document.getElementById('menu-crate-add-artist-opt');
+    const crateOpt = document.getElementById('menu-crate-add-artist-opt');
+  const goAlbumOpt = document.getElementById('menu-go-album-opt');
   const qGoOpt = document.getElementById('menu-queue-go-opt');
 
   if (addOpt) addOpt.style.display = 'flex';
   if (qAddOpt) qAddOpt.style.display = 'flex';
   if (crateOpt) crateOpt.style.display = 'flex';
+
+  // ✅ Only show "Go to album" if this song actually has an album name
+  const __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+  if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
   if (qGoOpt) qGoOpt.style.display = 'flex';
+
 
   // ✅ Labels
   try { if (qAddOpt) qAddOpt.querySelector('.menu-label') ? (qAddOpt.querySelector('.menu-label').textContent = 'Add to queue') : (qAddOpt.textContent = 'Add to queue'); } catch(e){}
@@ -16225,12 +16234,27 @@ return;
     return;
   }
 
-  // GO TO QUEUE
+    // GO TO QUEUE
   if (type === 'queue_go') {
     closeContextMenu();
     openQueueSheet();
     return;
   }
+
+  // ✅ GO TO ALBUM (for the pressed track)
+  if (type === 'go_album') {
+    const album = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
+      ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
+      : "";
+
+    closeContextMenu();
+
+    if (album) {
+      try { openAlbumByName(album); } catch (e) {}
+    }
+    return;
+  }
+
 
   // ADD ARTIST TO CRATE
   if (type === 'crate_add_artist') {
