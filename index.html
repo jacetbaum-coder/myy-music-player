@@ -16287,11 +16287,44 @@ function renderPlaylists() {
 
       const parts = String(id || '').split('/').filter(Boolean);
 
-      // Artist/Album/Track.ext -> albumName = parts[1]
-      // Artist/Track.ext -> albumName = "Singles"
+            // Artist/Album/Track.ext -> albumName = parts[1]
+      // Artist/Track.ext -> create/enter a virtual "Singles" album for that artist
+      const artistName = parts[0] || (t && (t.artist || t.artistName)) || '';
       const albumName = (parts.length >= 3) ? parts[1] : 'Singles';
 
-      if (typeof window.openAlbumByName === 'function') {
+      // If it's a 2-part path (Artist/Track.ext), we likely don't have a real album folder.
+      // Create a minimal virtual Singles album so openAlbumByName("Singles") has something to open.
+      if (albumName === 'Singles' && parts.length === 2) {
+        try {
+          const hasSingles = Array.isArray(window.libraryData) &&
+            window.libraryData.some(a => a && a.albumName === 'Singles' && (a.artistName === artistName || a.artist === artistName));
+
+          if (!hasSingles && Array.isArray(window.libraryData)) {
+            const trackObj = {
+              title: t && (t.title || t.name) ? (t.title || t.name) : parts[1],
+              artist: artistName,
+              artistName: artistName,
+              album: 'Singles',
+              albumName: 'Singles',
+              url: rawUrl || (t && t.url) || '',
+              link: rawUrl || (t && t.link) || '',
+              cover: (t && (t.cover || t.coverArt)) ? (t.cover || t.coverArt) : ''
+            };
+
+            window.libraryData.unshift({
+              albumName: 'Singles',
+              artistName: artistName,
+              artist: artistName,
+              cover: trackObj.cover || '',
+              tracks: [trackObj],
+              songs: [trackObj]
+            });
+          }
+        } catch (e) {
+          console.warn("[go_album] could not create virtual Singles", e);
+        }
+      }
+
         window.openAlbumByName(albumName);
       } else {
         console.warn("[go_album] openAlbumByName missing");
