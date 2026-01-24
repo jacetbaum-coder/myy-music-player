@@ -16258,11 +16258,55 @@ function renderPlaylists() {
             updateCounts();
             updateHeartUI();
         }
+        
         async function menuAction(type) {
 
   if (!menuTargetSong) return;
 
+  // GO TO ALBUM
+  if (type === 'go_album') {
+    try {
+      const t = Array.isArray(menuTargetSong) ? menuTargetSong[0] : menuTargetSong;
+
+      // Try common fields first
+      const rawUrl =
+        (t && (t.url || t.songUrl || t.song_url || t.link || t.streamUrl)) ||
+        (typeof t === 'string' ? t : '');
+
+      let id = '';
+      try {
+        const u = new URL(String(rawUrl || ''));
+        id = u.searchParams.get('id') || '';
+        id = id ? decodeURIComponent(id) : '';
+      } catch (e) {}
+
+      // If we didn't get ?id=, try if the target itself is already an id/path
+      if (!id && t && (t.id || t.tid || t.trackId || t.r2Path)) {
+        id = String(t.id || t.tid || t.trackId || t.r2Path || '');
+      }
+
+      const parts = String(id || '').split('/').filter(Boolean);
+
+      // Artist/Album/Track.ext -> albumName = parts[1]
+      // Artist/Track.ext -> albumName = "Singles"
+      const albumName = (parts.length >= 3) ? parts[1] : 'Singles';
+
+      if (typeof window.openAlbumByName === 'function') {
+        window.openAlbumByName(albumName);
+      } else {
+        console.warn("[go_album] openAlbumByName missing");
+      }
+
+      // If you have a menu close function, call it safely
+      try { if (typeof closeMenu === "function") closeMenu(); } catch (e) {}
+    } catch (e) {
+      console.warn("[go_album] failed", e);
+    }
+    return;
+  }
+
    // REMOVE FROM PLAYLIST
+
   if (type === 'remove') {
     if (!activePlaylistId) return;
 
