@@ -10873,8 +10873,33 @@ _score: score
             });
 
             const img = document.createElement('img');
-            img.src = s.cover;
-            img.className = 'w-12 h-12 rounded object-cover';
+
+const cover = (() => {
+  try {
+    const raw =
+      (s && (s.cover || s.coverArt || s.cover_url || s.coverUrl)) ||
+      '';
+    const picked = String(raw || '').trim();
+    if (!picked) return '';
+    // If you have getAlbumCover(), use it (it already exists in your Album rows)
+    if (typeof getAlbumCover === 'function') {
+      return String(getAlbumCover(s.artist || '', s.album || '', picked) || '').trim();
+    }
+    return picked;
+  } catch (e) {
+    return '';
+  }
+})();
+
+// ✅ Never leave src empty (empty src becomes your site URL)
+img.src = cover || 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3Cpath%20d%3D%22M20%2018h8v12h-8z%22%20fill%3D%22%234a4f57%22%2F%3E%3Cpath%20d%3D%22M22%2020h4v8h-4z%22%20fill%3D%22%23666c76%22%2F%3E%3C%2Fsvg%3E';
+img.onerror = () => {
+  img.onerror = null;
+  img.src = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3Cpath%20d%3D%22M20%2018h8v12h-8z%22%20fill%3D%22%234a4f57%22%2F%3E%3Cpath%20d%3D%22M22%2020h4v8h-4z%22%20fill%3D%22%23666c76%22%2F%3E%3C%2Fsvg%3E';
+};
+
+img.className = 'w-12 h-12 rounded object-cover';
+
 
             const info = document.createElement('div');
             info.className = 'flex-1 overflow-hidden';
