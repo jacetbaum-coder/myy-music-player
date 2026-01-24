@@ -13871,7 +13871,7 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
 // ✅ Only show "Go to album" if we can derive an album from this target song
   // ✅ Only show "Go to album" if we can determine an album folder
-  let __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+
 
   // Fallback: infer album from the actual R2 key inside ?id=
   if (!__albumName) {
