@@ -16433,43 +16433,101 @@ return;
     return;
   }
 
-  // GO TO ALBUM
+    // GO TO ALBUM
   if (type === 'go_album') {
 
-  // Try albumName first, then derive from id/url (Artist/Album/Track.mp3)
-  let albumName = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
-    ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
-    : "";
+    // 0) Prefer what showContextMenuAt already computed
+    let albumName =
+      (typeof window.__menuTargetAlbumName === 'string' && window.__menuTargetAlbumName.trim())
+        ? window.__menuTargetAlbumName.trim()
+        : '';
 
-  let artistName = (menuTargetSong && (menuTargetSong.artistName || menuTargetSong.artist))
-    ? String(menuTargetSong.artistName || menuTargetSong.artist).trim()
-    : "";
+    let artistHint =
+      (typeof window.__menuTargetArtistName === 'string' && window.__menuTargetArtistName.trim())
+        ? window.__menuTargetArtistName.trim()
+        : '';
 
-  if (!albumName || !artistName) {
-    let tid = String(
-      (menuTargetSong && (menuTargetSong.id || menuTargetSong.r2Path || menuTargetSong.trackId || menuTargetSong.link || menuTargetSong.url)) || ""
-    ).trim();
+    // 1) If we still don't have an album, try to resolve via tracksById using the song's canonical id
+    if (!albumName || albumName === 'Unknown Album') {
+      try {
+        const rawUrl = String(menuTargetSong?.url || menuTargetSong?.link || '').trim();
+        let id = '';
 
-    if (tid.includes("?id=")) {
-      try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+        // pull ?id= if it's a URL
+        try {
+          if (rawUrl.includes('://')) {
+            const u = new URL(rawUrl);
+            const qid = u.searchParams.get('id');
+            if (qid) id = qid;
+          }
+        } catch (e) {}
+
+        // fallback parse
+        if (!id && rawUrl.includes('?id=')) {
+          try {
+            id = (rawUrl.split('?id=')[1] || '').split('&')[0] || '';
+          } catch (e) {}
+        }
+
+        if (id) {
+          try { id = decodeURIComponent(id); } catch (e) {}
+          id = id.replace(/^\/+/, '').trim();
+
+          // If it's a short id like "Artist/Track.mp3", map it to full "Artist/Album/Track.mp3"
+          let fullId = id;
+          try {
+            if (window.__shortTrackIdToFullId && typeof window.__shortTrackIdToFullId.get === 'function') {
+              const mapped = window.__shortTrackIdToFullId.get(id);
+              if (mapped) fullId = mapped;
+            }
+          } catch (e) {}
+
+          // Now look up the track
+          try {
+            if (window.tracksById && typeof window.tracksById.get === 'function') {
+              const tr = window.tracksById.get(fullId) || window.tracksById.get(id);
+              if (tr) {
+                if (!artistHint) artistHint = String(tr.artistName || tr.artist || '').trim();
+                albumName = String(tr.albumName || tr.album || '').trim();
+              }
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
     }
 
-    const parts = tid.split("/").filter(Boolean);
-    if (parts.length >= 3) {
-      if (!artistName) artistName = parts[0];
-      if (!albumName) albumName = parts[1];
+    // 2) If still missing, try the old path-splitting logic as last resort
+    if (!albumName || albumName === 'Unknown Album') {
+      try {
+        const rawUrl = String(menuTargetSong?.url || menuTargetSong?.link || '').trim();
+        let id2 = '';
+        try {
+          const u2 = new URL(rawUrl);
+          id2 = u2.searchParams.get('id') || '';
+        } catch (e) {
+          if (rawUrl.includes('?id=')) id2 = (rawUrl.split('?id=')[1] || '').split('&')[0] || '';
+        }
+        try { id2 = decodeURIComponent(id2); } catch (e) {}
+        const parts = String(id2 || '').split('/').filter(Boolean);
+        if (parts.length >= 3) {
+          if (!artistHint) artistHint = parts[0] || '';
+          albumName = parts[1] || '';
+        }
+      } catch (e) {}
     }
+
+    // 3) If we STILL can't resolve, bail
+    if (!albumName || albumName === 'Unknown Album') return;
+
+    // Help openAlbumByName pick the right album if names collide
+    try { window.__albumArtistHint = artistHint || ''; } catch (e) {}
+
+    closeContextMenu();
+    openAlbumByName(albumName);
+    return;
+
   }
 
-  if (!albumName) return;
-
-  // Hint the artist so "Singles" opens the correct artist's Singles
-  try { window.__albumArtistHint = artistName || ""; } catch (e) {}
-
-  closeContextMenu();
-  openAlbumByName(albumName);
-  return;
-}
 
 
   if (type === 'crate_add_artist') {
