@@ -14938,8 +14938,19 @@ function getSongCoverFromPlaylistSong(s) {
 
 
 
-  const coverPath = `${parts.join("/")}/cover.jpg`;
+    // ✅ If tid is Artist/Album/Track.mp3, cover must be Artist/Album/cover.jpg (NOT Track.mp3/cover.jpg)
+  const looksAudioFile = (name) => /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(String(name || ""));
+  const folderParts = looksAudioFile(lastClean) ? parts.slice(0, -1) : parts;
+
+  // ✅ Mutate once derived (so playlist row text + now playing can use it)
+  try {
+    if (folderParts[0] && !s.artist) s.artist = folderParts[0];
+    if (folderParts[1]) s.album = folderParts[1];
+  } catch (e) {}
+
+  const coverPath = `${folderParts.join("/")}/cover.jpg`;
   return `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
+
 }
 
 
