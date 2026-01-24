@@ -17180,9 +17180,10 @@ return;
 
       }
 
-      // Default: play (mobile tap)
+            // Default: play (mobile tap)
       currentIndex = i;
-                  // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
+
+      // ✅ Derive a stable finalUrl + finalCover ONCE so click + menus can reuse it.
       const playUrl = String(row.dataset.url || song.url || '').trim();
 
       // If we still only have "Artist/File.ext", force "Artist/Singles/File.ext"
@@ -17200,7 +17201,7 @@ return;
       } catch (e) {}
 
       // ✅ Cover for dock / now playing:
-      // 1) row.dataset.cover (we'll set this in Fix 2)
+      // 1) row.dataset.cover
       // 2) the row's <img> src
       // 3) derive from finalUrl id => Artist/Album/cover.jpg
       let finalCover = String(row.dataset.cover || '').trim();
@@ -17228,6 +17229,7 @@ return;
       }
 
       playSpecificSong(finalUrl, song.title, song.album, song.artist, finalCover || song.cover);
+
 
     };
 
