@@ -13672,7 +13672,6 @@ if (qGoOpt) qGoOpt.style.display = 'flex';
 
 // ✅ Infer Artist + Album from the song id/url when possible
 let __artistName = "";
-let __albumName = "";
 
 try {
   __artistName = (song && (song.artistName || song.artist)) ? String(song.artistName || song.artist).trim() : "";
