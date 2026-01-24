@@ -10951,11 +10951,29 @@ img.className = 'w-12 h-12 rounded object-cover';
                         const meta = document.createElement('div');
             meta.className = 'text-sm text-zinc-400 truncate';
 
-            const albumLabel = String(s.album || '').trim();
-            meta.textContent =
-              (albumLabel && albumLabel !== 'Unknown Album')
-                ? `${s.artist} • ${albumLabel}`
-                : String(s.artist || '').trim();
+            // 🔧 derive real album name when "Unknown Album"
+let albumLabel = String(s.album || '').trim();
+
+if (!albumLabel || albumLabel === 'Unknown Album') {
+  try {
+    const link = String(s.link || '');
+    const m = link.match(/[?&]id=([^&]+)/);
+    if (m && m[1]) {
+      const decoded = decodeURIComponent(m[1]);
+      const parts = decoded.split('/').filter(Boolean);
+      if (parts.length >= 3) {
+        albumLabel = parts[1]; // Artist / Album / Track
+        s.album = albumLabel;  // keep it in sync everywhere
+      }
+    }
+  } catch (e) {}
+}
+
+meta.textContent =
+  albumLabel
+    ? `${s.artist} • ${albumLabel}`
+    : String(s.artist || '').trim();
+
 
             const icon = document.createElement('i');
             icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
