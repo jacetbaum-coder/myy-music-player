@@ -2418,17 +2418,14 @@ body.qs-lock {
   Go to album
 </div>
 
-
-  <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
-    Go to queue
-  </div>
+<div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
+  Go to queue
 </div>
-
 </div>
-
 
 
 <!-- PLAYLIST PANEL (separate overlay sheet) -->
+
 <div id="playlist-submenu" role="dialog" aria-modal="true">
 
   <div class="cm-handle"></div>
@@ -16333,15 +16330,20 @@ if (type === 'go_album') {
   return;
 }
 
-// GO TO QUEUE
-if (type === 'queue_go') {
-  closeContextMenu();
-  openQueueSheet();
-  return;
-}
+  // ✅ GO TO ALBUM (for the pressed track)
+  if (type === 'go_album') {
+    const album = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
+      ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
+      : "";
 
+    closeContextMenu();
 
-  // ADD ARTIST TO CRATE
+    if (album) {
+      try { openAlbumByName(album); } catch (e) {}
+    }
+    return;
+  }
+
   if (type === 'crate_add_artist') {
     const a = (menuTargetSong && (menuTargetSong.artist || menuTargetSong.artistName)) ? String(menuTargetSong.artist || menuTargetSong.artistName).trim() : "";
     if (a) {
