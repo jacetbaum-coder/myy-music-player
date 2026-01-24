@@ -9615,15 +9615,52 @@ pushNavCurrent();
     const isPlaylist = false;
 
 const __hintArtist = (window.__albumArtistHint ? String(window.__albumArtistHint).trim() : "");
-const album =
+let album =
   __hintArtist
     ? (libraryData.find(a => a.albumName === name && String(a.artistName || "").trim() === __hintArtist) ||
        libraryData.find(a => a.albumName === name))
     : libraryData.find(a => a.albumName === name);
 
+
 try { window.__albumArtistHint = ""; } catch (e) {}
 
+if (!album) {
+  // Fallback: build a "virtual album" from playlist trackIds (works great for Singles)
+  try {
+    const artistHint = __hintArtist;
+    if (artistHint) {
+      const prefix = `${artistHint}/${name}/`;
+
+      const plsRaw = localStorage.getItem("playlists") || "[]";
+      const plsData = JSON.parse(plsRaw);
+      const pls = Array.isArray(plsData) ? plsData : (plsData && Array.isArray(plsData.playlists) ? plsData.playlists : []);
+
+      const ids = [];
+      for (const p of pls) {
+        const t = Array.isArray(p?.trackIds) ? p.trackIds : [];
+        for (const id of t) {
+          if (typeof id === "string" && id.startsWith(prefix)) ids.push(id);
+        }
+      }
+
+      if (ids.length) {
+        const songs = (typeof resolveTrackIdsToSongs === "function")
+          ? resolveTrackIdsToSongs(ids)
+          : ids.map(x => ({ id: x }));
+
+        album = {
+          albumName: name,
+          artistName: artistHint,
+          songs,
+          coverArt: ""
+        };
+      }
+    }
+  } catch (e) {}
+}
+
 if (!album) return;
+
 
 
   activeAlbumName = album.albumName;
