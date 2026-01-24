@@ -2406,26 +2406,28 @@ body.qs-lock {
     Remove songs from this playlist
   </div>
 
-    <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
-    Add to queue
-  </div>
-
-  <div class="menu-item" id="menu-crate-add-artist-opt" onclick="menuAction('crate_add_artist')">
-    Add artist to crate
-  </div>
-
-  <div class="menu-item" id="menu-go-album-opt" onclick="menuAction('go_album')" style="display:none;">
-    Go to album
-  </div>
-
-  <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
-    Go to queue
-  </div>
+   <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
+  Add to queue
 </div>
+
+<div class="menu-item" id="menu-crate-add-artist-opt" onclick="menuAction('crate_add_artist')">
+  Add artist to crate
+</div>
+
+<div class="menu-item" id="menu-go-album-opt" onclick="menuAction('go_album')" style="display:none;">
+  Go to album
+</div>
+
+<div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
+  Go to queue
+</div>
+</div>
+
 
 
 <!-- PLAYLIST PANEL (separate overlay sheet) -->
 <div id="playlist-submenu" role="dialog" aria-modal="true">
+
   <div class="cm-handle"></div>
 
   <div class="cm-submenu-header">
@@ -9608,8 +9610,18 @@ pushNavCurrent();
 
   playContext = { type: 'album', label: name };
     const isPlaylist = false;
-  const album = libraryData.find(a => a.albumName === name);
-  if (!album) return;
+
+const __hintArtist = (window.__albumArtistHint ? String(window.__albumArtistHint).trim() : "");
+const album =
+  __hintArtist
+    ? (libraryData.find(a => a.albumName === name && String(a.artistName || "").trim() === __hintArtist) ||
+       libraryData.find(a => a.albumName === name))
+    : libraryData.find(a => a.albumName === name);
+
+try { window.__albumArtistHint = ""; } catch (e) {}
+
+if (!album) return;
+
 
   activeAlbumName = album.albumName;
   activeAlbumArtist = album.artistName;
@@ -11763,11 +11775,13 @@ function openNowPlaying() {
     const y = (r.top + r.bottom) / 2;
 
     // Make sure menu has url/link if available
-    const songForMenu = {
-      ...song,
-      url: song.url || song.link || songForMenu?.url,
-      link: song.link || song.url || songForMenu?.link
-    };
+const songForMenu = {
+  ...song,
+  url: (song && (song.url || song.link)) ? (song.url || song.link) : "",
+  link: (song && (song.link || song.url)) ? (song.link || song.url) : ""
+};
+
+showContextMenuAt(x, y, songForMenu, btn);
 
     showContextMenuAt(x, y, songForMenu, btn);
   }, true);
@@ -13641,21 +13655,52 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   }
 
   // Default: show the normal single-song options
-  const addOpt = document.getElementById('menu-add-opt');
-  const qAddOpt = document.getElementById('menu-queue-add-opt');
-    const crateOpt = document.getElementById('menu-crate-add-artist-opt');
-  const goAlbumOpt = document.getElementById('menu-go-album-opt');
-  const qGoOpt = document.getElementById('menu-queue-go-opt');
+const addOpt = document.getElementById('menu-add-opt');
+const qAddOpt = document.getElementById('menu-queue-add-opt');
+const crateOpt = document.getElementById('menu-crate-add-artist-opt');
+const goAlbumOpt = document.getElementById('menu-go-album-opt');
+const qGoOpt = document.getElementById('menu-queue-go-opt');
 
-  if (addOpt) addOpt.style.display = 'flex';
-  if (qAddOpt) qAddOpt.style.display = 'flex';
-  if (crateOpt) crateOpt.style.display = 'flex';
+if (addOpt) addOpt.style.display = 'flex';
+if (qAddOpt) qAddOpt.style.display = 'flex';
+if (crateOpt) crateOpt.style.display = 'flex';
+if (qGoOpt) qGoOpt.style.display = 'flex';
 
-  // ✅ Only show "Go to album" if this song actually has an album name
-  const __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
-  if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+// ✅ Infer Artist + Album from the song id/url when possible
+let __artistName = "";
+let __albumName = "";
 
-  if (qGoOpt) qGoOpt.style.display = 'flex';
+try {
+  __artistName = (song && (song.artistName || song.artist)) ? String(song.artistName || song.artist).trim() : "";
+  __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+
+  if (!__artistName || !__albumName) {
+    let tid = String(
+      (song && (song.id || song.r2Path || song.r2_key || song.track_id || song.trackId || song.link || song.url)) || ""
+    ).trim();
+
+    // If it's a Worker URL, pull the real key from ?id=
+    if (tid.includes("?id=")) {
+      try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+    }
+
+    const parts = tid.split("/").filter(Boolean);
+    if (parts.length >= 3) {
+      if (!__artistName) __artistName = parts[0];
+      if (!__albumName) __albumName = parts[1];
+    }
+  }
+
+  // store back onto the target song so menuAction can use it
+  if (menuTargetSong) {
+    if (__artistName && !menuTargetSong.artist) menuTargetSong.artist = __artistName;
+    if (__albumName) menuTargetSong.albumName = __albumName;
+  }
+} catch (e) {}
+
+// ✅ Only show "Go to album" if we found an album name
+if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
 
 
   // ✅ Labels
@@ -16234,12 +16279,50 @@ return;
     return;
   }
 
-    // GO TO QUEUE
-  if (type === 'queue_go') {
-    closeContextMenu();
-    openQueueSheet();
-    return;
+    // GO TO ALBUM
+if (type === 'go_album') {
+  // Try albumName first, then derive from id/url (Artist/Album/Track.mp3)
+  let albumName = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
+    ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
+    : "";
+
+  let artistName = (menuTargetSong && (menuTargetSong.artistName || menuTargetSong.artist))
+    ? String(menuTargetSong.artistName || menuTargetSong.artist).trim()
+    : "";
+
+  if (!albumName || !artistName) {
+    let tid = String(
+      (menuTargetSong && (menuTargetSong.id || menuTargetSong.r2Path || menuTargetSong.trackId || menuTargetSong.link || menuTargetSong.url)) || ""
+    ).trim();
+
+    if (tid.includes("?id=")) {
+      try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+    }
+
+    const parts = tid.split("/").filter(Boolean);
+    if (parts.length >= 3) {
+      if (!artistName) artistName = parts[0];
+      if (!albumName) albumName = parts[1];
+    }
   }
+
+  if (!albumName) return;
+
+  // Hint the artist so "Singles" opens the correct artist's Singles
+  try { window.__albumArtistHint = artistName || ""; } catch (e) {}
+
+  closeContextMenu();
+  openAlbumByName(albumName);
+  return;
+}
+
+// GO TO QUEUE
+if (type === 'queue_go') {
+  closeContextMenu();
+  openQueueSheet();
+  return;
+}
+
 
   // ✅ GO TO ALBUM (for the pressed track)
   if (type === 'go_album') {
