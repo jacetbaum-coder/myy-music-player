@@ -11575,7 +11575,12 @@ async function playSpecificSong(url, title, album, artist, cover) {
 
   // UI Updates
   dock.classList.remove('dock-hidden');
-  document.getElementById('p-cover').src = resolvedCover || "";
+    {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    const finalCover = String(resolvedCover || '').trim();
+    document.getElementById('p-cover').src = finalCover || PLACEHOLDER;
+  }
+
     updateAccentFromCover(resolvedCover || "");
 
   setMarqueeTitle('p-title', titleClean);
@@ -11756,7 +11761,48 @@ function updateNowPlayingUI() {
   const artist = document.getElementById('np-artist');
   const ctx = document.getElementById('np-context');
 
-  if (cover) cover.src = currentSong.cover || "";
+    if (cover) {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    let resolvedCover = String(currentSong.cover || '').trim();
+
+    // Try any playlist-specific cover helper (if present)
+    try {
+      if (!resolvedCover && typeof getSongCoverFromPlaylistSong === 'function') {
+        resolvedCover = String(getSongCoverFromPlaylistSong(currentSong) || '').trim();
+      }
+    } catch (e) {}
+
+    // Try infer from ?id= path:
+    // Artist/Album/Track -> Artist/Album/cover.jpg
+    // Artist/Track -> Artist/Singles/cover.jpg
+    try {
+      if (!resolvedCover) {
+        const rawUrl = String(currentSong.url || currentSong.link || '').trim();
+        let id = '';
+
+        try {
+          const u = new URL(rawUrl);
+          id = u.searchParams.get('id') || '';
+        } catch (e) {
+          if (rawUrl.includes('?id=')) id = (rawUrl.split('?id=')[1] || '').split('&')[0] || '';
+        }
+
+        try { id = decodeURIComponent(id); } catch (e) {}
+        id = id.replace(/^\/+/, '').trim();
+
+        const parts = String(id || '').split('/').filter(Boolean);
+        if (parts.length >= 2) {
+          const artist = parts[0];
+          const album = (parts.length >= 3 ? parts[1] : 'Singles');
+          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+          resolvedCover = r2Base + encodeURIComponent(`${artist}/${album}/cover.jpg`);
+        }
+      }
+    } catch (e) {}
+
+    cover.src = resolvedCover || PLACEHOLDER;
+  }
+
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
     if (artist) artist.textContent = currentSong.artist || "";
   try { loadNpBio(currentSong.artist); } catch (e) {}
@@ -11865,13 +11911,18 @@ function openNowPlaying() {
     const y = (r.top + r.bottom) / 2;
 
     // Make sure menu has url/link if available
-const songForMenu = {
-  ...song,
-  url: (song && (song.url || song.link)) ? (song.url || song.link) : "",
-  link: (song && (song.link || song.url)) ? (song.link || song.url) : ""
-};
+	const songForMenu = {
+	  ...song,
+	  url: (song && (song.url || song.link)) ? (song.url || song.link) : "",
+	  link: (song && (song.link || song.url)) ? (song.link || song.url) : ""
+	};
 
-showContextMenuAt(x, y, songForMenu, btn);
+    // ✅ Prevent immediate "outside click" dismissal on mobile
+    try { window.__outsideDismissSkipUntil = Date.now() + 400; } catch (err) {}
+    try { window.suppressContextMenuCloseUntil = Date.now() + 400; } catch (err) {}
+
+	showContextMenuAt(x, y, songForMenu, btn);
+
 
     showContextMenuAt(x, y, songForMenu, btn);
   }, true);
@@ -12725,7 +12776,37 @@ function restorePlayerStateIfRecent() {
 
   // Update dock UI
   dock.classList.remove('dock-hidden');
-  document.getElementById('p-cover').src = currentSong.cover || "";
+    {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    let finalCover = String(currentSong.cover || '').trim();
+
+    // If missing, try infer from ?id=
+    try {
+      if (!finalCover) {
+        const rawUrl = String(currentSong.url || currentSong.link || '').trim();
+        let id = '';
+        try {
+          const u = new URL(rawUrl, window.location.origin);
+          id = u.searchParams.get('id') || '';
+        } catch (e) {
+          if (rawUrl.includes('?id=')) id = (rawUrl.split('?id=')[1] || '').split('&')[0] || '';
+        }
+        try { id = decodeURIComponent(id); } catch (e) {}
+        id = id.replace(/^\/+/, '').trim();
+
+        const parts = String(id || '').split('/').filter(Boolean);
+        if (parts.length >= 2) {
+          const artist = parts[0];
+          const album = (parts.length >= 3 ? parts[1] : 'Singles');
+          const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+          finalCover = r2Base + encodeURIComponent(`${artist}/${album}/cover.jpg`);
+        }
+      }
+    } catch (e) {}
+
+    document.getElementById('p-cover').src = finalCover || PLACEHOLDER;
+  }
+
 updateAccentFromCover(currentSong.cover || "");
 
 setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
