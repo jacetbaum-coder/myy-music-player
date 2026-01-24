@@ -17182,7 +17182,7 @@ return;
 
       // Default: play (mobile tap)
       currentIndex = i;
-            // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
+                  // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
       const playUrl = String(row.dataset.url || song.url || '').trim();
 
       // If we still only have "Artist/File.ext", force "Artist/Singles/File.ext"
@@ -17199,7 +17199,35 @@ return;
         }
       } catch (e) {}
 
-      playSpecificSong(finalUrl, song.title, song.album, song.artist, song.cover);
+      // ✅ Cover for dock / now playing:
+      // 1) row.dataset.cover (we'll set this in Fix 2)
+      // 2) the row's <img> src
+      // 3) derive from finalUrl id => Artist/Album/cover.jpg
+      let finalCover = String(row.dataset.cover || '').trim();
+
+      if (!finalCover) {
+        const img = row.querySelector('img');
+        const src = img ? String(img.getAttribute('src') || img.src || '').trim() : '';
+        if (src) finalCover = src;
+      }
+
+      if (!finalCover) {
+        try {
+          if (finalUrl.includes("?id=")) {
+            const enc2 = finalUrl.split("?id=")[1].split("&")[0];
+            const id2 = decodeURIComponent(enc2);
+            const p2 = id2.split("/").filter(Boolean);
+            const artist2 = p2.length >= 1 ? p2[0] : "";
+            const album2  = p2.length >= 2 ? p2[1] : "";
+            if (artist2 && album2) {
+              finalCover = "https://music-streamer.jacetbaum.workers.dev/?id=" +
+                encodeURIComponent(`${artist2}/${album2}/cover.jpg`);
+            }
+          }
+        } catch (e) {}
+      }
+
+      playSpecificSong(finalUrl, song.title, song.album, song.artist, finalCover || song.cover);
 
     };
 
@@ -17234,7 +17262,9 @@ return;
     if (isPlaylist) {
       let thumbSrc = '';
       try { thumbSrc = String(getSongCoverFromPlaylistSong(song) || '').trim(); } catch (e) {}
-      if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
+            if (!thumbSrc) thumbSrc = String(song.cover || '').trim();
+      row.dataset.cover = thumbSrc || '';
+
 
       thumbMarkup = thumbSrc
         ? `<img src="${thumbSrc}" class="w-10 h-10 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">`
