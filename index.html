@@ -10869,7 +10869,21 @@ _score: score
               // Mobile top label: ".... in Search"
               playContext = { type: 'search', label: q };
 
-              playSpecificSong(s.link, s.name, s.album, s.artist, s.cover);
+              {
+  // ✅ Compute a real cover for playlist/search edge cases
+  let cover = "";
+  try {
+    if (typeof getSongCoverFromPlaylistSong === "function") {
+      cover = String(getSongCoverFromPlaylistSong(s) || "").trim();
+    }
+  } catch (e) {}
+
+  // keep s.cover in sync for anything else that reads it later
+  try { s.cover = cover || s.cover; } catch (e) {}
+
+  playSpecificSong(s.link, s.name, s.album, s.artist, cover);
+}
+
             });
 
             const img = document.createElement('img');
