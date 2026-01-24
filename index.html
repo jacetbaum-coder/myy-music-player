@@ -10892,22 +10892,46 @@ _score: score
 
 const cover = (() => {
   try {
+    // 1) direct cover fields (if present)
     const raw =
-      (s && (s.cover || s.coverArt || s.cover_url || s.coverUrl)) ||
-      '';
-    const picked = String(raw || '').trim();
-    if (!picked) return '';
-    // If you have getAlbumCover(), use it (it already exists in your Album rows)
-    if (typeof getAlbumCover === 'function') {
-      return String(getAlbumCover(s.artist || '', s.album || '', picked) || '').trim();
+      (s && (s.cover || s.coverArt || s.cover_url || s.coverUrl)) || '';
+    const direct = String(raw || '').trim();
+
+    if (direct) {
+      // If getAlbumCover() exists, let it normalize/upgrade the URL
+      if (typeof getAlbumCover === 'function') {
+        const maybe = String(getAlbumCover(s.artist || '', s.album || '', direct) || '').trim();
+        return maybe || direct;
+      }
+      return direct;
     }
-    return picked;
+
+    // 2) derive from the track link (?id=Artist/Album/Track OR Artist/Track)
+    const link = String((s && s.link) || '').trim();
+    const m = link.match(/[?&]id=([^&]+)/);
+    if (!m || !m[1]) return '';
+
+    let key = m[1];
+    try { key = decodeURIComponent(key); } catch (e) {}
+
+    const parts = String(key).split('/').filter(Boolean);
+    if (parts.length < 2) return '';
+
+    // If we have Artist/Album/Track -> use Artist/Album/cover.jpg
+    // If we only have Artist/Track -> use Artist/cover.jpg
+    const coverKey = (parts.length >= 3)
+      ? (parts[0] + '/' + parts[1] + '/cover.jpg')
+      : (parts[0] + '/cover.jpg');
+
+    const base = 'https://music-streamer.jacetbaum.workers.dev/?id=';
+    return base + encodeURIComponent(coverKey);
   } catch (e) {
     return '';
   }
 })();
 
 // ✅ Never leave src empty (empty src becomes your site URL)
+
 img.src = cover || 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3Cpath%20d%3D%22M20%2018h8v12h-8z%22%20fill%3D%22%234a4f57%22%2F%3E%3Cpath%20d%3D%22M22%2020h4v8h-4z%22%20fill%3D%22%23666c76%22%2F%3E%3C%2Fsvg%3E';
 img.onerror = () => {
   img.onerror = null;
