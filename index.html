@@ -2421,6 +2421,7 @@ body.qs-lock {
 <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
   Go to queue
 </div>
+
 </div>
 
 
@@ -13634,10 +13635,13 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   contextMenu.style.top = `${top}px`;
 }
 
-        function showContextMenuAt(x, y, song, anchorEl = null) {
+       function showContextMenuAt(x, y, song, anchorEl = null) {
   menuTargetSong = song;
+  try { window.menuTargetSong = menuTargetSong; } catch (e) {}
 
   // Fill the sheet header with the pressed song
+
+
   try {
     const tEl = document.getElementById('cm-title');
     const aEl = document.getElementById('cm-artist');
@@ -13819,31 +13823,76 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     }
   } catch (e) {}
 
-  // Only show the two actions
-  const addOpt = document.getElementById('menu-add-opt');
-  const removeOpt = document.getElementById('menu-remove-opt');
+    const addOpt = document.getElementById('menu-add-opt');
   const qAddOpt = document.getElementById('menu-queue-add-opt');
   const crateOpt = document.getElementById('menu-crate-add-artist-opt');
-const goAlbumOpt = document.getElementById('menu-go-album-opt');
-const qGoOpt = document.getElementById('menu-queue-go-opt');
+  const goAlbumOpt = document.getElementById('menu-go-album-opt');
+  const qGoOpt = document.getElementById('menu-queue-go-opt');
 
-if (addOpt) addOpt.style.display = 'flex';
-if (qAddOpt) qAddOpt.style.display = 'flex';
-if (crateOpt) crateOpt.style.display = 'flex';
-if (qGoOpt) qGoOpt.style.display = 'flex';
+  if (addOpt) addOpt.style.display = 'flex';
+  if (qAddOpt) qAddOpt.style.display = 'flex';
+  if (crateOpt) crateOpt.style.display = 'flex';
+  if (qGoOpt) qGoOpt.style.display = 'flex';
+
+  // ✅ Decide album name reliably
+  let __albumName = "";
+
+  // 1) If song object already has it
+  try {
+    __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+  } catch (e) {}
+
+  // 2) Otherwise derive from the R2 key in the song url/id (Artist/Album/Track.mp3)
+  if (!__albumName) {
+    try {
+      const raw = String(song && (song.id || song.trackId || song.r2Path || song.url || song.link) || "").trim();
+      const urlish = raw.includes("?id=") ? decodeURIComponent(raw.split("?id=")[1].split("&")[0]) : raw;
+      const parts = urlish.split("/").filter(Boolean);
+      if (parts.length >= 3) __albumName = String(parts[1] || "").trim();
+    } catch (e) {}
+  }
+
+  // 3) If still empty, try the clicked row's dataset url (this is your .track-row.group[data-url])
+  if (!__albumName) {
+    try {
+      const row = anchorEl && anchorEl.closest ? anchorEl.closest(".track-row.group[data-url], .track-row[data-song-url], .track-row") : null;
+      const rowUrl = row ? (row.getAttribute("data-song-url") || (row.dataset ? row.dataset.url : "") || "") : "";
+      const id = rowUrl.includes("?id=") ? decodeURIComponent(rowUrl.split("?id=")[1].split("&")[0]) : "";
+      const parts = id.split("/").filter(Boolean);
+      if (parts.length >= 3) __albumName = String(parts[1] || "").trim();
+    } catch (e) {}
+  }
+
+  // Remember for menuAction('go_album')
+  try { window.__menuTargetAlbumName = __albumName; } catch (e) {}
+
+  // Show/hide the option
+  if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
 
 // ✅ Only show "Go to album" if we can derive an album from this target song
-let __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
-if (!__albumName) {
-  // try deriving from id/url: Artist/Album/Track.mp3
-  let tid = String((song && (song.id || song.r2Path || song.trackId || song.link || song.url)) || "").trim();
-  if (tid.includes("?id=")) {
-    try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+  // ✅ Only show "Go to album" if we can determine an album folder
+  let __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+
+  // Fallback: infer album from the actual R2 key inside ?id=
+  if (!__albumName) {
+    try {
+      let tid = String(
+        (song && (song.r2Path || song.trackId || song.id || song.url || song.link)) || ""
+      ).trim();
+
+      if (tid.includes("?id=")) {
+        tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]);
+      }
+
+      const parts = tid.split("/").filter(Boolean);
+      // Artist/Album/Track.mp3  => album = parts[1]
+      if (parts.length >= 3) __albumName = String(parts[1] || "").trim();
+    } catch (e) {}
   }
-  const parts = tid.split("/").filter(Boolean);
-  if (parts.length >= 3) __albumName = String(parts[1] || "").trim();
-}
-if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
+  if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
 
 }
 
@@ -14175,17 +14224,16 @@ function handleContextMenu(e, song){
         });
 
         if (selectedArr.length) {
-          menuTargetSong = selectedArr;
-          showContextMenuAt(e.clientX, e.clientY, song);
+                    menuTargetSong = selectedArr;
+          try { window.menuTargetSong = menuTargetSong; } catch (e) {}
+          showContextMenuAt(
+            e.clientX,
+            e.clientY,
+            song,
+            (e.target && e.target.closest) ? e.target.closest("button.track-menu, .track-row, .track-row.group") : null
+          );
           return;
-        }
-      }
-    }
-  }catch(err){}
 
-  // default: single
-  menuTargetSong = song;
-  showContextMenuAt(e.clientX, e.clientY, song);
 }
 
 
@@ -16286,15 +16334,23 @@ return;
     closeContextMenu();
     return;
   }
-
   // ADD TO QUEUE (close menu + toast)
   if (type === 'queue_add' || type === 'add_to_queue' || type === 'add_queue') {
     try { addSongToQueue(menuTargetSong); } catch (e) {}
+    closeContextMenu();
     return;
   }
 
-    // GO TO ALBUM
-if (type === 'go_album') {
+  // GO TO QUEUE
+  if (type === 'queue_go') {
+    closeContextMenu();
+    openQueueSheet();
+    return;
+  }
+
+  // GO TO ALBUM
+  if (type === 'go_album') {
+
   // Try albumName first, then derive from id/url (Artist/Album/Track.mp3)
   let albumName = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
     ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
