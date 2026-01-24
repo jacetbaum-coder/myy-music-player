@@ -9600,9 +9600,48 @@ function renderLibraryMain() {
       const title = song.title || song.name || fallback.title || "Unknown Title";
       const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
       const album = song.album || song.albumName || fallback.album || "Unknown Album";
-      const cover = song.cover || song.coverArt || fallback.cover || "";
+            let cover = song.cover || song.coverArt || fallback.cover || "";
+
+      // ✅ If cover is missing OR clearly wrong (Unknown Album), infer from the streaming ?id= path
+      // Artist/Album/Track -> Artist/Album/cover.jpg
+      // Artist/Singles/Track OR Artist/Track -> Artist/Singles/cover.jpg
+      try {
+        const bad =
+          !String(cover || "").trim() ||
+          String(cover || "").includes("Unknown%20Album%2Fcover.jpg") ||
+          String(cover || "").includes("/Unknown Album/cover.jpg") ||
+          String(cover || "").includes("Unknown Album/cover.jpg");
+
+        if (bad) {
+          const rawUrl = String(url || "").trim();
+          let id = "";
+
+          try {
+            const u = new URL(rawUrl);
+            id = u.searchParams.get("id") || "";
+          } catch (e) {
+            if (rawUrl.includes("?id=")) id = (rawUrl.split("?id=")[1] || "").split("&")[0] || "";
+          }
+
+          try { id = decodeURIComponent(id); } catch (e) {}
+          id = id.replace(/^\/+/, "").trim();
+
+          const parts = String(id || "").split("/").filter(Boolean);
+          if (parts.length >= 2) {
+            const artistFromId = parts[0] || "";
+            const albumFromId = (parts.length >= 3 ? (parts[1] || "") : "Singles");
+
+            // If your id already contains Singles (Artist/Singles/Track), this keeps it.
+            const finalAlbum = albumFromId || "Singles";
+
+            const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+            cover = r2Base + encodeURIComponent(`${artistFromId}/${finalAlbum}/cover.jpg`);
+          }
+        }
+      } catch (e) {}
 
       return { url, title, artist, album, cover };
+
     };
   }
 
