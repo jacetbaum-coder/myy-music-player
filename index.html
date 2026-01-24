@@ -17180,10 +17180,9 @@ return;
 
       }
 
-            // Default: play (mobile tap)
+      // Default: play (mobile tap)
       currentIndex = i;
-
-      // ✅ Derive a stable finalUrl + finalCover ONCE so click + menus can reuse it.
+                  // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
       const playUrl = String(row.dataset.url || song.url || '').trim();
 
       // If we still only have "Artist/File.ext", force "Artist/Singles/File.ext"
@@ -17201,7 +17200,7 @@ return;
       } catch (e) {}
 
       // ✅ Cover for dock / now playing:
-      // 1) row.dataset.cover
+      // 1) row.dataset.cover (we'll set this in Fix 2)
       // 2) the row's <img> src
       // 3) derive from finalUrl id => Artist/Album/cover.jpg
       let finalCover = String(row.dataset.cover || '').trim();
@@ -17230,63 +17229,16 @@ return;
 
       playSpecificSong(finalUrl, song.title, song.album, song.artist, finalCover || song.cover);
 
-
     };
 
 
-   row.oncontextmenu = (e) => {
-  // ✅ Ensure the menu gets the SAME corrected URL + album as playback
-  let menuAlbum = String(song.album || song.albumName || '').trim();
-  try {
-    if (!menuAlbum && finalUrl && finalUrl.includes("?id=")) {
-      const enc = finalUrl.split("?id=")[1].split("&")[0];
-      const id = decodeURIComponent(enc);
-      const parts = id.split("/").filter(Boolean);
-      if (parts.length >= 2) menuAlbum = parts[1];
-    }
-  } catch (e) {}
-
-     handleContextMenu(e, {
-    ...song,
-    name: song.title,
-    link: finalUrl,
-    url: finalUrl,
-    album: menuAlbum || song.album || song.albumName || "",
-    albumName: menuAlbum || song.albumName || song.album || "",
-    cover: finalCover || song.cover || "",
-    coverArt: finalCover || song.cover || ""
-  });
-};
-
-            attachSongPressHandlers(
-
-
+    row.oncontextmenu = (e) =>
+      handleContextMenu(e, { ...song, name: song.title, link: song.url, coverArt: song.cover });
+      attachSongPressHandlers(
       row,
-      (() => {
-        let menuAlbum = String(song.album || song.albumName || '').trim();
-        try {
-          if (!menuAlbum && finalUrl && finalUrl.includes("?id=")) {
-            const enc = finalUrl.split("?id=")[1].split("&")[0];
-            const id = decodeURIComponent(enc);
-            const parts = id.split("/").filter(Boolean);
-            if (parts.length >= 2) menuAlbum = parts[1];
-          }
-        } catch (e) {}
-
-        return {
-          ...song,
-          name: song.title,
-          link: finalUrl,
-          url: finalUrl,
-          album: menuAlbum || song.album || song.albumName || "",
-          albumName: menuAlbum || song.albumName || song.album || "",
-          cover: finalCover || song.cover || "",
-          coverArt: finalCover || song.cover || ""
-        };
-      })(),
+      { ...song, name: song.title, link: song.url, coverArt: song.cover },
       longPressState
     );
-
 
        // ✅ needed by updateTrackListActiveState()
     row.dataset.url = song.url || '';
@@ -17381,9 +17333,7 @@ return;
 
     listEl.appendChild(row);
 
-  }); 
-
-        // This closes queue.forEach
+  }); // This closes queue.forEach
 
   // ensure current track highlight is correct immediately after rendering
   updateTrackListActiveState();
