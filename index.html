@@ -10461,13 +10461,7 @@ function openArtistByName(artistName) {
   return `
     <div class="p-4 cursor-pointer relative group rounded-lg hover:bg-white/5 transition"
          onclick="if (${idx} !== -1) showView('playlist', ${idx});">
-      ${
-        cover
-          ? `<img src="${cover}" class="w-full aspect-square rounded-md mb-3 object-cover">`
-          : `<div class="w-full aspect-square rounded-md mb-3 bg-zinc-800 flex items-center justify-center">
-               <i class="fas fa-music text-3xl text-zinc-500"></i>
-             </div>`
-      }
+      ${getPlaylistCoverMarkup(pl, "w-full aspect-square rounded-md mb-3 overflow-hidden")}
 
       <button
         class="absolute right-6 bottom-14 w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition js-green-play"
@@ -15908,16 +15902,10 @@ function renderPlaylists() {
       (Number.isFinite(pl.songCount) ? pl.songCount : 0);
 
     div.innerHTML = `
-      <div class="playlist-cover w-12 h-12 rounded overflow-hidden bg-zinc-800 flex items-center justify-center"
-           data-playlist-id="${pl.id}">
-        ${
-          cover
-            ? `<img src="${cover}" class="w-full h-full object-cover" alt="">`
-            : `<i class="fas fa-music text-zinc-600"></i>`
-        }
-      </div>
+            ${getPlaylistCoverMarkup(pl, "playlist-cover w-12 h-12 rounded overflow-hidden")}
 
       <div class="flex-1 truncate">
+
         <div class="text-sm font-bold truncate flex items-center gap-2">
           <span class="truncate">${pl.name}</span>
         </div>
