@@ -10948,12 +10948,18 @@ img.className = 'w-12 h-12 rounded object-cover';
             title.className = 'text-white font-bold truncate';
             title.textContent = (s.name || '').replace('.mp3', '');
 
-            const meta = document.createElement('div');
+                        const meta = document.createElement('div');
             meta.className = 'text-sm text-zinc-400 truncate';
-            meta.textContent = `${s.artist} • ${s.album}`;
+
+            const albumLabel = String(s.album || '').trim();
+            meta.textContent =
+              (albumLabel && albumLabel !== 'Unknown Album')
+                ? `${s.artist} • ${albumLabel}`
+                : String(s.artist || '').trim();
 
             const icon = document.createElement('i');
             icon.className = 'fas fa-play opacity-0 group-hover:opacity-100 text-zinc-400';
+
 
             info.appendChild(title);
             info.appendChild(meta);
