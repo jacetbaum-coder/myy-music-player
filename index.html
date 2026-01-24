@@ -16570,15 +16570,26 @@ return;
         ? lib.some(a => a && a.albumName === albumName && a.artistName === artistHint)
         : lib.some(a => a && a.albumName === albumName);
 
-      if (!exists) {
+            if (!exists) {
+        // Not in libraryData (Drive source mismatch) — open a virtual album view so Go to album isn't silent.
         try {
-          console.warn('[go_album] Album not present in libraryData:', { artistHint, albumName, menuTargetSong });
+          console.warn('[go_album] Album not present in libraryData (opening virtual view):', { artistHint, albumName, menuTargetSong });
         } catch (e) {}
-        try {
-          if (typeof window.showToast === 'function') window.showToast('Album not in library source');
-        } catch (e) {}
+
+        // Build a 1-song "album" from the clicked row
+        const vt = Object.assign({}, menuTargetSong || {});
+        if (artistHint) { vt.artistName = artistHint; vt.artist = artistHint; }
+        if (albumName)  { vt.albumName = albumName;  vt.album  = albumName; }
+        if (!vt.title && vt.name) vt.title = vt.name;
+
+        try { closeContextMenu(); } catch (e) {}
+        try { pushNavCurrent(); } catch (e) {}
+        try { setNavCurrent({ type: 'album', albumName: albumName, artistName: (artistHint || '') }); } catch (e) {}
+        try { playContext = { type: 'album', label: albumName }; } catch (e) {}
+        try { renderCollection(albumName, [vt], false); } catch (e) {}
         return;
       }
+
     } catch (e) {}
 
     // Help openAlbumByName pick the right album if names collide
