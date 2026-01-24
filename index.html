@@ -2418,9 +2418,12 @@ body.qs-lock {
   Go to album
 </div>
 
-<div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
-  Go to queue
+
+  <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
+    Go to queue
+  </div>
 </div>
+
 </div>
 
 
@@ -13824,13 +13827,27 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   const removeOpt = document.getElementById('menu-remove-opt');
   const qAddOpt = document.getElementById('menu-queue-add-opt');
   const crateOpt = document.getElementById('menu-crate-add-artist-opt');
-  const qGoOpt = document.getElementById('menu-queue-go-opt');
+const goAlbumOpt = document.getElementById('menu-go-album-opt');
+const qGoOpt = document.getElementById('menu-queue-go-opt');
 
-  if (addOpt) addOpt.style.display = 'flex';
-  if (removeOpt) removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
-  if (qAddOpt) qAddOpt.style.display = 'none';
-  if (crateOpt) crateOpt.style.display = 'none';
-  if (qGoOpt) qGoOpt.style.display = 'none';
+if (addOpt) addOpt.style.display = 'flex';
+if (qAddOpt) qAddOpt.style.display = 'flex';
+if (crateOpt) crateOpt.style.display = 'flex';
+if (qGoOpt) qGoOpt.style.display = 'flex';
+
+// ✅ Only show "Go to album" if we can derive an album from this target song
+let __albumName = (song && (song.albumName || song.album)) ? String(song.albumName || song.album).trim() : "";
+if (!__albumName) {
+  // try deriving from id/url: Artist/Album/Track.mp3
+  let tid = String((song && (song.id || song.r2Path || song.trackId || song.link || song.url)) || "").trim();
+  if (tid.includes("?id=")) {
+    try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+  }
+  const parts = tid.split("/").filter(Boolean);
+  if (parts.length >= 3) __albumName = String(parts[1] || "").trim();
+}
+if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
+
 }
 
 
@@ -16322,21 +16339,6 @@ if (type === 'queue_go') {
   openQueueSheet();
   return;
 }
-
-
-  // ✅ GO TO ALBUM (for the pressed track)
-  if (type === 'go_album') {
-    const album = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
-      ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
-      : "";
-
-    closeContextMenu();
-
-    if (album) {
-      try { openAlbumByName(album); } catch (e) {}
-    }
-    return;
-  }
 
 
   // ADD ARTIST TO CRATE
