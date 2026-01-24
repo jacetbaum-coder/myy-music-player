@@ -11534,25 +11534,44 @@ async function playSpecificSong(url, title, album, artist, cover) {
     .replace(/\.[^/.]+$/, "");
 
   // ✅ Detect if "album" is actually a filename like "Work.mp3"
-  const albumRaw = String(album || "").trim();
-  const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(albumRaw);
-  const albumFolder = albumIsFile ? "" : albumRaw;
+    const albumRaw = String(album || "").trim();
 
-  // ✅ Cover fallback rules:
-  // Album track  → Artist/Album/cover.jpg
-  // Single track → Artist/cover.jpg
+  // ✅ If the caller passed "Unknown Album", try to infer from the real R2 path in ?id=
+  let inferredAlbum = "";
+  try {
+    const u0 = new URL(url, window.location.origin);
+    const id0 = String(u0.searchParams.get("id") || "").trim();
+    const decoded0 = id0 ? decodeURIComponent(id0) : "";
+    const parts0 = decoded0.split("/").filter(Boolean); // Artist/Album/Track
+    if (parts0.length >= 3) inferredAlbum = parts0[1] || "";
+  } catch (e) {}
+
+  // ✅ If album is unknown/empty, prefer inferred album; otherwise keep albumRaw
+  const albumCandidate = (!albumRaw || albumRaw === "Unknown Album") ? (inferredAlbum || "") : albumRaw;
+
+  // ✅ Detect if "album" is actually a filename like "Work.mp3"
+  const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(String(albumCandidate || "").trim());
+
+  // ✅ Album folder rules:
+  // - If we have a real album folder, use it
+  // - Otherwise, treat as Singles (your intended fallback)
+  const albumFolder = albumIsFile ? "Singles" : (String(albumCandidate || "").trim() || "Singles");
+
   let resolvedCover = String(cover || "").trim();
+
   if (!resolvedCover) {
     const a = String(artist || "").trim();
     if (a && albumFolder) {
       resolvedCover =
         "https://music-streamer.jacetbaum.workers.dev/?id=" +
         encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
-    } else if (a) {
+        } else if (a) {
+      // ✅ Singles fallback (you store loose tracks under Artist/Singles/)
       resolvedCover =
         "https://music-streamer.jacetbaum.workers.dev/?id=" +
-        encodeURIComponent(a + "/cover.jpg");
+        encodeURIComponent(a + "/Singles/cover.jpg");
     }
+
   }
 
   currentSong = {
@@ -12324,6 +12343,49 @@ window.addEventListener('resize', () => {
   setMarqueeTitle('p-title', (currentSong.title || '').replace('.mp3', ''));
   setMarqueeTitle('np-title', (currentSong.title || '').replace('.mp3', ''));
 });
+
+// ✅ Now Playing top 3-dots should open the SAME context menu as song rows
+(function bindNowPlayingDotsMenu() {
+  if (window.__npDotsMenuBound) return;
+  window.__npDotsMenuBound = true;
+
+  const btn = document.getElementById('np-more');
+  if (!btn) return;
+
+  function openMenu(e) {
+    try { e.preventDefault(); } catch (err) {}
+    try { e.stopPropagation(); } catch (err) {}
+
+    if (!window.currentSong) return;
+    if (typeof window.showContextMenuAt !== 'function') return;
+
+    const r = btn.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+
+    // Ensure menuTargetSong looks like what showContextMenuAt expects
+    const s = window.currentSong;
+    const songForMenu = {
+      url: s.url || s.link || "",
+      link: s.url || s.link || "",
+      title: s.title || s.name || "",
+      name: s.title || s.name || "",
+      artist: s.artist || s.artistName || "",
+      album: s.album || s.albumName || "",
+      albumName: s.album || s.albumName || "",
+      cover: s.cover || s.coverArt || "",
+      coverArt: s.cover || s.coverArt || ""
+    };
+
+    window.showContextMenuAt(x, y, songForMenu, btn);
+  }
+
+  // Use pointer/touch so iOS doesn’t lose the click
+  btn.addEventListener('pointerup', openMenu, true);
+  btn.addEventListener('touchend', openMenu, true);
+  btn.addEventListener('click', openMenu, true);
+})();
+
 
 // clicking the black backdrop closes (but not clicking inside content)
 // ✅ NOTE: removed duplicate swipe handler here (it was preventing taps like the down-arrow).
