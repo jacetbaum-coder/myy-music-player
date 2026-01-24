@@ -16530,8 +16530,56 @@ return;
       } catch (e) {}
     }
 
-    // 3) If we STILL can't resolve, bail
-    if (!albumName || albumName === 'Unknown Album') return;
+        // 3) If we STILL can't resolve, fall back for short ids:
+    //    "Artist/Track.mp3" -> treat as Artist / Singles
+    if (!albumName || albumName === 'Unknown Album') {
+      try {
+        const rawUrl3 = String(menuTargetSong?.url || menuTargetSong?.link || '').trim();
+        let id3 = '';
+        try {
+          const u3 = new URL(rawUrl3);
+          id3 = u3.searchParams.get('id') || '';
+        } catch (e) {
+          if (rawUrl3.includes('?id=')) id3 = (rawUrl3.split('?id=')[1] || '').split('&')[0] || '';
+        }
+        try { id3 = decodeURIComponent(id3); } catch (e) {}
+        const parts3 = String(id3 || '').split('/').filter(Boolean);
+
+        if (parts3.length === 2) {
+          if (!artistHint) artistHint = parts3[0] || '';
+          albumName = 'Singles';
+        }
+      } catch (e) {}
+    }
+
+    // If still missing, don't fail silently
+    if (!albumName || albumName === 'Unknown Album') {
+      try {
+        console.warn('[go_album] Could not resolve album for menuTargetSong:', menuTargetSong);
+      } catch (e) {}
+      try {
+        if (typeof window.showToast === 'function') window.showToast('Album not found in library');
+      } catch (e) {}
+      return;
+    }
+
+    // If the album doesn't exist in libraryData for this artist, don't fail silently
+    try {
+      const lib = Array.isArray(window.libraryData) ? window.libraryData : [];
+      const exists = (artistHint && artistHint.trim())
+        ? lib.some(a => a && a.albumName === albumName && a.artistName === artistHint)
+        : lib.some(a => a && a.albumName === albumName);
+
+      if (!exists) {
+        try {
+          console.warn('[go_album] Album not present in libraryData:', { artistHint, albumName, menuTargetSong });
+        } catch (e) {}
+        try {
+          if (typeof window.showToast === 'function') window.showToast('Album not in library source');
+        } catch (e) {}
+        return;
+      }
+    } catch (e) {}
 
     // Help openAlbumByName pick the right album if names collide
     try { window.__albumArtistHint = artistHint || ''; } catch (e) {}
