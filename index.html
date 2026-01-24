@@ -16385,19 +16385,6 @@ return;
   return;
 }
 
-  // ✅ GO TO ALBUM (for the pressed track)
-  if (type === 'go_album') {
-    const album = (menuTargetSong && (menuTargetSong.albumName || menuTargetSong.album))
-      ? String(menuTargetSong.albumName || menuTargetSong.album).trim()
-      : "";
-
-    closeContextMenu();
-
-    if (album) {
-      try { openAlbumByName(album); } catch (e) {}
-    }
-    return;
-  }
 
   if (type === 'crate_add_artist') {
     const a = (menuTargetSong && (menuTargetSong.artist || menuTargetSong.artistName)) ? String(menuTargetSong.artist || menuTargetSong.artistName).trim() : "";
