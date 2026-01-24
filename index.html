@@ -17298,8 +17298,74 @@ function updateTrackListActiveState() {
 }
 
 function playAlbumByName(name) {
-  const album = libraryData.find(a => a.albumName === name);
+    let album = libraryData.find(a => a.albumName === name);
+
+  // ✅ Fallback: if album isn't in libraryData, build a "virtual album" from playlist trackIds
+  // (This is what makes Artist/Singles/... open even if /api/get-songs doesn't include Singles.)
+  if (!album) {
+    try {
+      const hintArtist = String(window.__albumArtistHint || "").trim();
+      if (hintArtist) {
+        const looksAudio = (s) => /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(String(s || ""));
+        const wantPrefix = `${hintArtist}/${name}/`;
+
+        const raw = localStorage.getItem("playlists") || "[]";
+        const data = JSON.parse(raw);
+        const pls = Array.isArray(data) ? data : (Array.isArray(data.playlists) ? data.playlists : []);
+
+        const seen = new Set();
+        const ids = [];
+
+        for (const p of pls) {
+          const trackIds = Array.isArray(p?.trackIds) ? p.trackIds : [];
+          for (const tid of trackIds) {
+            const s = String(tid || "");
+            if (!s.startsWith(wantPrefix)) continue;
+            const parts = s.split("/").filter(Boolean);
+            const last = parts[parts.length - 1] || "";
+            if (!looksAudio(last)) continue;
+            if (seen.has(s)) continue;
+            seen.add(s);
+            ids.push(s);
+          }
+        }
+
+        if (ids.length) {
+          const coverPath = `${hintArtist}/${name}/cover.jpg`;
+          const coverUrl = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
+
+          album = {
+            albumName: name,
+            artistName: hintArtist,
+            cover: coverUrl,
+            coverUrl,
+            songs: ids.map((id) => {
+              const parts = String(id).split("/").filter(Boolean);
+              const file = parts[parts.length - 1] || "";
+              const title = file.replace(/\.[^.]+$/, "");
+              const url = `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`;
+              return {
+                id,
+                r2Path: id,
+                title,
+                artist: hintArtist,
+                artistName: hintArtist,
+                album: name,
+                albumName: name,
+                url,
+                link: url,
+                cover: coverUrl,
+                coverUrl
+              };
+            })
+          };
+        }
+      }
+    } catch (e) {}
+  }
+
   if (!album) return;
+
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
 
