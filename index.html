@@ -11318,8 +11318,6 @@ img.src = cover || '';
   row.appendChild(info);
 
   results.appendChild(row);
-};
-
           };
 
           const appendPlaylistRow = (playlist) => {
@@ -11328,19 +11326,25 @@ img.src = cover || '';
             row.addEventListener('click', () => {
               const idx = playlists.findIndex(p => p.id === playlist.id);
               if (idx !== -1) showView('playlist', idx);
+              if (typeof playlist.__onClick === 'function') {
+                playlist.__onClick();
+              }
             });
 
-            const img = document.createElement('img');
-img.src = getArtistHeroImage
-  ? getArtistHeroImage(artist.artist)
-  : '';
-img.className = 'w-12 h-12 rounded-full object-cover bg-zinc-800';
+            const coverWrap = document.createElement('div');
+            coverWrap.className = 'shrink-0';
 
-}
+            const coverMarkup = (typeof getPlaylistCoverMarkup === 'function')
+              ? getPlaylistCoverMarkup(playlist, 'w-12 h-12 rounded overflow-hidden')
+              : '';
 
+            coverWrap.innerHTML = coverMarkup || `
+              <div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center">
+                <i class="fas fa-music text-zinc-400"></i>
+              </div>
+            `;
 
-const info = document.createElement('div');
-
+            const info = document.createElement('div');
             info.className = 'flex-1 overflow-hidden';
 
             const title = document.createElement('div');
@@ -11353,7 +11357,7 @@ const info = document.createElement('div');
 
             info.appendChild(title);
             info.appendChild(meta);
-            row.appendChild(img);
+            row.appendChild(coverWrap);
 
             row.appendChild(info);
             results.appendChild(row);
