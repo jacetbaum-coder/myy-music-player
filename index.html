@@ -11250,34 +11250,76 @@ img.src = cover || '';
           };
 
           const appendArtistRow = (artist) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-            row.addEventListener('click', () => {
-              openArtistByName(artist.artist);
-            });
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+  row.addEventListener('click', () => {
+    openArtistByName(artist.artist);
+  });
 
-            const iconWrap = document.createElement('div');
-            iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center';
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-user text-zinc-400';
-            iconWrap.appendChild(icon);
+  // Avatar wrapper (circle)
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'w-12 h-12 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center';
 
-            const info = document.createElement('div');
-            info.className = 'flex-1 overflow-hidden';
+  // Default icon (fallback)
+  const icon = document.createElement('i');
+  icon.className = 'fas fa-user text-zinc-400';
 
-            const title = document.createElement('div');
-            title.className = 'text-white font-bold truncate';
-            title.textContent = artist.artist;
+  // Image (starts hidden until it loads)
+  const img = document.createElement('img');
+  img.className = 'w-12 h-12 rounded-full object-cover hidden';
+  img.alt = artist.artist || 'Artist';
 
-            const meta = document.createElement('div');
-            meta.className = 'text-sm text-zinc-400 truncate';
-            meta.textContent = 'Artist';
+  // Try to load real artist image (server endpoint)
+  // NOTE: this will work once /api/artist-image exists again
+  (async () => {
+    try {
+      const name = encodeURIComponent(artist.artist || '');
+      if (!name) throw new Error('no artist name');
+      const r = await fetch(`/api/artist-image?name=${name}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('http ' + r.status);
+      const data = await r.json();
+      const url = (data && (data.image || data.url)) ? String(data.image || data.url) : '';
+      if (!url) throw new Error('no image');
+      img.src = url;
 
-            info.appendChild(title);
-            info.appendChild(meta);
-            row.appendChild(iconWrap);
-            row.appendChild(info);
-            results.appendChild(row);
+      img.onload = () => {
+        // swap to image
+        avatarWrap.innerHTML = '';
+        avatarWrap.appendChild(img);
+        img.classList.remove('hidden');
+      };
+
+      img.onerror = () => {
+        // keep icon fallback
+      };
+    } catch (e) {
+      // keep icon fallback
+    }
+  })();
+
+  // initial state: icon visible
+  avatarWrap.appendChild(icon);
+
+  const info = document.createElement('div');
+  info.className = 'flex-1 overflow-hidden';
+
+  const title = document.createElement('div');
+  title.className = 'text-white font-bold truncate';
+  title.textContent = artist.artist;
+
+  const meta = document.createElement('div');
+  meta.className = 'text-sm text-zinc-400 truncate';
+  meta.textContent = 'Artist';
+
+  info.appendChild(title);
+  info.appendChild(meta);
+
+  row.appendChild(avatarWrap);
+  row.appendChild(info);
+
+  results.appendChild(row);
+};
+
           };
 
           const appendPlaylistRow = (playlist) => {
