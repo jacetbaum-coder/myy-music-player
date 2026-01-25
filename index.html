@@ -11330,20 +11330,12 @@ img.src = cover || '';
               if (idx !== -1) showView('playlist', idx);
             });
 
-            const iconWrap = document.createElement('div');
-iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
+            const img = document.createElement('img');
+img.src = getArtistHeroImage
+  ? getArtistHeroImage(artist.artist)
+  : '';
+img.className = 'w-12 h-12 rounded-full object-cover bg-zinc-800';
 
-const cover = String(playlist.cover || '').trim();
-if (cover) {
-  const img = document.createElement('img');
-  img.src = cover;
-  img.alt = '';
-  img.className = 'w-full h-full object-cover';
-  iconWrap.appendChild(img);
-} else {
-  const icon = document.createElement('i');
-  icon.className = 'fas fa-list-ul text-zinc-400';
-  iconWrap.appendChild(icon);
 }
 
 
@@ -11361,7 +11353,8 @@ const info = document.createElement('div');
 
             info.appendChild(title);
             info.appendChild(meta);
-            row.appendChild(iconWrap);
+            row.appendChild(img);
+
             row.appendChild(info);
             results.appendChild(row);
           };
