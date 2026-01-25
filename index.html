@@ -18532,9 +18532,11 @@ function renderCrateStats() {
 
   // run now + shortly after (in case the view wasn’t in DOM yet)
   try { paint(); } catch (e) {}
-  setTimeout(() => { try { paint(); } catch (e) {} }, 250);
+    setTimeout(() => { try { paint(); } catch (e) {} }, 250);
 })();
+}
 </script>
+
 
 
   <!-- SYNC DEVICES MODAL -->
