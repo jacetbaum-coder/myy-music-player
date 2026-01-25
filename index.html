@@ -5595,7 +5595,7 @@ window.expandPlaylistShortIdsFromLibrary = function expandPlaylistShortIdsFromLi
   const norm = (t) => String(t || "")
     .toLowerCase()
     .replace(/\.[^/.]+$/, "")     // drop extension
-    .replace(/\([^)]*\)/g, " ")   // drop (...) like (Remastered)
+    // (removed) drop (...) like (Remastered)
     .replace(/\[[^\]]*\]/g, " ")  // drop [...]
     .replace(/[_]+/g, " ")
     .replace(/\s+/g, " ")
