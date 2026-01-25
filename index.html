@@ -16708,16 +16708,20 @@ function renderPlaylists() {
 
   // ✅ Spotify-style confirmation
   try {
-    const rawTitle = (s && (s.title || s.name || s.fileName)) ? (s.title || s.name || s.fileName) : "";
-    const songLabel = rawTitle ? String(rawTitle).replace(/\.[^/.]+$/, "") : "Song";
+    const songLabelRaw = (s && (s.title || s.name || s.fileName || s.id || s.r2Path)) ? String(s.title || s.name || s.fileName || s.id || s.r2Path) : "Song";
+    const songLabel = songLabelRaw.replace(/\.[^/.]+$/, "");
     const plName = pl?.name || "playlist";
-    const suffix = cloudOk ? "" : " (saved locally — sync failed)";
-    showActionToast(`"${songLabel}" added to ${plName}${suffix}`);
+    showActionToast(`"${songLabel}" added to ${plName}`);
+  } catch (e) {}
+
+  // ✅ If you're viewing this playlist right now, re-render it so the new track appears
+  try {
+    if (activePlaylistId === pl.id) {
+      showView('playlist', pl.id);
+    }
   } catch (e) {}
 
   closeContextMenu();
-
-  // ✅ Only pull from cloud if cloud add worked (otherwise it can wipe the local add)
   try {
     if (cloudOk && typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull();
   } catch (e) {}
