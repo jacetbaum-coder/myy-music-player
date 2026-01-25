@@ -11250,17 +11250,39 @@ img.src = cover || '';
           };
 
           const appendArtistRow = (artist) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-            row.addEventListener('click', () => {
-              openArtistByName(artist.artist);
-            });
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+  row.addEventListener('click', () => {
+    openArtistByName(artist.artist);
+  });
 
-            const iconWrap = document.createElement('div');
-            iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center';
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-user text-zinc-400';
-            iconWrap.appendChild(icon);
+  const iconWrap = document.createElement('div');
+  iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
+
+  // Try to use an existing album cover as the artist picture (no API needed)
+  let artistPic = '';
+  try {
+    const name = String(artist.artist || '').trim();
+    if (name && Array.isArray(window.libraryData)) {
+      const hit = window.libraryData.find(a =>
+        String(a?.artistName || '').trim() === name && String(a?.coverArt || '').trim()
+      );
+      artistPic = hit ? String(hit.coverArt || '').trim() : '';
+    }
+  } catch (e) {}
+
+  if (artistPic) {
+    const img = document.createElement('img');
+    img.src = artistPic;
+    img.alt = '';
+    img.className = 'w-full h-full object-cover';
+    iconWrap.appendChild(img);
+  } else {
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-user text-zinc-400';
+    iconWrap.appendChild(icon);
+  }
+
 
             const info = document.createElement('div');
             info.className = 'flex-1 overflow-hidden';
