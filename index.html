@@ -16714,10 +16714,22 @@ function renderPlaylists() {
   pl.songCount = pl.trackIds.length;
   pl.updated_at = new Date().toISOString();
 
-  renderPlaylists();
+    renderPlaylists();
+
+  // ✅ If you are currently viewing THIS playlist, force the playlist view to re-render
+  try {
+    if (typeof activePlaylistId !== "undefined" && activePlaylistId === pl.id) {
+      const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
+      if (idx >= 0 && typeof showView === "function") {
+        showView("playlist", idx);
+      }
+    }
+  } catch (e) {}
+
   closeContextMenu();
 
   // ✅ Spotify-style confirmation toast
+
   try {
     const rawTitle = (s && (s.title || s.name || s.fileName)) ? (s.title || s.name || s.fileName) : "";
     const songLabel = rawTitle ? String(rawTitle).replace(/\.[^/.]+$/, "") : "Song";
