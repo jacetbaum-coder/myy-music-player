@@ -17589,19 +17589,9 @@ return;
             // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
       const playUrl = String(row.dataset.url || song.url || '').trim();
 
-      // If we still only have "Artist/File.ext", force "Artist/Singles/File.ext"
+            // Do not force "Singles" into paths. Some tracks live in other album folders.
       let finalUrl = playUrl;
-      try {
-        if (finalUrl.includes("?id=")) {
-          const enc = finalUrl.split("?id=")[1].split("&")[0];
-          const id = decodeURIComponent(enc);
-          const parts = id.split("/").filter(Boolean);
-          if (parts.length === 2) {
-            const fixedId = `${parts[0]}/Singles/${parts[1]}`;
-            finalUrl = "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(fixedId);
-          }
-        }
-      } catch (e) {}
+
 
       playSpecificSong(finalUrl, song.title, song.album, song.artist, song.cover);
 
