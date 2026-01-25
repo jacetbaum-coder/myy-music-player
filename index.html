@@ -2410,13 +2410,15 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-   <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
-    Add songs to playlist
+      <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
+    Add song to playlist
     <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+
   </div>
 
-  <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
-    Remove songs from this playlist
+    <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
+    Remove song from this playlist
+
   </div>
 
    <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
@@ -2448,7 +2450,8 @@ body.qs-lock {
     <div class="cm-back" onclick="closePlaylistSubmenu(event)">
       <i class="fas fa-arrow-left"></i>
     </div>
-    <div class="cm-submenu-title">Add to playlist</div>
+    <div class="cm-submenu-title">Add song to playlist</div>
+
   </div>
 
   <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()">
@@ -14377,8 +14380,32 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
   // build playlist list fresh each time
   items.innerHTML = '';
-  const pls = Array.isArray(window.playlists) ? window.playlists : [];
+    // ✅ Recents-first playlist list (uses historyLog if available)
+  const allPls = Array.isArray(window.playlists) ? window.playlists : [];
+
+  let recentIds = [];
+  try {
+    const h = JSON.parse(localStorage.getItem('historyLog') || '[]');
+    if (Array.isArray(h)) {
+      for (const it of h) {
+        if (!it) continue;
+        if (String(it.type || '').toLowerCase() !== 'playlist') continue;
+        const pid = String(it.id || it.playlistId || '').trim();
+        if (pid && !recentIds.includes(pid)) recentIds.push(pid);
+      }
+    }
+  } catch (e) {}
+
+  const byId = new Map(allPls.filter(p => p && p.id).map(p => [String(p.id), p]));
+  const recent = recentIds.map(id => byId.get(String(id))).filter(Boolean);
+
+  const rest = allPls
+    .filter(p => p && p.id && !recentIds.includes(String(p.id)));
+
+  const pls = recent.concat(rest).slice(0, 18);
+
   pls.forEach(pl => {
+
     const div = document.createElement('div');
     div.className = 'menu-item';
     div.textContent = pl?.name || 'Playlist';
