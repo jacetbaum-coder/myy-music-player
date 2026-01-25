@@ -7741,7 +7741,7 @@ try {
     }
   }
 
-  // ✅ Keep local-only playlists, but DROP ones that were in cloud before and are now gone
+    // ✅ Keep local-only playlists, but DROP ones that were in cloud before and are now gone
   const merged = [];
   for (const p of byId.values()) {
     const id = String(p?.id || "").trim();
@@ -7754,7 +7754,8 @@ try {
   }
 
   playlists = merged;
-window.playlists = playlists;
+  window.playlists = playlists;
+
 
 
   // ✅ Expand short IDs into full canonical IDs BEFORE saving and BEFORE hydration
