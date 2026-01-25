@@ -13232,7 +13232,7 @@ function updateCenterLyricsForSong(songObj) {
     });
   }
 
-  if (document.readyState === 'loading') {
+  
     document.addEventListener('DOMContentLoaded', bind);
   } else {
     bind();
@@ -16982,17 +16982,8 @@ if (document.readyState === 'loading') {
   bindActionShuffleButton();
 }
 
-function isShuffleOn() {
-  return (
-    document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
-    document.getElementById('np-shuffle-icon')?.classList.contains('active-green') ||
-    document.getElementById('album-shuffle-icon')?.classList.contains('active-green') ||
-    document.getElementById('artist-shuffle-icon')?.classList.contains('active-green')
-  );
-}
+// --- Repeat mode (Spotify-style): off -> all -> one -> off ---
 
-
-        // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
 function syncRepeatUI() {
