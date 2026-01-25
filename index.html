@@ -8607,12 +8607,27 @@ function initSwipeBack() {
     reset(true);
   }, { passive: true });
 
-  area.addEventListener('pointercancel', () => {
+    area.addEventListener('pointercancel', () => {
+    if (!active) return;
+    active = false;
+    reset(true);
+  }, { passive: true });
+
+  // ✅ Safety: if pointerup/cancel happens off the scroll area (iOS quirks),
+  // always restore scroll/touchAction so the list can scroll again.
+  window.addEventListener('pointerup', () => {
+    if (!active) return;
+    active = false;
+    reset(true);
+  }, { passive: true });
+
+  window.addEventListener('pointercancel', () => {
     if (!active) return;
     active = false;
     reset(true);
   }, { passive: true });
 }
+
 
 
 function initSearchSwipeDownClose() {
