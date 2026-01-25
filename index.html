@@ -14559,7 +14559,16 @@ function showMultiSelectContextMenuFromHero(anchorEl){
       try { if (activePlaylistId === pl.id) showView('playlist', playlists.findIndex(p => p.id === pl.id)); } catch (e) {}
       try { closePlaylistSubmenu(); } catch (e) {}
             closeContextMenu(); // closes both sheets + backdrop
-      try { showActionToast(`Added to ${pl?.name || 'playlist'}`); } catch (e) {}
+      try {
+  const first = (targets && targets[0]) ? (targets[0].title || targets[0].name || targets[0].fileName || targets[0].id || "") : "";
+  const songLabel = first ? String(first).replace(/\.[^/.]+$/, "") : "Song";
+  const plName = pl?.name || "playlist";
+  const msg = (trackIds.length > 1)
+    ? `"${songLabel}" (+${trackIds.length - 1}) added to ${plName}`
+    : `"${songLabel}" added to ${plName}`;
+  showActionToast(msg);
+} catch (e) {}
+
 
 
       // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
@@ -16690,6 +16699,15 @@ function renderPlaylists() {
 
   renderPlaylists();
   closeContextMenu();
+
+  // ✅ Spotify-style confirmation toast
+  try {
+    const rawTitle = (s && (s.title || s.name || s.fileName)) ? (s.title || s.name || s.fileName) : "";
+    const songLabel = rawTitle ? String(rawTitle).replace(/\.[^/.]+$/, "") : "Song";
+    const plName = pl?.name || "playlist";
+    showActionToast(`"${songLabel}" added to ${plName}`);
+  } catch (e) {}
+
 
   // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
   try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
