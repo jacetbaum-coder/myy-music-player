@@ -5328,8 +5328,12 @@ try { if (typeof window.hydrateCloudPlaylistCovers === "function") window.hydrat
       return !deletedPlaylistIds.has(id);
     });
 
-    // Persist locally so refresh works even if offline
-    try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+  // ✅ Expose merged playlists on window for other helpers (covers/hydration)
+  try { window.playlists = playlists; } catch (e) {}
+
+  // Persist locally so refresh works even if offline
+  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+
 
     // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
     try {
@@ -7754,8 +7758,7 @@ try {
   }
 
   playlists = merged;
-  window.playlists = playlists;
-
+window.playlists = playlists;
 
 
   // ✅ Expand short IDs into full canonical IDs BEFORE saving and BEFORE hydration
