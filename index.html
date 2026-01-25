@@ -10283,21 +10283,22 @@ function getAppUserId() {
 // ✅ returns a usable URL for CSS background-image
 // This pings your Worker endpoint so it will fetch from Wikipedia once,
 // store to R2 forever, and then serve the cached version forever.
-async function getArtistHeroImageUrl(artistName) {
-  const u = `${ARTIST_API_BASE}/api/artist-image?name=${encodeURIComponent(artistName)}`;
+async function getArtistHeroImageUrl(artistName){
   try {
-    const res = await fetch(u, { method: "GET" });
+    const r = await fetch(
+      '/api/artist-image?name=' + encodeURIComponent(artistName)
+    );
+    if (!r.ok) return null;
 
-    // If it returned an image, we're good.
-    const ct = (res.headers.get("content-type") || "").toLowerCase();
-    if (res.ok && ct.includes("image")) return u;
+    const j = await r.json();
+    if (!j || !j.ok || !j.image) return null;
 
-    // If it returned JSON error, just treat as no image.
-    return null;
+    return j.image;
   } catch (e) {
     return null;
   }
 }
+
 
 // ✅ Crop storage (cloud) — expects your Worker to return { ok:true, crop: ... }
 // GET  /api/artist-crop?userId=...&name=...
