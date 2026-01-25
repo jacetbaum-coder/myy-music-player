@@ -9630,9 +9630,10 @@ function renderLibraryMain() {
     renderGrid(getLibraryGridData());
   }
 
-  renderHistory();
+    try { if (typeof renderHistory === 'function') renderHistory(); } catch (e) {}
 
   if (window.innerWidth <= 768) {
+
     renderMobileRecents();
   }
 }
