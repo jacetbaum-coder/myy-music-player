@@ -16452,7 +16452,22 @@ function renderPlaylists() {
   if (!list || !sub) return;
 
   list.innerHTML = '';
-  sub.innerHTML = `<div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>`;
+  sub.innerHTML = `
+    <div class="cm-handle"></div>
+
+    <div class="cm-submenu-header">
+      <div class="cm-back" onclick="closePlaylistSubmenu(event)">
+        <i class="fas fa-arrow-left"></i>
+      </div>
+      <div class="cm-submenu-title">Add song to playlist</div>
+    </div>
+
+    <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>
+
+    <!-- playlists get appended here by JS -->
+    <div id="playlist-submenu-items"></div>
+  `;
+
 
   // ---------
   // Sort playlists by most-recent first (updated_at, else created_at)
