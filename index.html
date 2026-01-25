@@ -16711,17 +16711,19 @@ function renderPlaylists() {
     const songLabelRaw = (s && (s.title || s.name || s.fileName || s.id || s.r2Path)) ? String(s.title || s.name || s.fileName || s.id || s.r2Path) : "Song";
     const songLabel = songLabelRaw.replace(/\.[^/.]+$/, "");
     const plName = pl?.name || "playlist";
-    showActionToast(`"${songLabel}" added to ${plName}`);
+        showActionToast(`"${songLabel}" added to ${plName}${suffix}`);
   } catch (e) {}
 
-  // ✅ If you're viewing this playlist right now, re-render it so the new track appears
+  // ✅ If you're currently viewing THIS playlist, refresh the playlist screen immediately
   try {
-    if (activePlaylistId === pl.id) {
-      showView('playlist', pl.id);
+    if (typeof activePlaylistId !== 'undefined' && activePlaylistId === pl.id) {
+      const idx = playlists.findIndex(p => p.id === pl.id);
+      if (idx >= 0) showView('playlist', idx);
     }
   } catch (e) {}
 
   closeContextMenu();
+
   try {
     if (cloudOk && typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull();
   } catch (e) {}
