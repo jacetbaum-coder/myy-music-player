@@ -14050,7 +14050,12 @@ function initResizers() {
       if (Date.now() < suppressContextMenuCloseUntil) return;
       if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
+                        // ✅ If click is inside the playlist submenu, DO NOT treat as "outside"
+            const ps = document.getElementById('playlist-submenu');
+            if (ps && (ps === e.target || ps.contains(e.target))) return;
+
             if (!contextMenu.contains(e.target)) closeContextMenu();
+
     });
 
     document.addEventListener('touchstart', (e) => {
@@ -14077,7 +14082,12 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   if (Date.now() < suppressContextMenuCloseUntil) return;
   if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
+    // ✅ If touch is inside the playlist submenu, DO NOT treat as "outside"
+  const ps = document.getElementById('playlist-submenu');
+  if (ps && (ps === e.target || ps.contains(e.target))) return;
+
   if (!contextMenu.contains(e.target)) closeContextMenu();
+
 }, { passive: true });
 
     }
