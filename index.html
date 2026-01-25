@@ -5484,15 +5484,26 @@ window.resolveTrackIdsToSongs = function (trackIds) {
     const titleOnly = String(file).replace(/\.[^/.]+$/, ""); // remove .mp3/.m4a/etc
 
     const artistName = parts.length >= 2 ? parts[0] : "";
-    const albumName  = parts.length >= 3 ? parts[1] : "";
 
-    // Only build album cover if we actually have Artist/Album/...
-    const coverUrl =
-      (artistName && albumName)
-        ? (r2Base + encodeURIComponent(`${artistName}/${albumName}/cover.jpg`))
-        : "";
+// ✅ If it's 2-part ("Artist/Track.mp3"), treat as Singles
+const albumName  = parts.length >= 3 ? parts[1] : (artistName ? "Singles" : "");
 
-    const audioUrl = r2Base + encodeURIComponent(key);
+// ✅ Build cover for both "Artist/Album/..." AND "Artist/Track.mp3" (Singles)
+const coverUrl =
+  (artistName && albumName)
+    ? (r2Base + encodeURIComponent(`${artistName}/${albumName}/cover.jpg`))
+    : "";
+
+// ✅ If it's 2-part audio, also normalize the audio path to Artist/Singles/Track.mp3
+let audioKey = key;
+try {
+  if (artistName && parts.length === 2 && /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(file)) {
+    audioKey = `${artistName}/Singles/${parts[1]}`;
+  }
+} catch (e) {}
+
+const audioUrl = r2Base + encodeURIComponent(audioKey);
+
 
     out.push({
       id: key,
