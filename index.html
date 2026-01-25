@@ -14520,7 +14520,12 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
   });
 
+  // ✅ closeContextMenu() may have hidden this sheet with inline styles — undo that
+  sub.style.display = 'block';
+  sub.style.opacity = '1';
+  sub.style.transform = 'translateY(0)';
   sub.classList.add('open');
+
 }
 
 function closePlaylistSubmenu(event){
