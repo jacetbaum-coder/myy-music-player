@@ -14371,11 +14371,11 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
         function openPlaylistSubmenu(event){
   try { if (event) event.stopPropagation(); } catch(e){}
-    const sub = document.getElementById('playlist-submenu');
-  let items = document.getElementById('playlist-submenu-items');
+      const sub = document.getElementById('playlist-submenu');
   if (!sub) return;
 
-  // ✅ If the items container is missing, recreate it (your DOM currently lacks it)
+  // ✅ playlist-submenu-items may be missing at runtime (DOM rebuild) — recreate it
+  let items = document.getElementById('playlist-submenu-items');
   if (!items) {
     items = document.createElement('div');
     items.id = 'playlist-submenu-items';
@@ -14383,6 +14383,7 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   }
 
   // build playlist list fresh each time
+
 
   items.innerHTML = '';
     // ✅ Recents-first playlist list (uses historyLog if available)
