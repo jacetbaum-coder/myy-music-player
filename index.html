@@ -5270,6 +5270,8 @@ window.loadPlaylistsFromCloud = async function () {
 if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
   window.cloudPlaylists = data.playlists;
 console.log("☁️ cloud playlists loaded:", (window.cloudPlaylists || []).length);
+try { if (typeof window.hydrateCloudPlaylistCovers === "function") window.hydrateCloudPlaylistCovers(1); } catch (e) {}
+
 
 
   // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
@@ -5567,6 +5569,57 @@ window.loadPlaylistItemsFromCloud = async function (playlistId) {
 // Purpose: cloud playlists list only has {id,name}, so covers are blank.
 // We prefetch trackIds for a few playlists in the background so getPlaylistCoverMarkup() can build covers.
 // -----------------------
+
+window.__cloudPlaylistHydrateOnce = window.__cloudPlaylistHydrateOnce || new Set();
+
+window.hydrateCloudPlaylistCovers = async function (limit = 1) {
+  try {
+    const cloud = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
+    if (!cloud.length) return;
+
+    // Only hydrate first `limit` playlists (safe rollout)
+    const slice = cloud.slice(0, Math.max(0, Number(limit) || 0));
+
+    for (const row of slice) {
+      const id = row && row.id;
+      if (!id) continue;
+      if (window.__cloudPlaylistHydrateOnce.has(id)) continue;
+      window.__cloudPlaylistHydrateOnce.add(id);
+
+      let items = [];
+      try { items = await window.loadPlaylistItemsFromCloud(id); } catch (e) {}
+
+      let ids = (Array.isArray(items) ? items : [])
+        .map(x => (typeof x === "string" ? x : (x && (x.track_id || x.r2_key || x.id))))
+        .filter(Boolean);
+
+      // Expand short ids like "Artist/Title.mp3" -> "Artist/Album/Title.ext"
+      try {
+        if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+          ids = window.expandPlaylistShortIdsFromLibrary(ids) || ids;
+        }
+      } catch (e) {}
+
+      // Write into the UI playlist object if present
+      try {
+        const ui = (window.playlists || []).find(p => p && p.id === id);
+        if (ui) {
+          ui.trackIds = ids;
+          ui.songCount = Array.isArray(ids) ? ids.length : 0;
+          // If you already have this function, it will compute autoCover
+          if (typeof window.updatePlaylistAutoCoverById === "function") {
+            await window.updatePlaylistAutoCoverById(id);
+          }
+        }
+      } catch (e) {}
+
+      console.log("🧪 hydrated playlist", id, "trackIds:", (ids || []).length, "first:", ids[0]);
+    }
+
+    try { if (typeof window.renderPlaylists === "function") window.renderPlaylists(); } catch (e) {}
+  } catch (e) {}
+};
+
 
 // ✅ Expand playlist short IDs ("Artist/Title.mp3") into full canonical IDs ("Artist/Album/Title.ext")
 // Uses libraryData songs' .title (extension-insensitive). Only expands when UNIQUE.
