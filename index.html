@@ -14523,13 +14523,19 @@ function showMultiSelectContextMenuFromHero(anchorEl){
         return canonTrackIdLocal(trackId);
       }
 
-      const trackIds = targets.map(getTrackIdForSong).filter(Boolean);
-      if (!trackIds.length) {
-        alert('Missing trackId for these songs.');
-        return;
-      }
+      let trackIds = targets.map(getTrackIdForSong).filter(Boolean);
 
-      // 1) CLOUD FIRST
+// ✅ Expand short ids like "Artist/Title.mp3" -> "Artist/Album/Title.ext"
+// This makes playlist view rendering reliable.
+try {
+  if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+    const expanded = window.expandPlaylistShortIdsFromLibrary(trackIds);
+    if (Array.isArray(expanded) && expanded.length) trackIds = expanded;
+  }
+} catch (e) {}
+
+// 1) CLOUD FIRST
+
       try {
         if (typeof window.addTrackToPlaylistInCloud !== 'function') {
           throw new Error('addTrackToPlaylistInCloud is missing');
