@@ -15377,7 +15377,13 @@ function getSongCoverFromPlaylistSong(s) {
 
     // ✅ If tid is Artist/Album/Track.mp3, cover must be Artist/Album/cover.jpg (NOT Track.mp3/cover.jpg)
   const looksAudioFile = (name) => /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(String(name || ""));
-  const folderParts = looksAudioFile(lastClean) ? parts.slice(0, -1) : parts;
+    let folderParts = looksAudioFile(lastClean) ? parts.slice(0, -1) : parts;
+
+  // ✅ If tid is 2-part ("Artist/Track.mp3"), treat it as Singles for cover + album
+  if (looksAudioFile(lastClean) && folderParts.length === 1 && folderParts[0]) {
+    folderParts = [folderParts[0], "Singles"];
+    try { if (!s.album) s.album = "Singles"; } catch (e) {}
+  }
 
   // ✅ Mutate once derived (so playlist row text + now playing can use it)
   try {
@@ -15386,6 +15392,7 @@ function getSongCoverFromPlaylistSong(s) {
   } catch (e) {}
 
   const coverPath = `${folderParts.join("/")}/cover.jpg`;
+
   return `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(coverPath)}`;
 
 }
