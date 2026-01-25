@@ -3682,13 +3682,6 @@ body.qs-lock {
 <audio id="audio-player" preload="auto"></audio>
 
 
-    <script>
-        
-        // GLOBAL APP STATE
-
-// ✅ FIX: define onNavTap so inline onclick handlers do not crash JS
-// This is a safe no-op fallback.
-// Real navigation is handled elsewhere.
 function onNavTap(e) {
   try {
     if (e && e.preventDefault) e.preventDefault();
@@ -15094,8 +15087,10 @@ if (homeRecentsShowAllBtn) {
   });
 }
 
+try { window.renderMobileRecents = renderMobileRecents; } catch (e) {}
 
 function renderHistory() {
+
   const historyEl = document.getElementById('history-container');
   if (!historyEl) return;
 
