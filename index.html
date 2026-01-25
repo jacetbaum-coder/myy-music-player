@@ -3682,6 +3682,13 @@ body.qs-lock {
 <audio id="audio-player" preload="auto"></audio>
 
 
+    <script>
+        
+        // GLOBAL APP STATE
+
+// ✅ FIX: define onNavTap so inline onclick handlers do not crash JS
+// This is a safe no-op fallback.
+// Real navigation is handled elsewhere.
 function onNavTap(e) {
   try {
     if (e && e.preventDefault) e.preventDefault();
@@ -5588,7 +5595,7 @@ window.expandPlaylistShortIdsFromLibrary = function expandPlaylistShortIdsFromLi
   const norm = (t) => String(t || "")
     .toLowerCase()
     .replace(/\.[^/.]+$/, "")     // drop extension
-    // (removed) drop (...) like (Remastered)
+    .replace(/\([^)]*\)/g, " ")   // drop (...) like (Remastered)
     .replace(/\[[^\]]*\]/g, " ")  // drop [...]
     .replace(/[_]+/g, " ")
     .replace(/\s+/g, " ")
@@ -8392,8 +8399,10 @@ function goBack() {
     }
   } catch (e) {}
         } else if (prev.type === 'liked') {
-  showView('liked');
-} else {
+
+        } else if (prev.type === 'liked') {
+      showView('liked');
+    } else {
       // ✅ Fallback: respect the active root tab (prevents Library -> Home on back)
       try {
         if (window.__rootTab === 'library') showView('library');
@@ -9623,10 +9632,9 @@ function renderLibraryMain() {
     renderGrid(getLibraryGridData());
   }
 
-    try { if (typeof renderHistory === 'function') renderHistory(); } catch (e) {}
+  renderHistory();
 
   if (window.innerWidth <= 768) {
-
     renderMobileRecents();
   }
 }
@@ -11310,6 +11318,7 @@ img.src = cover || '';
   row.appendChild(info);
 
   results.appendChild(row);
+};
 
           };
 
@@ -11319,26 +11328,18 @@ img.src = cover || '';
             row.addEventListener('click', () => {
               const idx = playlists.findIndex(p => p.id === playlist.id);
               if (idx !== -1) showView('playlist', idx);
-			  if (typeof playlist.__onClick === 'function') {
-                playlist.__onClick();
-              }
             });
 
-            const coverWrap = document.createElement('div');
-            coverWrap.className = 'shrink-0';
+            const img = document.createElement('img');
+img.src = getArtistHeroImage
+  ? getArtistHeroImage(artist.artist)
+  : '';
+img.className = 'w-12 h-12 rounded-full object-cover bg-zinc-800';
 
-            const coverMarkup = (typeof getPlaylistCoverMarkup === 'function')
-              ? getPlaylistCoverMarkup(playlist, 'w-12 h-12 rounded overflow-hidden')
-              : '';
-
-            coverWrap.innerHTML = coverMarkup || `
-              <div class="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center">
-                <i class="fas fa-music text-zinc-400"></i>
-              </div>
-            `;
+}
 
 
-			const info = document.createElement('div');
+const info = document.createElement('div');
 
             info.className = 'flex-1 overflow-hidden';
 
@@ -11352,7 +11353,7 @@ img.src = cover || '';
 
             info.appendChild(title);
             info.appendChild(meta);
-            row.appendChild(coverWrap);
+            row.appendChild(img);
 
             row.appendChild(info);
             results.appendChild(row);
@@ -13231,14 +13232,12 @@ function updateCenterLyricsForSong(songObj) {
     });
   }
 
-  
-      if (document.readyState === 'loading') {
+  if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bind);
   } else {
     bind();
   }
 })(); 
-
 
 /* -----------------------
    DESKTOP RIGHT SIDEBAR QUEUE
@@ -15087,10 +15086,8 @@ if (homeRecentsShowAllBtn) {
   });
 }
 
-try { window.renderMobileRecents = renderMobileRecents; } catch (e) {}
 
 function renderHistory() {
-
   const historyEl = document.getElementById('history-container');
   if (!historyEl) return;
 
@@ -16985,8 +16982,17 @@ if (document.readyState === 'loading') {
   bindActionShuffleButton();
 }
 
-// --- Repeat mode (Spotify-style): off -> all -> one -> off ---
+function isShuffleOn() {
+  return (
+    document.getElementById('btn-shuffle')?.classList.contains('active-green') ||
+    document.getElementById('np-shuffle-icon')?.classList.contains('active-green') ||
+    document.getElementById('album-shuffle-icon')?.classList.contains('active-green') ||
+    document.getElementById('artist-shuffle-icon')?.classList.contains('active-green')
+  );
+}
 
+
+        // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
 function syncRepeatUI() {
@@ -18528,10 +18534,9 @@ function renderCrateStats() {
 
   // run now + shortly after (in case the view wasn’t in DOM yet)
   try { paint(); } catch (e) {}
-    setTimeout(() => { try { paint(); } catch (e) {} }, 250);
+  setTimeout(() => { try { paint(); } catch (e) {} }, 250);
 })();
 </script>
-
 
 
   <!-- SYNC DEVICES MODAL -->
