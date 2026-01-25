@@ -16692,7 +16692,8 @@ function renderPlaylists() {
   // 2) LOCAL UPDATE (IDs-only) + SAVE (so a refresh keeps it immediately too)
   if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
 
-  const existingCanon = new Set(pl.trackIds.map(canonTrackId));
+  const existingCanon = new Set(pl.trackIds.map(canonTrackIdLocal));
+
   if (!existingCanon.has(trackId)) {
     pl.trackIds.push(trackId);
   }
@@ -16731,7 +16732,47 @@ function renderPlaylists() {
 
 
 
-        function updateCounts() {
+        function showActionToast(msg, ms = 1600) {
+  try {
+    let el = document.getElementById('action-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'action-toast';
+      el.style.position = 'fixed';
+      el.style.left = '50%';
+      el.style.bottom = '86px';
+      el.style.transform = 'translateX(-50%)';
+      el.style.zIndex = '99999';
+      el.style.maxWidth = '90vw';
+      el.style.padding = '10px 14px';
+      el.style.borderRadius = '999px';
+      el.style.background = 'rgba(0,0,0,0.85)';
+      el.style.color = '#fff';
+      el.style.fontWeight = '700';
+      el.style.fontSize = '14px';
+      el.style.boxShadow = '0 10px 30px rgba(0,0,0,0.35)';
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 160ms ease';
+      document.body.appendChild(el);
+    }
+
+    const text = String(msg || '').trim();
+    if (!text) return;
+
+    el.textContent = text;
+    el.style.opacity = '1';
+
+    clearTimeout(el.__hideT);
+    el.__hideT = setTimeout(() => {
+      try { el.style.opacity = '0'; } catch (e) {}
+    }, ms);
+  } catch (e) {
+    console.warn('showActionToast failed:', e);
+  }
+}
+
+function updateCounts() {
+
             const el = document.getElementById('count-liked');
             if (el) el.innerText = `${likedSongs.length} songs`;
         }
