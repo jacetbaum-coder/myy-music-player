@@ -10157,12 +10157,15 @@ if (true) {
           }
         }
 
-        // 2b) LAST fallback: derive cover from "Artist/Album/Song.ext" → "Artist/Album/cover.jpg"
+                // 2b) LAST fallback: derive cover from id → cover.jpg
         if (!thumbSrc && key.includes("/")) {
           const parts = key.split("/").filter(Boolean);
-          if (parts.length >= 3) {
+
+          // ✅ 3-part+: Artist/Album/Track.mp3 -> Artist/Album/cover.jpg
+          // ✅ 2-part:  Artist/Track.mp3      -> Artist/Singles/cover.jpg
+          if (parts.length >= 2) {
             const artist = parts[0];
-            const album = parts[1];
+            const album = (parts.length >= 3 ? parts[1] : "Singles");
 
             if (typeof getAlbumCover === "function") {
               thumbSrc = String(getAlbumCover(artist, album, "") || "").trim();
@@ -10174,6 +10177,7 @@ if (true) {
           }
         }
       } catch (e) {}
+
     }
   }
 }
