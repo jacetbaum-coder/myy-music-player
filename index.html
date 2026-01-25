@@ -3403,9 +3403,11 @@ body.qs-lock {
   NOW PLAYING
 </div>
 
-    <button id="np-more"
+        <button id="np-more"
             class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
-            aria-label="More options">
+            aria-label="More options"
+            onclick="try{ showContextMenuAt(0,0,(typeof currentSong!=='undefined'&&currentSong)?currentSong:window.currentSong,this);}catch(e){console.warn(e);}">
+
       <i class="fas fa-ellipsis-h text-white"></i>
     </button>
   </div>
@@ -14369,14 +14371,16 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
         function openPlaylistSubmenu(event){
   try { if (event) event.stopPropagation(); } catch(e){}
-  const sub = document.getElementById('playlist-submenu');
-    const items = document.getElementById('playlist-submenu-items');
-  if (!sub || !items) return;
+    const sub = document.getElementById('playlist-submenu');
+  let items = document.getElementById('playlist-submenu-items');
+  if (!sub) return;
 
-  // ✅ closeContextMenu() may have set inline display:none — clear it so .open works
-  try { sub.style.display = ''; } catch(e){}
-  try { sub.style.transform = ''; } catch(e){}
-  try { sub.style.opacity = ''; } catch(e){}
+  // ✅ If the items container is missing, recreate it (your DOM currently lacks it)
+  if (!items) {
+    items = document.createElement('div');
+    items.id = 'playlist-submenu-items';
+    sub.appendChild(items);
+  }
 
   // build playlist list fresh each time
 
