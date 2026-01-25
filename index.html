@@ -5269,6 +5269,8 @@ window.loadPlaylistsFromCloud = async function () {
 
 if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
   window.cloudPlaylists = data.playlists;
+console.log("☁️ cloud playlists loaded:", (window.cloudPlaylists || []).length);
+
 
   // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
   try {
