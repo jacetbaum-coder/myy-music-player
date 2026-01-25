@@ -16457,22 +16457,26 @@ function renderPlaylists() {
   const sub = document.getElementById('playlist-submenu');
   if (!list || !sub) return;
 
-  list.innerHTML = '';
-  sub.innerHTML = `
-    <div class="cm-handle"></div>
+    list.innerHTML = '';
 
-    <div class="cm-submenu-header">
-      <div class="cm-back" onclick="closePlaylistSubmenu(event)">
-        <i class="fas fa-arrow-left"></i>
+  // ✅ CRITICAL: do NOT wipe submenu while it's open (it erases the playlist list we append)
+  if (!sub.classList.contains('open')) {
+    sub.innerHTML = `
+      <div class="cm-handle"></div>
+
+      <div class="cm-submenu-header">
+        <div class="cm-back" onclick="closePlaylistSubmenu(event)">
+          <i class="fas fa-arrow-left"></i>
+        </div>
+        <div class="cm-submenu-title">Add song to playlist</div>
       </div>
-      <div class="cm-submenu-title">Add song to playlist</div>
-    </div>
 
-    <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>
+      <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>
 
-    <!-- playlists get appended here by JS -->
-    <div id="playlist-submenu-items"></div>
-  `;
+      <!-- playlists get appended here by JS -->
+      <div id="playlist-submenu-items"></div>
+    `;
+  }
 
 
   // ---------
