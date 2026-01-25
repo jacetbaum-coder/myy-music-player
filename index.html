@@ -14051,8 +14051,14 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   contextMenu.style.top = `${top}px`;
 }
 
-       function showContextMenuAt(x, y, song, anchorEl = null) {
-  menuTargetSong = song;
+              function showContextMenuAt(x, y, song, anchorEl = null) {
+  // ✅ Always resolve a real target song for submenu actions
+  const _resolvedSong =
+    song ||
+    ((typeof currentSong !== 'undefined' && currentSong) ? currentSong : null) ||
+    (window.currentSong || null);
+
+  menuTargetSong = _resolvedSong;
   try { window.menuTargetSong = menuTargetSong; } catch (e) {}
 
   // Fill the sheet header with the pressed song
