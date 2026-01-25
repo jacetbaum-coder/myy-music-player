@@ -16666,7 +16666,8 @@ function renderPlaylists() {
     return;
   }
 
-   // 1) CLOUD FIRST (so refresh + other devices match)
+     // 1) CLOUD FIRST (so refresh + other devices match)
+  let cloudOk = true;
   try {
     if (typeof window.addTrackToPlaylistInCloud === "function") {
       await window.addTrackToPlaylistInCloud(pl.id, trackId);
@@ -16674,10 +16675,11 @@ function renderPlaylists() {
       throw new Error("addTrackToPlaylistInCloud is missing");
     }
   } catch (e) {
+    cloudOk = false;
     console.warn("Cloud add failed:", e);
-    alert("Couldn’t add to playlist (cloud sync failed). Try again.");
-    return;
+    // ✅ Still continue so local add works immediately
   }
+
 
   // 2) LOCAL UPDATE (IDs-only) + SAVE (so a refresh keeps it immediately too)
   if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
@@ -16697,20 +16699,28 @@ function renderPlaylists() {
   pl.songCount = pl.trackIds.length;
   pl.updated_at = new Date().toISOString();
 
-  renderPlaylists();
-  closeContextMenu();
+   renderPlaylists();
 
-  // ✅ Spotify-style confirmation toast
+  // ✅ Proof in console that we actually mutated local playlist
+  try {
+    console.log("[add-to-playlist]", { playlistId: pl.id, playlistName: pl.name, trackId, localCount: (pl.trackIds || []).length, cloudOk });
+  } catch (e) {}
+
+  // ✅ Spotify-style confirmation
   try {
     const rawTitle = (s && (s.title || s.name || s.fileName)) ? (s.title || s.name || s.fileName) : "";
     const songLabel = rawTitle ? String(rawTitle).replace(/\.[^/.]+$/, "") : "Song";
     const plName = pl?.name || "playlist";
-    showActionToast(`"${songLabel}" added to ${plName}`);
+    const suffix = cloudOk ? "" : " (saved locally — sync failed)";
+    showActionToast(`"${songLabel}" added to ${plName}${suffix}`);
   } catch (e) {}
 
+  closeContextMenu();
 
-  // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
-  try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
+  // ✅ Only pull from cloud if cloud add worked (otherwise it can wipe the local add)
+  try {
+    if (cloudOk && typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull();
+  } catch (e) {}
 };
 
 
