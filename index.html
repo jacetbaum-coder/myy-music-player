@@ -1345,34 +1345,58 @@ body.song-multiselect .track-row:hover{
 /* ✅ MOBILE: playlist submenu becomes its own overlay panel */
 #playlist-submenu{
   position: fixed;
-  left: 12px;
-  right: 12px;
+  left: 0;
+  right: 0;
   bottom: calc(110px + env(safe-area-inset-bottom));
   margin: 0 auto;
   max-width: 680px;
 
-  background: rgba(22,22,22,0.96);
-  border-radius: 18px 18px 0 0;
+  background: rgba(30,30,30,0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 
+  border-radius: 18px 18px 0 0;
   padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
   z-index: 2100;
 
-  max-height: calc(100vh - 88px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  /* ✅ same “sheet size” feel as main menu */
+  max-height: min(420px, calc(100vh - 160px));
+  overflow: hidden;
 
   /* hidden by default */
   display: none;
-  transform: translateY(12px);
-  opacity: 0;
-  transition: transform 180ms ease, opacity 180ms ease;
+  transform: translateY(100%);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 #playlist-submenu.open{
   display: block;
   transform: translateY(0);
-  opacity: 1;
 }
+
+/* ✅ submenu items scroll (not the whole sheet) */
+#playlist-submenu-items{
+  max-height: min(320px, calc(100vh - 260px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ✅ match main menu item styling */
+#playlist-submenu .menu-item{
+  padding: 16px 14px;
+  font-size: 18px;
+  color: #f0f0f0;
+  cursor: pointer;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+#playlist-submenu .menu-item:active{ transform: scale(0.99); }
+#playlist-submenu .menu-item:hover{ background: rgba(255,255,255,0.06); }
+#playlist-submenu .menu-item.cm-armed{ background: rgba(255,255,255,0.10); }
 
 /* header row injected by JS */
 #playlist-submenu .cm-submenu-header{
@@ -1395,6 +1419,7 @@ body.song-multiselect .track-row:hover{
 }
 
 #playlist-submenu .cm-submenu-title{
+
   font-size: 16px;
   font-weight: 800;
   color: #fff;
@@ -12368,6 +12393,28 @@ function showQueueToast() {
   }, 2200);
 }
 
+// ✅ Generic toast message using the same UI
+function showActionToast(titleText) {
+  try {
+    const toast = document.getElementById('queue-toast');
+    if (!toast) return;
+    const title = toast.querySelector('.qt-title');
+    const btn = document.getElementById('queue-toast-open');
+
+    if (title) title.textContent = String(titleText || 'Done');
+    if (btn) btn.style.display = 'none'; // hide “Open” for playlist actions
+
+    toast.classList.remove('qt-hidden');
+
+    if (__queueToastTimer) clearTimeout(__queueToastTimer);
+    __queueToastTimer = setTimeout(() => {
+      toast.classList.add('qt-hidden');
+      if (btn) btn.style.display = ''; // restore default
+    }, 1800);
+  } catch (e) {}
+}
+
+
 // -----------------------
 // TRACK MISSING MODAL
 // -----------------------
@@ -14511,7 +14558,9 @@ function showMultiSelectContextMenuFromHero(anchorEl){
       try { renderPlaylists(); } catch (e) {}
       try { if (activePlaylistId === pl.id) showView('playlist', playlists.findIndex(p => p.id === pl.id)); } catch (e) {}
       try { closePlaylistSubmenu(); } catch (e) {}
-      closeContextMenu(); // closes both sheets + backdrop
+            closeContextMenu(); // closes both sheets + backdrop
+      try { showActionToast(`Added to ${pl?.name || 'playlist'}`); } catch (e) {}
+
 
       // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
       try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e) {}
@@ -14524,7 +14573,12 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   sub.style.display = 'block';
   sub.style.opacity = '1';
   sub.style.transform = 'translateY(0)';
+  // ✅ closeContextMenu() may have set inline styles; clear them so CSS .open works
+  sub.style.display = 'block';
+  sub.style.opacity = '';
+  sub.style.transform = '';
   sub.classList.add('open');
+
 
 }
 
