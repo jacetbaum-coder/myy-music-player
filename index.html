@@ -19191,12 +19191,43 @@ player.addEventListener('ended', () => {
     }
     return;
   }
+    // ✅ Guard: if queue/index is invalid, do NOT fall into any random/autoplay fallback
+  if (!Array.isArray(currentQueue) || currentQueue.length === 0) {
+    console.warn("⛔ ended(): no currentQueue — stopping (no random)");
+    return;
+  }
+  if (!Number.isFinite(currentIndex) || currentIndex < -1 || currentIndex >= currentQueue.length) {
+    console.warn("⛔ ended(): bad currentIndex =", currentIndex, "— clamping");
+    currentIndex = Math.max(-1, Math.min(currentQueue.length - 1, Number(currentIndex) || -1));
+  }
+
   nextSong();
 });
 
 
-        // Auto-hide dock interval
-        setInterval(checkDockVisibility, 30000);
+
+        // ✅ Auto-skip unavailable tracks ONLY when auto-advancing.
+// - If user clicked the song: show the error.
+// - If the app is auto-nav (Next/ended/shuffle): silently skip.
+player.addEventListener('error', () => {
+  try {
+    const src = String(player.currentSrc || "");
+    if (isAutoNav) {
+      console.warn("⏭️ autoplay skip (audio error):", src);
+      // try the next track without surfacing an error UI
+      try { nextSong(); } catch (e) {}
+      return;
+    }
+
+    // User-initiated click: show error
+    console.warn("⚠️ user-click audio error:", src);
+    try { alert("This track is unavailable."); } catch (e) {}
+  } catch (e) {}
+});
+
+// Auto-hide dock interval
+setInterval(checkDockVisibility, 30000);
+
 
                // ✅ Export dock/Now Playing controls to global scope
         // (Your dock buttons / inline onclick need these on window)
