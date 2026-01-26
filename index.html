@@ -6937,11 +6937,70 @@ if (dockLeft) {
         // -----------------------
 // LIBRARY: Sort + View + Desktop "Search in Your Library"
 // -----------------------
-let librarySortMode = localStorage.getItem('librarySortMode') || 'Recently added';
+const LIB_SORT_BY_TAB_KEY = 'librarySortByTab';
+
+// ✅ Back-compat: if you had the old single-key sort saved, migrate it once
+(function migrateOldLibrarySortOnce(){
+  try {
+    const old = localStorage.getItem('librarySortMode');
+    const hasNew = localStorage.getItem(LIB_SORT_BY_TAB_KEY);
+    if (old && !hasNew) {
+      const obj = { all: old, playlists: old, albums: old, artists: old };
+      localStorage.setItem(LIB_SORT_BY_TAB_KEY, JSON.stringify(obj));
+    }
+  } catch (e) {}
+})();
+
+function normalizeLibraryTabKey(tab) {
+  const t = String(tab || '').toLowerCase();
+  if (t === 'all' || t === 'playlists' || t === 'albums' || t === 'artists') return t;
+  return 'all';
+}
+
+function getLibrarySortModeForTab(tab) {
+  const t = normalizeLibraryTabKey(tab);
+  try {
+    const obj = JSON.parse(localStorage.getItem(LIB_SORT_BY_TAB_KEY) || '{}') || {};
+    return obj[t] || 'Alphabetical';
+  } catch (e) {
+    return 'Alphabetical';
+  }
+}
+
+function setLibrarySortModeForTab(tab, mode) {
+  const t = normalizeLibraryTabKey(tab);
+  const m = String(mode || 'Alphabetical');
+  try {
+    const obj = JSON.parse(localStorage.getItem(LIB_SORT_BY_TAB_KEY) || '{}') || {};
+    obj[t] = m;
+    localStorage.setItem(LIB_SORT_BY_TAB_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
+
+let librarySortMode = getLibrarySortModeForTab('all');
 let libraryViewMode = localStorage.getItem('libraryViewMode') || 'grid';
 
 // Used for "Recently added"
 libraryDataOriginal = window.libraryDataOriginal || libraryDataOriginal || [];
+
+function setLibrarySortMode(mode) {
+  const tab = normalizeLibraryTabKey(libraryTopTab || 'all');
+
+  // ✅ persist per-tab
+  setLibrarySortModeForTab(tab, mode);
+
+  // keep this var in sync for any older code paths
+  librarySortMode = String(mode || 'Alphabetical');
+
+  // ✅ update label + keep menu options visible
+  updateLibrarySortUIForTopTab();
+
+  // If you're currently in Library, re-render the CURRENT tab (Playlists/Albums/Artists/All)
+  if (navCurrent && navCurrent.type === 'library') {
+    renderLibraryMain();
+  }
+}
+
 
 function setLibrarySortMode(mode) {
   librarySortMode = mode;
@@ -7181,34 +7240,23 @@ function initLibraryControls() {
 function updateLibrarySortUIForTopTab() {
   const label = document.getElementById('library-sort-label');
   const menu = document.getElementById('library-sort-menu');
-  const isAll = (libraryTopTab === 'all');
 
-  // Label: "Alphabetical" for everything except All
-  if (label) label.textContent = isAll ? librarySortMode : 'Alphabetical';
+  const tab = normalizeLibraryTabKey(libraryTopTab || 'all');
+  const mode = getLibrarySortModeForTab(tab);
+
+  // ✅ Label always shows the saved sort for the CURRENT tab
+  if (label) label.textContent = mode;
 
   if (!menu) return;
 
-  // The first header is "Sort by", the second is "View as"
+  // ✅ Never hide sort options anymore (each tab has its own saved mode)
+  const sortItems = menu.querySelectorAll('.lib-sort-item');
+  sortItems.forEach(btn => btn.classList.remove('hidden'));
   const headers = menu.querySelectorAll('div.px-4.py-3.text-xs');
   const sortHeader = headers && headers[0] ? headers[0] : null;
-
-  // The divider between Sort-by and View-as
+  if (sortHeader) sortHeader.classList.remove('hidden');
   const divider = menu.querySelector('div.h-px.bg-white\\/10.my-2');
-
-  // Sort-by buttons
-  const sortItems = menu.querySelectorAll('.lib-sort-item');
-
-  if (!isAll) {
-    // Hide the entire "Sort by" section (keep View-as + slider)
-    if (sortHeader) sortHeader.classList.add('hidden');
-    sortItems.forEach(btn => btn.classList.add('hidden'));
-    if (divider) divider.classList.add('hidden');
-  } else {
-    // Restore normal menu on All tab
-    if (sortHeader) sortHeader.classList.remove('hidden');
-    sortItems.forEach(btn => btn.classList.remove('hidden'));
-    if (divider) divider.classList.remove('hidden');
-  }
+  if (divider) divider.classList.remove('hidden');
 }
 
 function highlightSongInAlbum(songTitle) {
@@ -9677,10 +9725,10 @@ function renderLibraryAll() {
     return;
   }
 
-  // Simple alpha sort by title
-  items.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  // Sorting happens in the tab-specific builders (getLibraryGridData / renderLibraryAll / etc.)
+// Do not force an alphabetical sort here.
+grid.innerHTML = items.map((it) => {
 
-  grid.innerHTML = items.map((it) => {
     const safeTitle = String(it.title)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -9748,8 +9796,9 @@ function renderLibraryMain() {
   } catch (e) {}
 
 
-  // ✅ For every tab EXCEPT "All": force alphabetical behavior
-  window.__librarySortModeOverride = (libraryTopTab === 'all') ? null : 'Alphabetical by artist';
+  // ✅ Sort is stored per-tab (Playlists/Albums/Artists/All)
+window.__librarySortModeOverride = null;
+
 
   // ✅ Update dropdown label + which sort options are visible
   updateLibrarySortUIForTopTab();
