@@ -12398,10 +12398,8 @@ function openArtistFromCurrentSong(e) {
   }
   if (!currentSong || !currentSong.artist) return;
 
-  // Only allow artist navigation when you are INSIDE the album page
-  const albumView = document.getElementById('album-view');
-  const onAlbumPage = albumView && !albumView.classList.contains('hidden');
-  if (!onAlbumPage) return;
+  // ✅ This click counts as "direct artist engagement"
+  try { window.__fromArtistView = String(currentSong.artist || '').trim(); } catch (err) {}
 
   // Close Now Playing if it’s open so it doesn’t sit on top
   try {
@@ -12423,7 +12421,6 @@ if (dockArtistEl) {
   });
 }
 
-// Click artist in NOW PLAYING overlay
 const npArtistEl = document.getElementById('np-artist');
 if (npArtistEl) {
   npArtistEl.addEventListener('click', openArtistFromCurrentSong);
@@ -15336,21 +15333,26 @@ function handleContextMenu(e, song){
 
                               function addToHistory(album, artist, cover) {
 
-             // ✅ If playback was started from an Artist page, log an ARTIST recent (direct engagement only)
-             try {
-               if (window.playContext && String(window.playContext.type) === 'artist') {
-                 const aName = String(window.playContext.label || '').trim() || String(artist || '').trim();
-                 if (aName) {
-                   const aCover = String(cover || '').trim(); // best available non-async image
-                   history = history.filter(h => !(h && h.type === 'artist' && String(h.artist) === aName));
-                   history.unshift({ type: 'artist', artist: aName, cover: aCover });
+             // ✅ If playback was started from a DIRECT artist click, log an ARTIST recent (direct engagement only)
+try {
+  const engaged = String(window.__fromArtistView || '').trim();
+  if (engaged) {
+    const aCover = String(cover || '').trim(); // best available non-async image
+    history = history.filter(h => !(h && h.type === 'artist' && String(h.artist) === engaged));
+    history.unshift({ type: 'artist', artist: engaged, cover: aCover });
 
-                   localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
-                   renderHistory();
-                   try { renderHome(); } catch (e) {}
-                   try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
-                   try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
-                   return; // ✅ do NOT also log album/playlist for this play
+    // one-shot: only applies to the next play after the artist click
+    try { window.__fromArtistView = ''; } catch (e) {}
+
+    localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+    renderHistory();
+    try { renderHome(); } catch (e) {}
+    try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
+    try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+    return; // ✅ do NOT also log album/playlist for this play
+  }
+} catch (e) {}
+
                  }
                }
              } catch (e) {}
