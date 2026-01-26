@@ -14754,10 +14754,14 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
     ((typeof currentSong !== 'undefined' && currentSong) ? currentSong : null) ||
     (window.currentSong || null);
 
-    menuTargetSong = _resolvedSong;
+        menuTargetSong = _resolvedSong;
 
-// ✅ Prevent the global outside-dismiss handlers from closing the menu
-// on the same tap/click that opened it.
+    // ✅ Ensure context menu container is not hidden (menu lives inside now-playing overlay)
+    const np = document.getElementById('now-playing-overlay');
+    if (np && np.classList && np.classList.contains('hidden')) {
+      np.classList.remove('hidden');
+    }
+
 try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (e) {}
 try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (e) {}
 
