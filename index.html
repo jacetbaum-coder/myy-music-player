@@ -9505,9 +9505,49 @@ function renderLibraryPlaylists() {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
-  const list = Array.isArray(playlists) ? playlists : [];
+  const sortMode = normalizeLibrarySortMode(
+    (typeof getLibrarySortModeForTab === 'function')
+      ? getLibrarySortModeForTab('playlists')
+      : librarySortMode
+  );
+
+  let list = Array.isArray(playlists) ? playlists.slice() : [];
+
+  if (sortMode === 'Alphabetical') {
+    list.sort((a, b) => {
+      const an = String(a?.name || a?.title || '').trim();
+      const bn = String(b?.name || b?.title || '').trim();
+      return an.localeCompare(bn);
+    });
+  } else if (sortMode === 'Recent') {
+    // historyLog entries include playlists like: { type:'playlist', id, name, cover }
+    const rank = new Map();
+    try {
+      const hist = JSON.parse(localStorage.getItem('historyLog') || '[]') || [];
+      (Array.isArray(hist) ? hist : []).forEach((h, i) => {
+        if (String(h?.type || '').toLowerCase() !== 'playlist') return;
+        const pid = h?.id;
+        if (pid != null && !rank.has(String(pid))) rank.set(String(pid), i);
+      });
+    } catch (e) {}
+
+    list.sort((a, b) => {
+      const aid = (a?.id != null) ? String(a.id) : '';
+      const bid = (b?.id != null) ? String(b.id) : '';
+      const ra = rank.has(aid) ? rank.get(aid) : 1e9;
+      const rb = rank.has(bid) ? rank.get(bid) : 1e9;
+      if (ra !== rb) return ra - rb;
+
+      const an = String(a?.name || a?.title || '').trim();
+      const bn = String(b?.name || b?.title || '').trim();
+      return an.localeCompare(bn);
+    });
+  } else {
+    // Recently added: keep existing order
+  }
 
   if (!list.length) {
+
     grid.innerHTML = `
       <div class="text-zinc-400 font-bold p-4">
         No playlists yet.
