@@ -15920,12 +15920,11 @@ return `
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = pillId;
-      wrap.className = 'flex gap-2 overflow-x-auto no-scrollbar mt-3 mb-4';
-      // insert directly under the title
-      t.insertAdjacentElement('afterend', wrap);
-    }
+      wrap.className = 'flex flex-wrap gap-2 mt-3 mb-4';
+wrap.style.maxWidth = '100%';
 
-    // pull pinned ids (your existing helpers)
+// pull pinned ids (your existing helpers)
+
     let pinned = [];
     try { pinned = (typeof loadPinnedPlaylists === 'function') ? loadPinnedPlaylists() : []; } catch (e) { pinned = []; }
     if (!Array.isArray(pinned)) pinned = [];
@@ -15945,17 +15944,23 @@ return `
       return null;
     };
 
-    const base = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap';
+        const base = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap';
+    const baseEmpty = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap min-w-[140px]';
     const onCls = 'bg-white/10 text-white hover:bg-white/15';
-    const emptyCls = 'bg-white/5 text-white/30';
 
-    wrap.innerHTML = slots.map((idOrNull, idx) => {
+    const emptyCls = 'bg-white/5 text-white/20 border border-white/5';
+
+// placeholder label is visually blank but keeps height
+wrap.innerHTML = slots.map((idOrNull, idx) => {
+
       const pl = idOrNull ? findPlaylistById(idOrNull) : null;
-      const label = pl ? String(pl.name || 'Playlist') : 'Empty';
+            const label = pl ? String(pl.name || 'Playlist') : '';
       const safe = label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
       const disabled = pl ? '' : 'disabled';
-      const cls = base + ' ' + (pl ? onCls : emptyCls);
+            const cls = (pl ? base : baseEmpty) + ' ' + (pl ? onCls : emptyCls);
       const pid = pl ? String(pl.id) : '';
+
       return `<button class="${cls}" data-pid="${pid}" ${disabled}>${safe}</button>`;
     }).join('');
 
