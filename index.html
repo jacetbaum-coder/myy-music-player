@@ -9092,7 +9092,11 @@ try { renderHome(); } catch (e) {}
       // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
       renderGrid(libraryData);
-      renderHistory();
+      try {
+    if (typeof window.renderHistory === 'function') window.renderHistory();
+    else if (typeof renderHistory === 'function') renderHistory();
+  } catch (e) {}
+
       try { renderHome(); } catch (e) {}
     }
   }
@@ -15319,8 +15323,15 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
- const pinnedIds = loadPinnedPlaylists();
+const pinnedIds =
+  (typeof window.loadPinnedPlaylists === 'function')
+    ? window.loadPinnedPlaylists()
+    : (typeof loadPinnedPlaylists === 'function')
+      ? loadPinnedPlaylists()
+      : [];
+
 const pinnedPlaylists = pinnedIds
+
   .map(id => playlists.find(pl => pl.id === id))
   .filter(Boolean);
 
