@@ -2422,12 +2422,19 @@ body.qs-lock {
   .crate-actions{ grid-template-columns: 1fr; }
 }
 
-/* ✅ HOME: ensure Recents grid has real height on mobile */
+/* ✅ HOME: Recents grid must not be hard-clamped to 8px */
+#home-recent-grid {
+  height: auto !important;
+  min-height: 200px !important;
+}
+
+/* keep children in normal flow */
 #home-recent-grid > * {
   position: relative !important;
 }
 
 </style>
+
 
 
 
