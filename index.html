@@ -12441,8 +12441,10 @@ if (npArtistEl) {
 
 function updateNowPlayingUI() {
   if (!currentSong) return;
+  try { window.currentSong = currentSong; } catch (e) {}
 
   const cover = document.getElementById('np-cover');
+
   const title = document.getElementById('np-title');
   const artist = document.getElementById('np-artist');
   const ctx = document.getElementById('np-context');
