@@ -14523,19 +14523,46 @@ function showMultiSelectContextMenuFromHero(anchorEl){
         return canonTrackIdLocal(trackId);
       }
 
-      let trackIds = targets.map(getTrackIdForSong).filter(Boolean);
+            let trackIds = targets.map(getTrackIdForSong).filter(Boolean);
 
-// ✅ Expand short ids like "Artist/Title.mp3" -> "Artist/Album/Title.ext"
-// This makes playlist view rendering reliable.
-try {
-  if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
-    const expanded = window.expandPlaylistShortIdsFromLibrary(trackIds);
-    if (Array.isArray(expanded) && expanded.length) trackIds = expanded;
-  }
-} catch (e) {}
+      // ✅ Expand short ids like "Artist/Title.mp3" -> "Artist/Album/Title.ext"
+      // This makes playlist view rendering reliable.
+      try {
+        if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
+          const expanded = window.expandPlaylistShortIdsFromLibrary(trackIds);
+          if (Array.isArray(expanded) && expanded.length) trackIds = expanded;
+        }
+      } catch (e) {}
 
-// 1) CLOUD FIRST
+      // ✅ DUPLICATE GUARD (ask before adding duplicates)
+      try {
+        const plIdx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
+        const plRef = (plIdx >= 0) ? playlists[plIdx] : null;
+        const existing = new Set(
+          (Array.isArray(plRef?.trackIds) ? plRef.trackIds : []).map(canonTrackIdLocal)
+        );
 
+        const dupCount = trackIds.filter(tid => existing.has(canonTrackIdLocal(tid))).length;
+        if (dupCount > 0) {
+          const plName = pl?.name || "this playlist";
+          const ok = confirm(
+            dupCount === 1
+              ? `That song is already in "${plName}". Add a duplicate anyway?`
+              : `${dupCount} of these songs are already in "${plName}". Add duplicates anyway?`
+          );
+          if (!ok) {
+            // user said no duplicates: remove dupes from this add
+            trackIds = trackIds.filter(tid => !existing.has(canonTrackIdLocal(tid)));
+            if (!trackIds.length) {
+              try { closePlaylistSubmenu(); } catch (e) {}
+              try { closeContextMenu(); } catch (e) {}
+              return;
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 1) CLOUD FIRST
       try {
         if (typeof window.addTrackToPlaylistInCloud !== 'function') {
           throw new Error('addTrackToPlaylistInCloud is missing');
@@ -14549,7 +14576,29 @@ try {
         return;
       }
 
+      // ✅ IMPORTANT: immediately re-pull the playlist items from cloud
+      // so opening the playlist later shows the new track WITHOUT a refresh.
+      try {
+        if (typeof window.loadPlaylistItemsFromCloud === "function") {
+          // small retry (covers “write ok but read immediately misses it”)
+          let latest = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            latest = await window.loadPlaylistItemsFromCloud(pl.id);
+            if (Array.isArray(latest) && latest.length) break;
+            await new Promise(r => setTimeout(r, 250));
+          }
+
+          const plIdx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
+          if (plIdx >= 0 && Array.isArray(latest)) {
+            playlists[plIdx].trackIds = latest.map(canonTrackIdLocal).filter(Boolean);
+            playlists[plIdx].songCount = playlists[plIdx].trackIds.length;
+            playlists[plIdx].updated_at = new Date().toISOString();
+          }
+        }
+      } catch (e) {}
+
       // 2) LOCAL UPDATE (IDs-only) + SAVE
+
       try {
         const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
         if (idx !== -1) {
