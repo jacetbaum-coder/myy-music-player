@@ -9818,9 +9818,46 @@ function renderLibraryAll() {
     return;
   }
 
-  // Sorting happens in the tab-specific builders (getLibraryGridData / renderLibraryAll / etc.)
-// Do not force an alphabetical sort here.
-grid.innerHTML = items.map((it) => {
+    const sortMode = normalizeLibrarySortMode(
+    (typeof getLibrarySortModeForTab === 'function')
+      ? getLibrarySortModeForTab('all')
+      : librarySortMode
+  );
+
+  if (sortMode === 'Alphabetical') {
+    items.sort((a, b) => String(a?.title || '').localeCompare(String(b?.title || '')));
+  } else if (sortMode === 'Recent') {
+    // Rank items by most recent matching history entry (playlist id OR album name)
+    const rank = new Map();
+    try {
+      const hist = JSON.parse(localStorage.getItem('historyLog') || '[]') || [];
+      (Array.isArray(hist) ? hist : []).forEach((h, i) => {
+        // playlist signals
+        const pid = (h?.playlistId != null) ? String(h.playlistId) : (h?.id != null ? String(h.id) : '');
+        if (pid && !rank.has('playlist:' + pid)) rank.set('playlist:' + pid, i);
+
+        // album signals
+        const alb = String(h?.albumName || '').trim();
+        if (alb && !rank.has('album:' + alb)) rank.set('album:' + alb, i);
+      });
+    } catch (e) {}
+
+    items.sort((a, b) => {
+      const ka = String(a?.kind || '') + ':' + String(a?.key || '');
+      const kb = String(b?.kind || '') + ':' + String(b?.key || '');
+
+      const ra = rank.has(ka) ? rank.get(ka) : 1e9;
+      const rb = rank.has(kb) ? rank.get(kb) : 1e9;
+      if (ra !== rb) return ra - rb;
+
+      return String(a?.title || '').localeCompare(String(b?.title || ''));
+    });
+  } else {
+    // Recently added: keep current build order
+  }
+
+  grid.innerHTML = items.map((it) => {
+
 
     const safeTitle = String(it.title)
       .replace(/&/g, "&amp;")
@@ -9876,16 +9913,21 @@ function renderLibraryMain() {
 
   // ✅ If Library hasn't changed, do NOT rebuild the DOM (prevents cover "pop-in" reload)
   try {
+       const tab = String(libraryTopTab || '');
+    const sortForTab =
+      (typeof getLibrarySortModeForTab === 'function')
+        ? getLibrarySortModeForTab(tab)
+        : String(librarySortMode || '');
+
     const key =
-      String(libraryTopTab || '') + '|' +
+      tab + '|' +
+      String(sortForTab || '') + '|' +
       String(Array.isArray(libraryData) ? libraryData.length : 0) + '|' +
       String(Array.isArray(playlists) ? playlists.length : 0) + '|' +
       String(Array.isArray(allSongs) ? allSongs.length : 0);
 
-    if (window.__libraryRenderKey === key) {
-      return; // keep existing grid/images in place
-    }
     window.__libraryRenderKey = key;
+
   } catch (e) {}
 
 
