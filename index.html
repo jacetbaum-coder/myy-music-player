@@ -15418,6 +15418,9 @@ function initMobileHomeTabsOnce() {
     all: 'mobile-home-tab-all',
   };
 
+  Object.entries(map).forEach(([key, id]) => {
+
+
     const el = document.getElementById(id);
     if (!el) return;
 
