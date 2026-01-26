@@ -6973,8 +6973,33 @@ if (dockLeft) {
 // -----------------------
 const LIB_SORT_BY_TAB_KEY = 'librarySortByTab';
 
-// ✅ Back-compat: if you had the old single-key sort saved, migrate it once
+// ✅ Guarantee pinned playlist helpers exist globally (Home expects window.loadPinnedPlaylists)
+try {
+  if (typeof window.loadPinnedPlaylists !== 'function') {
+    window.loadPinnedPlaylists = function(){
+      try {
+        const raw = localStorage.getItem('pinnedPlaylists');
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr.map(String) : [];
+      } catch (e) {
+        return [];
+      }
+    };
+  }
+
+  if (typeof window.savePinnedPlaylists !== 'function') {
+    window.savePinnedPlaylists = function(ids){
+      try {
+        const out = Array.isArray(ids) ? ids.map(String) : [];
+        localStorage.setItem('pinnedPlaylists', JSON.stringify(out));
+      } catch (e) {}
+      try { if (typeof syncPinnedPlaylists === 'function') syncPinnedPlaylists(ids); } catch (e) {}
+    };
+  }
+} catch (e) {}
+
 (function migrateOldLibrarySortOnce(){
+
   try {
     const old = localStorage.getItem('librarySortMode');
     const hasNew = localStorage.getItem(LIB_SORT_BY_TAB_KEY);
