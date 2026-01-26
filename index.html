@@ -8221,7 +8221,20 @@ try {
   // ✅ If a menu was JUST opened, don't instantly close it on the same pointerdown
   if (Date.now() < (window.__outsideDismissSkipUntil || 0)) return;
 
+  // ✅ Close profile menu on any tap/click outside the sheet
+  try {
+    const pm = document.getElementById('profile-menu-modal');
+    if (pm && !pm.classList.contains('hidden')) {
+      const card = pm.querySelector('div.absolute.left-1/2');
+      if (!card || !card.contains(e.target)) {
+        pm.classList.add('hidden');
+        return; // we handled this tap
+      }
+    }
+  } catch (err) {}
+
   // If click is inside a menu/popover, do nothing
+
   const inside =
     e.target.closest('#context-menu') ||
     e.target.closest('#playlist-menu') ||
