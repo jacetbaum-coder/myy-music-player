@@ -15846,13 +15846,18 @@ window.loadPinnedPlaylists = loadPinnedPlaylists;
 window.savePinnedPlaylists = savePinnedPlaylists;
 
 function savePinnedPlaylists(ids) {
-
-
   localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
     syncPinnedPlaylists(ids);
 }
 
+// ✅ Expose pinned helpers globally (Home startup calls window.loadPinnedPlaylists)
+try {
+  window.loadPinnedPlaylists = loadPinnedPlaylists;
+  window.savePinnedPlaylists = savePinnedPlaylists;
+} catch (e) {}
+
 function getPinnedPlaylistNamesFromIds(ids) {
+
   const names = [];
   const idList = Array.isArray(ids) ? ids : [];
   idList.forEach((id) => {
