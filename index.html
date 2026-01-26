@@ -15442,17 +15442,17 @@ let homeTopTab = 'all';
 let __homeTabsBound = false;
 
 function setHomeTopTab(tab) {
-  homeTopTab = (tab || 'all');
+  window.homeTopTab = normalizeHomeTabKey(tab || 'all');
+  try { localStorage.setItem('homeTopTab', window.homeTopTab); } catch (e) {}
 
-  // keep the green pill correct
+  // keep these in sync for Home menu behavior
+  homeSortMode = getHomeSortModeForTab(window.homeTopTab);
+  homeViewMode = getHomeViewModeForTab(window.homeTopTab);
+
   try { updateMobileHomeTabUI(); } catch (e) {}
-
-  // keep mobile show-all state as-is (persisted)
-
-
-  // repaint ONLY the home recents areas
   try { renderHome(); } catch (e) {}
 }
+
 
 function updateMobileHomeTabUI() {
   const map = {
@@ -15561,8 +15561,21 @@ function setHomeViewModeForTab(tab, mode) {
 }
 
 // Keep in sync for any older code paths / UI
-let homeSortMode = getHomeSortModeForTab(homeTopTab || 'all');
-let homeViewMode = getHomeViewModeForTab(homeTopTab || 'all');
+// ✅ Home tab persistence + default
+const HOME_TAB_KEY = 'homeTopTab';
+try {
+  if (!window.homeTopTab) {
+    window.homeTopTab = localStorage.getItem(HOME_TAB_KEY) || 'all';
+  }
+  window.homeTopTab = normalizeHomeTabKey(window.homeTopTab);
+  localStorage.setItem(HOME_TAB_KEY, window.homeTopTab);
+} catch (e) {
+  window.homeTopTab = window.homeTopTab || 'all';
+}
+
+let homeSortMode = getHomeSortModeForTab(window.homeTopTab || 'all');
+let homeViewMode = getHomeViewModeForTab(window.homeTopTab || 'all');
+
 
 function setHomeSortMode(mode) {
   const tab = normalizeHomeTabKey(homeTopTab || 'all');
