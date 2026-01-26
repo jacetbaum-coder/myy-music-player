@@ -15921,9 +15921,10 @@ return `
       wrap = document.createElement('div');
       wrap.id = pillId;
       wrap.className = 'flex flex-wrap gap-2 mt-3 mb-4';
-wrap.style.maxWidth = '100%';
+      wrap.style.maxWidth = '100%';
+    }
 
-// pull pinned ids (your existing helpers)
+	// pull pinned ids (your existing helpers)
 
     let pinned = [];
     try { pinned = (typeof loadPinnedPlaylists === 'function') ? loadPinnedPlaylists() : []; } catch (e) { pinned = []; }
@@ -15970,7 +15971,7 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
         if (!pid) return;
         try { showView('playlist', pid); } catch (e) {}
       });
-    
+    });
   })();
 
   // ✅ Update the "Recents" header text based on the selected Home tab
