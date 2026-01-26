@@ -15801,14 +15801,15 @@ return `
     : 'home-top-grid-title'
 );
 
-  if (t) {
-  t.textContent =
-    homeTopTab === 'albums'  ? 'Albums' :
-    homeTopTab === 'artists' ? 'Artists' :
-    homeTopTab === 'liked'   ? 'Liked' :
-          homeTopTab === 'all'     ? 'All' :
+    if (t) {
+    t.textContent =
+      (window.homeTopTab === 'albums')  ? 'Albums' :
+      (window.homeTopTab === 'artists') ? 'Artists' :
+      (window.homeTopTab === 'liked')   ? 'Liked' :
+      (window.homeTopTab === 'all')     ? 'All' :
       'Playlists';
   }
+
 
   // Mobile Home
 
