@@ -15670,9 +15670,6 @@ function setHomeSortDirForTab(tab, dir) {
 }
 
 function getHomeViewModeForTab(tab) {
-
-
-function getHomeViewModeForTab(tab) {
   const t = normalizeHomeTabKey(tab);
   try {
     const obj = JSON.parse(localStorage.getItem(HOME_VIEW_BY_TAB_KEY) || '{}') || {};
