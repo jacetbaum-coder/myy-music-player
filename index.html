@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+c<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7776,20 +7776,27 @@ function openLibrarySearchOverlay() {
   // Prevent background scroll while overlay is open
   document.body.style.overflow = 'hidden';
 
-  // Show recents / empty state immediately
-  renderLibraryRecentSearches('library-search-results-overlay');
+  const q = String(input.value || '').trim();
 
-  // Clear + focus for keyboard + blinking caret
-  input.value = '';
+  // ✅ Preserve existing query/results:
+  // If there's a query, re-render results. If empty, show recents.
+  if (q) {
+    try { box.classList.remove('hidden'); } catch (e) {}
+    try { handleLibrarySearch(q, 'library-search-results-overlay'); } catch (e) {}
+  } else {
+    renderLibraryRecentSearches('library-search-results-overlay');
+  }
+
+  // Focus for keyboard + blinking caret (do NOT clear value)
   setTimeout(() => {
     try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
   }, 0);
 }
 
+
 function closeLibrarySearchOverlay() {
   const overlay = document.getElementById('library-search-overlay');
   const input = document.getElementById('library-search-overlay-input');
-  const box = document.getElementById('library-search-results-overlay');
 
   if (overlay) overlay.classList.add('hidden');
 
@@ -7797,11 +7804,11 @@ function closeLibrarySearchOverlay() {
   document.body.style.overflow = '';
 
   if (input) input.blur();
-  if (box) {
-    box.classList.add('hidden');
-    box.innerHTML = '';
-  }
+
+  // ✅ Do NOT clear results box or query.
+  // This preserves your scroll + results until you fully exit search.
 }
+
 function initLibrarySearchBox() {
   const desktopInput = document.getElementById('library-search');
   const desktopBox = document.getElementById('library-search-results');
