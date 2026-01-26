@@ -16895,11 +16895,12 @@ function openPlaylistPinMenuFromHero(e) {
     let id = (typeof activePlaylistId !== 'undefined') ? activePlaylistId : null;
 
     // Fallback 1: navCurrent (you already expose window.navCurrent)
-    if (!id && window.navCurrent && window.navCurrent.type === 'playlist' && window.navCurrent.id) {
-      id = window.navCurrent.id;
+    if (!id && window.navCurrent && window.navCurrent.type === 'playlist' && window.navCurrent.playlistId) {
+      id = window.navCurrent.playlistId;
     }
 
-    // Fallback 2: dataset on the hero root (if present)
+// Fallback 2: dataset on the hero root (if present)
+
     if (!id) {
       const hero = document.getElementById('hero');
       const pid = hero ? hero.getAttribute('data-playlist-id') : null;
