@@ -16740,11 +16740,45 @@ function hidePlaylistMenu() {
 }
 
 function showPlaylistMenuAt(x, y, playlistId) {
-  const m = document.getElementById('playlist-menu');
+  let m = document.getElementById('playlist-menu');
+
+  // ✅ If the menu got removed from DOM, recreate it on demand
+  if (!m) {
+    try {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = `
+<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
+  <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
+  <button id="pm-unpin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Unpin playlist</button>
+  <div class="my-2 border-t border-white/10"></div>
+  <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
+  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
+  <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
+  <div class="my-2 border-t border-white/10"></div>
+  <button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">Delete playlist</button>
+</div>
+      `.trim();
+      document.body.appendChild(tmp.firstElementChild);
+
+      // file input used by upload
+      if (!document.getElementById('playlist-cover-file')) {
+        const inp = document.createElement('input');
+        inp.id = 'playlist-cover-file';
+        inp.type = 'file';
+        inp.accept = 'image/*';
+        inp.className = 'hidden';
+        document.body.appendChild(inp);
+      }
+
+      m = document.getElementById('playlist-menu');
+    } catch (e) {}
+  }
+
   if (!m) return;
 
- // ✅ Prevent “open click” from immediately closing it
-window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
+  // ✅ Prevent “open click” from immediately closing it
+  window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
+
 
 
   playlistMenuTargetId = playlistId; try { window.playlistMenuTargetId = playlistId; } catch (e) {}
@@ -16758,9 +16792,10 @@ window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
   if (pinBtn)   pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
-  if (false && !m.__playlistMenuBound) {
+  if (!m.__playlistMenuBound) {
 
     m.__playlistMenuBound = true;
+
 
     const safeClose = () => { try { hidePlaylistMenu(); } catch (e) {} };
 
