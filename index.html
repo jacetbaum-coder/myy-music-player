@@ -7003,20 +7003,6 @@ function setLibrarySortMode(mode) {
 }
 
 
-function setLibrarySortMode(mode) {
-  librarySortMode = mode;
-  localStorage.setItem('librarySortMode', mode);
-
-  const label = document.getElementById('library-sort-label');
-  if (label) label.textContent = mode;
-
-  // If you're currently in Library, re-render the CURRENT tab (Playlists/Albums/Artists/All)
-  if (navCurrent && navCurrent.type === 'library') {
-    renderLibraryMain();
-  }
-}
-
-
 function setLibraryViewMode(mode) {
   libraryViewMode = mode;
   localStorage.setItem('libraryViewMode', mode);
@@ -12198,6 +12184,10 @@ function openNowPlaying() {
   updateNowPlayingUI();
 
   nowPlayingOverlay.classList.remove('hidden');
+
+  // ✅ Ensure Now Playing captures taps/clicks (main view was intercepting)
+  try { document.getElementById('main-scroll-area').style.pointerEvents = 'none'; } catch (e) {}
+
   nowPlayingOverlay.classList.remove('np-dragging');
   try { checkDockVisibility(); } catch (e) {}
 
@@ -12621,6 +12611,10 @@ function closeNowPlaying() {
 
   const done = () => {
     nowPlayingOverlay.classList.add('hidden');
+
+    // ✅ Restore main view interactivity after closing Now Playing
+    try { document.getElementById('main-scroll-area').style.pointerEvents = 'auto'; } catch (e) {}
+
     nowPlayingOverlay.style.transform = 'translateY(0)';
         nowPlayingOverlay.classList.add('hidden');
     try { checkDockVisibility(); } catch (e) {}
