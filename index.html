@@ -15498,7 +15498,8 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
         if (!type) return;
       if (type === 'playlist') {
         const id = card.getAttribute('data-id');
-        const idx = playlists.findIndex(pl => pl.id === id);
+        const idx = playlists.findIndex(pl => String(pl.id) === String(id));
+
         if (idx !== -1) showView('playlist', idx);
       } else {
         const album = card.getAttribute('data-album');
@@ -15523,8 +15524,10 @@ function setHomeTopTab(tab) {
   try { localStorage.setItem('homeTopTab', window.homeTopTab); } catch (e) {}
 
   // keep these in sync for Home menu behavior
-  homeSortMode = getHomeSortModeForTab(window.homeTopTab);
-  homeViewMode = getHomeViewModeForTab(window.homeTopTab);
+homeSortMode = getHomeSortModeForTab(window.homeTopTab);
+homeSortDir  = getHomeSortDirForTab(window.homeTopTab);
+homeViewMode = getHomeViewModeForTab(window.homeTopTab);
+
 
   try { updateMobileHomeTabUI(); } catch (e) {}
   try { renderHome(); } catch (e) {}
@@ -15600,7 +15603,9 @@ function initMobileHomeTabsOnce() {
 // HOME: Sort + View (per-tab, persists)
 // -----------------------
 const HOME_SORT_BY_TAB_KEY = 'homeSortByTab';
+const HOME_SORT_DIR_BY_TAB_KEY = 'homeSortDirByTab'; // ✅ asc/desc per Home pill
 const HOME_VIEW_BY_TAB_KEY = 'homeViewByTab';
+
 
 function normalizeHomeTabKey(tab) {
   const t = String(tab || '').toLowerCase();
@@ -15637,6 +15642,36 @@ function setHomeSortModeForTab(tab, mode) {
   } catch (e) {}
 }
 
+// ✅ Sort direction (asc/desc) per Home pill
+function normalizeHomeSortDir(dir){
+  const d = String(dir || '').toLowerCase();
+  if (d === 'asc' || d === 'desc') return d;
+  return 'desc'; // default: newest-first for recents
+}
+
+function getHomeSortDirForTab(tab) {
+  const t = normalizeHomeTabKey(tab);
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_SORT_DIR_BY_TAB_KEY) || '{}') || {};
+    return normalizeHomeSortDir(obj[t] || 'desc');
+  } catch (e) {
+    return 'desc';
+  }
+}
+
+function setHomeSortDirForTab(tab, dir) {
+  const t = normalizeHomeTabKey(tab);
+  const d = normalizeHomeSortDir(dir);
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_SORT_DIR_BY_TAB_KEY) || '{}') || {};
+    obj[t] = d;
+    localStorage.setItem(HOME_SORT_DIR_BY_TAB_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
+
+function getHomeViewModeForTab(tab) {
+
+
 function getHomeViewModeForTab(tab) {
   const t = normalizeHomeTabKey(tab);
   try {
@@ -15672,7 +15707,9 @@ try {
 }
 
 let homeSortMode = getHomeSortModeForTab(window.homeTopTab || 'all');
+let homeSortDir  = getHomeSortDirForTab(window.homeTopTab || 'all');
 let homeViewMode = getHomeViewModeForTab(window.homeTopTab || 'all');
+
 
 
 function setHomeSortMode(mode) {
@@ -15738,47 +15775,53 @@ function getHomeRecentsItems() {
   // 'all' = no filter
 
   // ✅ Apply Home sort mode (per-tab)
-  const mode = getHomeSortModeForTab(homeTopTab || 'all');
+const tabKey = (homeTopTab || 'all');
+const mode = getHomeSortModeForTab(tabKey);
+const dir  = getHomeSortDirForTab(tabKey);
 
-  // Recent = keep history order (already newest-first in historyLog)
-  if (mode === 'Alphabetical') {
-    const label = (x) => {
-      if (x.type === 'playlist') return String(x.name || '');
-      if (x.type === 'artist') return String(x.artist || '');
-      return String(x.album || '');
-    };
-    out.sort((a,b) => label(a).localeCompare(label(b), undefined, { sensitivity: 'base' }));
-  }
+// Recent = keep history order (already newest-first in historyLog)
+if (mode === 'Alphabetical') {
+  const label = (x) => {
+    if (x.type === 'playlist') return String(x.name || '');
+    if (x.type === 'artist') return String(x.artist || '');
+    return String(x.album || '');
+  };
+  out.sort((a,b) => label(a).localeCompare(label(b), undefined, { sensitivity: 'base' }));
+}
 
-  if (mode === 'Recently added') {
-    const rank = (x) => {
-      // best-effort “added” rank using your loaded library/playlist arrays
-      try {
-        if (x.type === 'album') {
-          const arr = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : (Array.isArray(libraryData) ? libraryData : []);
-          const i = arr.findIndex(a =>
-            String(a?.artistName || '') === String(x.artist || '') &&
-            String(a?.albumName || '') === String(x.album || '')
-          );
-          return i; // higher = later in array
-        }
-        if (x.type === 'artist') {
-          const arr = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : (Array.isArray(libraryData) ? libraryData : []);
-          const i = arr.findIndex(a => String(a?.artistName || '') === String(x.artist || ''));
-          return i;
-        }
-        if (x.type === 'playlist') {
-          const arr = Array.isArray(playlists) ? playlists : [];
-          const i = arr.findIndex(p => String(p?.id) === String(x.id));
-          return i;
-        }
-      } catch (e) {}
-      return -1;
-    };
-    out.sort((a,b) => (rank(b) - rank(a)));
-  }
+if (mode === 'Recently added') {
+  const rank = (x) => {
+    // best-effort “added” rank using your loaded library/playlist arrays
+    try {
+      if (x.type === 'album') {
+        const arr = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : (Array.isArray(libraryData) ? libraryData : []);
+        const idx = arr.findIndex(a => String(a.albumName) === String(x.album) && String(a.artistName) === String(x.artist));
+        return idx;
+      }
+      if (x.type === 'playlist') {
+        const idx = (Array.isArray(playlists) ? playlists : []).findIndex(p => String(p.id) === String(x.id));
+        return idx;
+      }
+      // artist “added” rank not tracked; keep stable
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  };
 
-  return out.slice(0, max);
+  // higher rank = more recent (end of arrays) → sort desc
+  out.sort((a,b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    return rb - ra;
+  });
+}
+
+// ✅ direction: desc = default; asc flips the final list
+if (dir === 'asc') out.reverse();
+
+return out.slice(0, max);
+
 
 }
 
