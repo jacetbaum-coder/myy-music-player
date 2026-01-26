@@ -14566,21 +14566,18 @@ function initResizers() {
       if (Date.now() < suppressContextMenuCloseUntil) return;
       if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
-      // ✅ If the user is clicking the Now Playing "•••" button, don't treat it as an outside click.
-      // (Use contains() so clicks on the inner <i> always count.)
+      // ✅ If the user is clicking the Now Playing "•••" button (or its inner icon), don’t close.
       try {
         const npMore = document.getElementById('np-more');
         if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
       } catch (e) {}
 
-      // ✅ If the user is clicking a track row "•••" button, don't treat it as an outside click.
-      if (e.target && e.target.closest && e.target.closest('button.track-menu')) return;
+      // ✅ If click is inside the playlist submenu, DO NOT treat as "outside"
+      const ps = document.getElementById('playlist-submenu');
+      if (ps && (ps === e.target || ps.contains(e.target))) return;
 
-                        // ✅ If click is inside the playlist submenu, DO NOT treat as "outside"
-            const ps = document.getElementById('playlist-submenu');
-            if (ps && (ps === e.target || ps.contains(e.target))) return;
+      if (!contextMenu.contains(e.target)) closeContextMenu();
 
-            if (!contextMenu.contains(e.target)) closeContextMenu();
 
     });
 
@@ -20047,9 +20044,21 @@ function renderCrateStats() {
       const cmOpen = cm && cm.style && cm.style.display !== 'none';
       const psOpen = ps && ps.style && ps.style.display !== 'none';
       if (!cmOpen && !psOpen) return;
+
+      // ✅ If we JUST opened, ignore this click
+      if (Date.now() < (typeof suppressContextMenuCloseUntil !== 'undefined' ? suppressContextMenuCloseUntil : 0)) return;
+      if (Date.now() < (typeof suppressPlaylistMenuCloseUntil !== 'undefined' ? suppressPlaylistMenuCloseUntil : 0)) return;
+
+      // ✅ Clicking the opener (Now Playing •••) is NOT an outside click
+      try {
+        const npMore = document.getElementById('np-more');
+        if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
+      } catch (err) {}
+
       if ((cm && cm.contains(e.target)) || (ps && ps.contains(e.target))) return;
       if (typeof window.closeContextMenu === 'function') window.closeContextMenu(e);
     }, true);
+
   }
 
   // 3) Ghost-click fix:
