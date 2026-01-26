@@ -16891,10 +16891,24 @@ window.__playlistMenuSuppressCloseUntil = Date.now() + 350;
 
 function openPlaylistPinMenuFromHero(e) {
   try {
-    const id = (typeof activePlaylistId !== 'undefined') ? activePlaylistId : null;
-    if (!id) return;
+        // Prefer global playlist state, but fall back to the current view
+    let id = (typeof activePlaylistId !== 'undefined') ? activePlaylistId : null;
 
+    // Fallback 1: navCurrent (you already expose window.navCurrent)
+    if (!id && window.navCurrent && window.navCurrent.type === 'playlist' && window.navCurrent.id) {
+      id = window.navCurrent.id;
+    }
+
+    // Fallback 2: dataset on the hero root (if present)
+    if (!id) {
+      const hero = document.getElementById('hero');
+      const pid = hero ? hero.getAttribute('data-playlist-id') : null;
+      if (pid) id = pid;
+    }
+
+    if (!id) return;
     const rect = e?.currentTarget?.getBoundingClientRect?.();
+
     const x = rect ? (rect.left + rect.width / 2) : (e?.clientX || 16);
     const y = rect ? (rect.bottom + 8) : (e?.clientY || 16);
 
