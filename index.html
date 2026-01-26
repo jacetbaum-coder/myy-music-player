@@ -12997,7 +12997,10 @@ window.addEventListener('resize', () => {
       ? npGetXY(e)
       : { x: (e && e.clientX) || 0, y: (e && e.clientY) || 0 };
 
-    window.showContextMenuAt(pt.x, pt.y, songForMenu, btn);
+    (typeof showContextMenuAt === 'function')
+      ? showContextMenuAt(pt.x, pt.y, songForMenu, btn)
+      : console.warn("❌ showContextMenuAt is missing");
+
 
   }
 
