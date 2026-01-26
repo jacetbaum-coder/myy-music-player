@@ -15578,10 +15578,13 @@ let homeViewMode = getHomeViewModeForTab(window.homeTopTab || 'all');
 
 
 function setHomeSortMode(mode) {
-  const tab = normalizeHomeTabKey(homeTopTab || 'all');
+  const tab = normalizeHomeTabKey(window.homeTopTab || 'all');
   setHomeSortModeForTab(tab, mode);
   homeSortMode = normalizeHomeSortMode(mode);
 
+  // ✅ ensure key exists immediately
+  try { localStorage.setItem(HOME_SORT_BY_TAB_KEY, localStorage.getItem(HOME_SORT_BY_TAB_KEY) || JSON.stringify({})); } catch (e) {}
+
   // Update the shared menu UI (same component as Library)
   try { updateLibrarySortUIForTopTab(); } catch (e) {}
 
@@ -15589,17 +15592,22 @@ function setHomeSortMode(mode) {
   try { renderHome(); } catch (e) {}
 }
 
+
 function setHomeViewMode(mode) {
-  const tab = normalizeHomeTabKey(homeTopTab || 'all');
+  const tab = normalizeHomeTabKey(window.homeTopTab || 'all');
   setHomeViewModeForTab(tab, mode);
   homeViewMode = getHomeViewModeForTab(tab);
 
+  // ✅ ensure key exists immediately
+  try { localStorage.setItem(HOME_VIEW_BY_TAB_KEY, localStorage.getItem(HOME_VIEW_BY_TAB_KEY) || JSON.stringify({})); } catch (e) {}
+
   // Update the shared menu UI (same component as Library)
   try { updateLibrarySortUIForTopTab(); } catch (e) {}
 
   // Repaint Home
   try { renderHome(); } catch (e) {}
 }
+
 
 function getHomeRecentsItems() {
 
