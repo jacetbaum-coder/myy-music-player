@@ -1053,7 +1053,16 @@ body.song-multiselect .track-row:hover{
 
         /* --- UTILITIES --- */
         .hidden { display: none; }
-        .dock-hidden { transform: translateY(100%); opacity: 0; }
+
+/* ✅ Library "List view" */
+#album-grid.library-list {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dock-hidden { transform: translateY(100%); }
+
 
 /* Mobile: when Now Playing is open, remove bottom tabs spacing entirely */
 @media (max-width: 768px) {
@@ -7051,7 +7060,14 @@ function applyLibraryGridCols() {
   const isMobile = window.innerWidth <= 768;
   const isGridMode = (libraryViewMode === 'grid');
 
-  // Show slider only on mobile + grid view
+// ✅ Toggle list styling on the grid container
+if (grid) {
+  if (isGridMode) grid.classList.remove('library-list');
+  else grid.classList.add('library-list');
+}
+
+// Show slider only on mobile + grid view
+
   if (wrap) wrap.classList.add('hidden'); // always hidden (fixed 3-per-row on mobile)
 
 
@@ -9462,29 +9478,64 @@ function renderGrid(data) {
   const grid = document.getElementById('album-grid');
   if (!grid) return;
 
+    const isList = (libraryViewMode === 'list');
+
   grid.innerHTML = data.map((album) => {
     const safeName = album.albumName.replace(/'/g, "\\'");
     const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
+
+    if (isList) {
+      const safeAlbum = String(album.albumName || '')
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const safeArtist = String(album.artistName || '')
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const coverHtml = cover
+        ? `<img src="${cover}" class="w-full h-full object-cover">`
+        : `<i class="fas fa-music text-white/50 text-2xl"></i>`;
+
+      return `
+        <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
+             data-album="${safeName}"
+             data-no-swipe-back="1">
+          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+            ${coverHtml}
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-white truncate text-base">
+              ${safeAlbum}
+            </div>
+            <div class="text-sm text-zinc-400 truncate">
+              ${safeArtist}
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
   <div class="album-card p-4"
        data-album="${safeName}"
        data-no-swipe-back="1">
 
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square">
-          <img src="${cover}" class="w-full h-full object-cover" loading="eager" decoding="sync" fetchpriority="high">
+   
+    <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+      ${cover ? `<img src="${cover}" class="w-full h-full object-cover">` : `<i class="fas fa-music text-white/50 text-3xl"></i>`}
+    </div>
 
+    <div class="font-bold text-white truncate text-base mb-1">
+      ${album.albumName}
+    </div>
 
-        </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${album.albumName}
-        </div>
-
-        <div class="text-sm text-zinc-400 truncate">
-          ${album.artistName}
-        </div>
-      </div>
+    <div class="text-sm text-zinc-400 truncate">
+      ${album.artistName}
+    </div>
+  </div>
     `;
     }).join('');
 
@@ -9556,22 +9607,45 @@ function renderLibraryPlaylists() {
     return;
   }
 
-    grid.innerHTML = list.map((pl, idx) => {
+      const isList = (libraryViewMode === 'list');
+
+  grid.innerHTML = list.map((pl, idx) => {
     const name = String(pl?.name || pl?.title || "Untitled Playlist");
     const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
 
-    const coverMarkup =
-      (typeof getPlaylistCoverMarkup === "function")
-        ? getPlaylistCoverMarkup(pl, "w-full h-full")
-        : `<div class="w-full h-full flex items-center justify-center">
-             <i class="fas fa-music text-white/50 text-3xl"></i>
-           </div>`;
+    const cover =
+      (typeof getEffectivePlaylistCover === "function")
+        ? String(getEffectivePlaylistCover(pl) || "").trim()
+        : String(pl?.cover || pl?.autoCover || "").trim();
+
+    const coverMarkup = cover
+      ? `<img src="${cover}" class="w-full h-full object-cover">`
+      : `<i class="fas fa-music text-white/50 text-2xl"></i>`;
+
+    if (isList) {
+      return `
+        <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
+             data-pl="${idOrIdx}">
+          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+            ${coverMarkup}
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-white truncate text-base">
+              ${safeName}
+            </div>
+            <div class="text-sm text-zinc-400 truncate">
+              Playlist
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="album-card p-4"
            data-pl="${idOrIdx}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10">
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
           ${coverMarkup}
         </div>
 
@@ -9585,6 +9659,7 @@ function renderLibraryPlaylists() {
       </div>
     `;
   }).join('');
+
 
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
@@ -9733,6 +9808,8 @@ if (sortMode === 'Alphabetical') {
     return;
   }
 
+    const isList = (libraryViewMode === 'list');
+
   grid.innerHTML = artists.map((artistName) => {
     const a = firstAlbumByArtist.get(artistName);
     const cover = a ? getAlbumCover(a.artistName, a.albumName, a.coverArt) : "";
@@ -9742,11 +9819,34 @@ if (sortMode === 'Alphabetical') {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+    const coverHtml = cover
+      ? `<img src="${cover}" class="w-full h-full object-cover">`
+      : `<i class="fas fa-user text-white/50 text-2xl"></i>`;
+
+    if (isList) {
+      return `
+        <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
+             data-artist="${safeArtist}">
+          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+            ${coverHtml}
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-white truncate text-base">
+              ${safeArtist}
+            </div>
+            <div class="text-sm text-zinc-400 truncate">
+              Artist
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     return `
-      <div class="album-card p-4" data-artist="${safeArtist}">
-        <div class="relative mb-4 rounded-full overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          ${cover ? `<img src="${cover}" class="w-full h-full object-cover">`
-                  : `<i class="fas fa-user text-white/50 text-3xl"></i>`}
+      <div class="album-card p-4"
+           data-artist="${safeArtist}">
+        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
+          ${coverHtml}
         </div>
 
         <div class="font-bold text-white truncate text-base mb-1">
@@ -9759,6 +9859,7 @@ if (sortMode === 'Alphabetical') {
       </div>
     `;
   }).join('');
+
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
@@ -9856,8 +9957,9 @@ function renderLibraryAll() {
     // Recently added: keep current build order
   }
 
-  grid.innerHTML = items.map((it) => {
+    const isList = (libraryViewMode === 'list');
 
+  grid.innerHTML = items.map((it) => {
 
     const safeTitle = String(it.title)
       .replace(/&/g, "&amp;")
@@ -9869,15 +9971,40 @@ function renderLibraryAll() {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-        const coverHtml = (it.cover)
-      ? `<img src="${it.cover}" class="w-full h-full object-cover">`
-      : `<i class="fas fa-music text-white/50 text-3xl"></i>`;
+    const safeKey = String(it.key)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
+    const coverHtml = (it.cover)
+      ? `<img src="${it.cover}" class="w-full h-full object-cover">`
+      : `<i class="fas fa-music text-white/50 ${isList ? 'text-2xl' : 'text-3xl'}"></i>`;
+
+    if (isList) {
+      return `
+        <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
+             data-kind="${it.kind}"
+             data-key="${safeKey}">
+          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+            ${coverHtml}
+          </div>
+
+          <div class="min-w-0">
+            <div class="font-bold text-white truncate text-base">
+              ${safeTitle}
+            </div>
+            <div class="text-sm text-zinc-400 truncate">
+              ${safeSub}
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="album-card p-4"
            data-kind="${it.kind}"
-           data-key="${String(it.key).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
+           data-key="${safeKey}">
         <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
           ${coverHtml}
         </div>
@@ -9892,6 +10019,7 @@ function renderLibraryAll() {
       </div>
     `;
   }).join('');
+
 
   [...grid.querySelectorAll('.album-card')].forEach(card => {
     card.addEventListener('click', () => {
