@@ -9577,11 +9577,23 @@ function onNavTap(viewType) {
 
 window.onNavTap = onNavTap;
 
-function focusGlobalSearch(){
-  const input = document.getElementById('global-search');
-  if (!input) return;
-  try { input.focus(); } catch (e) {}
+function focusGlobalSearch() {
+  try {
+    const input =
+      document.querySelector('#search-input') ||
+      document.querySelector('input[type="search"]') ||
+      document.querySelector('input[placeholder*="Search"]');
+
+    if (!input) return;
+
+    // iOS / mobile needs async focus
+    setTimeout(() => {
+      input.focus();
+      input.click();
+    }, 0);
+  } catch (e) {}
 }
+
 
 function initSearchSwipeToDismissOnce(){
   if (window.__searchSwipeDismissBound) return;
@@ -16171,12 +16183,18 @@ return `
     const pillId = isMobile ? 'home-pinned-pills-mobile' : 'home-pinned-pills-desktop';
 
     let wrap = document.getElementById(pillId);
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.id = pillId;
-      wrap.className = 'flex flex-wrap gap-2 mt-3 mb-4';
-      wrap.style.maxWidth = '100%';
-    }
+if (!wrap) {
+  wrap = document.createElement('div');
+  wrap.id = pillId;
+  wrap.className = 'flex flex-wrap gap-2 mt-3 mb-4';
+  wrap.style.maxWidth = '100%';
+
+  // ✅ INSERT INTO DOM (mobile was missing this)
+  try {
+    t.parentElement.insertBefore(wrap, t.nextSibling);
+  } catch (e) {}
+}
+
 
 	// pull pinned ids (your existing helpers)
 
