@@ -6446,7 +6446,9 @@ function setAccentRGB(r, g, b) {
         function loadLibraryCache() {
   try {
     const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
-    return Array.isArray(stored) ? stored : [];
+    if (Array.isArray(stored) && stored.length >= 300) return stored;
+    return [];
+
   } catch (e) {
     return [];
   }
