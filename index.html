@@ -7278,7 +7278,12 @@ function initLibraryControls() {
     menu.querySelectorAll('.lib-sort-item').forEach(el => {
       el.addEventListener('click', () => {
         const mode = el.getAttribute('data-sort') || 'Recently added';
-        setLibrarySortMode(mode);
+        if (navCurrent && navCurrent.type === 'home') {
+  setHomeSortMode(mode);
+} else {
+  setLibrarySortMode(mode);
+}
+
         menu.classList.add('hidden');
       });
     });
@@ -7286,7 +7291,12 @@ function initLibraryControls() {
     menu.querySelectorAll('.lib-view-btn').forEach(el => {
       el.addEventListener('click', () => {
         const mode = el.getAttribute('data-view') || 'grid';
-        setLibraryViewMode(mode);
+        if (navCurrent && navCurrent.type === 'home') {
+  setHomeViewMode(mode);
+} else {
+  setLibraryViewMode(mode);
+}
+
         // setLibraryViewMode already calls applyLibraryGridCols()
         menu.classList.add('hidden');
       });
@@ -15470,7 +15480,98 @@ function initMobileHomeTabsOnce() {
 }
 
 
+// -----------------------
+// HOME: Sort + View (per-tab, persists)
+// -----------------------
+const HOME_SORT_BY_TAB_KEY = 'homeSortByTab';
+const HOME_VIEW_BY_TAB_KEY = 'homeViewByTab';
+
+function normalizeHomeTabKey(tab) {
+  const t = String(tab || '').toLowerCase();
+  if (t === 'all' || t === 'playlists' || t === 'albums' || t === 'artists' || t === 'liked') return t;
+  return 'all';
+}
+
+function normalizeHomeSortMode(mode){
+  const m = String(mode || '').trim();
+  // ✅ Only 3 supported (same menu as Library)
+  if (m === 'Recent' || m === 'Recently added' || m === 'Alphabetical') return m;
+  // Back-compat
+  if (m === 'Recents') return 'Recent';
+  return 'Recent';
+}
+
+function getHomeSortModeForTab(tab) {
+  const t = normalizeHomeTabKey(tab);
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_SORT_BY_TAB_KEY) || '{}') || {};
+    return normalizeHomeSortMode(obj[t] || 'Recent');
+  } catch (e) {
+    return 'Recent';
+  }
+}
+
+function setHomeSortModeForTab(tab, mode) {
+  const t = normalizeHomeTabKey(tab);
+  const m = normalizeHomeSortMode(mode);
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_SORT_BY_TAB_KEY) || '{}') || {};
+    obj[t] = m;
+    localStorage.setItem(HOME_SORT_BY_TAB_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
+
+function getHomeViewModeForTab(tab) {
+  const t = normalizeHomeTabKey(tab);
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_VIEW_BY_TAB_KEY) || '{}') || {};
+    const v = String(obj[t] || 'grid');
+    return (v === 'list' || v === 'grid') ? v : 'grid';
+  } catch (e) {
+    return 'grid';
+  }
+}
+
+function setHomeViewModeForTab(tab, mode) {
+  const t = normalizeHomeTabKey(tab);
+  const v = (String(mode || '') === 'list') ? 'list' : 'grid';
+  try {
+    const obj = JSON.parse(localStorage.getItem(HOME_VIEW_BY_TAB_KEY) || '{}') || {};
+    obj[t] = v;
+    localStorage.setItem(HOME_VIEW_BY_TAB_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
+
+// Keep in sync for any older code paths / UI
+let homeSortMode = getHomeSortModeForTab(homeTopTab || 'all');
+let homeViewMode = getHomeViewModeForTab(homeTopTab || 'all');
+
+function setHomeSortMode(mode) {
+  const tab = normalizeHomeTabKey(homeTopTab || 'all');
+  setHomeSortModeForTab(tab, mode);
+  homeSortMode = normalizeHomeSortMode(mode);
+
+  // Update the shared menu UI (same component as Library)
+  try { updateLibrarySortUIForTopTab(); } catch (e) {}
+
+  // Repaint Home
+  try { renderHome(); } catch (e) {}
+}
+
+function setHomeViewMode(mode) {
+  const tab = normalizeHomeTabKey(homeTopTab || 'all');
+  setHomeViewModeForTab(tab, mode);
+  homeViewMode = getHomeViewModeForTab(tab);
+
+  // Update the shared menu UI (same component as Library)
+  try { updateLibrarySortUIForTopTab(); } catch (e) {}
+
+  // Repaint Home
+  try { renderHome(); } catch (e) {}
+}
+
 function getHomeRecentsItems() {
+
   const max = 12;
 
   // ✅ Single source of truth: historyLog in localStorage
@@ -15499,7 +15600,49 @@ function getHomeRecentsItems() {
   if (homeTopTab === 'artists')   out = out.filter(x => x.type === 'artist');
   // 'all' = no filter
 
+  // ✅ Apply Home sort mode (per-tab)
+  const mode = getHomeSortModeForTab(homeTopTab || 'all');
+
+  // Recent = keep history order (already newest-first in historyLog)
+  if (mode === 'Alphabetical') {
+    const label = (x) => {
+      if (x.type === 'playlist') return String(x.name || '');
+      if (x.type === 'artist') return String(x.artist || '');
+      return String(x.album || '');
+    };
+    out.sort((a,b) => label(a).localeCompare(label(b), undefined, { sensitivity: 'base' }));
+  }
+
+  if (mode === 'Recently added') {
+    const rank = (x) => {
+      // best-effort “added” rank using your loaded library/playlist arrays
+      try {
+        if (x.type === 'album') {
+          const arr = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : (Array.isArray(libraryData) ? libraryData : []);
+          const i = arr.findIndex(a =>
+            String(a?.artistName || '') === String(x.artist || '') &&
+            String(a?.albumName || '') === String(x.album || '')
+          );
+          return i; // higher = later in array
+        }
+        if (x.type === 'artist') {
+          const arr = Array.isArray(libraryDataOriginal) ? libraryDataOriginal : (Array.isArray(libraryData) ? libraryData : []);
+          const i = arr.findIndex(a => String(a?.artistName || '') === String(x.artist || ''));
+          return i;
+        }
+        if (x.type === 'playlist') {
+          const arr = Array.isArray(playlists) ? playlists : [];
+          const i = arr.findIndex(p => String(p?.id) === String(x.id));
+          return i;
+        }
+      } catch (e) {}
+      return -1;
+    };
+    out.sort((a,b) => (rank(b) - rank(a)));
+  }
+
   return out.slice(0, max);
+
 }
 
 
@@ -15636,16 +15779,42 @@ return `
       'Playlists';
 
 
-  // Mobile Home
+    // Mobile Home
   if (window.innerWidth <= 768) {
-    renderHomeRecents('home-recent-grid');
-    renderHomeRecentsRow('home-recents-row');
+    const view = getHomeViewModeForTab(homeTopTab || 'all');
+
+    const gridEl = document.getElementById('home-recent-grid');
+    const rowEl  = document.getElementById('home-recents-row');
+
+    if (view === 'list') {
+      if (gridEl) gridEl.style.display = 'none';
+      if (rowEl)  rowEl.style.display  = '';
+      renderHomeRecentsRow('home-recents-row');
+    } else {
+      if (gridEl) gridEl.style.display = '';
+      if (rowEl)  rowEl.style.display  = 'none';
+      renderHomeRecents('home-recent-grid');
+    }
     return;
   }
 
-  // Desktop Home (inside grid-view header)
-  renderHomeRecents('desktop-recent-grid');
-  renderHomeRecentsRow('desktop-recents-row');
+
+    // Desktop Home (inside grid-view header)
+  const view = getHomeViewModeForTab(homeTopTab || 'all');
+
+  const gridEl = document.getElementById('desktop-recent-grid');
+  const rowEl  = document.getElementById('desktop-recents-row');
+
+  if (view === 'list') {
+    if (gridEl) gridEl.style.display = 'none';
+    if (rowEl)  rowEl.style.display  = '';
+    renderHomeRecentsRow('desktop-recents-row');
+  } else {
+    if (gridEl) gridEl.style.display = '';
+    if (rowEl)  rowEl.style.display  = 'none';
+    renderHomeRecents('desktop-recent-grid');
+  }
+
 }
 
                         const homeRecentsShowAllBtn = document.getElementById('home-recents-showall');
