@@ -4909,43 +4909,23 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
     open();
   }, true);
 
-    const modal = document.getElementById('profile-menu-modal');
+      const modal = document.getElementById('profile-menu-modal');
   const bd = document.getElementById('profile-menu-backdrop');
   const panel = document.getElementById('profile-menu-panel');
 
-  // ✅ Click anywhere outside the panel closes (one tap)
+  // ✅ One tap dismiss: tap the dark backdrop (or the empty modal area) to close.
+  // ✅ Button clicks still work because they’re inside #profile-menu-panel.
   if (modal && !modal.__outsideCloseBound) {
     modal.__outsideCloseBound = true;
 
     modal.addEventListener('click', (e) => {
-      // If click is inside panel, do nothing
+      // If the click is inside the panel, do nothing (let Settings/Profile work)
       if (panel && panel.contains(e.target)) return;
+
+      // Otherwise: close (backdrop or empty area)
       close();
     }, true);
   }
-
-  // ✅ Backdrop click also closes
-  if (bd && !bd.__closeBound) {
-    bd.__closeBound = true;
-    bd.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    }, true);
-  }
-
-
-// ✅ Click ANYWHERE outside the panel closes the menu
-const modal = document.getElementById('profile-menu-modal');
-if (modal && !modal.__outsideCloseBound) {
-  modal.__outsideCloseBound = true;
-  modal.addEventListener('click', (e) => {
-    const panel = document.getElementById('profile-menu-panel');
-    if (panel && panel.contains(e.target)) return; // allow button clicks
-    close();
-  }, true);
-}
-
 
   const settingsBtn = document.getElementById('profile-menu-settings');
   if (settingsBtn) settingsBtn.addEventListener('click', () => {
@@ -8251,8 +8231,8 @@ try {
   try {
     const pm = document.getElementById('profile-menu-modal');
     if (pm && !pm.classList.contains('hidden')) {
-      const card = pm.querySelector('div.absolute.left-1/2');
-      if (!card || !card.contains(e.target)) {
+            const card = pm.querySelector('#profile-menu-panel');
+
         pm.classList.add('hidden');
         return; // we handled this tap
       }
