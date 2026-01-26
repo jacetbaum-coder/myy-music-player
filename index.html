@@ -1014,25 +1014,32 @@ body.song-multiselect .track-row:hover{
             max-width: 400px;
             margin-bottom: 24px;
         }
-        .search-input {
+                .search-input {
             width: 100%;
-            background: white;
-            color: black;
-            border-radius: 500px;
-            padding: 12px 48px 12px 48px;
-            font-size: 14px;
-            font-weight: 500;
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.92);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 12px 44px 12px 44px;
+            font-size: 15px;
+            font-weight: 700;
             outline: none;
         }
-        .search-icon {
+        .search-input::placeholder{
+            color: rgba(255,255,255,0.65);
+            font-weight: 700;
+        }
+
+                .search-icon {
             position: absolute;
             left: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: #121212;
+            color: rgba(255,255,255,0.65);
             font-size: 18px;
         }
-         .search-clear {
+
+                  .search-clear {
             position: absolute;
             right: 12px;
             top: 50%;
@@ -1043,13 +1050,15 @@ body.song-multiselect .track-row:hover{
             width: 28px;
             height: 28px;
             border-radius: 9999px;
-            color: #121212;
+            color: rgba(255,255,255,0.65);
             transition: color 0.2s ease, background-color 0.2s ease;
+         }
+
+                .search-clear:hover {
+            color: rgba(255,255,255,0.92);
+            background: rgba(255,255,255,0.10);
         }
-        .search-clear:hover {
-            color: #000;
-            background: rgba(0, 0, 0, 0.08);
-        }
+
 
         /* --- UTILITIES --- */
         .hidden { display: none; }
@@ -9212,10 +9221,16 @@ try { renderHome(); } catch (e) {}
 
 
 
-    if (viewType === 'search') {
-    document.getElementById('search-view').classList.remove('hidden');
-    document.getElementById('global-search').focus();
-  }
+        if (viewType === 'search') {
+      document.getElementById('search-view').classList.remove('hidden');
+
+      // ✅ Do NOT auto-focus (prevents keyboard popping immediately)
+      try { renderSearchRecents(); } catch (e) {}
+
+      // ✅ Enable swipe-down-to-dismiss keyboard (mobile)
+      try { initSearchSwipeToDismissOnce(); } catch (e) {}
+    }
+
 
   if (viewType === 'crate') {
   document.getElementById('crate-view')?.classList.remove('hidden');
@@ -9509,22 +9524,36 @@ function onNavTap(viewType) {
       return;
     }
 
-    // Already at root: detect double tap to scroll-to-top
+        // Already at root: detect double tap to scroll-to-top
     const now = Date.now();
     const last = __navTapLast[viewType] || 0;
 
     if (now - last <= 350) {
       __navTapLast[viewType] = 0;
+
+      // ✅ Search: double-tap opens keyboard
+      if (viewType === 'search') {
+        focusGlobalSearch();
+        return;
+      }
+
+      // Other tabs: keep scroll-to-top
       scrollMainToTopSmooth();
       return;
     }
+
 
     __navTapLast[viewType] = now;
     return; // wait for possible second tap
   }
 
-  // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
-  __navTapLast[viewType] = 0;
+   // Not active (or not mobile): navigate normally, but debounce rapid re-taps to avoid flicker.
+  // ✅ Special case: Search should allow "tap to open" then "tap again quickly to focus"
+  if (isMobile && viewType === 'search') {
+    __navTapLast[viewType] = Date.now();
+  } else {
+    __navTapLast[viewType] = 0;
+  }
 
   const now = Date.now();
   if (isMobile) {
@@ -9540,9 +9569,57 @@ function onNavTap(viewType) {
 
 window.onNavTap = onNavTap;
 
+function focusGlobalSearch(){
+  const input = document.getElementById('global-search');
+  if (!input) return;
+  try { input.focus(); } catch (e) {}
+}
 
+function initSearchSwipeToDismissOnce(){
+  if (window.__searchSwipeDismissBound) return;
+  window.__searchSwipeDismissBound = true;
+
+  const view = document.getElementById('search-view');
+  const area = document.getElementById('main-scroll-area');
+  const input = document.getElementById('global-search');
+  if (!view || !area || !input) return;
+
+  let startY = 0;
+  let tracking = false;
+
+  view.addEventListener('touchstart', (e) => {
+    // Only when Search is visible + the input is focused
+    if (view.classList.contains('hidden')) return;
+    if (document.activeElement !== input) return;
+
+    // Only when you're already at the top (so it feels like “pull down to dismiss”)
+    if (area.scrollTop > 0) return;
+
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    startY = t.clientY;
+    tracking = true;
+  }, { passive: true });
+
+  view.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+
+    const dy = t.clientY - startY;
+
+    // swipe down threshold
+    if (dy > 35) {
+      tracking = false;
+      try { input.blur(); } catch (e) {}
+    }
+  }, { passive: true });
+
+  view.addEventListener('touchend', () => { tracking = false; }, { passive: true });
+}
 
 /**
+
           * ---------------------------------------------------------------------
           * RENDERERS
           * ---------------------------------------------------------------------
