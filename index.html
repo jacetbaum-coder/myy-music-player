@@ -15369,10 +15369,32 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
     const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-  // ✅ Use the SAME Home recents source as the row renderer
-  const items = (typeof getHomeRecentsItems === 'function')
-    ? getHomeRecentsItems().slice(0, slotCount)
-    : [];
+  // ✅ Home top tiles should ONLY show pinned playlists
+  const pinnedIds =
+    (typeof window.loadPinnedPlaylists === 'function')
+      ? window.loadPinnedPlaylists()
+      : (typeof loadPinnedPlaylists === 'function')
+        ? loadPinnedPlaylists()
+        : [];
+
+  const pinnedPlaylists = pinnedIds
+    .map(id => (Array.isArray(playlists) ? playlists.find(pl => pl && pl.id === id) : null))
+    .filter(Boolean)
+    .slice(0, slotCount);
+
+  // If nothing pinned, show nothing (this section stays empty)
+  if (!pinnedPlaylists.length) {
+    grid.innerHTML = '';
+    return;
+  }
+
+  // Convert pinned playlists into the same shape your tile renderer expects
+  const items = pinnedPlaylists.map(pl => ({
+    type: 'playlist',
+    id: pl.id,
+    name: pl.name,
+    cover: (typeof getEffectivePlaylistCover === 'function') ? getEffectivePlaylistCover(pl) : (pl.cover || pl.coverArt || '')
+  }));
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
@@ -16122,7 +16144,11 @@ function loadPinnedPlaylists() {
   if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
     savePinnedPlaylists(normalized);
   }
-      return normalized;
+  return normalized;
+}
+// ✅ expose for callers that check window.loadPinnedPlaylists
+window.loadPinnedPlaylists = loadPinnedPlaylists;
+
 }
 
 // ✅ Expose for codepaths that call window.loadPinnedPlaylists() / window.savePinnedPlaylists()
