@@ -9104,7 +9104,22 @@ const normalizedIds = itemsArr
   .filter(Boolean);
 
 // ✅ Always keep playlist as IDs-only
-pl.trackIds = normalizedIds;
+// ✅ MERGE (do not overwrite): prevents "just added" track from disappearing
+const __existingIds = Array.isArray(pl.trackIds) ? pl.trackIds.map(canonTrackId).filter(Boolean) : [];
+const __incomingIds = Array.isArray(normalizedIds) ? normalizedIds.map(canonTrackId).filter(Boolean) : [];
+
+const __merged = __incomingIds.slice();
+const __seen = new Set(__merged);
+
+for (const __id of __existingIds) {
+  if (!__seen.has(__id)) {
+    __merged.push(__id);
+    __seen.add(__id);
+  }
+}
+
+pl.trackIds = __merged;
+
 
 // ✅ If we're currently viewing this playlist, re-render now that cloud items arrived
 try {
@@ -14130,15 +14145,21 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   // Fill the sheet header with the pressed song
 
 
-  try {
+    try {
     const tEl = document.getElementById('cm-title');
     const aEl = document.getElementById('cm-artist');
     const cEl = document.getElementById('cm-cover');
 
-    if (tEl) tEl.textContent = (song && (song.title || song.name)) ? (song.title || song.name) : 'Song';
-    if (aEl) aEl.textContent = (song && song.artist) ? song.artist : 'Artist';
-    if (cEl) cEl.src = (song && (song.cover || song.coverUrl || song.art || song.image)) ? (song.cover || song.coverUrl || song.art || song.image) : (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
+    const s = _resolvedSong;
+
+    if (tEl) tEl.textContent = (s && (s.title || s.name)) ? (s.title || s.name) : 'Song';
+    if (aEl) aEl.textContent = (s && (s.artist || s.artistName)) ? (s.artist || s.artistName) : 'Artist';
+    if (cEl) cEl.src =
+      (s && (s.cover || s.coverUrl || s.art || s.image))
+        ? (s.cover || s.coverUrl || s.art || s.image)
+        : (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
   } catch (err) {}
+
 
     // Show / hide "Remove from playlist"
   const removeOpt = document.getElementById('menu-remove-opt');
