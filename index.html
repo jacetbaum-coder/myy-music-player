@@ -9123,11 +9123,17 @@ pl.trackIds = __merged;
 
 // ✅ If we're currently viewing this playlist, re-render now that cloud items arrived
 try {
-  if (activePlaylistId === pl.id) {
+  if (typeof activePlaylistId !== "undefined" && activePlaylistId === pl.id) {
     const playlistSongs2 = resolveTrackIdsToSongs(pl.trackIds);
-    renderCollection(pl.name, playlistSongs2, true, activePlaylistIndex);
+
+    // ✅ IMPORTANT: use the playlistIndex for this view (not activePlaylistIndex)
+    renderCollection(pl.name, playlistSongs2, true, playlistIndex);
+
+    // keep side UI in sync
+    try { renderPlaylists(); } catch (e) {}
   }
 } catch (e) {}
+
 
 
   } catch (e) {
