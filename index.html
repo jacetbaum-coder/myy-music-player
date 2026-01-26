@@ -9124,12 +9124,12 @@ pl.trackIds = __merged;
 // ✅ If we're currently viewing this playlist, re-render now that cloud items arrived
 try {
   if (typeof activePlaylistId !== "undefined" && activePlaylistId === pl.id) {
+    const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
     const playlistSongs2 = resolveTrackIdsToSongs(pl.trackIds);
 
-    // ✅ IMPORTANT: use the playlistIndex for this view (not activePlaylistIndex)
-    renderCollection(pl.name, playlistSongs2, true, playlistIndex);
+    // ✅ Render using the computed index (stable, no scope issues)
+    renderCollection(pl.name, playlistSongs2, true, idx);
 
-    // keep side UI in sync
     try { renderPlaylists(); } catch (e) {}
   }
 } catch (e) {}
