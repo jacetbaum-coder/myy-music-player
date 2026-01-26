@@ -15838,13 +15838,15 @@ function loadPinnedPlaylists() {
   if (JSON.stringify(normalized) !== JSON.stringify(stored)) {
     savePinnedPlaylists(normalized);
   }
-    return normalized;
+      return normalized;
 }
 
-// ✅ expose for any codepaths that call window.loadPinnedPlaylists()
+// ✅ Expose for codepaths that call window.loadPinnedPlaylists() / window.savePinnedPlaylists()
 window.loadPinnedPlaylists = loadPinnedPlaylists;
+window.savePinnedPlaylists = savePinnedPlaylists;
 
 function savePinnedPlaylists(ids) {
+
 
   localStorage.setItem('pinnedPlaylists', JSON.stringify(ids));
     syncPinnedPlaylists(ids);
