@@ -15921,13 +15921,23 @@ return `
                 return;
               }
 
-              // ✅ PLAYLIST
+                           // ✅ PLAYLIST
               if (type === 'playlist') {
 
-                const albumName = card.getAttribute('data-album');
-                if (albumName) openAlbumByName(albumName);
+                const id = card.getAttribute('data-id') || '';
+                const list = Array.isArray(playlists) ? playlists : [];
+
+                const idx = list.findIndex(pl =>
+                  String(pl?.id) === String(id) ||
+                  String(pl?.name) === String(id)
+                );
+
+                if (idx >= 0) showView('playlist', idx);
                 return;
               }
+
+              // ✅ ARTIST
+
 
               // ✅ ARTIST
               if (type === 'artist') {
