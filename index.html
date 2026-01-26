@@ -15334,10 +15334,31 @@ function handleContextMenu(e, song){
   row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
-               function addToHistory(album, artist, cover) {
+                              function addToHistory(album, artist, cover) {
+
+             // ✅ If playback was started from an Artist page, log an ARTIST recent (direct engagement only)
+             try {
+               if (window.playContext && String(window.playContext.type) === 'artist') {
+                 const aName = String(window.playContext.label || '').trim() || String(artist || '').trim();
+                 if (aName) {
+                   const aCover = String(cover || '').trim(); // best available non-async image
+                   history = history.filter(h => !(h && h.type === 'artist' && String(h.artist) === aName));
+                   history.unshift({ type: 'artist', artist: aName, cover: aCover });
+
+                   localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+                   renderHistory();
+                   try { renderHome(); } catch (e) {}
+                   try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
+                   try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+                   return; // ✅ do NOT also log album/playlist for this play
+                 }
+               }
+             } catch (e) {}
+
              const playlistMatch = activePlaylistId
                 ? playlists.find(pl => pl.id === activePlaylistId)
                 : null;
+
 
                         if (playlistMatch) {
                 // ✅ Recompute playlist cover using the real rules (explicit > 1 song > 2x2)
@@ -15521,10 +15542,12 @@ let __homeTabsBound = false;
 
 function setHomeTopTab(tab) {
   window.homeTopTab = normalizeHomeTabKey(tab || 'all');
+  homeTopTab = window.homeTopTab; // ✅ CRITICAL: many functions read homeTopTab
   try { localStorage.setItem('homeTopTab', window.homeTopTab); } catch (e) {}
 
   // keep these in sync for Home menu behavior
 homeSortMode = getHomeSortModeForTab(window.homeTopTab);
+
 homeSortDir  = getHomeSortDirForTab(window.homeTopTab);
 homeViewMode = getHomeViewModeForTab(window.homeTopTab);
 
@@ -15697,8 +15720,10 @@ try {
   if (!window.homeTopTab) {
     window.homeTopTab = localStorage.getItem(HOME_TAB_KEY) || 'all';
   }
-  window.homeTopTab = normalizeHomeTabKey(window.homeTopTab);
+    window.homeTopTab = normalizeHomeTabKey(window.homeTopTab);
   localStorage.setItem(HOME_TAB_KEY, window.homeTopTab);
+  homeTopTab = window.homeTopTab; // ✅ keep legacy var in sync
+
 } catch (e) {
   window.homeTopTab = window.homeTopTab || 'all';
 }
@@ -16207,9 +16232,10 @@ function renderHistory() {
   };
 
   // ✅ Remove deleted playlists from history
-  history = history.filter(h => {
+    history = history.filter(h => {
     if (h && h.type === 'playlist') return !!getPlaylistById(h.id);
     if (h && h.type === 'album') return !!h.album;
+    if (h && h.type === 'artist') return !!h.artist;
     return false;
   });
 
@@ -16254,10 +16280,29 @@ try { if (typeof window.saveHistoryToCloud === "function") window.saveHistoryToC
       return historyEl.appendChild(div);
     }
 
+        // artist
+    if (h.type === 'artist' && h.artist) {
+      div.onclick = () => openArtistByName(h.artist);
+
+      const cover = (h.cover && String(h.cover).trim()) ? String(h.cover).trim() : '';
+
+      div.innerHTML = `
+        <div class="w-10 h-10 rounded overflow-hidden bg-zinc-800 flex items-center justify-center">
+          ${cover ? `<img src="${cover}" class="w-full h-full object-cover">` : `<i class="fas fa-user text-zinc-600"></i>`}
+        </div>
+        <div class="flex-1 truncate">
+          <div class="text-sm font-bold truncate">${String(h.artist || '')}</div>
+          <div class="text-xs text-zinc-400">Artist</div>
+        </div>
+      `;
+      return historyEl.appendChild(div);
+    }
+
     // album
     div.onclick = () => openAlbumByName(h.album);
 
     const cover = (h.cover && String(h.cover).trim()) ? String(h.cover).trim() : '';
+
     const coverHtml = cover
       ? `<img src="${cover}" class="w-10 h-10 rounded object-cover" alt="">`
       : `<div class="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-zinc-600"></i></div>`;
