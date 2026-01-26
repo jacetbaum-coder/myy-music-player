@@ -15931,8 +15931,9 @@ return `
       renderHomeRecentsRow('home-recents-row');
     } else {
       if (gridEl) gridEl.style.display = '';
-      if (rowEl)  rowEl.style.display  = 'none';
+      if (rowEl)  rowEl.style.display  = '';
       renderHomeRecents('home-recent-grid');
+      renderHomeRecentsRow('home-recents-row');
     }
     return;
   }
