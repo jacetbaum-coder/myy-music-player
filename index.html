@@ -15973,8 +15973,16 @@ if (homeRecentsShowAllBtn) {
   if (!grid || !section) return;
 
   // ✅ Match Home Recents rules (same as desktop/mobile row)
-  const allItems = Array.isArray(history) ? history.slice(0, 12) : [];
+    const srcHistory =
+    (Array.isArray(window.historyLog) && window.historyLog) ||
+    (Array.isArray(window.recentItems) && window.recentItems) ||
+    (Array.isArray(window.recents) && window.recents) ||
+    (Array.isArray(window.playHistory) && window.playHistory) ||
+    [];
+
+  const allItems = srcHistory.slice(0, 12);
   const items = allItems.slice(0, (mobileRecentsExpanded ? 12 : 4));
+
 
   if (items.length === 0) {
     grid.innerHTML = '';
