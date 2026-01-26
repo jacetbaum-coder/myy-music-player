@@ -15900,24 +15900,98 @@ return `
 
 
         function renderHome() {
-  // ✅ Update the Home section label (above Recents)
+  // ✅ Home section title is always "Pinned playlists"
   const t = document.getElementById(
-  window.innerWidth <= 768
-    ? 'home-top-grid-title-mobile'
-    : 'home-top-grid-title'
-);
+    window.innerWidth <= 768
+      ? 'home-top-grid-title-mobile'
+      : 'home-top-grid-title'
+  );
 
-    if (t) {
-    t.textContent =
-      (window.homeTopTab === 'albums')  ? 'Albums' :
-      (window.homeTopTab === 'artists') ? 'Artists' :
-      (window.homeTopTab === 'liked')   ? 'Liked' :
-      (window.homeTopTab === 'all')     ? 'All' :
-      'Playlists';
-  }
+  if (t) t.textContent = 'Pinned playlists';
 
+  // ✅ Ensure / render the 4 pinned playlist pills right under the title
+  (function renderPinnedPlaylistPills() {
+    if (!t) return;
+
+    const isMobile = (window.innerWidth <= 768);
+    const pillId = isMobile ? 'home-pinned-pills-mobile' : 'home-pinned-pills-desktop';
+
+    let wrap = document.getElementById(pillId);
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = pillId;
+      wrap.className = 'flex gap-2 overflow-x-auto no-scrollbar mt-3 mb-4';
+      // insert directly under the title
+      t.insertAdjacentElement('afterend', wrap);
+    }
+
+    // pull pinned ids (your existing helpers)
+    let pinned = [];
+    try { pinned = (typeof loadPinnedPlaylists === 'function') ? loadPinnedPlaylists() : []; } catch (e) { pinned = []; }
+    if (!Array.isArray(pinned)) pinned = [];
+
+    // exactly 4 slots
+    const slots = [0,1,2,3].map(i => pinned[i] || null);
+
+    const findPlaylistById = (id) => {
+      if (!id) return null;
+      try {
+        const local = Array.isArray(window.playlists) ? window.playlists.find(p => String(p?.id) === String(id)) : null;
+        if (local) return { id: local.id, name: local.name || 'Playlist' };
+
+        const cloud = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists.find(p => String(p?.playlist_id) === String(id)) : null;
+        if (cloud) return { id: cloud.playlist_id, name: cloud.name || 'Playlist' };
+      } catch (e) {}
+      return null;
+    };
+
+    const base = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap';
+    const onCls = 'bg-white/10 text-white hover:bg-white/15';
+    const emptyCls = 'bg-white/5 text-white/30';
+
+    wrap.innerHTML = slots.map((idOrNull, idx) => {
+      const pl = idOrNull ? findPlaylistById(idOrNull) : null;
+      const label = pl ? String(pl.name || 'Playlist') : 'Empty';
+      const safe = label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const disabled = pl ? '' : 'disabled';
+      const cls = base + ' ' + (pl ? onCls : emptyCls);
+      const pid = pl ? String(pl.id) : '';
+      return `<button class="${cls}" data-pid="${pid}" ${disabled}>${safe}</button>`;
+    }).join('');
+
+    Array.from(wrap.querySelectorAll('button[data-pid]')).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.getAttribute('data-pid');
+        if (!pid) return;
+        try { showView('playlist', pid); } catch (e) {}
+      });
+    });
+  })();
+
+  // ✅ Update the "Recents" header text based on the selected Home tab
+  (function updateRecentsHeader() {
+    const tab = String(window.homeTopTab || 'all');
+
+    const label =
+      (tab === 'playlists') ? 'Recent playlists' :
+      (tab === 'albums')    ? 'Recent albums' :
+      (tab === 'artists')   ? 'Recent artists' :
+      (tab === 'liked')     ? 'Liked songs' :
+      'Recents';
+
+    // update any h2 inside Home that currently says "Recents" (mobile + desktop)
+    try {
+      document.querySelectorAll('#home-view h2').forEach(h => {
+        const txt = String(h.textContent || '').trim();
+        if (txt === 'Recents' || txt.startsWith('Recent ') || txt === 'Liked songs') {
+          h.textContent = label;
+        }
+      });
+    } catch (e) {}
+  })();
 
   // Mobile Home
+
 
   if (window.innerWidth <= 768) {
     const view = getHomeViewModeForTab(homeTopTab || 'all');
