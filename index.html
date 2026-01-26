@@ -14640,13 +14640,13 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
 
     menuTargetSong = _resolvedSong;
 
-  // ✅ prevent global click/touch "outside dismiss" from instantly closing the menu
-  // desktop guard:
-  try { suppressContextMenuCloseUntil = Date.now() + 500; } catch (e) {}
-  // mobile guard (your touchstart handler checks this):
-  try { window.__outsideDismissSkipUntil = Date.now() + 500; } catch (e) {}
+// ✅ Prevent the global outside-dismiss handlers from closing the menu
+// on the same tap/click that opened it.
+try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (e) {}
+try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (e) {}
 
-  try { window.menuTargetSong = menuTargetSong; } catch (e) {}
+try { window.menuTargetSong = menuTargetSong; } catch (e) {}
+
 
   // Fill the sheet header with the pressed song
 
