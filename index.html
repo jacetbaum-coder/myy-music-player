@@ -15789,15 +15789,16 @@ return `
 );
 
   if (t) {
-        t.textContent =
-      homeTopTab === 'albums'  ? 'Albums' :
-      homeTopTab === 'artists' ? 'Artists' :
-      homeTopTab === 'liked'   ? 'Liked' :
-      homeTopTab === 'all'     ? 'All' :
-      'Playlists';
+  t.textContent =
+    homeTopTab === 'albums'  ? 'Albums' :
+    homeTopTab === 'artists' ? 'Artists' :
+    homeTopTab === 'liked'   ? 'Liked' :
+    homeTopTab === 'all'     ? 'All' :
+    'Playlists';
+}
 
+// Mobile Home
 
-    // Mobile Home
   if (window.innerWidth <= 768) {
     const view = getHomeViewModeForTab(homeTopTab || 'all');
 
