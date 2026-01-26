@@ -2868,10 +2868,10 @@ body.qs-lock {
 
               <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
               <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recently added" type="button">Recently added</button>
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by artist" type="button">Alphabetical by artist</button>
-              <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical by album" type="button">Alphabetical by album</button>
+                            <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Alphabetical" type="button">Alphabetical</button>
 
               <div class="h-px bg-white/10 my-2"></div>
+
 
               <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">View as</div>
                             <div class="px-3 pb-3 flex items-center gap-2">
@@ -4908,8 +4908,31 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
     open();
   }, true);
 
+    const modal = document.getElementById('profile-menu-modal');
   const bd = document.getElementById('profile-menu-backdrop');
-if (bd) bd.addEventListener('click', close);
+  const panel = document.getElementById('profile-menu-panel');
+
+  // ✅ Click anywhere outside the panel closes (one tap)
+  if (modal && !modal.__outsideCloseBound) {
+    modal.__outsideCloseBound = true;
+
+    modal.addEventListener('click', (e) => {
+      // If click is inside panel, do nothing
+      if (panel && panel.contains(e.target)) return;
+      close();
+    }, true);
+  }
+
+  // ✅ Backdrop click also closes
+  if (bd && !bd.__closeBound) {
+    bd.__closeBound = true;
+    bd.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    }, true);
+  }
+
 
 // ✅ Click ANYWHERE outside the panel closes the menu
 const modal = document.getElementById('profile-menu-modal');
@@ -6958,11 +6981,25 @@ function normalizeLibraryTabKey(tab) {
   return 'all';
 }
 
+function normalizeLibrarySortMode(mode){
+  const m = String(mode || '').trim();
+
+  // ✅ Only 3 supported
+  if (m === 'Recent' || m === 'Recently added' || m === 'Alphabetical') return m;
+
+  // Back-compat (your current/older UI strings)
+  if (m === 'Recents') return 'Recent';
+  if (m === 'Alphabetical by artist') return 'Alphabetical';
+  if (m === 'Alphabetical by album') return 'Alphabetical';
+
+  return 'Alphabetical';
+}
+
 function getLibrarySortModeForTab(tab) {
   const t = normalizeLibraryTabKey(tab);
   try {
     const obj = JSON.parse(localStorage.getItem(LIB_SORT_BY_TAB_KEY) || '{}') || {};
-    return obj[t] || 'Alphabetical';
+    return normalizeLibrarySortMode(obj[t] || 'Alphabetical');
   } catch (e) {
     return 'Alphabetical';
   }
@@ -6970,7 +7007,7 @@ function getLibrarySortModeForTab(tab) {
 
 function setLibrarySortModeForTab(tab, mode) {
   const t = normalizeLibraryTabKey(tab);
-  const m = String(mode || 'Alphabetical');
+  const m = normalizeLibrarySortMode(mode);
   try {
     const obj = JSON.parse(localStorage.getItem(LIB_SORT_BY_TAB_KEY) || '{}') || {};
     obj[t] = m;
@@ -6979,6 +7016,7 @@ function setLibrarySortModeForTab(tab, mode) {
 }
 
 let librarySortMode = getLibrarySortModeForTab('all');
+
 let libraryViewMode = localStorage.getItem('libraryViewMode') || 'grid';
 
 // Used for "Recently added"
