@@ -13281,15 +13281,20 @@ if (nowPlayingOverlay) {
 
         // Don’t decide until it actually moves (prevents taps closing)
     if (!npDecided) {
-      if (Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+      if (Math.abs(dy) < 1 && Math.abs(dx) < 1) return;
       npDecided = true;
       npIsVertical = Math.abs(dy) > Math.abs(dx);
 
-      // ✅ Only "take over" the gesture if it's a DOWN swipe AND we're at the top of the scroll.
-      if (npIsVertical && dy > 0 && (!npSheet || npSheet.scrollTop <= 0)) {
+            // ✅ Take over if it's a DOWN vertical swipe and:
+      //   - we're at top of scroll, OR
+      //   - the swipe started near the top area (feels Spotify-ish)
+      const startNearTop = npStartY <= 160;
+
+      if (npIsVertical && dy > 0 && (!npSheet || npSheet.scrollTop <= 0 || startNearTop)) {
         nowPlayingOverlay.classList.add('np-dragging');
         try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
       }
+
     }
 
 
