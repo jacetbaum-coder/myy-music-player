@@ -3432,7 +3432,8 @@ body.qs-lock {
         <button id="np-more"
             class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
             aria-label="More options"
-            onclick="try{ showContextMenuAt(0,0,(typeof currentSong!=='undefined'&&currentSong)?currentSong:window.currentSong,this);}catch(e){console.warn(e);}">
+            onclick="try{ const r=this.getBoundingClientRect(); const x=r.left+(r.width/2); const y=r.top+r.height; showContextMenuAt(x,y,(typeof currentSong!=='undefined'&&currentSong)?currentSong:window.currentSong,this);}catch(e){console.warn(e);}">
+
 
       <i class="fas fa-ellipsis-h text-white"></i>
     </button>
