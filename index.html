@@ -6845,8 +6845,22 @@ if (volumeContainer) {
 
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
-        const contextMenu = document.getElementById('context-menu');
-const contextMenuBackdrop = document.getElementById('context-menu-backdrop');
+        const contextMenu = document.getElementById("context-menu");
+const contextMenuBackdrop = document.getElementById("context-menu-backdrop");
+
+// ✅ Ensure context menu renders in the same visual layer as Now Playing
+try {
+  const npRoot =
+    document.getElementById("now-playing-overlay") ||
+    document.querySelector('[id*="now-playing"]') ||
+    document.querySelector('[class*="now-playing"]');
+
+  if (npRoot && contextMenu && contextMenuBackdrop) {
+    npRoot.appendChild(contextMenuBackdrop);
+    npRoot.appendChild(contextMenu);
+  }
+} catch (e) {}
+
         
 let contextMenuAnchor = null;
 
