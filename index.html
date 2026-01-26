@@ -2644,7 +2644,9 @@ body.qs-lock {
       <button id="mobile-home-tab-playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
       <button id="mobile-home-tab-albums" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Albums</button>
       <button id="mobile-home-tab-artists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Artists</button>
+      <button id="mobile-home-tab-liked" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Liked</button>
       <button id="mobile-home-tab-all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+
     </div>
 
     <!-- Playlists -->
@@ -3456,17 +3458,30 @@ body.qs-lock {
         <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
       </div>
 
-      <div class="mt-8">
-        <div id="np-title" class="title-marquee text-3xl md:text-4xl font-black tracking-tight">
-  <div class="marquee-inner">
-    <span class="marquee-text" data-marquee="a">—</span>
-    <span class="marquee-text" data-marquee="b" aria-hidden="true">—</span>
-  </div>
-</div>
+            <div class="mt-8">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <div id="np-title" class="title-marquee text-3xl md:text-4xl font-black tracking-tight">
+              <div class="marquee-inner">
+                <span class="marquee-text" data-marquee="a">—</span>
+                <span class="marquee-text" data-marquee="b" aria-hidden="true">—</span>
+              </div>
+            </div>
+          </div>
+
+          <button id="np-heart"
+                  class="mt-1 text-zinc-400 hover:text-white"
+                  onclick="event.stopPropagation(); toggleLike();"
+                  aria-label="Like">
+            <i class="far fa-heart text-2xl"></i>
+          </button>
+        </div>
+
         <div id="np-artist" class="text-zinc-400 mt-2 text-lg font-semibold hover:underline cursor-pointer">—</div>
       </div>
 
       <!-- progress -->
+
       <div class="mt-8">
         <div id="np-progress-container" class="np-progress-container h-1 w-full bg-white/20 rounded-full overflow-hidden">
   <div id="np-progress-fill" class="h-full w-[0%] bg-white rounded-full"></div>
@@ -15393,7 +15408,9 @@ function setHomeTopTab(tab) {
   try { renderHome(); } catch (e) {}
 }
 
-function updateMobileHomeTabUI() {
+function initMobileHomeTabsOnce() {
+  if (__homeTabsBound) return;
+
   const map = {
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
@@ -15401,7 +15418,6 @@ function updateMobileHomeTabUI() {
     all: 'mobile-home-tab-all',
   };
 
-  Object.entries(map).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
 
@@ -15421,10 +15437,12 @@ function initMobileHomeTabsOnce() {
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
     artists: 'mobile-home-tab-artists',
+    liked: 'mobile-home-tab-liked',
     all: 'mobile-home-tab-all',
   };
 
   Object.entries(map).forEach(([key, id]) => {
+
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('click', () => setHomeTopTab(key));
@@ -15452,7 +15470,12 @@ function getHomeRecentsItems() {
     return { type:'album', album: h.album, artist: h.artist, cover: h.cover };
   });
 
-  // ✅ filter based on homeTopTab
+    // ✅ filter based on homeTopTab
+  if (homeTopTab === 'liked') {
+    // Home "Liked" tab is a special item that opens the Liked view
+    return [{ type: 'liked' }].slice(0, max);
+  }
+
   if (homeTopTab === 'playlists') out = out.filter(x => x.type === 'playlist');
   if (homeTopTab === 'albums')    out = out.filter(x => x.type === 'album');
   if (homeTopTab === 'artists')   out = out.filter(x => x.type === 'artist');
@@ -15460,6 +15483,7 @@ function getHomeRecentsItems() {
 
   return out.slice(0, max);
 }
+
 
 function renderHomeRecentsRow(containerId) {
 
@@ -15489,12 +15513,14 @@ function renderHomeRecentsRow(containerId) {
 
          row.innerHTML = items.map(item => {
             const title =
-  (item.type === 'playlist') ? (item.name || 'Playlist')
+  (item.type === 'liked')    ? 'Liked songs'
+  : (item.type === 'playlist') ? (item.name || 'Playlist')
   : (item.type === 'artist') ? (item.artist || 'Artist')
   : (item.album || 'Album');
 
 const sub =
-  (item.type === 'playlist') ? 'Playlist'
+  (item.type === 'liked')    ? 'Playlist'
+  : (item.type === 'playlist') ? 'Playlist'
   : (item.type === 'artist') ? 'Artist'
   : (item.artist || '');
 
@@ -15503,9 +15529,11 @@ const safeId = String(item.id || '').replace(/"/g, '&quot;');
 const safeArtist = String(item.artist || '').replace(/"/g, '&quot;');
 
 const dataAttrs =
-  (item.type === 'playlist') ? `data-type="playlist" data-id="${safeId}"`
+  (item.type === 'liked')    ? `data-type="liked"`
+  : (item.type === 'playlist') ? `data-type="playlist" data-id="${safeId}"`
   : (item.type === 'artist') ? `data-type="artist" data-artist="${safeArtist}"`
   : `data-type="album" data-album="${safeAlbum}"`;
+
 
                         let coverUrl = item.cover || '';
             let coverMarkup = '';
@@ -15546,16 +15574,15 @@ return `
             card.addEventListener('click', () => {
               const type = card.getAttribute('data-type');
 
-              // ✅ PLAYLIST
-              if (type === 'playlist') {
-                const id = card.getAttribute('data-id');
-                const idx = playlists.findIndex(pl => String(pl.id) === String(id));
-                if (idx !== -1) showView('playlist', idx);
+                            // ✅ LIKED
+              if (type === 'liked') {
+                showView('liked');
                 return;
               }
 
-              // ✅ ALBUM
-              if (type === 'album') {
+              // ✅ PLAYLIST
+              if (type === 'playlist') {
+
                 const albumName = card.getAttribute('data-album');
                 if (albumName) openAlbumByName(albumName);
                 return;
@@ -15583,12 +15610,13 @@ return `
 );
 
   if (t) {
-    t.textContent =
+        t.textContent =
       homeTopTab === 'albums'  ? 'Albums' :
       homeTopTab === 'artists' ? 'Artists' :
+      homeTopTab === 'liked'   ? 'Liked' :
       homeTopTab === 'all'     ? 'All' :
       'Playlists';
-  }
+
 
   // Mobile Home
   if (window.innerWidth <= 768) {
@@ -17217,13 +17245,31 @@ function updateCounts() {
             if (el) el.innerText = `${likedSongs.length} songs`;
         }
 
-        function updateHeartUI() {
-            const h = document.getElementById('dock-heart');
+                function updateHeartUI() {
             const isLiked = currentSong && likedSongs.some(s => s.url === currentSong.url);
-            h.className = isLiked ? "fas fa-heart text-[#1db954] cursor-pointer" : "far fa-heart text-zinc-400 cursor-pointer";
+
+            // Dock heart
+            const h = document.getElementById('dock-heart');
+            if (h) {
+              h.className = isLiked
+                ? "fas fa-heart text-[#1db954] cursor-pointer"
+                : "far fa-heart text-zinc-400 cursor-pointer";
+            }
+
+            // Now Playing heart (button contains an <i>)
+            const npBtn = document.getElementById('np-heart');
+            if (npBtn) {
+              const i = npBtn.querySelector('i');
+              if (i) {
+                i.className = isLiked
+                  ? "fas fa-heart text-2xl text-[#1db954]"
+                  : "far fa-heart text-2xl text-zinc-400";
+              }
+            }
         }
 
         function toggleLike() {
+
             if (!currentSong) return;
             const idx = likedSongs.findIndex(s => s.url === currentSong.url);
             if (idx === -1) likedSongs.push({...currentSong});
