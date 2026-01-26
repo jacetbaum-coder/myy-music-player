@@ -1106,6 +1106,11 @@ body.song-multiselect .track-row:hover{
 }
 
 /* NOW PLAYING: Lyrics collapse/expand */
+#np-lyrics-body{
+  white-space: pre-line;     /* ✅ keep line breaks */
+  word-break: break-word;
+}
+
 .np-lyrics-collapsed{
   display: -webkit-box;
   -webkit-line-clamp: 6;
@@ -1117,6 +1122,7 @@ body.song-multiselect .track-row:hover{
   -webkit-line-clamp: unset;
   overflow: visible;
 }
+
 
 .sidebar-hidden { display: none !important; }
 
