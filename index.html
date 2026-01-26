@@ -11575,16 +11575,177 @@ function renderSearchRecents(){
   });
 }
 
+// ✅ Recent clicks (albums/playlists/songs you opened from Search)
+const __SEARCH_CLICK_RECENTS_KEY = 'searchClickRecents:v1';
+
+function loadSearchClickRecents(){
+  try {
+    const arr = JSON.parse(localStorage.getItem(__SEARCH_CLICK_RECENTS_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
+function saveSearchClickRecents(arr){
+  try { localStorage.setItem(__SEARCH_CLICK_RECENTS_KEY, JSON.stringify(arr.slice(0, 12))); } catch (e) {}
+}
+
+function pushSearchClickRecent(item){
+  try {
+    if (!item) return;
+
+    const type = String(item.type || '').trim();
+    const id = String(item.id || '').trim();
+    const link = String(item.link || '').trim();
+
+    const key = type + '|' + (id || link);
+    if (!type || !key || key === '|') return;
+
+    const arr = loadSearchClickRecents().filter(x => {
+      const k = String(x.type || '') + '|' + (String(x.id || '') || String(x.link || ''));
+      return k !== key;
+    });
+
+    arr.unshift(item);
+    saveSearchClickRecents(arr);
+  } catch (e) {}
+}
+
+function renderSearchClickRecents(){
+  const results = document.getElementById('search-results');
+  if (!results) return;
+
+  const rec = loadSearchClickRecents();
+  if (!rec.length) {
+    // fallback to the old term-based recent searches (if any)
+    try { renderSearchRecents(); } catch (e) {
+      results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+    }
+    return;
+  }
+
+  const header = `
+    <div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">Recent</div>
+  `;
+
+  const rows = rec.map(item => {
+    const title = String(item.title || item.name || item.album || item.playlist || '').replace(/</g,'&lt;');
+    const subtitle = String(item.subtitle || item.artist || '').replace(/</g,'&lt;');
+    const cover = String(item.cover || '').trim();
+    const type = String(item.type || '').trim().replace(/"/g,'&quot;');
+    const id = String(item.id || '').trim().replace(/"/g,'&quot;');
+    const link = String(item.link || '').trim().replace(/"/g,'&quot;');
+
+    return `
+      <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group"
+           data-search-click-recent="1"
+           data-type="${type}"
+           data-id="${id}"
+           data-link="${link}">
+        <img src="${cover}" class="w-12 h-12 rounded object-cover" onerror="this.style.opacity='0';" />
+        <div class="flex-1 overflow-hidden">
+          <div class="text-white font-bold truncate">${title}</div>
+          <div class="text-sm text-zinc-400 truncate">${subtitle}</div>
+        </div>
+        <i class="fas fa-chevron-right text-zinc-600"></i>
+      </div>
+    `;
+  }).join('');
+
+  results.innerHTML = header + rows;
+
+  results.querySelectorAll('[data-search-click-recent="1"]').forEach(row => {
+    row.addEventListener('click', () => {
+      // dismiss keyboard / blinking cursor
+      try { const input = document.getElementById('global-search'); if (input) input.blur(); } catch (e) {}
+
+      const type = row.getAttribute('data-type') || '';
+      const id = row.getAttribute('data-id') || '';
+      const link = row.getAttribute('data-link') || '';
+
+      if (type === 'album' && id) {
+        try { openAlbumByName(id); } catch (e) {}
+        return;
+      }
+      if (type === 'playlist' && id) {
+        try { openPlaylistById(id); } catch (e) {}
+        return;
+      }
+      if (type === 'song' && link) {
+        // best-effort: keep current behavior (play)
+        try { playContext = { type: 'search', label: 'Recent' }; } catch (e) {}
+        try { playSpecificSong(link, '', '', '', ''); } catch (e) {}
+        return;
+      }
+    });
+  });
+}
+
+// ✅ Fix the X button crash + use it to show recent clicked items
+function clearSearch(){
+  const input = document.getElementById('global-search');
+  if (input) input.value = '';
+  try { if (input) input.blur(); } catch (e) {}
+  try { renderSearchClickRecents(); } catch (e) {}
+}
+
+// Some older markup calls exitSearch(); keep it from crashing too.
+function exitSearch(){
+  clearSearch();
+}
+
+// ✅ Swipe-down on Search: dismiss keyboard + show recent clicked items
+function initSearchSwipeDownDismiss(){
+  if (window.__searchSwipeDownDismissInstalled) return;
+  window.__searchSwipeDownDismissInstalled = true;
+
+  const root = document.getElementById('search-view');
+  if (!root) return;
+
+  let startX = 0, startY = 0, active = false;
+
+  root.addEventListener('touchstart', (e) => {
+    if (!e.touches || !e.touches[0]) return;
+
+    // only trigger when the main scroll area is already at the top
+    try {
+      const sc = document.getElementById('main-scroll-area');
+      if (sc && sc.scrollTop > 0) { active = false; return; }
+    } catch (err) {}
+
+    active = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  root.addEventListener('touchend', (e) => {
+    if (!active) return;
+    active = false;
+
+    const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+    if (!t) return;
+
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (dy > 70 && Math.abs(dx) < 40) {
+      clearSearch();
+    }
+  }, { passive: true });
+}
+
+try { setTimeout(initSearchSwipeDownDismiss, 0); } catch (e) {}
+
 function handleSearch(query) {
 
           const results = document.getElementById('search-results');
           if (!results) return;
 
           const raw = String(query || "");
-          if (!raw.trim()) {
-  renderSearchRecents();
+                    if (!raw.trim()) {
+  renderSearchClickRecents();
   return;
 }
+
 
 
           const q = raw.trim();
@@ -11781,7 +11942,18 @@ _score: score
   // keep s.cover in sync for anything else that reads it later
   try { s.cover = cover || s.cover; } catch (e) {}
 
+  try {
+    pushSearchClickRecent({
+      type: 'song',
+      link: String(s.link || ''),
+      title: String(s.name || ''),
+      subtitle: String((s.artist || '') + (s.album ? (' • ' + s.album) : '')),
+      cover: String(cover || s.cover || '')
+    });
+  } catch (e) {}
+
   playSpecificSong(s.link, s.name, s.album, s.artist, cover);
+
 }
 
             });
@@ -11888,9 +12060,26 @@ meta.textContent =
           const appendAlbumRow = (album) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-            row.addEventListener('click', () => {
+                        row.addEventListener('click', () => {
+              // save as a "recent clicked" item
+              let c = '';
+              try {
+                c = (typeof getAlbumCover === 'function')
+                  ? String(getAlbumCover(album.artist || '', album.album || '', album.cover || album.coverArt || '') || '')
+                  : String(album.cover || album.coverArt || '');
+              } catch (e) {}
+
+              pushSearchClickRecent({
+                type: 'album',
+                id: String(album.album || ''),
+                title: String(album.album || ''),
+                subtitle: String(album.artist || ''),
+                cover: String(c || '')
+              });
+
               openAlbumByName(album.album);
             });
+
 
             const img = document.createElement('img');
             const cover = (typeof getAlbumCover === 'function')
@@ -11975,7 +12164,21 @@ img.src = cover || '';
           const appendPlaylistRow = (playlist) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-            row.addEventListener('click', () => {
+                        row.addEventListener('click', () => {
+              // save as a "recent clicked" item
+              let c = '';
+              try {
+                c = String(playlist.cover || playlist.coverUrl || playlist.cover_url || '') || '';
+              } catch (e) {}
+
+              pushSearchClickRecent({
+                type: 'playlist',
+                id: String(playlist.id || ''),
+                title: String(playlist.name || ''),
+                subtitle: 'Playlist',
+                cover: String(c || '')
+              });
+
               const idx = playlists.findIndex(p => p.id === playlist.id);
               if (idx !== -1) showView('playlist', idx);
             });
