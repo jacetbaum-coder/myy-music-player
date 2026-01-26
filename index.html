@@ -1063,8 +1063,15 @@ body.song-multiselect .track-row:hover{
 
 .dock-hidden { transform: translateY(100%); }
 
+/* Dock artist name should NOT be interactive (no hover, no click) */
+#p-artist {
+  pointer-events: none !important;
+  cursor: default !important;
+  text-decoration: none !important;
+}
 
-/* Mobile: when Now Playing is open, remove bottom tabs spacing entirely */
+ /* Mobile: when Now Playing is open, remove bottom tabs spacing entirely */
+
 @media (max-width: 768px) {
   body.np-open #main-dock { display: none !important; }
   body.np-open .mobile-nav { display: none !important; }
