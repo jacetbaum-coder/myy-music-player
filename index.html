@@ -12439,6 +12439,47 @@ if (npArtistEl) {
   npArtistEl.addEventListener('click', openArtistFromCurrentSong);
 }
 
+// ✅ Bind Now Playing "•••" menu button (prevents instant outside-dismiss)
+(function bindNowPlayingMore(){
+  const btn = document.getElementById('np-more');
+  if (!btn || btn.__boundMenu) return;
+  btn.__boundMenu = true;
+
+  // Use pointerdown/touchstart to block the global outside-dismiss BEFORE it runs
+  btn.addEventListener('pointerdown', (e) => {
+    try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (err) {}
+    try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (err) {}
+    e.stopPropagation();
+  }, true);
+
+  btn.addEventListener('touchstart', (e) => {
+    try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (err) {}
+    try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (err) {}
+    e.stopPropagation();
+  }, { passive: true, capture: true });
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const r = btn.getBoundingClientRect();
+    const x = r.left + (r.width / 2);
+    const y = r.top + r.height;
+
+    try {
+      showContextMenuAt(
+        x,
+        y,
+        (typeof currentSong !== 'undefined' && currentSong) ? currentSong : (window.currentSong || null),
+        btn
+      );
+    } catch (err) {
+      console.warn("np-more showContextMenuAt failed:", err);
+    }
+  }, true);
+})();
+
+
 function updateNowPlayingUI() {
   if (!currentSong) return;
   try { window.currentSong = currentSong; } catch (e) {}
@@ -14704,15 +14745,12 @@ if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
     const sub = document.getElementById('playlist-submenu');
     if (sub) sub.classList.remove('open');
 
-    if (contextMenuBackdrop) {
-          if (contextMenuCloseTimer) {
-      clearTimeout(contextMenuCloseTimer);
-      contextMenuCloseTimer = null;
-    }
-
-    contextMenu.style.display = 'block';
+        if (contextMenuBackdrop) {
+      // ✅ ensure backdrop is actually visible (display) before animating opacity
+      contextMenuBackdrop.style.display = 'block';
 
       contextMenuBackdrop.style.opacity = '0';
+
     }
 
     contextMenu.style.display = 'block';
