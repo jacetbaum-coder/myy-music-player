@@ -2751,11 +2751,13 @@ body.qs-lock {
       </div>
 
       <div class="flex gap-2 overflow-x-auto">
-        <button class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Music</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Podcasts</button>
-        <button class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Audio</button>
-      </div>
+  <button id="desktop-home-tab-playlists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Playlists</button>
+  <button id="desktop-home-tab-albums" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Albums</button>
+  <button id="desktop-home-tab-artists" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Artists</button>
+  <button id="desktop-home-tab-liked" class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">Liked</button>
+  <button id="desktop-home-tab-all" class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">All</button>
+</div>
+
     </div>
 
         <!-- Playlists -->
@@ -15455,42 +15457,63 @@ function setHomeTopTab(tab) {
 
 
 function updateMobileHomeTabUI() {
-  const map = {
+  const applyMap = (map) => {
+    Object.entries(map).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const isActive = (window.homeTopTab === key);
+      el.classList.toggle('bg-[#1db954]', isActive);
+      el.classList.toggle('text-black', isActive);
+
+      el.classList.toggle('bg-white/10', !isActive);
+      el.classList.toggle('text-white', !isActive);
+    });
+  };
+
+  // Mobile tabs
+  applyMap({
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
     artists: 'mobile-home-tab-artists',
     liked: 'mobile-home-tab-liked',
     all: 'mobile-home-tab-all',
-  };
+  });
 
-  Object.entries(map).forEach(([key, id]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    const isActive = (homeTopTab === key);
-    el.classList.toggle('bg-[#1db954]', isActive);
-    el.classList.toggle('text-black', isActive);
-
-    el.classList.toggle('bg-white/10', !isActive);
-    el.classList.toggle('text-white', !isActive);
+  // Desktop tabs
+  applyMap({
+    playlists: 'desktop-home-tab-playlists',
+    albums: 'desktop-home-tab-albums',
+    artists: 'desktop-home-tab-artists',
+    liked: 'desktop-home-tab-liked',
+    all: 'desktop-home-tab-all',
   });
 }
 
 function initMobileHomeTabsOnce() {
   if (__homeTabsBound) return;
 
-  const map = {
+    const map = {
+    // Mobile
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
     artists: 'mobile-home-tab-artists',
     liked: 'mobile-home-tab-liked',
     all: 'mobile-home-tab-all',
+
+    // Desktop
+    playlists_desktop: 'desktop-home-tab-playlists',
+    albums_desktop: 'desktop-home-tab-albums',
+    artists_desktop: 'desktop-home-tab-artists',
+    liked_desktop: 'desktop-home-tab-liked',
+    all_desktop: 'desktop-home-tab-all',
   };
 
   Object.entries(map).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener('click', () => setHomeTopTab(key));
+    el.addEventListener('click', () => setHomeTopTab(String(key).replace(/_desktop$/, '')));
+
   });
 
   __homeTabsBound = true;
