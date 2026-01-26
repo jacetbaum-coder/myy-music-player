@@ -17015,7 +17015,8 @@ try {
       : [trackId];
 
     for (const __tid of __idsToRemoveCloud) {
-      await window.removeTrackFromPlaylistInCloud(activePlaylistId, __tid);
+      await window.removeTrackFromPlaylistInCloud((pl && pl.id) ? pl.id : activePlaylistId, __tid);
+
     }
 
     try { window.__pendingRemoveTrackIds = null; } catch (e) {}
