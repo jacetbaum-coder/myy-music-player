@@ -7858,7 +7858,8 @@ renderGrid = function(data) {
            onclick="openAlbumByName('${safeName}')">
         <img src="${cover}" class="w-12 h-12 rounded object-cover">
         <div class="min-w-0 flex-1">
-          <div class="text-white font-bold truncate">${album.albumName || ''}</div>
+          <div class="text-white font-bold truncate">${(album.tagAlbum || album.albumName || '')}</div>
+
           <div class="text-zinc-400 text-sm truncate">${album.artistName || ''}</div>
         </div>
         <i class="fas fa-chevron-right text-zinc-500"></i>
