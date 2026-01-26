@@ -4967,6 +4967,43 @@ if (settingsBtn) settingsBtn.addEventListener('click', (e) => {
   try { showView('settings'); } catch (e) {}
 });
 
+const syncBtn = document.getElementById('profile-menu-sync');
+if (syncBtn) syncBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  close();
+
+  try { showView('settings'); } catch (e) {}
+
+  // After Settings renders, trigger the existing Settings item (if present)
+  setTimeout(() => {
+    try { document.getElementById('settings-open-sync')?.click(); } catch (e) {}
+  }, 0);
+});
+
+const rdBtn = document.getElementById('profile-menu-recently-deleted');
+if (rdBtn) rdBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  close();
+
+  try { showView('settings'); } catch (e) {}
+
+  // After Settings renders, trigger the existing Settings item (if present)
+  setTimeout(() => {
+    try { document.getElementById('settings-open-recently-deleted')?.click(); } catch (e) {}
+  }, 0);
+});
+
+const profileBtn = document.getElementById('profile-menu-profile');
+if (profileBtn) profileBtn.addEventListener('click', (e) => {
+  e.stopPropagation();   // ✅ same fix here
+  e.preventDefault();
+  close();
+  try { alert('Profile (coming soon)'); } catch (e) {}
+});
+
+
 const profileBtn = document.getElementById('profile-menu-profile');
 if (profileBtn) profileBtn.addEventListener('click', (e) => {
   e.stopPropagation();   // ✅ same fix here
@@ -16146,10 +16183,6 @@ function loadPinnedPlaylists() {
   }
   return normalized;
 }
-// ✅ expose for callers that check window.loadPinnedPlaylists
-window.loadPinnedPlaylists = loadPinnedPlaylists;
-
-}
 
 // ✅ Expose for codepaths that call window.loadPinnedPlaylists() / window.savePinnedPlaylists()
 window.loadPinnedPlaylists = loadPinnedPlaylists;
@@ -19627,10 +19660,25 @@ function renderCrateStats() {
       <button id="profile-menu-settings" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Settings
       </button>
+
       <div class="h-px bg-white/10"></div>
+
+      <button id="profile-menu-sync" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Sync devices
+      </button>
+
+      <div class="h-px bg-white/10"></div>
+
+      <button id="profile-menu-recently-deleted" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
+        Recently Deleted
+      </button>
+
+      <div class="h-px bg-white/10"></div>
+
       <button id="profile-menu-profile" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Profile
       </button>
+
     </div>
   </div>
 
