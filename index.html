@@ -13517,9 +13517,13 @@ function restorePlayerStateIfRecent() {
   }
 
 
-    currentSong = state.song;
+        currentSong = state.song;
+
+    // ✅ keep global in sync (Now Playing menu relies on this fallback)
+    try { window.currentSong = currentSong; } catch (e) {}
 
   // ✅ Ensure cover is always present (playlist/queue/search restore safety)
+
   try {
     if (currentSong && !currentSong.cover && window.tracksById && currentSong.url) {
       const u = new URL(currentSong.url, window.location.origin);
@@ -14675,7 +14679,12 @@ if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
   // Mobile: bottom sheet (ignore x/y)
 
   // Mobile: bottom sheet (ignore x/y)
-  if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 768) {
+
+    // ✅ undo closeContextMenu() inline display:none
+    try { contextMenu.style.display = 'block'; } catch (e) {}
+    try { contextMenuBackdrop.style.display = 'block'; } catch (e) {}
+
     // close submenu by default
     const sub = document.getElementById('playlist-submenu');
     if (sub) sub.classList.remove('open');
