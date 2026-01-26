@@ -1265,7 +1265,8 @@ body.song-multiselect .track-row:hover{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(110px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+
   margin: 0 auto;
   max-width: 680px;
 
@@ -1372,7 +1373,8 @@ body.song-multiselect .track-row:hover{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(110px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+
   margin: 0 auto;
   max-width: 680px;
 
@@ -13223,14 +13225,10 @@ function npResetDrag() {
 }
 
 function npStartAllowed(e) {
-  // Allow swipe start from controls row anywhere (even if lower),
-  // otherwise only allow in the upper 75% of the screen
-  if (e && e.target && e.target.closest && e.target.closest('#np-controls, #np-sheet')) return true;
-
-
-  const { y } = npGetXY(e);
-  return y <= (window.innerHeight * 0.75);
+  // ✅ Spotify-ish: allow swipe-to-close from basically anywhere
+  return true;
 }
+
 
 
 if (nowPlayingOverlay) {
@@ -13277,10 +13275,14 @@ if (nowPlayingOverlay) {
     }
 
 
-        if (!npIsVertical) return;
+                if (!npIsVertical) return;
+
+        // ✅ Allow normal scrolling unless we've actually entered "drag to close" mode
+        if (!nowPlayingOverlay.classList.contains('np-dragging')) return;
 
     if (npSheet) npSheet.style.overflowY = 'hidden';
     try { e.preventDefault(); } catch (err) {}
+
 
 
     // Only drag downward
@@ -13293,7 +13295,7 @@ if (nowPlayingOverlay) {
     nowPlayingOverlay.addEventListener('pointerup', () => {
     if (!npDragActive) return;
 
-    const threshold = npStartFromControls ? 80 : 140;
+        const threshold = 60;
     const shouldClose = npLastDown > threshold;
 
         if (shouldClose) { if (npSheet) npSheet.style.overflowY = ''; closeNowPlaying(); }
