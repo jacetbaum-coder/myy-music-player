@@ -1084,8 +1084,14 @@ body.song-multiselect .track-row:hover{
 @media (max-width: 768px) {
   body.np-open #main-dock { display: none !important; }
   body.np-open .mobile-nav { display: none !important; }
-    body.np-open { --nav-height: 0px !important; }
+  body.np-open { --nav-height: 0px !important; }
+
+  /* ✅ Mobile: give the last content room above dock + player bar */
+  #main-scroll-area {
+    padding-bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 140px) !important;
+  }
 }
+
 
 /* NOW PLAYING: About artist bio collapse/expand */
 .np-bio-collapsed{
