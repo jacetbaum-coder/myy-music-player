@@ -9652,7 +9652,37 @@ function renderLibraryArtists() {
     if (!firstAlbumByArtist.has(artist)) firstAlbumByArtist.set(artist, a);
   });
 
-  const artists = [...firstAlbumByArtist.keys()].sort((a, b) => a.localeCompare(b));
+  const sortMode = normalizeLibrarySortMode(
+  (typeof getLibrarySortModeForTab === 'function')
+    ? getLibrarySortModeForTab('artists')
+    : librarySortMode
+);
+
+let artists = [...firstAlbumByArtist.keys()];
+
+if (sortMode === 'Alphabetical') {
+  artists.sort((a, b) => a.localeCompare(b));
+} else if (sortMode === 'Recently added') {
+  // preserve existing order (insertion order)
+} else {
+  // Recent (recently listened)
+  const rank = new Map();
+  try {
+    const hist = JSON.parse(localStorage.getItem('historyLog') || '[]') || [];
+    hist.forEach((h, i) => {
+      const name = String(h?.artistName || '').trim();
+      if (!rank.has(name)) rank.set(name, i);
+    });
+  } catch (e) {}
+
+  artists.sort((a, b) => {
+    const ra = rank.has(a) ? rank.get(a) : 1e9;
+    const rb = rank.has(b) ? rank.get(b) : 1e9;
+    if (ra !== rb) return ra - rb;
+    return a.localeCompare(b);
+  });
+}
+
 
   if (!artists.length) {
     grid.innerHTML = `
