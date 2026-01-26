@@ -14,7 +14,7 @@
     <link rel="icon" href="favicon.ico">
     
     <!-- iOS Home Screen icon -->
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="apple-touch-ifcon.png">
 
 <!-- App name -->
 
@@ -18915,7 +18915,7 @@ function renderCrateStats() {
   </div>
 
 
-<!-- === PATCH: Stable Add-to-Playlist Menu + Immediate Playlist Refresh === -->
+<!-- === PATCH: Stable Add-to-Playlist Menu (no auto-open) + Ghost-Click Fix === -->
 <script>
 (function(){
   // 1) Never close menus when clicking inside context menu OR playlist submenu
@@ -18932,7 +18932,7 @@ function renderCrateStats() {
     window.closeContextMenu.__patched = true;
   }
 
-  // 2) Guard ALL document clicks so outside-dismiss only happens when truly outside both menus
+  // 2) Guard outside-dismiss so it only happens when truly outside both menus
   if (!window.__outsideDismissPatched) {
     window.__outsideDismissPatched = true;
     document.addEventListener('click', function(e){
@@ -18946,13 +18946,63 @@ function renderCrateStats() {
     }, true);
   }
 
-    // 3) (REMOVED) Don't auto-open the playlist after an add
-  // The menu click handler already updates local state + re-renders when needed.
+  // 3) Ghost-click fix:
+  // Record the last pointerdown target id.
+  // When the playlist submenu opens immediately after tapping "Add to playlist",
+  // the same click can "tap-through" the first playlist item. We block ONLY that case.
+  if (!window.__playlistGhostClickFixInstalled) {
+    window.__playlistGhostClickFixInstalled = true;
 
+    window.__playlistSubmenuOpenedAt = 0;
+    window.__playlistSubmenuOpenFromAddOpt = false;
+    window.__playlistSubmenuLastPointerDownId = null;
+
+    document.addEventListener('pointerdown', (e) => {
+      const t = e && e.target;
+      const addOpt = t && t.closest && t.closest('#menu-add-opt');
+      const mi = t && t.closest && t.closest('#playlist-submenu .menu-item');
+      if (addOpt) window.__playlistSubmenuLastPointerDownId = 'menu-add-opt';
+      else if (mi) window.__playlistSubmenuLastPointerDownId = 'playlist-menu-item';
+      else window.__playlistSubmenuLastPointerDownId = (t && t.id) ? String(t.id) : null;
+    }, true);
+
+    // Detect submenu open via visibility
+    const menuIsVisible = () => {
+      const m = document.getElementById('playlist-submenu');
+      if (!m) return false;
+      const r = m.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && m.classList.contains('open');
+    };
+
+    const obs = new MutationObserver(() => {
+      if (menuIsVisible()) {
+        window.__playlistSubmenuOpenedAt = Date.now();
+        window.__playlistSubmenuOpenFromAddOpt = (window.__playlistSubmenuLastPointerDownId === 'menu-add-opt');
+      }
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+
+    // Block ONLY the “same tap-through” click (very fast after open, and opener was Add-to-playlist)
+    document.addEventListener('click', (e) => {
+      const mi = e.target && e.target.closest && e.target.closest('#playlist-submenu .menu-item');
+      if (!mi) return;
+
+      const dt = Date.now() - (window.__playlistSubmenuOpenedAt || 0);
+      const openerWasAdd = !!window.__playlistSubmenuOpenFromAddOpt;
+      const lastPD = window.__playlistSubmenuLastPointerDownId;
+
+      if (openerWasAdd && dt >= 0 && dt < 80 && lastPD === 'menu-add-opt') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+    }, true);
   }
 })();
 </script>
 <!-- === END PATCH === -->
+
 
 </body>
 
