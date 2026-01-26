@@ -4928,17 +4928,22 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   }
 
   const settingsBtn = document.getElementById('profile-menu-settings');
-  if (settingsBtn) settingsBtn.addEventListener('click', () => {
-    close();
-    try { showView('settings'); } catch (e) {}
-  });
+if (settingsBtn) settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();   // ✅ prevent outside-close from stealing the click
+  e.preventDefault();
+  close();
+  try { showView('settings'); } catch (e) {}
+});
 
-  const profileBtn = document.getElementById('profile-menu-profile');
-  if (profileBtn) profileBtn.addEventListener('click', () => {
-    close();
-    try { alert('Profile (coming soon)'); } catch (e) {}
-  });
+const profileBtn = document.getElementById('profile-menu-profile');
+if (profileBtn) profileBtn.addEventListener('click', (e) => {
+  e.stopPropagation();   // ✅ same fix here
+  e.preventDefault();
+  close();
+  try { alert('Profile (coming soon)'); } catch (e) {}
+});
 })();
+
 
 
 // -----------------------
