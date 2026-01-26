@@ -18897,20 +18897,9 @@ function renderCrateStats() {
     }, true);
   }
 
-  // 3) After a successful add, immediately refresh the playlist view if it’s open
-  const origAdd = window.addTrackToPlaylistInCloud;
-  if (typeof origAdd === "function" && !origAdd.__patched) {
-    window.addTrackToPlaylistInCloud = async function(playlistId, trackId){
-      const r = await origAdd.apply(this, arguments);
-      try {
-        if (r && r.ok && typeof showView === 'function' && Array.isArray(window.playlists)) {
-          const idx = window.playlists.findIndex(p => p && p.id === playlistId);
-          if (idx >= 0) showView('playlist', idx);
-        }
-      } catch(_) {}
-      return r;
-    };
-    window.addTrackToPlaylistInCloud.__patched = true;
+    // 3) (REMOVED) Don't auto-open the playlist after an add
+  // The menu click handler already updates local state + re-renders when needed.
+
   }
 })();
 </script>
