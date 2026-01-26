@@ -14756,10 +14756,17 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
 
         menuTargetSong = _resolvedSong;
 
-    // ✅ Ensure context menu container is not hidden (menu lives inside now-playing overlay)
-    const np = document.getElementById('now-playing-overlay');
-    if (np && np.classList && np.classList.contains('hidden')) {
-      np.classList.remove('hidden');
+        // ✅ Ensure context menu is attached to <body> (not inside hidden now-playing overlay)
+    try {
+      const np = document.getElementById('now-playing-overlay');
+      if (np && typeof contextMenu !== 'undefined' && contextMenu && np.contains(contextMenu)) {
+        document.body.appendChild(contextMenu);
+      }
+      if (np && typeof contextMenuBackdrop !== 'undefined' && contextMenuBackdrop && np.contains(contextMenuBackdrop)) {
+        document.body.appendChild(contextMenuBackdrop);
+      }
+    } catch (e) {}
+
     }
 
 try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (e) {}
@@ -14780,10 +14787,21 @@ try { window.menuTargetSong = menuTargetSong; } catch (e) {}
 
     if (tEl) tEl.textContent = (s && (s.title || s.name)) ? (s.title || s.name) : 'Song';
     if (aEl) aEl.textContent = (s && (s.artist || s.artistName)) ? (s.artist || s.artistName) : 'Artist';
-    if (cEl) cEl.src =
+        if (cEl) cEl.src =
       (s && (s.cover || s.coverUrl || s.art || s.image))
         ? (s.cover || s.coverUrl || s.art || s.image)
-        : (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
+        : (() => {
+            // ✅ Prefer the clicked row's thumbnail (so we don't show Now Playing art)
+            try {
+              const row = anchorEl ? anchorEl.closest('.track-row') : null;
+              const img = row ? row.querySelector('img') : null;
+              const src = img ? (img.currentSrc || img.src) : '';
+              if (src) return src;
+            } catch (e) {}
+            // fallback: Now Playing cover
+            return (document.getElementById('p-cover') ? document.getElementById('p-cover').src : '');
+          })();
+
   } catch (err) {}
 
 
