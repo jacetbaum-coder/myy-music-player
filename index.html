@@ -6684,7 +6684,8 @@ function getAlbumCover(artistName, albumName, coverArtFromLibrary) {
 
 async function syncAlbumCoverOverride(artistName, albumName, coverUrlOrDataUrl) {
   try {
-    await fetch('/api/get-songs', {
+    await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs', {
+
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
