@@ -14679,11 +14679,17 @@ if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
 
 
   // Mobile: bottom sheet (ignore x/y)
-
-  // Mobile: bottom sheet (ignore x/y)
     if (window.innerWidth <= 768) {
 
+    // ✅ If a previous close animation timer is still pending, cancel it.
+    // Otherwise it will fire right after we open and instantly hide the menu again.
+    if (contextMenuCloseTimer) {
+      clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = null;
+    }
+
     // ✅ undo closeContextMenu() inline display:none
+
     try { contextMenu.style.display = 'block'; } catch (e) {}
     try { contextMenuBackdrop.style.display = 'block'; } catch (e) {}
 
