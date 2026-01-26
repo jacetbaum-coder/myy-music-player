@@ -4908,7 +4908,19 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   }, true);
 
   const bd = document.getElementById('profile-menu-backdrop');
-  if (bd) bd.addEventListener('click', close);
+if (bd) bd.addEventListener('click', close);
+
+// ✅ Click ANYWHERE outside the panel closes the menu
+const modal = document.getElementById('profile-menu-modal');
+if (modal && !modal.__outsideCloseBound) {
+  modal.__outsideCloseBound = true;
+  modal.addEventListener('click', (e) => {
+    const panel = document.getElementById('profile-menu-panel');
+    if (panel && panel.contains(e.target)) return; // allow button clicks
+    close();
+  }, true);
+}
+
 
   const settingsBtn = document.getElementById('profile-menu-settings');
   if (settingsBtn) settingsBtn.addEventListener('click', () => {
@@ -18922,29 +18934,13 @@ function renderCrateStats() {
   <div id="profile-menu-modal" class="fixed inset-0 z-[999999] hidden">
     <div id="profile-menu-backdrop" class="absolute inset-0 bg-black/60"></div>
 
-    <div class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden">
+    <div id="profile-menu-panel" class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden">
+
       <button id="profile-menu-settings" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Settings
       </button>
       <div class="h-px bg-white/10"></div>
       <button id="profile-menu-profile" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-        Profile
-      </button>
-    </div>
-  </div>
-
-  <!-- PROFILE MENU (Settings / Profile) -->
-  <div id="profile-menu-modal" class="fixed inset-0 z-[999999] hidden">
-    <div id="profile-menu-backdrop" class="absolute inset-0 bg-black/60"></div>
-
-    <div class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden">
-      <button id="profile-menu-settings" type="button"
-        class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-        Settings
-      </button>
-      <div class="h-px bg-white/10"></div>
-      <button id="profile-menu-profile" type="button"
-        class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Profile
       </button>
     </div>
