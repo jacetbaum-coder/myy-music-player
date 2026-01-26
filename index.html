@@ -5004,17 +5004,6 @@ if (profileBtn) profileBtn.addEventListener('click', (e) => {
 });
 
 
-const profileBtn = document.getElementById('profile-menu-profile');
-if (profileBtn) profileBtn.addEventListener('click', (e) => {
-  e.stopPropagation();   // ✅ same fix here
-  e.preventDefault();
-  close();
-  try { alert('Profile (coming soon)'); } catch (e) {}
-});
-})();
-
-
-
 // -----------------------
 // PLAY BUTTON (delegated)
 
