@@ -9106,6 +9106,15 @@ const normalizedIds = itemsArr
 // ✅ Always keep playlist as IDs-only
 pl.trackIds = normalizedIds;
 
+// ✅ If we're currently viewing this playlist, re-render now that cloud items arrived
+try {
+  if (activePlaylistId === pl.id) {
+    const playlistSongs2 = resolveTrackIdsToSongs(pl.trackIds);
+    renderCollection(pl.name, playlistSongs2, true, activePlaylistIndex);
+  }
+} catch (e) {}
+
+
   } catch (e) {
     console.error("playlist load failed", e);
   }
