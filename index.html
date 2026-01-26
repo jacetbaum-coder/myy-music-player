@@ -15433,27 +15433,6 @@ function initMobileHomeTabsOnce() {
   });
 }
 
-function initMobileHomeTabsOnce() {
-  if (__homeTabsBound) return;
-
-  const map = {
-    playlists: 'mobile-home-tab-playlists',
-    albums: 'mobile-home-tab-albums',
-    artists: 'mobile-home-tab-artists',
-    liked: 'mobile-home-tab-liked',
-    all: 'mobile-home-tab-all',
-  };
-
-  Object.entries(map).forEach(([key, id]) => {
-
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('click', () => setHomeTopTab(key));
-  });
-
-  __homeTabsBound = true;
-  updateMobileHomeTabUI();
-}
 
 function getHomeRecentsItems() {
   const max = 12;
