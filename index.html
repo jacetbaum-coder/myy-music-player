@@ -15363,48 +15363,64 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
-  const isMobile = (window.innerWidth <= 768);
+    const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-const pinnedIds =
-  (typeof window.loadPinnedPlaylists === 'function')
-    ? window.loadPinnedPlaylists()
-    : (typeof loadPinnedPlaylists === 'function')
-      ? loadPinnedPlaylists()
-      : [];
-
-const pinnedPlaylists = pinnedIds
-
-  .map(id => playlists.find(pl => pl.id === id))
-  .filter(Boolean);
-
-// ✅ Home should ONLY show pinned playlists
-const filled = pinnedPlaylists.slice(0, slotCount);
-
+  // ✅ Use the SAME Home recents source as the row renderer
+  const items = (typeof getHomeRecentsItems === 'function')
+    ? getHomeRecentsItems().slice(0, slotCount)
+    : [];
 
   // Build fixed slots (real items first, then placeholders)
   const tiles = [];
 
   for (let i = 0; i < slotCount; i++) {
-     const pl = filled[i];
+    const h = items[i];
 
-   // Placeholder tile (keeps the “imaginary rectangle” space)
-    if (!pl) {
+    // Placeholder tile (keeps the “imaginary rectangle” space)
+    if (!h) {
       tiles.push(`
         <div class="min-w-0 flex-1"></div>
       `);
       continue;
     }
 
-    const cover = getEffectivePlaylistCover(pl);
-    const title = pl.name || 'Playlist';
-    const safeId = String(pl.id || '').replace(/"/g,'&quot;');
+    const type = String(h.type || '');
+    const title =
+      (type === 'playlist') ? (h.name || 'Playlist') :
+      (type === 'artist')   ? (h.artist || 'Artist') :
+      (type === 'liked')    ? 'Liked Songs' :
+                              (h.album || 'Album');
+
+    const sub =
+      (type === 'playlist') ? 'Playlist' :
+      (type === 'artist')   ? 'Artist' :
+      (type === 'liked')    ? '' :
+                              (h.artist || '');
+
+    const safeId = String(h.id || '').replace(/"/g,'&quot;');
+    const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
+
+    // Cover resolution (best-effort)
+    let cover = "";
+    if (type === 'playlist') {
+      const pl = (Array.isArray(playlists) ? playlists.find(p => String(p.id) === String(h.id)) : null);
+      cover = pl ? getEffectivePlaylistCover(pl) : String(h.cover || "").trim();
+    } else if (type === 'album') {
+      const artistName = String(h.artist || "").trim();
+      const albumName  = String(h.album || "").trim();
+      cover = getAlbumCover(artistName, albumName, "");
+    } else if (type === 'artist') {
+      cover = String(h.cover || "").trim();
+    } else {
+      cover = "";
+    }
 
     tiles.push(`
       <div class="mobile-recent-card"
-            data-type="playlist"
-           data-id="${safeId}"
-                      data-album="">
+            data-type="${type}"
+            data-id="${safeId}"
+            data-album="${safeAlbum}">
         ${
           cover
             ? `<img src="${cover}" alt="">`
@@ -15414,13 +15430,14 @@ const filled = pinnedPlaylists.slice(0, slotCount);
         }
         <div class="min-w-0">
           <div class="title">${title}</div>
-          <div class="sub">Playlist</div>
+          <div class="sub">${sub}</div>
         </div>
       </div>
     `);
   }
 
   grid.innerHTML = tiles.join('');
+
 
   // Click opens playlist/album (placeholders have pointer-events none)
   [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
