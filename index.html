@@ -4089,10 +4089,19 @@ if (!window.__mobileTrackSelectTapGuard) {
   document.addEventListener('click', (e) => {
     try {
       if (window.innerWidth > 768) return;
-      if (!window.__songSelect || !window.__songSelect.enabled) return;
+            if (!window.__songSelect || !window.__songSelect.enabled) return;
 
       const row = e.target && e.target.closest ? e.target.closest('.track-row[data-song-url]') : null;
-      if (!row) return;
+
+      // ✅ If you tap OUTSIDE the track list while in multi-select, exit multi-select
+      const trackList = document.getElementById('track-list');
+      const tappedInsideTrackList = !!(trackList && (trackList === e.target || trackList.contains(e.target)));
+
+      if (!row) {
+        if (!tappedInsideTrackList) setSongSelectEnabled(false);
+        return;
+      }
+
 
       // Ignore taps on 3-dots/menu buttons
       if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
