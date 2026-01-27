@@ -446,9 +446,10 @@ img {
           text-decoration: none;
         }
         .lyrics-source-link:hover{
-          text-decoration: underline;
-          color: rgba(255,255,255,0.92);
-        }
+  text-decoration: none;
+  color: rgba(255,255,255,0.70);
+}
+
         .lyrics-status{
           font-size: 12px;
           font-weight: 700;
@@ -745,7 +746,8 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
             transition: background 0.2s; 
             z-index: 10; 
         }
-        .resizer:hover { background: rgba(255,255,255,0.2); }
+        .resizer:hover { background: transparent; }
+
 
 .track-row { 
   display: grid; 
@@ -893,14 +895,6 @@ body.song-multiselect .track-row:hover{
     line-height: 1.2;
     margin-top: 6px;
 }
-.track-row .track-menu {
-    display: none;
-    align-items: center;
-    justify-content: flex-end;
-    color: #b3b3b3;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
 
         .track-row:hover { 
             background: rgba(255,255,255,0.1); 
@@ -1039,8 +1033,9 @@ body.song-multiselect .track-row:hover{
 }
 
 .progress-bar-container:hover .progress-bar-fill {
-  background: var(--spotify-green);
+  background: #fff;
 }
+
 
 /* Now Playing overlay progress bar: also give it a big hitbox */
 #np-progress-container {
@@ -1138,15 +1133,35 @@ body.song-multiselect .track-row:hover{
          }
 
                 .search-clear:hover {
-            color: rgba(255,255,255,0.92);
-            background: rgba(255,255,255,0.10);
-        }
+  color: rgba(255,255,255,0.65);
+  background: transparent;
+}
+
 
 
         /* --- UTILITIES --- */
         .hidden { display: none; }
 
+/* ✅ GLOBAL: disable all hover effects everywhere (including Tailwind hover:* utilities) */
+[class*="hover:"]:hover{
+  background-color: inherit !important;
+  color: inherit !important;
+  border-color: inherit !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: none !important;
+  opacity: inherit !important;
+}
+
+/* ✅ Also block any remaining hover background on track rows */
+.track-row:hover{
+  background: transparent !important;
+  color: inherit !important;
+}
+
 /* ✅ Library "List view" */
+
 #album-grid.library-list {
   display: flex !important;
   flex-direction: column;
