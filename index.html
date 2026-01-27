@@ -5303,10 +5303,10 @@ async function __renderRecentlyDeleted() {
   const rdSearch = document.getElementById("rd-search");
   const rdSort  = document.getElementById("rd-sort");
 
-  if (backSettings) backSettings.addEventListener("click", () => { try { showView("home"); } catch (e) {} });
-catch (e) {} });
+   if (backSettings) backSettings.addEventListener("click", () => { try { showView("home"); } catch (e) {} });
 
   if (openSync) openSync.addEventListener("click", async () => {
+
     try {
       if (typeof window.openSyncDevicesModal === "function") {
         await window.openSyncDevicesModal();
