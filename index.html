@@ -2964,7 +2964,7 @@ body.qs-lock {
 </div>
 
 <!-- RECENTLY DELETED VIEW -->
-<div id="recently-deleted-view" class="hidden pt-6 pb-30 md:pt-4 md:pb-0">
+<div id="recently-deleted-view" class="hidden pt-6 pb-30 md:pt-4 md:pb-0 px-4">
 
   <div class="flex items-center gap-3 mb-4">
     <button id="rd-back" type="button"
@@ -2975,27 +2975,40 @@ body.qs-lock {
     <div class="text-2xl font-black">Recently Deleted</div>
   </div>
 
-  <div class="flex items-center gap-2 mb-3">
-    <button id="rd-tab-playlists" type="button"
-      class="px-4 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-sm whitespace-nowrap">
-      Playlists
-    </button>
-    <button id="rd-tab-albums" type="button"
-      class="px-4 py-2 rounded-full bg-white/10 text-white font-extrabold text-sm whitespace-nowrap">
-      Albums
-    </button>
+  <div class="flex gap-4">
+    <!-- Vertical tabs -->
+    <div class="w-[140px] shrink-0 flex flex-col gap-2">
+      <button id="rd-tab-albums" type="button"
+        class="px-4 py-3 rounded-2xl bg-white/10 text-white font-extrabold text-sm text-left">
+        Albums
+      </button>
+
+      <button id="rd-tab-playlists" type="button"
+        class="px-4 py-3 rounded-2xl bg-white/10 text-white font-extrabold text-sm text-left">
+        Playlists
+      </button>
+    </div>
+
+    <!-- Main panel -->
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-3">
+        <input id="rd-search" type="text"
+          class="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 text-white outline-none"
+          placeholder="Search recently deleted…" />
+
+        <select id="rd-sort"
+          class="w-[160px] shrink-0 px-4 py-3 rounded-2xl bg-white/10 text-white outline-none">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
+
+      <div id="rd-status" class="text-sm text-white/60 mb-3 hidden"></div>
+      <div id="rd-list" class="flex flex-col gap-2"></div>
+    </div>
   </div>
-
-  <div class="mb-4">
-    <input id="rd-search" type="text"
-      class="w-full px-4 py-3 rounded-2xl bg-white/10 text-white outline-none"
-      placeholder="Search recently deleted…" />
-  </div>
-
-  <div id="rd-status" class="text-sm text-white/60 mb-3 hidden"></div>
-
-  <div id="rd-list" class="flex flex-col gap-2"></div>
 </div>
+
 
 <div id="grid-view" class="hidden">
 
@@ -5189,11 +5202,21 @@ async function __renderRecentlyDeleted() {
     return;
   }
 
-  const filtered = __rdItems.filter(it => {
+  let filtered = __rdItems.filter(it => {
     const name = String(it?.name || "").toLowerCase();
     if (!q) return true;
     return name.includes(q);
   });
+
+  // ✅ Sort (newest/oldest) by deletedAt (fallback to expiresAt)
+  try {
+    const mode = String(document.getElementById("rd-sort")?.value || "newest");
+    const tms = (it) => {
+      const a = Date.parse(String(it?.deletedAt || it?.deleted_at || it?.expiresAt || it?.expires_at || ""));
+      return Number.isFinite(a) ? a : 0;
+    };
+    filtered.sort((a,b) => (mode === "oldest") ? (tms(a) - tms(b)) : (tms(b) - tms(a)));
+  } catch (e) {}
 
   if (status) {
     status.textContent = filtered.length ? (filtered.length + " item(s)") : "Nothing here.";
@@ -5278,8 +5301,10 @@ async function __renderRecentlyDeleted() {
   const rdTabP = document.getElementById("rd-tab-playlists");
   const rdTabA = document.getElementById("rd-tab-albums");
   const rdSearch = document.getElementById("rd-search");
+  const rdSort  = document.getElementById("rd-sort");
 
   if (backSettings) backSettings.addEventListener("click", () => { try { showView("home"); } catch (e) {} });
+catch (e) {} });
 
   if (openSync) openSync.addEventListener("click", async () => {
     try {
@@ -5306,8 +5331,10 @@ async function __renderRecentlyDeleted() {
   if (rdTabA) rdTabA.addEventListener("click", () => __setRdTab("album"));
 
   if (rdSearch) rdSearch.addEventListener("input", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
+  if (rdSort) rdSort.addEventListener("change", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
 
   // expose for console debugging
+
   window.renderRecentlyDeleted = __renderRecentlyDeleted;
   window.setRecentlyDeletedTab = __setRdTab;
 })();
@@ -9911,7 +9938,7 @@ if (viewType === 'settings') {
 if (viewType === 'recently-deleted') {
   document.getElementById('recently-deleted-view')?.classList.remove('hidden');
   // default to playlists tab
-  try { if (typeof window.setRecentlyDeletedTab === 'function') window.setRecentlyDeletedTab('playlist'); } catch (e) {}
+  try { if (typeof window.setRecentlyDeletedTab === 'function') window.setRecentlyDeletedTab('album'); } catch (e) {}
   try { if (typeof window.renderRecentlyDeleted === 'function') window.renderRecentlyDeleted(); } catch (e) {}
 }
 
