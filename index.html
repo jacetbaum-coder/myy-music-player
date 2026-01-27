@@ -17792,7 +17792,8 @@ function showPlaylistMenuAt(x, y, playlistId) {
     try {
       const tmp = document.createElement('div');
       tmp.innerHTML = `
-<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]">
+<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]" style="transform: translateY(12px);">
+
   <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
   <button id="pm-unpin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Unpin playlist</button>
   <div class="my-2 border-t border-white/10"></div>
