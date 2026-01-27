@@ -146,12 +146,12 @@
   align-items: center;
   gap: 10px;
   background: transparent;
-
   border-radius: 10px;
   padding: 10px;
   min-height: 56px;
   overflow: hidden;
 }
+
 .mobile-recent-card:active { transform: scale(0.98); }
 .mobile-recent-card img {
   width: 44px;
@@ -2771,8 +2771,12 @@ body.qs-lock {
       <button id="home-recents-showall" class="text-xs font-extrabold text-zinc-400 hover:text-white md:hidden" type="button">
         Show all
       </button>
-    </div>
+        </div>
+
+    <div id="home-recents-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
+
       <div id="home-recents-row" class="home-recents-grid"></div>
+
   </div>
 
 </div>
@@ -17029,7 +17033,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
   if (window.innerWidth <= 768) {
     const view = getHomeViewModeForTab(homeTopTab || 'all');
 
-    const gridEl = document.getElementById('home-recent-grid');
+    const gridEl = document.getElementById('home-recents-grid');
+
     const rowEl  = document.getElementById('home-recents-row');
 
     if (view === 'list') {
@@ -17039,7 +17044,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
         } else {
       if (gridEl) gridEl.style.display = '';
       if (rowEl)  rowEl.style.display  = 'none';
-      renderHomeRecents('home-recent-grid');
+      renderHomeRecents('home-recents-grid');
+
       // ✅ in grid mode, do NOT show the list row
     }
 
