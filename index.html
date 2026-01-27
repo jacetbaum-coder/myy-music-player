@@ -19163,7 +19163,8 @@ function openPlaylistPinMenuFromHero(e) {
 (function bindHeroMoreButtonOnce() {
 
   const btn = document.getElementById('hero-more-btn');
-  if (!btn || btn.__bound) return;
+  // ✅ If the button already has an inline onclick, do NOT add a second listener.
+  if (!btn || btn.__bound || typeof btn.onclick === 'function') return;
   btn.__bound = true;
 
     btn.addEventListener('click', (e) => {
