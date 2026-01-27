@@ -1327,6 +1327,13 @@ window.toggleNpLyricsExpanded = function(e){
   transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* ✅ When Now Playing is open, don't reserve space for the dock */
+body.np-open #context-menu{
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+}
+
+}
+
 }
 
 
@@ -15420,19 +15427,23 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
 
         menuTargetSong = _resolvedSong;
 
-            // ✅ Ensure context menu is attached to <body> (not inside hidden now-playing overlay)
-    try {
-      const np = document.getElementById('now-playing-overlay');
-      if (np && typeof contextMenu !== 'undefined' && contextMenu && np.contains(contextMenu)) {
-        document.body.appendChild(contextMenu);
-      }
-      if (np && typeof contextMenuBackdrop !== 'undefined' && contextMenuBackdrop && np.contains(contextMenuBackdrop)) {
-        document.body.appendChild(contextMenuBackdrop);
-      }
-    } catch (e) {}
+            // ✅ Ensure context menu is attached to the correct layer
+// If Now Playing overlay is open, keep the menu inside it (so it sits above the overlay).
+try {
+  const np = document.getElementById('now-playing-overlay');
+  const npOpen = !!(np && !np.classList.contains('hidden'));
+  const host = npOpen ? np : document.body;
 
+  if (typeof contextMenu !== 'undefined' && contextMenu) host.appendChild(contextMenu);
+  if (typeof contextMenuBackdrop !== 'undefined' && contextMenuBackdrop) host.appendChild(contextMenuBackdrop);
+
+  // ✅ Ensure it wins z-index battles
+  try { if (contextMenu) contextMenu.style.zIndex = '200000'; } catch (e) {}
+  try { if (contextMenuBackdrop) contextMenuBackdrop.style.zIndex = '199999'; } catch (e) {}
+} catch (e) {}
 
 try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (e) {}
+
 try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (e) {}
 
 try { window.menuTargetSong = menuTargetSong; } catch (e) {}
