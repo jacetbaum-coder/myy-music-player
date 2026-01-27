@@ -15958,7 +15958,15 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     div.className = 'menu-item';
     div.textContent = pl?.name || 'Playlist';
         div.onclick = async () => {
-      const targets = Array.isArray(menuTargetSong) ? menuTargetSong : [menuTargetSong];
+            // ✅ Always have a target song (some flows don't set menuTargetSong reliably)
+      const __mt =
+        (typeof menuTargetSong !== 'undefined' && menuTargetSong) ||
+        (window && window.menuTargetSong) ||
+        ((typeof currentSong !== 'undefined' && currentSong) ? currentSong : null) ||
+        (window && window.currentSong) ||
+        null;
+
+      const targets = Array.isArray(__mt) ? __mt : [__mt];
       if (!targets || !targets.length || !targets[0]) return;
 
       // Resolve trackIds robustly (canonical ID is the R2 path)
