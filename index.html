@@ -2005,11 +2005,12 @@ body.qs-lock{
   .player-bar {
     position: fixed;
 
-    /* sit directly on top of the tab bar (no floating) */
+    /* sit directly on top of the tab bar */
     bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 8px);
 
-    left: 0;
-    right: 0;
+    /* ✅ inset so rounded corners are visible */
+    left: 8px;
+    right: 8px;
 
     height: auto;
 
@@ -2019,17 +2020,18 @@ body.qs-lock{
       rgb(0, 0, 0) 100%
     ) !important;
 
-    border-radius: 0;
+    /* ✅ rounded like Spotify */
+    border-radius: 18px;
+
     border: none;
-
     padding: 10px 12px;
-
     box-shadow: none;
 
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
+
 
 
   /* hide desktop right-side dock column */
@@ -2050,13 +2052,16 @@ body.qs-lock{
 
   /* mobile-only play button ON */
   #mobile-play-btn {
-    display: inline-flex !important;
-    width: 44px;
-    height: 44px;
-    border-radius: 9999px;
-    align-items: center;
-    justify-content: center;
-  }
+  display: inline-flex !important;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  align-items: center;
+  justify-content: center;
+
+  /* ✅ prevent right-edge clipping */
+  margin-right: 4px;
+}
 
   /* hide heart on mobile */
   #dock-heart {
@@ -16741,9 +16746,14 @@ wrap.style.maxWidth = '100%';
 
   // ✅ INSERT INTO DOM (mobile was missing this)
   try {
-    t.parentElement.insertBefore(wrap, t.nextSibling);
-  } catch (e) {}
-}
+    const titleRow = t.parentElement;
+const outer = titleRow && titleRow.parentElement ? titleRow.parentElement : null;
+
+// Insert AFTER the whole title row (prevents "grid on the right" in flex headers)
+try {
+  if (outer) outer.insertBefore(wrap, titleRow.nextSibling);
+  else titleRow.insertBefore(wrap, t.nextSibling);
+} catch (e) {}
 
 
 	// pull pinned ids (your existing helpers)
