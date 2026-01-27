@@ -9187,7 +9187,11 @@ else if (viewType === 'playlist') {
 const scrollArea = document.getElementById('main-scroll-area');
 
 if (scrollArea) {
-  scrollArea.scrollTop = 0;
+  // ✅ Don't jump to top during back navigation (goBack() restores scrollTop)
+  if (!window.__isBackNav) {
+    scrollArea.scrollTop = 0;
+  }
+
 
   // ✅ Reset any leftover swipe-down transform (this was pushing Recently Deleted down)
   scrollArea.style.transition = '';
@@ -12351,7 +12355,119 @@ function clearSearch() {
 // Back-compat (in case any older button still calls this)
 function exitSearch() { clearSearch(); }
 
+// ✅ Persist Search: keep query + scroll position when opening a result and going back
+(function installSearchPersistenceFinal(){
+  if (window.__searchPersistFinalInstalled) return;
+  window.__searchPersistFinalInstalled = true;
+
+  window.__searchState = window.__searchState || { q: "", scrollTop: 0 };
+
+  const getSearchInput = () => document.getElementById('global-search');
+
+  const getSearchScrollEl = () => {
+    const seen = new Set();
+    const list = [];
+
+    const push = (el) => {
+      if (!el || !el.nodeType) return;
+      if (seen.has(el)) return;
+      seen.add(el);
+      list.push(el);
+    };
+
+    // Common candidates
+    push(document.getElementById('main-scroll-area'));
+    push(document.getElementById('search-view'));
+    push(document.getElementById('search-results'));
+    push(document.getElementById('search-results-inner'));
+
+    // Any obvious scroll containers inside search
+    try {
+      document.querySelectorAll('#search-view .overflow-auto, #search-view .overflow-y-auto, #search-view [data-scroll], #search-view .scroll')
+        .forEach(push);
+    } catch (e) {}
+
+    // Pick a real scroll container (largest scrollHeight that can scroll)
+    let best = null;
+    let bestScore = -1;
+
+    for (const el of list) {
+      try {
+        const sh = el.scrollHeight || 0;
+        const ch = el.clientHeight || 0;
+        const canScroll = (sh - ch) > 50;
+        if (!canScroll) continue;
+        if (sh > bestScore) { bestScore = sh; best = el; }
+      } catch (e) {}
+    }
+
+    return best || document.getElementById('main-scroll-area');
+  };
+
+  const saveSearchStateNow = (why) => {
+    try {
+      if (!window.navCurrent || window.navCurrent.type !== 'search') return;
+      const q = String(getSearchInput()?.value || "");
+      const scroller = getSearchScrollEl();
+      const st = scroller ? Number(scroller.scrollTop || 0) : 0;
+      window.__searchState.q = q;
+      window.__searchState.scrollTop = st;
+      // console.log("✅ saved search (" + why + "):", { q, scrollTop: st });
+    } catch (e) {}
+  };
+
+  const restoreSearchState = (label) => {
+    try {
+      const st = window.__searchState || { q: "", scrollTop: 0 };
+      const input = getSearchInput();
+
+      if (input && st.q) {
+        input.value = st.q;
+        try { window.handleSearch(st.q); } catch (e) {}
+      }
+
+      const scroller = getSearchScrollEl();
+      if (scroller) scroller.scrollTop = Number(st.scrollTop || 0);
+
+      // console.log("✅ restored search (" + label + "):", { ...st, scroller: scroller && scroller.id });
+    } catch (e) {}
+  };
+
+  // Save BEFORE navigation (capture phase)
+  if (!document.__searchPersistSaveClickBound) {
+    document.__searchPersistSaveClickBound = true;
+    document.addEventListener('click', () => saveSearchStateNow('click'), true);
+  }
+
+  // Save while scrolling in search (capture phase)
+  if (!document.__searchPersistSaveScrollBound) {
+    document.__searchPersistSaveScrollBound = true;
+    document.addEventListener('scroll', () => saveSearchStateNow('scroll'), true);
+  }
+
+  // Wrap showView so Search restore happens AFTER re-render (multiple passes)
+  const origShowView = window.showView;
+  if (typeof origShowView === 'function' && !origShowView.__wrappedSearchPersistFinal) {
+    window.showView = function(...args) {
+      const out = origShowView.apply(this, args);
+
+      const target = args[0];
+      if (target === 'search') {
+        // Restore late to beat DOM mutations that reset scrollTop
+        setTimeout(() => restoreSearchState('t0'), 0);
+        setTimeout(() => restoreSearchState('t120'), 120);
+        setTimeout(() => restoreSearchState('t400'), 400);
+        setTimeout(() => restoreSearchState('t900'), 900);
+      }
+
+      return out;
+    };
+    window.showView.__wrappedSearchPersistFinal = true;
+  }
+})();
+
         /**
+
 
          * ---------------------------------------------------------------------
          * PLAYER & AUDIO CONTROL
