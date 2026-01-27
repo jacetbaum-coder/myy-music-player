@@ -12350,10 +12350,129 @@ function clearSearch() {
     try { input.focus(); } catch (e) {}
   }
   try { handleSearch(''); } catch (e) {}
+
+  // Also clear saved search state
+  try {
+    window.__globalSearchState = { q: "", scrollTop: 0 };
+  } catch (e) {}
 }
 
 // Back-compat (in case any older button still calls this)
 function exitSearch() { clearSearch(); }
+
+
+// ------------------------------
+// ✅ SEARCH PERSIST + BLUR ON SCROLL (MOBILE)
+// ------------------------------
+(function installGlobalSearchPersistAndBlur(){
+  if (window.__globalSearchPersistInstalled) return;
+  window.__globalSearchPersistInstalled = true;
+
+  // Saved state for Search tab
+  window.__globalSearchState = window.__globalSearchState || { q: "", scrollTop: 0 };
+
+  const getMain = () => document.getElementById('main-scroll-area');
+  const getInput = () => document.getElementById('global-search');
+
+  const saveState = (why) => {
+    try {
+      if (!window.navCurrent || window.navCurrent.type !== 'search') return;
+      const input = getInput();
+      const main = getMain();
+      window.__globalSearchState.q = input ? String(input.value || '') : '';
+      window.__globalSearchState.scrollTop = main ? Number(main.scrollTop || 0) : 0;
+      // console.log("✅ saved search state:", why, window.__globalSearchState);
+    } catch (e) {}
+  };
+
+  const restoreState = () => {
+    try {
+      const st = window.__globalSearchState || { q: "", scrollTop: 0 };
+      const input = getInput();
+
+      // Re-run search so results render again (fixes “blank page with query still shown”)
+      if (input && st.q) {
+        input.value = st.q;
+        try { handleSearch(st.q); } catch (e) {}
+      }
+
+      // Restore scroll after results render (do it twice to beat late DOM mutations)
+      setTimeout(() => {
+        const main = getMain();
+        if (main) main.scrollTop = Number(st.scrollTop || 0);
+      }, 0);
+
+      setTimeout(() => {
+        const main = getMain();
+        if (main) main.scrollTop = Number(st.scrollTop || 0);
+      }, 120);
+    } catch (e) {}
+  };
+
+  // 1) Hide keyboard when user starts scrolling results (mobile)
+  // (Blur only if Search input is currently focused)
+  const bindBlurOnScroll = () => {
+    const main = getMain();
+    if (!main || main.__searchBlurBound) return;
+    main.__searchBlurBound = true;
+
+    main.addEventListener('scroll', () => {
+      try {
+        if (!window.navCurrent || window.navCurrent.type !== 'search') return;
+        const input = getInput();
+        if (input && document.activeElement === input) input.blur();
+      } catch (e) {}
+    }, { passive: true });
+  };
+
+  // 2) Persist search when navigating away + restore when coming back
+  const installWraps = () => {
+    if (typeof window.showView !== 'function') {
+      setTimeout(installWraps, 50);
+      return;
+    }
+    if (window.showView.__searchPersistWrapped) return;
+
+    const origShowView = window.showView;
+    window.showView = function(...args) {
+      const target = args[0];
+
+      // Save *before* leaving search
+      try {
+        if (window.navCurrent && window.navCurrent.type === 'search' && target !== 'search') {
+          saveState('leaving search');
+        }
+      } catch (e) {}
+
+      const out = origShowView.apply(this, args);
+
+      // Restore *after* entering search
+      try {
+        if (target === 'search') {
+          bindBlurOnScroll();
+          restoreState();
+        }
+      } catch (e) {}
+
+      return out;
+    };
+
+    window.showView.__searchPersistWrapped = true;
+
+    // Also bind blur-on-scroll immediately if you're already in search
+    bindBlurOnScroll();
+  };
+
+  installWraps();
+
+  // Extra: save on taps inside search (before navigation handlers fire)
+  if (!document.__globalSearchSaveTapBound) {
+    document.__globalSearchSaveTapBound = true;
+    document.addEventListener('click', () => saveState('click'), true);
+    document.addEventListener('pointerdown', () => saveState('pointerdown'), true);
+  }
+})();
+
 
 // ✅ Persist Search: keep query + scroll position when opening a result and going back
 (function installSearchPersistenceFinal(){
