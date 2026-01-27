@@ -16465,9 +16465,32 @@ try {
         return;
       }
 
-      // Resolve trackId (single-song menu). Multi-song select can be added later.
-      const trackId = __resolveTrackIdForMenu();
-      if (!trackId) return alert('Missing trackId for this song.');
+            // ✅ Resolve trackIds:
+      // - If song-multiselect is ON, use the selected set
+      // - Else fallback to the single menuTargetSong
+      let trackIds = [];
+
+      try {
+        const multiOn = document.body && document.body.classList.contains('song-multiselect');
+        const picked = (multiOn && typeof window.getSelectedSongUrls === 'function')
+          ? (window.getSelectedSongUrls() || [])
+          : [];
+
+        if (multiOn && picked.length) {
+          trackIds = picked.map(__canonTrackIdLocal).filter(Boolean);
+        }
+      } catch (e) {}
+
+      if (!trackIds.length) {
+        const one = __resolveTrackIdForMenu();
+        if (one) trackIds = [one];
+      }
+
+      if (!trackIds.length) return alert('Missing trackId(s) for this add.');
+
+      // Optional: reflect count on the button while it runs
+      try { doneBtn.textContent = (trackIds.length > 1) ? `Add ${trackIds.length} songs` : 'Add 1 song'; } catch (e) {}
+
 
       const pls = Array.isArray(window.playlists) ? window.playlists : [];
 
@@ -16483,7 +16506,10 @@ try {
           if (typeof window.addTrackToPlaylistInCloud !== 'function') {
             throw new Error('addTrackToPlaylistInCloud is missing');
           }
-          await window.addTrackToPlaylistInCloud(playlistId, trackId);
+                    for (const tid of trackIds) {
+            await window.addTrackToPlaylistInCloud(playlistId, tid);
+          }
+
         } catch (err) {
           console.warn('❌ cloud add failed:', pl?.name, err);
           alert("Couldn’t add to playlist (cloud sync failed).");
@@ -16493,8 +16519,13 @@ try {
         // 2) LOCAL UPDATE (IDs-only) + SAVE (best-effort)
         try {
           if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
-          const set = new Set(pl.trackIds.map(__canonTrackIdLocal));
-          if (!set.has(trackId)) pl.trackIds.push(trackId);
+                    const set = new Set(pl.trackIds.map(__canonTrackIdLocal));
+          for (const tid of trackIds) {
+            if (!set.has(tid)) {
+              pl.trackIds.push(tid);
+              set.add(tid);
+            }
+          }
 
           try { if (typeof window.savePlaylists === 'function') window.savePlaylists(); } catch (e2) {}
           try { if (typeof window.updatePlaylistAutoCoverById === 'function') await window.updatePlaylistAutoCoverById(playlistId); } catch (e3) {}
