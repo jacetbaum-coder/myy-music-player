@@ -175,6 +175,43 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Home: square playlist tiles (match "All" grid style) */
+.home-square-card{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: transparent;
+  padding: 0;
+}
+
+.home-square-card:active { transform: scale(0.98); }
+
+.home-square-card .cover{
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+}
+
+.home-square-card .cover img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-square-card .title{
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
 /* NOW PLAYING overlay: enable on mobile + desktop */
 #now-playing-overlay {
   display: none;
