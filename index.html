@@ -16007,7 +16007,29 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     items.style.minHeight = '0';
   } catch (e) {}
 
-  items.innerHTML = '';
+  // ✅ Clean slate
+items.innerHTML = '';
+
+// ✅ REMOVE DUPLICATE MENU-ITEMS accidentally appended to #playlist-submenu
+Array.from(sub.children).forEach((child) => {
+  if (!child || !child.classList) return;
+
+  // keep structural elements
+  if (child.classList.contains('cm-handle')) return;
+  if (child.classList.contains('cm-submenu-header')) return;
+  if (child.id === 'playlist-submenu-items') return;
+
+  // keep "+ New Playlist"
+  const oc = child.getAttribute && child.getAttribute('onclick');
+  if (oc && oc.includes('createNewPlaylist')) return;
+
+  // ❌ delete any other direct menu-item
+  if (child.classList.contains('menu-item')) {
+    child.remove();
+  }
+});
+``
+
 
     // ✅ Recents-first playlist list (uses historyLog if available)
   const allPls = Array.isArray(window.playlists) ? window.playlists : [];
@@ -16306,14 +16328,21 @@ return;
   });
 
   // ✅ closeContextMenu() may have hidden this sheet with inline styles — undo that
-  sub.style.display = 'block';
-  sub.style.opacity = '1';
-  sub.style.transform = 'translateY(0)';
-  // ✅ closeContextMenu() may have set inline styles; clear them so CSS .open works
-  sub.style.display = 'block';
-  sub.style.opacity = '';
-  sub.style.transform = '';
-  sub.classList.add('open');
+ sub.style.display = 'block';
+
+/* ✅ MUST be above #context-menu-backdrop (yours is ~199999) */
+sub.style.zIndex = '200500';
+sub.style.pointerEvents = 'auto';
+
+/* ✅ only the inner list scrolls (prevents double scrollbars) */
+sub.style.overflow = 'hidden';
+if (items) {
+  items.style.overflowY = 'auto';
+  items.style.webkitOverflowScrolling = 'touch';
+}
+
+sub.classList.add('open');
+
 
 
 }
