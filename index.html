@@ -5298,15 +5298,21 @@ async function __renderRecentlyDeleted() {
   const openRD = document.getElementById("settings-open-recently-deleted");
 
   const rdBack = document.getElementById("rd-back");
-  const rdTabP = document.getElementById("rd-tab-playlists");
-  const rdTabA = document.getElementById("rd-tab-albums");
-  const rdSearch = document.getElementById("rd-search");
-  const rdSort  = document.getElementById("rd-sort");
 
-   if (backSettings) backSettings.addEventListener("click", () => { try { showView("home"); } catch (e) {} });
+  // Vertical tabs (new)
+  const rdTabAlbums    = document.getElementById("rd-tab-albums");
+  const rdTabPlaylists = document.getElementById("rd-tab-playlists");
+  const rdTabSongs     = document.getElementById("rd-tab-songs");
+  const rdTabFolders   = document.getElementById("rd-tab-folders");
+
+  const rdSearch = document.getElementById("rd-search");
+  const rdSort   = document.getElementById("rd-sort");
+
+  if (backSettings) backSettings.addEventListener("click", () => {
+    try { showView("home"); } catch (e) {}
+  });
 
   if (openSync) openSync.addEventListener("click", async () => {
-
     try {
       if (typeof window.openSyncDevicesModal === "function") {
         await window.openSyncDevicesModal();
@@ -5319,25 +5325,34 @@ async function __renderRecentlyDeleted() {
     }
   });
 
-  if (openRD) openRD.addEventListener("click", async () => {
-    try {
-      showView("recently-deleted");
-    } catch (e) {}
+  // ✅ Settings -> Recently Deleted (route you proved works)
+  if (openRD) openRD.addEventListener("click", () => {
+    try { showView("recently-deleted"); } catch (e) {}
+
+    // ✅ Default to Albums when you arrive
+    try { if (typeof window.__setRdTab === "function") window.__setRdTab("album"); } catch (e) {}
+    try { if (typeof window.__renderRecentlyDeleted === "function") window.__renderRecentlyDeleted(); } catch (e) {}
   });
 
-  if (rdBack) rdBack.addEventListener("click", () => { try { showView("settings"); } catch (e) {} });
+  if (rdBack) rdBack.addEventListener("click", () => {
+    try { showView("settings"); } catch (e) {}
+  });
 
-  if (rdTabP) rdTabP.addEventListener("click", () => __setRdTab("playlist"));
-  if (rdTabA) rdTabA.addEventListener("click", () => __setRdTab("album"));
+  // Tabs
+  if (rdTabAlbums)    rdTabAlbums.addEventListener("click",    () => { try { __setRdTab("album"); } catch (e) {} });
+  if (rdTabPlaylists) rdTabPlaylists.addEventListener("click", () => { try { __setRdTab("playlist"); } catch (e) {} });
+  if (rdTabSongs)     rdTabSongs.addEventListener("click",     () => { try { __setRdTab("song"); } catch (e) {} });
+  if (rdTabFolders)   rdTabFolders.addEventListener("click",   () => { try { __setRdTab("folder"); } catch (e) {} });
 
+  // Search + sort
   if (rdSearch) rdSearch.addEventListener("input", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
-  if (rdSort) rdSort.addEventListener("change", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
+  if (rdSort)   rdSort.addEventListener("change", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
 
   // expose for console debugging
-
   window.renderRecentlyDeleted = __renderRecentlyDeleted;
   window.setRecentlyDeletedTab = __setRdTab;
 })();
+
 
 function makeUserId() {
   return "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
