@@ -16866,12 +16866,13 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
       if (gridEl) gridEl.style.display = 'none';
       if (rowEl)  rowEl.style.display  = '';
       renderHomeRecentsRow('home-recents-row');
-    } else {
+        } else {
       if (gridEl) gridEl.style.display = '';
-      if (rowEl)  rowEl.style.display  = '';
+      if (rowEl)  rowEl.style.display  = 'none';
       renderHomeRecents('home-recent-grid');
-      renderHomeRecentsRow('home-recents-row');
+      // ✅ in grid mode, do NOT show the list row
     }
+
     return;
   }
 
