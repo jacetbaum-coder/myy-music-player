@@ -16356,12 +16356,23 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
   for (let i = 0; i < slotCount; i++) {
     const h = items[i];
 
-    // Placeholder tile (keeps the “imaginary rectangle” space)
+        // Placeholder tile (keeps the 2x2 grid shape on mobile)
     if (!h) {
       tiles.push(`
-        <div class="min-w-0 flex-1"></div>
+        <div class="mobile-recent-card opacity-35 pointer-events-none"
+             data-type=""
+             data-id=""
+             data-album="">
+          <div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0"></div>
+          <div class="min-w-0">
+            <div class="title">&nbsp;</div>
+            <div class="sub">&nbsp;</div>
+          </div>
+        </div>
       `);
       continue;
+    }
+
     }
 
     const type = String(h.type || '');
