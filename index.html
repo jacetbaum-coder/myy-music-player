@@ -4421,12 +4421,22 @@ if (!window.__mobileTrackSelectTapGuard) {
 
       const row = e.target && e.target.closest ? e.target.closest('.track-row[data-song-url]') : null;
 
-      // ✅ If you tap OUTSIDE the track list while in multi-select, exit multi-select
+            // ✅ If you tap OUTSIDE the track list while in multi-select, exit multi-select
+      // BUT: taps inside overlays/menus (context-menu, playlist submenu) should NOT cancel selection
       const trackList = document.getElementById('track-list');
       const tappedInsideTrackList = !!(trackList && (trackList === e.target || trackList.contains(e.target)));
 
+      const ctxMenu = document.getElementById('context-menu');
+      const tappedInsideContextMenu = !!(ctxMenu && (ctxMenu === e.target || ctxMenu.contains(e.target)));
+
+      const psMenu = document.getElementById('playlist-submenu');
+      const tappedInsidePlaylistSubmenu = !!(psMenu && (psMenu === e.target || psMenu.contains(e.target)));
+
+      const tappedInsideAnyOverlay = tappedInsideContextMenu || tappedInsidePlaylistSubmenu;
+
+
       if (!row) {
-        if (!tappedInsideTrackList) setSongSelectEnabled(false);
+        if (!tappedInsideTrackList && !tappedInsideAnyOverlay) setSongSelectEnabled(false);
         return;
       }
 
