@@ -15988,50 +15988,44 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   // build playlist list fresh each time
 
   // ✅ CLEANUP: remove any stray menu-item children that are NOT inside #playlist-submenu-items
-  // (this is what creates the “duplicate menus” look)
+  // (renderPlaylists() sometimes appends menu-item rows directly into #playlist-submenu — delete those)
   try {
     const keepNew = sub.querySelector('.menu-item[onclick*="createNewPlaylist"]');
-    const stray = Array.from(sub.children).filter(el =>
-      el &&
-      el.classList &&
-      el.classList.contains('menu-item') &&
-      el !== keepNew
-    );
-    stray.forEach(el => { try { el.remove(); } catch (e) {} });
+
+    Array.from(sub.children).forEach((child) => {
+      if (!child || !child.classList) return;
+
+      // keep structural elements
+      if (child.classList.contains('cm-handle')) return;
+      if (child.classList.contains('cm-submenu-header')) return;
+      if (child.id === 'playlist-submenu-items') return;
+
+      // keep "+ New Playlist"
+      if (keepNew && child === keepNew) return;
+      const oc = child.getAttribute && child.getAttribute('onclick');
+      if (oc && oc.includes('createNewPlaylist')) return;
+
+      // ❌ delete any other direct menu-item
+      if (child.classList.contains('menu-item')) {
+        try { child.remove(); } catch (e) {}
+      }
+    });
   } catch (e) {}
 
-  // ✅ Make ONLY the list scroll (prevents the 2-scrollbar mess)
+  // ✅ Make ONLY the list scroll + add a subtle bottom “end” strip
   try {
+    sub.style.overflow = 'hidden';
     items.style.overflow = 'auto';
     items.style.flex = '1 1 auto';
     items.style.minHeight = '0';
+    items.style.boxShadow = 'inset 0 -14px 0 rgba(255,255,255,0.08)';
   } catch (e) {}
 
   // ✅ Clean slate
-items.innerHTML = '';
-
-// ✅ REMOVE DUPLICATE MENU-ITEMS accidentally appended to #playlist-submenu
-Array.from(sub.children).forEach((child) => {
-  if (!child || !child.classList) return;
-
-  // keep structural elements
-  if (child.classList.contains('cm-handle')) return;
-  if (child.classList.contains('cm-submenu-header')) return;
-  if (child.id === 'playlist-submenu-items') return;
-
-  // keep "+ New Playlist"
-  const oc = child.getAttribute && child.getAttribute('onclick');
-  if (oc && oc.includes('createNewPlaylist')) return;
-
-  // ❌ delete any other direct menu-item
-  if (child.classList.contains('menu-item')) {
-    child.remove();
-  }
-});
-``
-
+  items.innerHTML = '';
 
     // ✅ Recents-first playlist list (uses historyLog if available)
+
   const allPls = Array.isArray(window.playlists) ? window.playlists : [];
 
   let recentIds = [];
