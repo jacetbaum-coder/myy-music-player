@@ -271,7 +271,48 @@
 }
 
 
+/* Home: special tiles (Liked + Folder) icons */
+.home-square-card[data-type="liked"] .cover{
+  background: linear-gradient(135deg, #3a2bff 0%, #bfeee6 100%) !important;
+  position: relative;
+}
+
+/* Hide any existing icon/img inside liked tile cover (prevents double-heart) */
+.home-square-card[data-type="liked"] .cover > * { display:none !important; }
+
+.home-square-card[data-type="liked"] .cover::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 44%;
+  height: 44%;
+  background:#fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21s-7.4-4.35-10-9.14C-0.2 7.26 2.4 3 6.52 3c2.05 0 3.72 1.1 4.48 2.2C11.76 4.1 13.43 3 15.48 3 19.6 3 22.2 7.26 22 11.86 19.4 16.65 12 21 12 21z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21s-7.4-4.35-10-9.14C-0.2 7.26 2.4 3 6.52 3c2.05 0 3.72 1.1 4.48 2.2C11.76 4.1 13.43 3 15.48 3 19.6 3 22.2 7.26 22 11.86 19.4 16.65 12 21 12 21z'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: .98;
+}
+
+/* Folder tile: dark card + centered folder outline */
+.home-square-card[data-type="folder"] .cover{
+  background: rgba(255,255,255,0.10) !important;
+  position: relative;
+}
+.home-square-card[data-type="folder"] .cover > * { display:none !important; }
+.home-square-card[data-type="folder"] .cover::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 54%;
+  height: 54%;
+  background: rgba(255,255,255,0.70);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 /* NOW PLAYING overlay: enable on mobile + desktop */
+
 #now-playing-overlay {
   display: none;
   transform: translateY(0);
@@ -18689,12 +18730,30 @@ let playlistMenuTargetId = null;
 
 function hidePlaylistMenu() {
   const m = document.getElementById('playlist-menu');
-  if (m) m.classList.add('hidden');
-  playlistMenuTargetId = null; try { window.playlistMenuTargetId = null; } catch (e) {}
+  const b = document.getElementById('playlist-menu-backdrop');
 
+  // Mobile sheet close animation
+  try {
+    if (typeof isMobile === 'function' && isMobile() && m) {
+      m.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      m.style.transform = 'translateY(100%)';
+      if (b) b.style.opacity = '0';
+      setTimeout(() => { try { m.classList.add('hidden'); } catch(_){} }, 210);
+      setTimeout(() => { try { if (b) b.classList.add('hidden'); } catch(_){} }, 210);
+    } else {
+      if (m) m.classList.add('hidden');
+      if (b) b.classList.add('hidden');
+    }
+  } catch (e) {
+    if (m) m.classList.add('hidden');
+    if (b) b.classList.add('hidden');
+  }
+
+  playlistMenuTargetId = null; try { window.playlistMenuTargetId = null; } catch (e) {}
 }
 
 function showPlaylistMenuAt(x, y, playlistId) {
+
   let m = document.getElementById('playlist-menu');
 
   // ✅ If the menu got removed from DOM, recreate it on demand
@@ -18702,18 +18761,36 @@ function showPlaylistMenuAt(x, y, playlistId) {
     try {
       const tmp = document.createElement('div');
       tmp.innerHTML = `
-<div id="playlist-menu" class="hidden fixed z-50 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-2 min-w-[240px]" style="transform: translateY(12px);">
+<div id="playlist-menu-backdrop" class="hidden fixed inset-0 z-[999998]" style="background: rgba(0,0,0,0.55);"></div>
 
-  <button id="pm-pin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Pin playlist</button>
-  <button id="pm-unpin" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Unpin playlist</button>
-  <div class="my-2 border-t border-white/10"></div>
-  <button id="pm-cover-url" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (paste image link)</button>
-  <button id="pm-cover-upload" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Change cover (upload file)</button>
-  <button id="pm-cover-clear" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 text-white text-sm">Remove custom cover</button>
-  <div class="my-2 border-t border-white/10"></div>
-  <button id="pm-delete" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 text-sm">Delete playlist</button>
+<div id="playlist-menu" class="hidden fixed z-[999999] bg-[#232323] border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style="width: min(560px, 92vw); left: 50%; transform: translate(-50%, 100%); bottom: 16px;">
+
+  <div class="cm-handle"></div>
+
+  <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.10); font-weight: 900; color: #fff;">
+    Playlist options
+  </div>
+
+  <div class="menu-item" id="pm-add-to-folder">Add to folder</div>
+  <div class="menu-item" id="pm-new-folder">Make new folder</div>
+
+  <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+
+  <div class="menu-item" id="pm-pin">Pin playlist</div>
+  <div class="menu-item" id="pm-unpin">Unpin playlist</div>
+
+  <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+
+  <div class="menu-item" id="pm-cover-url">Change cover (paste image link)</div>
+  <div class="menu-item" id="pm-cover-upload">Change cover (upload file)</div>
+  <div class="menu-item" id="pm-cover-clear">Remove custom cover</div>
+
+  <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+
+  <div class="menu-item text-red-400" id="pm-delete">Delete playlist</div>
 </div>
-      `.trim();
+`.trim();
+
       document.body.appendChild(tmp.firstElementChild);
 
       // file input used by upload
@@ -18870,9 +18947,38 @@ function showPlaylistMenuAt(x, y, playlistId) {
   }
 
   // Position + show menu
+  const b = document.getElementById('playlist-menu-backdrop');
+
+  // Mobile: open as bottom sheet (same vibe as Add to playlist)
+  if (typeof isMobile === 'function' && isMobile()) {
+    if (b) {
+      b.classList.remove('hidden');
+      b.style.opacity = '0';
+      b.onclick = () => { try { hidePlaylistMenu(); } catch(e){} };
+    }
+
+    m.classList.remove('hidden');
+    m.style.left = '50%';
+    m.style.top = 'auto';
+    m.style.bottom = '16px';
+
+    // start hidden (off-screen), then animate up
+    m.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    m.style.transform = 'translate(-50%, 100%)';
+    requestAnimationFrame(() => {
+      try { if (b) b.style.opacity = '1'; } catch(e){}
+      try { m.style.transform = 'translate(-50%, 0)'; } catch(e){}
+    });
+
+    return;
+  }
+
+  // Desktop: popover at pointer
   m.style.left = `${x}px`;
   m.style.top = `${y}px`;
   m.classList.remove('hidden');
+}
+
 }
 
 
@@ -19139,14 +19245,31 @@ window.addEventListener('DOMContentLoaded', () => {
   const menu = document.getElementById('playlist-menu');
   const coverUrlBtn = document.getElementById('pm-cover-url');
   const coverUploadBtn = document.getElementById('pm-cover-upload');
-  const coverClearBtn = document.getElementById('pm-cover-clear');
+    const coverClearBtn = document.getElementById('pm-cover-clear');
+  const addToFolderBtn = document.getElementById('pm-add-to-folder');
+  const newFolderBtn  = document.getElementById('pm-new-folder');
   const delBtn = document.getElementById('pm-delete');
   const fileInput = document.getElementById('playlist-cover-file');
 
-  // If menu isn't in DOM, nothing to bind
+
+    // If menu isn't in DOM, nothing to bind
   if (!menu) return;
 
+  // ✅ Folder prototype (no backend yet)
+  if (addToFolderBtn) addToFolderBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    alert("Prototype: Add to folder (coming next).");
+    try { hidePlaylistMenu(); } catch (err) {}
+  };
+
+  if (newFolderBtn) newFolderBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    alert("Prototype: Make new folder (coming next).");
+    try { hidePlaylistMenu(); } catch (err) {}
+  };
+
   // ✅ Cover URL
+
   if (coverUrlBtn) coverUrlBtn.onclick = async (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!window.playlistMenuTargetId) return;
