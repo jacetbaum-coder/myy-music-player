@@ -2695,11 +2695,15 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-      <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
-    Add song to playlist
-    <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+      <div class="menu-item" onclick="openAddToFolderSubmenu(event)">
+  Add to folder
+  <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+</div>
 
-  </div>
+<div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
+  Add song to playlist
+  <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+</div>
 
     <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
     Remove song from this playlist
@@ -16278,6 +16282,42 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
+function openAddToFolderSubmenu(event){
+  event.preventDefault();
+  event.stopPropagation();
+
+  const submenu = document.getElementById('playlist-submenu');
+  const items = document.getElementById('playlist-submenu-items');
+  const title = submenu.querySelector('.cm-submenu-title');
+
+  if (!submenu || !items || !title) {
+    console.warn("Add-to-folder submenu missing DOM pieces");
+    return;
+  }
+
+  // Title
+  title.textContent = "Add to folder";
+
+  // Clear old items
+  items.innerHTML = "";
+
+  // ---- Sample folder (prototype) ----
+  items.innerHTML += `
+    <div class="menu-item" onclick="alert('Added to My First Folder (prototype)')">
+      My First Folder
+    </div>
+  `;
+
+  // ---- New folder option ----
+  items.innerHTML += `
+    <div class="menu-item" onclick="alert('Create new folder (next step)')">
+      + New Folder
+    </div>
+  `;
+
+  // Show submenu
+  submenu.classList.add('open');
+}
 
         function openPlaylistSubmenu(event){
   // ✅ Prevent the global "click outside" closer from instantly closing menus
