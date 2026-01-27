@@ -212,6 +212,17 @@
   padding: 0 2px;
 }
 
+.home-square-card .sub{
+  font-size: 12px;
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+  margin-top: -2px;
+}
+
+
 /* NOW PLAYING overlay: enable on mobile + desktop */
 #now-playing-overlay {
   display: none;
@@ -16379,27 +16390,45 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
   // If nothing, show empty placeholders (keeps layout stable)
   // (we still render placeholders below because the loop fills slotCount)
 
-  const tiles = [];
+  const tab = String(window.homeTopTab || 'all');
+const useSquareTiles = (tab === 'playlists');
 
-  for (let i = 0; i < slotCount; i++) {
+const tiles = [];
+
+for (let i = 0; i < slotCount; i++) {
+
     const h = items[i];
 
-        // Placeholder tile (keeps the 2x2 grid shape on mobile)
+        // Placeholder tile (keeps layout stable)
     if (!h) {
-      tiles.push(`
-        <div class="mobile-recent-card opacity-35 pointer-events-none"
-             data-type=""
-             data-id=""
-             data-album="">
-          <div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0"></div>
-          <div class="min-w-0">
+      if (useSquareTiles) {
+        tiles.push(`
+          <div class="home-square-card opacity-35 pointer-events-none"
+               data-type=""
+               data-id=""
+               data-album="">
+            <div class="cover"></div>
             <div class="title">&nbsp;</div>
             <div class="sub">&nbsp;</div>
           </div>
-        </div>
-      `);
+        `);
+      } else {
+        tiles.push(`
+          <div class="mobile-recent-card opacity-35 pointer-events-none"
+               data-type=""
+               data-id=""
+               data-album="">
+            <div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0"></div>
+            <div class="min-w-0">
+              <div class="title">&nbsp;</div>
+              <div class="sub">&nbsp;</div>
+            </div>
+          </div>
+        `);
+      }
       continue;
     }
+
 
 
     const type = String(h.type || '');
@@ -16433,31 +16462,62 @@ try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home
       cover = "";
     }
 
-    tiles.push(`
-      <div class="mobile-recent-card"
-            data-type="${type}"
-            data-id="${safeId}"
-            data-album="${safeAlbum}">
-        ${
-          cover
-            ? `<img src="${cover}" alt="">`
-            : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
-                 <i class="fas fa-music text-zinc-400 text-xs"></i>
-               </div>`
-        }
-        <div class="min-w-0">
+        // ✅ Square tiles ONLY for Home → Playlists tab
+    if (useSquareTiles && type === 'playlist') {
+      const pl2 = (Array.isArray(playlists) ? playlists.find(p => String(p.id) === String(h.id)) : null);
+
+      let coverMarkup = '';
+      if (pl2 && typeof getPlaylistCoverMarkup === 'function') {
+        coverMarkup = getPlaylistCoverMarkup(pl2, "w-full h-full");
+      }
+
+      tiles.push(`
+        <div class="home-square-card cursor-pointer"
+             data-type="${type}"
+             data-id="${safeId}"
+             data-album="${safeAlbum}">
+          <div class="cover">
+            ${
+              coverMarkup
+                ? coverMarkup
+                : (cover
+                    ? `<img src="${cover}" alt="">`
+                    : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
+                         <i class="fas fa-music text-3xl text-zinc-500"></i>
+                       </div>`
+                  )
+            }
+          </div>
           <div class="title">${title}</div>
-          <div class="sub">${sub}</div>
+          <div class="sub">Playlist</div>
         </div>
-      </div>
-    `);
-  }
+      `);
+    } else {
+      tiles.push(`
+        <div class="mobile-recent-card"
+              data-type="${type}"
+              data-id="${safeId}"
+              data-album="${safeAlbum}">
+          ${
+            cover
+              ? `<img src="${cover}" alt="">`
+              : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex items-center justify-center flex-shrink-0">
+                   <i class="fas fa-music text-zinc-400 text-xs"></i>
+                 </div>`
+          }
+          <div class="min-w-0">
+            <div class="title">${title}</div>
+            <div class="sub">${sub}</div>
+          </div>
+        </div>
+      `);
 
   grid.innerHTML = tiles.join('');
 
 
   // Click opens playlist/album (placeholders have pointer-events none)
-  [...grid.querySelectorAll('.mobile-recent-card')].forEach(card => {
+    [...grid.querySelectorAll('.mobile-recent-card, .home-square-card')].forEach(card => {
+
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
         if (!type) return;
