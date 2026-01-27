@@ -203,45 +203,55 @@
   display: block;
 }
 
-/* ✅ Pretty “Liked Songs” (gradient + white heart) */
+/* ✅ Special tiles: Liked (gradient + clean heart) + Folder (clean folder icon) */
 .home-square-card[data-type="liked"] .cover{
   background: linear-gradient(135deg, #3a2bff 0%, #bfeee6 100%) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
 }
 .home-square-card[data-type="liked"] .cover > *{
-  display: none !important; /* hide old fallback icon/html if any */
+  display: none !important; /* prevents any old icon from showing */
 }
 .home-square-card[data-type="liked"] .cover::before{
-  content: "";
-  width: 44%;
-  height: 44%;
-  background: rgba(255,255,255,0.95);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 21s-7.2-4.4-9.5-8C.7 9.6 2.2 6.5 5.5 6.1c1.7-.2 3.1.6 3.9 1.6.8-1 2.2-1.8 3.9-1.6 3.3.4 4.8 3.5 3 6.9C19.2 16.6 12 21 12 21z'/></svg>") center / contain no-repeat;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 21s-7.2-4.4-9.5-8C.7 9.6 2.2 6.5 5.5 6.1c1.7-.2 3.1.6 3.9 1.6.8-1 2.2-1.8 3.9-1.6 3.3.4 4.8 3.5 3 6.9C19.2 16.6 12 21 12 21z'/></svg>") center / contain no-repeat;
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 46%;
+  height: 46%;
+  background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4 4 6.5 4c1.74 0 3.41 1.01 4.13 2.44C11.09 5.01 12.76 4 14.5 4 17 4 19 6 19 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4 4 6.5 4c1.74 0 3.41 1.01 4.13 2.44C11.09 5.01 12.76 4 14.5 4 17 4 19 6 19 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-/* ✅ Pretty “Folder” (dark tile + folder outline) */
 .home-square-card[data-type="folder"] .cover{
-  background: rgba(255,255,255,0.06) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(255,255,255,0.10) !important;
+  position: relative;
 }
 .home-square-card[data-type="folder"] .cover > *{
-  display: none !important; /* hide old fallback icon/html if any */
+  display: none !important;
 }
 .home-square-card[data-type="folder"] .cover::before{
-  content: "";
-  width: 52%;
-  height: 52%;
-  background: rgba(255,255,255,0.62);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6zm10 4H4v10h16V8z'/></svg>") center / contain no-repeat;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6zm10 4H4v10h16V8z'/></svg>") center / contain no-repeat;
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 56%;
+  height: 56%;
+  background: rgba(255,255,255,0.75);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .home-square-card .title{
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
   font-weight: 900;
   font-size: 16px;
   line-height: 1.15;
