@@ -15916,7 +15916,32 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
   if (!sub) return;
 
+  // ✅ Make submenu fully replace the context menu (same position/size)
+  try {
+    const cm = document.getElementById('context-menu');
+    if (cm && cm.style) {
+      const r = cm.getBoundingClientRect();
+
+      sub.style.position = 'fixed';
+      sub.style.left = Math.round(r.left) + 'px';
+      sub.style.top  = Math.round(r.top) + 'px';
+      sub.style.transform = 'none';
+      sub.style.zIndex = '2147483647';
+      sub.style.width = Math.round(r.width) + 'px';
+      sub.style.maxHeight = Math.round(Math.min(window.innerHeight - r.top - 16, 520)) + 'px';
+      sub.style.overflow = 'auto';
+      sub.style.display = 'block';
+      sub.style.visibility = 'visible';
+      sub.style.opacity = '1';
+      sub.style.pointerEvents = 'auto';
+
+      // Hide the old menu so the submenu “takes its place”
+      try { cm.style.display = 'none'; } catch (e) {}
+    }
+  } catch (e) {}
+
   // ✅ playlist-submenu-items may be missing at runtime (DOM rebuild) — recreate it
+
   let items = document.getElementById('playlist-submenu-items');
   if (!items) {
     items = document.createElement('div');
