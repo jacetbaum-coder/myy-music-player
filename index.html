@@ -16701,15 +16701,17 @@ function getHomeRecentsItems() {
     return { type:'album', album: h.album, artist: h.artist, cover: h.cover };
   });
 
-    // ✅ filter based on homeTopTab
-  if (homeTopTab === 'liked') {
+    // ✅ filter based on window.homeTopTab
+  const tab = window.homeTopTab;
+
+  if (tab === 'liked') {
     // Home "Liked" tab is a special item that opens the Liked view
     return [{ type: 'liked' }].slice(0, max);
   }
 
-  if (homeTopTab === 'playlists') out = out.filter(x => x.type === 'playlist');
-  if (homeTopTab === 'albums')    out = out.filter(x => x.type === 'album');
-  if (homeTopTab === 'artists')   out = out.filter(x => x.type === 'artist');
+  if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
+  if (tab === 'albums')    out = out.filter(x => x.type === 'album');
+  if (tab === 'artists')  out = out.filter(x => x.type === 'artist');
   // 'all' = no filter
 
   // ✅ Apply Home sort mode (per-tab)
