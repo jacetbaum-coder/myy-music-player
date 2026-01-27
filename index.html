@@ -4147,13 +4147,40 @@ let playContext = null;
             const needle = String(q || "").toLowerCase().trim();
             listWrap.innerHTML = "";
 
-            const pls = Array.isArray(window.playlists) ? window.playlists : [];
-            const rows = pls
-              .map(p => ({ pid: getPlaylistId(p), name: String(p?.name || "Untitled") }))
+                        const plsLocal = Array.isArray(window.playlists) ? window.playlists : [];
+            const plsCloud = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
+
+            // Merge (cloud first), de-dupe by playlist id
+            const byId = new Map();
+            for (const p of [...plsCloud, ...plsLocal]) {
+              const pid = getPlaylistId(p);
+              if (!pid) continue;
+              if (!byId.has(pid)) byId.set(pid, p);
+            }
+
+            function getPlaylistCover(p) {
+              return String(
+                p?.cover ||
+                p?.coverUrl ||
+                p?.cover_url ||
+                p?.image ||
+                p?.img ||
+                p?.art ||
+                ""
+              ).trim();
+            }
+
+            const rows = Array.from(byId.values())
+              .map(p => ({
+                pid: getPlaylistId(p),
+                name: String(p?.name || "Untitled"),
+                cover: getPlaylistCover(p)
+              }))
               .filter(r => r.pid)
               .filter(r => !needle || r.name.toLowerCase().includes(needle));
 
-            rows.forEach(({ pid, name }) => {
+            rows.forEach(({ pid, name, cover }) => {
+
               const row = document.createElement('div');
               row.style.display = 'flex';
               row.style.alignItems = 'center';
@@ -4161,12 +4188,42 @@ let playContext = null;
               row.style.padding = '14px 12px';
               row.style.color = '#fff';
 
-              const label = document.createElement('div');
-              label.textContent = name;
-              label.style.fontWeight = '800';
-              label.style.fontSize = '16px';
+                             // Left side: cover + title (keeps title left-aligned, with a small “tad” offset)
+               const left = document.createElement('div');
+               left.style.display = 'flex';
+               left.style.alignItems = 'center';
+               left.style.gap = '12px';
+               left.style.flex = '1';
+               left.style.minWidth = '0';
 
-              const bubble = document.createElement('div');
+               const img = document.createElement('img');
+               img.alt = '';
+               img.style.width = '44px';
+               img.style.height = '44px';
+               img.style.borderRadius = '10px';
+               img.style.objectFit = 'cover';
+               img.style.background = 'rgba(255,255,255,.08)';
+               img.style.flex = '0 0 44px';
+               if (cover) img.src = cover;
+               img.addEventListener('error', () => {
+                 // If cover URL is bad/missing, just show the dark placeholder square
+                 try { img.removeAttribute('src'); } catch (e) {}
+               }, { once: true });
+
+               const label = document.createElement('div');
+               label.textContent = name;
+               label.style.fontWeight = '800';
+               label.style.fontSize = '16px';
+               label.style.textAlign = 'left';
+               label.style.minWidth = '0';
+               label.style.overflow = 'hidden';
+               label.style.textOverflow = 'ellipsis';
+               label.style.whiteSpace = 'nowrap';
+
+               left.append(img, label);
+
+               const bubble = document.createElement('div');
+
               bubble.style.width = '26px';
               bubble.style.height = '26px';
               bubble.style.borderRadius = '50%';
@@ -4196,8 +4253,9 @@ let playContext = null;
                 paint();
               }, true);
 
-              row.append(label, bubble);
-              listWrap.appendChild(row);
+                             row.append(left, bubble);
+               listWrap.appendChild(row);
+
             });
           }
 
