@@ -3995,9 +3995,223 @@ window.toggleFeatureFlag = window.toggleFeatureFlag || function(key){
 let playContext = null;
 // { type: 'album' | 'playlist' | 'search', label: string }
 
-        let menuTargetSong = null;
+               let menuTargetSong = null;
+
+        // ✅ Mobile-safe "Add to playlist" submenu (Spotify-style)
+        window.openAddToPlaylistSubmenu = function (e) {
+          try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
+          try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
+
+          const sub = document.getElementById('playlist-submenu');
+          if (!sub) return;
+
+          try { sub.classList.add('open'); } catch (_) {}
+          try { sub.style.display = 'block'; } catch (_) {}
+
+          sub.style.overflow = 'hidden';
+          sub.style.webkitOverflowScrolling = 'touch';
+          sub.style.position = 'relative';
+
+          sub.innerHTML = `
+            <div id="ps_header" style="position:sticky;top:0;z-index:10;background:#000;padding:14px 12px;border-bottom:1px solid rgba(255,255,255,.12)">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:16px;background:transparent;border:none;">Cancel</button>
+                <div style="color:#fff;font-weight:900;font-size:17px;">Add to playlist</div>
+                <div style="width:56px;"></div>
+              </div>
+
+              <button id="ps_new" type="button"
+                style="margin-top:12px;width:100%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:12px 14px;border:none;">
+                New playlist
+              </button>
+
+              <div style="margin-top:10px;background:#111;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+                <span style="color:rgba(255,255,255,.65)">🔎</span>
+                <input id="ps_search" placeholder="Find playlist" autocomplete="off"
+                  style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
+              </div>
+            </div>
+
+            <div id="ps_listwrap" style="overflow-y:auto;-webkit-overflow-scrolling:touch; padding:8px 0 90px 0;"></div>
+
+            <button id="ps_done" type="button"
+              style="position:absolute;left:50%;transform:translateX(-50%);bottom:10px;width:72%;max-width:360px;
+                     background:#1db954;color:#000;font-weight:950;border-radius:999px;padding:14px;border:none;z-index:20;">
+              Done
+            </button>
+          `;
+
+          const listWrap = sub.querySelector('#ps_listwrap');
+          const search   = sub.querySelector('#ps_search');
+          const cancel   = sub.querySelector('#ps_cancel');
+          const create   = sub.querySelector('#ps_new');
+          const done     = sub.querySelector('#ps_done');
+
+          const headerH = sub.querySelector('#ps_header')?.getBoundingClientRect()?.height || 140;
+          const maxH = Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
+          sub.style.maxHeight = `${maxH}px`;
+          listWrap.style.maxHeight = `${Math.max(200, maxH - headerH)}px`;
+
+          sub.__selected = new Set();
+
+          function canonTrackId(v) {
+            let s = String(v || "").trim();
+            if (!s) return "";
+            try {
+              if (s.includes("://")) {
+                const u = new URL(s);
+                const id = u.searchParams.get("id");
+                if (id) s = id;
+              }
+            } catch (e) {}
+            if (s.includes("?id=")) {
+              try { s = (s.split("?id=")[1] || "").split("&")[0] || s; } catch (e) {}
+            }
+            try { s = decodeURIComponent(s); } catch (e) {}
+            return s.replace(/^\/+/, "").trim();
+          }
+
+          function resolveTrackId() {
+            const s = window.menuTargetSong;
+            if (!s) return "";
+            let trackId =
+              s.id || s.r2Path || s.track_id || s.trackId || s.key || s.r2_key || "";
+            if (!trackId) {
+              const u = s.link || s.url || "";
+              try {
+                const parsed = new URL(u, window.location.origin);
+                trackId = parsed.searchParams.get("id") || "";
+              } catch (_) {}
+            }
+            return canonTrackId(trackId);
+          }
+
+          function getPlaylistId(p) {
+            return String(p?.id || p?.playlistId || p?.playlist_id || "").trim();
+          }
+
+          function renderList(q) {
+            const needle = String(q || "").toLowerCase().trim();
+            listWrap.innerHTML = "";
+
+            const pls = Array.isArray(window.playlists) ? window.playlists : [];
+            const rows = pls
+              .map(p => ({ pid: getPlaylistId(p), name: String(p?.name || "Untitled") }))
+              .filter(r => r.pid)
+              .filter(r => !needle || r.name.toLowerCase().includes(needle));
+
+            rows.forEach(({ pid, name }) => {
+              const row = document.createElement('div');
+              row.style.display = 'flex';
+              row.style.alignItems = 'center';
+              row.style.justifyContent = 'space-between';
+              row.style.padding = '14px 12px';
+              row.style.color = '#fff';
+
+              const label = document.createElement('div');
+              label.textContent = name;
+              label.style.fontWeight = '800';
+              label.style.fontSize = '16px';
+
+              const bubble = document.createElement('div');
+              bubble.style.width = '26px';
+              bubble.style.height = '26px';
+              bubble.style.borderRadius = '50%';
+              bubble.style.border = '2px solid rgba(255,255,255,.4)';
+              bubble.style.display = 'grid';
+              bubble.style.placeItems = 'center';
+
+              function paint() {
+                const on = sub.__selected.has(pid);
+                if (on) {
+                  bubble.style.background = '#1db954';
+                  bubble.style.borderColor = '#1db954';
+                  bubble.innerHTML = '<span style="color:#000;font-weight:950;">✓</span>';
+                } else {
+                  bubble.style.background = 'transparent';
+                  bubble.style.borderColor = 'rgba(255,255,255,.4)';
+                  bubble.innerHTML = '';
+                }
+              }
+              paint();
+
+              row.addEventListener('click', (ev) => {
+                try { ev.preventDefault(); } catch (_) {}
+                try { ev.stopPropagation(); } catch (_) {}
+                if (sub.__selected.has(pid)) sub.__selected.delete(pid);
+                else sub.__selected.add(pid);
+                paint();
+              }, true);
+
+              row.append(label, bubble);
+              listWrap.appendChild(row);
+            });
+          }
+
+          renderList("");
+          search.addEventListener('input', () => renderList(search.value), true);
+
+          cancel.addEventListener('click', (ev) => {
+            try { ev.preventDefault(); } catch (_) {}
+            try { ev.stopPropagation(); } catch (_) {}
+            if (typeof window.closeContextMenu === "function") window.closeContextMenu();
+          }, true);
+
+          create.addEventListener('click', (ev) => {
+            try { ev.preventDefault(); } catch (_) {}
+            try { ev.stopPropagation(); } catch (_) {}
+            if (typeof window.createNewPlaylist === "function") window.createNewPlaylist();
+          }, true);
+
+          done.addEventListener('click', async (ev) => {
+            try { ev.preventDefault(); } catch (_) {}
+            try { ev.stopPropagation(); } catch (_) {}
+
+            const ids = Array.from(sub.__selected || []);
+            if (!ids.length) {
+              if (typeof window.closeContextMenu === "function") window.closeContextMenu();
+              return;
+            }
+
+            const trackId = resolveTrackId();
+            if (!trackId) return alert("Missing trackId for this song.");
+
+            let ok = 0;
+
+            for (const pid of ids) {
+              try {
+                if (typeof window.addTrackToPlaylistInCloud !== "function") throw new Error("addTrackToPlaylistInCloud missing");
+                await window.addTrackToPlaylistInCloud(pid, trackId);
+                ok++;
+              } catch (err) {
+                console.warn("❌ cloud add failed:", pid, err);
+                continue;
+              }
+
+              // local best-effort (ignore quota)
+              try {
+                const pls = Array.isArray(window.playlists) ? window.playlists : [];
+                const pl = pls.find(p => String(p?.id || p?.playlistId || p?.playlist_id || "") === pid);
+                if (pl) {
+                  if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+                  const set = new Set(pl.trackIds.map(canonTrackId));
+                  if (!set.has(trackId)) pl.trackIds.push(trackId);
+                  try { if (typeof window.savePlaylists === "function") window.savePlaylists(); } catch (_) {}
+                }
+              } catch (_) {}
+            }
+
+            if (!ok) {
+              alert("Couldn’t add to playlist (cloud sync failed).");
+              return;
+            }
+
+            if (typeof window.closeContextMenu === "function") window.closeContextMenu();
+          }, true);
+        };
 
         // --------------------------------------------------
+
 // SAFETY: ensure inline onclick="onNavTap(...)"
 // never crashes the app (Safari strict mode)
 // --------------------------------------------------
