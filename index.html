@@ -15948,7 +15948,8 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     sub.style.left = '0';
     sub.style.top  = '0';
     sub.style.right = '0';
-    sub.style.bottom = '0';
+    sub.style.bottom = '12px';
+
     sub.style.width = '100vw';
     sub.style.maxHeight = 'none';
         sub.style.overflow = 'hidden';
@@ -16013,15 +16014,25 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   } catch (e) {}
 
   // ✅ Make ONLY the list scroll + add a subtle bottom “end” strip
-  try {
-    sub.style.overflow = 'hidden';
-    items.style.overflow = 'auto';
-    items.style.flex = '1 1 auto';
-    items.style.minHeight = '0';
-    items.style.boxShadow = 'inset 0 -14px 0 rgba(255,255,255,0.08)';
-  } catch (e) {}
+try {
+  sub.style.overflow = 'hidden';
 
-  // ✅ Clean slate
+  // ✅ IMPORTANT: remove the 320px cap so the list can actually fill the sheet
+  items.style.maxHeight = 'none';
+  items.style.height = 'auto';
+
+  // ✅ Make ONLY the list scroll
+  items.style.flex = '1 1 auto';
+  items.style.minHeight = '0';
+  items.style.overflowY = 'auto';
+  items.style.webkitOverflowScrolling = 'touch';
+
+  // tiny “end strip” to show where it ends
+  items.style.boxShadow = 'inset 0 -14px 0 rgba(255,255,255,0.10)';
+} catch (e) {}
+
+// ✅ Clean slate
+
   items.innerHTML = '';
 
     // ✅ Recents-first playlist list (uses historyLog if available)
