@@ -2131,10 +2131,6 @@ body.qs-lock{
     margin-top: 8px;
   }
 
-    .track-row .track-menu {
-    display: inline-flex;
-    font-size: 18px;
-  }
 
   /* hide the desktop-style header row (# / Title / Album / etc) on mobile */
     .track-row.track-header {
@@ -15955,14 +15951,15 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     sub.style.bottom = '0';
     sub.style.width = '100vw';
     sub.style.maxHeight = 'none';
-    sub.style.overflow = 'auto';
-    sub.style.zIndex = '2147483647';
-    sub.style.display = 'block';
-    sub.style.visibility = 'visible';
-    sub.style.pointerEvents = 'auto';
+        sub.style.overflow = 'hidden';
+
+    // Make it lay out like a proper sheet: header stays, list scrolls
+    sub.style.display = 'flex';
+    sub.style.flexDirection = 'column';
 
     // sheet visuals
-    sub.style.background = 'rgba(18,18,18,0.98)';
+    sub.style.background = 'rgba(18,18,18,0.96)';
+    sub.style.backdropFilter = 'blur(14px)';
     sub.style.borderRadius = '0';
     sub.style.boxShadow = 'none';
 
@@ -15972,6 +15969,7 @@ function showMultiSelectContextMenuFromHero(anchorEl){
     sub.style.opacity = '0';
 
     requestAnimationFrame(() => {
+
       sub.style.transform = 'translateY(0)';
       sub.style.opacity = '1';
     });
@@ -15989,8 +15987,28 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
   // build playlist list fresh each time
 
+  // ✅ CLEANUP: remove any stray menu-item children that are NOT inside #playlist-submenu-items
+  // (this is what creates the “duplicate menus” look)
+  try {
+    const keepNew = sub.querySelector('.menu-item[onclick*="createNewPlaylist"]');
+    const stray = Array.from(sub.children).filter(el =>
+      el &&
+      el.classList &&
+      el.classList.contains('menu-item') &&
+      el !== keepNew
+    );
+    stray.forEach(el => { try { el.remove(); } catch (e) {} });
+  } catch (e) {}
+
+  // ✅ Make ONLY the list scroll (prevents the 2-scrollbar mess)
+  try {
+    items.style.overflow = 'auto';
+    items.style.flex = '1 1 auto';
+    items.style.minHeight = '0';
+  } catch (e) {}
 
   items.innerHTML = '';
+
     // ✅ Recents-first playlist list (uses historyLog if available)
   const allPls = Array.isArray(window.playlists) ? window.playlists : [];
 
@@ -16215,8 +16233,9 @@ function showMultiSelectContextMenuFromHero(anchorEl){
         }
       } catch (e) {
         console.warn('Cloud add failed:', e);
-        alert('Couldn\'t add to playlist (cloud sync failed). Try again.');
-        return;
+        try { showActionToast("Couldn’t add (cloud sync failed). Try again."); } catch (e) {}
+return;
+
       }
 
       // ✅ IMPORTANT: immediately re-pull the playlist items from cloud
