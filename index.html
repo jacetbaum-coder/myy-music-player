@@ -16245,314 +16245,275 @@ try {
   items.style.boxShadow = 'inset 0 -14px 0 rgba(255,255,255,0.10)';
 } catch (e) {}
 
-// ✅ Clean slate
-
+  // ✅ Clean slate
   items.innerHTML = '';
 
-    // ✅ Recents-first playlist list (uses historyLog if available)
+  // ============================
+  // UI v2: header + search + bubbles + Done/Cancel
+  // ============================
 
-  const allPls = Array.isArray(window.playlists) ? window.playlists : [];
+  // Ensure submenu is scroll-safe on mobile (list scrolls, header stays)
+  sub.style.overflow = 'hidden';
+  sub.style.webkitOverflowScrolling = 'touch';
+  sub.style.position = 'relative';
 
-  let recentIds = [];
-  try {
-    const h = JSON.parse(localStorage.getItem('historyLog') || '[]');
-    if (Array.isArray(h)) {
-      for (const it of h) {
-        if (!it) continue;
-        if (String(it.type || '').toLowerCase() !== 'playlist') continue;
-        const pid = String(it.id || it.playlistId || '').trim();
-        if (pid && !recentIds.includes(pid)) recentIds.push(pid);
+  // Build / reuse header
+  let header = sub.querySelector('#ps_header');
+  if (!header) {
+    header = document.createElement('div');
+    header.id = 'ps_header';
+    header.style.position = 'sticky';
+    header.style.top = '0';
+    header.style.zIndex = '10';
+    header.style.background = '#000';
+    header.style.padding = '14px 12px';
+    header.style.borderBottom = '1px solid rgba(255,255,255,.12)';
+
+    header.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:16px;background:transparent;border:none;">Cancel</button>
+        <div style="color:#fff;font-weight:900;font-size:17px;">Add to playlist</div>
+        <div style="width:56px;"></div>
+      </div>
+
+      <button id="ps_new" type="button"
+        style="margin-top:12px;width:100%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:12px 14px;border:none;">
+        New playlist
+      </button>
+
+      <div style="margin-top:10px;background:#111;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+        <span style="color:rgba(255,255,255,.65)">🔎</span>
+        <input id="ps_search" placeholder="Find playlist" autocomplete="off"
+          style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
+      </div>
+    `;
+    sub.insertBefore(header, sub.firstChild);
+  }
+
+  // Build / reuse Done button (pinned to bottom of submenu)
+  let doneBtn = sub.querySelector('#ps_done');
+  if (!doneBtn) {
+    doneBtn = document.createElement('button');
+    doneBtn.id = 'ps_done';
+    doneBtn.type = 'button';
+    doneBtn.textContent = 'Done';
+    doneBtn.style.position = 'absolute';
+    doneBtn.style.left = '50%';
+    doneBtn.style.transform = 'translateX(-50%)';
+    doneBtn.style.bottom = '14px';
+    doneBtn.style.width = '72%';
+    doneBtn.style.maxWidth = '360px';
+    doneBtn.style.background = '#1db954';
+    doneBtn.style.color = '#000';
+    doneBtn.style.fontWeight = '950';
+    doneBtn.style.borderRadius = '999px';
+    doneBtn.style.padding = '14px';
+    doneBtn.style.border = 'none';
+    doneBtn.style.zIndex = '20';
+    sub.appendChild(doneBtn);
+  }
+
+  // Make the playlist list area scrollable and leave room for Done
+  items.style.overflowY = 'auto';
+  items.style.webkitOverflowScrolling = 'touch';
+  items.style.padding = '8px 0 90px 0';
+
+  // Size the submenu so it fits on mobile and keeps Done visible
+  const headerH = header.getBoundingClientRect().height || 140;
+  const maxH = Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
+  sub.style.maxHeight = `${maxH}px`;
+  items.style.maxHeight = `${Math.max(200, maxH - headerH)}px`;
+
+  // Selection state: playlist ids
+  sub.__selectedPlaylistIds = sub.__selectedPlaylistIds || new Set();
+
+  // ---- helpers ----
+  function __canonTrackIdLocal(v) {
+    let s = String(v || '').trim();
+    if (!s) return '';
+    try {
+      if (s.includes('://')) {
+        const u = new URL(s);
+        const id = u.searchParams.get('id');
+        if (id) s = id;
       }
+    } catch (e) {}
+    if (s.includes('?id=')) {
+      try { s = (s.split('?id=')[1] || '').split('&')[0] || s; } catch (e) {}
     }
-  } catch (e) {}
+    try { s = decodeURIComponent(s); } catch (e) {}
+    return s.replace(/^\/+/, '').trim();
+  }
 
-  const byId = new Map(allPls.filter(p => p && p.id).map(p => [String(p.id), p]));
-  const recent = recentIds.map(id => byId.get(String(id))).filter(Boolean);
+  function __resolveTrackIdForMenu() {
+    const s = window.menuTargetSong;
+    if (!s) return '';
+    let trackId =
+      s.id || s.r2Path || s.track_id || s.trackId || s.key || s.r2_key || '';
+    if (!trackId) {
+      const u = s.link || s.url || '';
+      try {
+        const parsed = new URL(u, window.location.origin);
+        trackId = parsed.searchParams.get('id') || '';
+      } catch (_) {}
+    }
+    return __canonTrackIdLocal(trackId);
+  }
 
-  const rest = allPls
-    .filter(p => p && p.id && !recentIds.includes(String(p.id)));
+  // ---- render list (bubbles) ----
+  const qEl = header.querySelector('#ps_search');
+  const cancelBtn = header.querySelector('#ps_cancel');
+  const newBtn = header.querySelector('#ps_new');
 
-  const pls = recent.concat(rest).slice(0, 18);
+  function renderBubbleList(filterText) {
+    const needle = String(filterText || '').toLowerCase().trim();
+    items.innerHTML = '';
 
-  pls.forEach(pl => {
+    const plsAll = Array.isArray(window.playlists) ? window.playlists : [];
+    const rows = plsAll
+      .filter(p => {
+        const name = String(p?.name || '');
+        return !needle || name.toLowerCase().includes(needle);
+      })
+      .map(p => ({
+        pid: (p && (p.id || p.playlistId || p.playlist_id)) || '',
+        name: String(p?.name || 'Untitled'),
+      }))
+      .filter(x => !!x.pid);
 
-    const div = document.createElement('div');
-    div.className = 'menu-item';
-    div.textContent = pl?.name || 'Playlist';
-        div.onclick = async () => {
-            // ✅ Always have a target song (some flows don't set menuTargetSong reliably)
-      const __mt =
-        (typeof menuTargetSong !== 'undefined' && menuTargetSong) ||
-        (window && window.menuTargetSong) ||
-        ((typeof currentSong !== 'undefined' && currentSong) ? currentSong : null) ||
-        (window && window.currentSong) ||
-        null;
+    rows.forEach(({ pid, name }) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+      row.style.padding = '14px 12px';
+      row.style.color = '#fff';
+      row.style.cursor = 'pointer';
 
-      const targets = Array.isArray(__mt) ? __mt : [__mt];
-      if (!targets || !targets.length || !targets[0]) return;
+      const label = document.createElement('div');
+      label.textContent = name;
+      label.style.fontWeight = '800';
+      label.style.fontSize = '16px';
 
-      // Resolve trackIds robustly (canonical ID is the R2 path)
-      function canonTrackIdLocal(v) {
-        let s = String(v || "").trim();
-        if (!s) return "";
-        // If we were given a full URL, pull out ?id=
+      const bubble = document.createElement('div');
+      bubble.style.width = '26px';
+      bubble.style.height = '26px';
+      bubble.style.borderRadius = '50%';
+      bubble.style.border = '2px solid rgba(255,255,255,.4)';
+      bubble.style.display = 'grid';
+      bubble.style.placeItems = 'center';
+
+      function paint() {
+        const on = sub.__selectedPlaylistIds.has(pid);
+        if (on) {
+          bubble.style.background = '#1db954';
+          bubble.style.borderColor = '#1db954';
+          bubble.innerHTML = '<span style="color:#000;font-weight:950;">✓</span>';
+        } else {
+          bubble.style.background = 'transparent';
+          bubble.style.borderColor = 'rgba(255,255,255,.4)';
+          bubble.innerHTML = '';
+        }
+      }
+      paint();
+
+      row.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (sub.__selectedPlaylistIds.has(pid)) sub.__selectedPlaylistIds.delete(pid);
+        else sub.__selectedPlaylistIds.add(pid);
+        paint();
+      }, true);
+
+      row.append(label, bubble);
+      items.appendChild(row);
+    });
+  }
+
+  try { if (qEl) qEl.value = ''; } catch (e) {}
+  renderBubbleList('');
+
+  if (qEl && !qEl.__psBound) {
+    qEl.__psBound = true;
+    qEl.addEventListener('input', () => renderBubbleList(qEl.value), true);
+  }
+
+  if (cancelBtn && !cancelBtn.__psBound) {
+    cancelBtn.__psBound = true;
+    cancelBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (err) {}
+    }, true);
+  }
+
+  if (newBtn && !newBtn.__psBound) {
+    newBtn.__psBound = true;
+    newBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      try { if (typeof window.createNewPlaylist === 'function') window.createNewPlaylist(); } catch (err) {}
+    }, true);
+  }
+
+  if (doneBtn && !doneBtn.__psBound) {
+    doneBtn.__psBound = true;
+    doneBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();
+
+      const ids = Array.from(sub.__selectedPlaylistIds || []);
+      if (!ids.length) {
+        try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (err) {}
+        return;
+      }
+
+      // Resolve trackId (single-song menu). Multi-song select can be added later.
+      const trackId = __resolveTrackIdForMenu();
+      if (!trackId) return alert('Missing trackId for this song.');
+
+      const pls = Array.isArray(window.playlists) ? window.playlists : [];
+
+      for (const pid of ids) {
+        const pl = pls.find(p => (p && (p.id || p.playlistId || p.playlist_id)) === pid);
+        if (!pl) continue;
+
+        const playlistId =
+          pl.id || pl.playlistId || pl.playlist_id || pl.playlistID || '';
+
+        // 1) CLOUD FIRST
         try {
-          if (s.includes('://')) {
-            const u = new URL(s);
-            const id = u.searchParams.get('id');
-            if (id) s = id;
+          if (typeof window.addTrackToPlaylistInCloud !== 'function') {
+            throw new Error('addTrackToPlaylistInCloud is missing');
           }
-        } catch (e) {}
-        if (s.includes('?id=')) {
-          try {
-            const part = s.split('?id=')[1] || "";
-            s = (part.split('&')[0] || part);
-          } catch (e) {}
+          await window.addTrackToPlaylistInCloud(playlistId, trackId);
+        } catch (err) {
+          console.warn('❌ cloud add failed:', pl?.name, err);
+          alert("Couldn’t add to playlist (cloud sync failed).");
+          return;
         }
-        try { s = decodeURIComponent(s); } catch (e) {}
-        s = s.replace(/^\/+/, "").trim();
-        return s;
+
+        // 2) LOCAL UPDATE (IDs-only) + SAVE (best-effort)
+        try {
+          if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+          const set = new Set(pl.trackIds.map(__canonTrackIdLocal));
+          if (!set.has(trackId)) pl.trackIds.push(trackId);
+
+          try { if (typeof window.savePlaylists === 'function') window.savePlaylists(); } catch (e2) {}
+          try { if (typeof window.updatePlaylistAutoCoverById === 'function') await window.updatePlaylistAutoCoverById(playlistId); } catch (e3) {}
+
+          pl.songCount = pl.trackIds.length;
+          pl.updated_at = new Date().toISOString();
+        } catch (err) {
+          console.warn('local update failed:', pl?.name, err);
+        }
       }
 
-      function getTrackIdForSong(s) {
-        if (!s) return "";
-        let trackId =
-          s?.id ||
-          s?.r2Path ||
-          s?.track_id ||
-          s?.trackId ||
-          s?.key ||
-          s?.r2_key ||
-          "";
-        if (!trackId) {
-          try {
-            trackId = __extractIdFromMaybeUrl(s?.url || s?.link || "") || "";
-          } catch (e) {}
-        }
-        return canonTrackIdLocal(trackId);
-      }
+      try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e4) {}
+      try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e5) {}
+      try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (e6) {}
+    }, true);
+  }
 
-            let trackIds = targets.map(getTrackIdForSong).filter(Boolean);
+  // ✅ closeContextMenu() may have hidden this sheet with inline styles — undo that
 
-      // ✅ Expand short ids like "Artist/Title.mp3" -> "Artist/Album/Title.ext"
-      // This makes playlist view rendering reliable.
-      try {
-        if (typeof window.expandPlaylistShortIdsFromLibrary === "function") {
-          const expanded = window.expandPlaylistShortIdsFromLibrary(trackIds);
-          if (Array.isArray(expanded) && expanded.length) trackIds = expanded;
-        }
-      } catch (e) {}
-
-            // ✅ DUPLICATE GUARD (ask before adding duplicates)
-
-      // ✅ Spotify-ish confirm sheet (no browser confirm())
-      if (typeof window.__sheetConfirm !== "function") {
-        window.__sheetConfirm = function(message) {
-          return new Promise((resolve) => {
-            try {
-              // remove existing
-              const old = document.getElementById("sheet-confirm");
-              if (old) old.remove();
-
-              const wrap = document.createElement("div");
-              wrap.id = "sheet-confirm";
-              wrap.style.position = "fixed";
-              wrap.style.inset = "0";
-              wrap.style.zIndex = "2147483647";
-              wrap.style.background = "rgba(0,0,0,0.55)";
-              wrap.style.display = "flex";
-              wrap.style.alignItems = "flex-end";
-              wrap.style.justifyContent = "center";
-
-              const sheet = document.createElement("div");
-              sheet.style.width = "min(520px, 92vw)";
-              sheet.style.margin = "0 0 16px 0";
-              sheet.style.background = "rgba(30,30,30,0.98)";
-              sheet.style.borderRadius = "18px";
-              sheet.style.padding = "18px 16px";
-              sheet.style.boxShadow = "0 20px 60px rgba(0,0,0,0.6)";
-              sheet.style.transform = "translateY(18px)";
-              sheet.style.opacity = "0";
-              sheet.style.transition = "transform 160ms ease, opacity 160ms ease";
-
-              const msg = document.createElement("div");
-              msg.textContent = String(message || "");
-              msg.style.color = "white";
-              msg.style.fontSize = "15px";
-              msg.style.lineHeight = "1.25";
-              msg.style.marginBottom = "14px";
-
-              const row = document.createElement("div");
-              row.style.display = "flex";
-              row.style.gap = "10px";
-              row.style.justifyContent = "flex-end";
-
-              const cancel = document.createElement("button");
-              cancel.textContent = "Cancel";
-              cancel.style.padding = "10px 14px";
-              cancel.style.borderRadius = "999px";
-              cancel.style.border = "0";
-              cancel.style.background = "rgba(255,255,255,0.12)";
-              cancel.style.color = "white";
-              cancel.style.fontWeight = "700";
-
-              const ok = document.createElement("button");
-              ok.textContent = "OK";
-              ok.style.padding = "10px 16px";
-              ok.style.borderRadius = "999px";
-              ok.style.border = "0";
-              ok.style.background = "#1db954";
-              ok.style.color = "black";
-              ok.style.fontWeight = "800";
-
-              const close = (val) => {
-                try { wrap.remove(); } catch(e){}
-                resolve(!!val);
-              };
-
-              cancel.onclick = (e) => { try{ e.preventDefault(); e.stopPropagation(); }catch(_){} close(false); };
-              ok.onclick = (e) => { try{ e.preventDefault(); e.stopPropagation(); }catch(_){} close(true); };
-              wrap.onclick = () => close(false);
-              sheet.onclick = (e) => { try{ e.stopPropagation(); }catch(_){} };
-
-              row.appendChild(cancel);
-              row.appendChild(ok);
-              sheet.appendChild(msg);
-              sheet.appendChild(row);
-              wrap.appendChild(sheet);
-              document.body.appendChild(wrap);
-
-              // animate in
-              requestAnimationFrame(() => {
-                sheet.style.transform = "translateY(0)";
-                sheet.style.opacity = "1";
-              });
-            } catch (e) {
-              // fallback: behave like “cancel”
-              resolve(false);
-            }
-          });
-        };
-      }
-
-      try {
-
-        const plIdx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
-        const plRef = (plIdx >= 0) ? playlists[plIdx] : null;
-        const existing = new Set(
-          (Array.isArray(plRef?.trackIds) ? plRef.trackIds : []).map(canonTrackIdLocal)
-        );
-
-        const dupCount = trackIds.filter(tid => existing.has(canonTrackIdLocal(tid))).length;
-        if (dupCount > 0) {
-          const plName = pl?.name || "this playlist";
-                    const ok = await window.__sheetConfirm(
-            dupCount === 1
-              ? `That song is already in "${plName}". Add a duplicate anyway?`
-              : `${dupCount} of these songs are already in "${plName}". Add duplicates anyway?`
-          );
-
-          if (!ok) {
-            // user said no duplicates: remove dupes from this add
-            trackIds = trackIds.filter(tid => !existing.has(canonTrackIdLocal(tid)));
-            if (!trackIds.length) {
-              try { closePlaylistSubmenu(); } catch (e) {}
-              try { closeContextMenu(); } catch (e) {}
-              return;
-            }
-          }
-        }
-      } catch (e) {}
-
-      // 1) CLOUD FIRST
-      try {
-                if (typeof window.addTrackToPlaylistInCloud !== 'function') {
-          throw new Error('addTrackToPlaylistInCloud is missing');
-        }
-
-        // ✅ Some playlists don't have .id (may be playlist_id / playlistId)
-        const pid = (pl && (pl.id || pl.playlistId || pl.playlist_id || pl.uuid || pl._id)) || "";
-        if (!pid) throw new Error("Missing playlistId");
-
-        for (const tid of trackIds) {
-          await window.addTrackToPlaylistInCloud(pid, tid);
-        }
-      } catch (e) {
-
-        console.warn('Cloud add failed:', e);
-        try { showActionToast("Couldn’t add (cloud sync failed). Try again."); } catch (e) {}
-return;
-
-      }
-
-      // ✅ IMPORTANT: immediately re-pull the playlist items from cloud
-      // so opening the playlist later shows the new track WITHOUT a refresh.
-      try {
-        if (typeof window.loadPlaylistItemsFromCloud === "function") {
-          // small retry (covers “write ok but read immediately misses it”)
-          let latest = null;
-          for (let attempt = 0; attempt < 3; attempt++) {
-                        const pid2 = (pl && (pl.id || pl.playlistId || pl.playlist_id || pl.uuid || pl._id)) || "";
-            latest = await window.loadPlaylistItemsFromCloud(pid2 || pl.id);
-
-            if (Array.isArray(latest) && latest.length) break;
-            await new Promise(r => setTimeout(r, 250));
-          }
-
-          const plIdx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
-          if (plIdx >= 0 && Array.isArray(latest)) {
-            playlists[plIdx].trackIds = latest.map(canonTrackIdLocal).filter(Boolean);
-            playlists[plIdx].songCount = playlists[plIdx].trackIds.length;
-            playlists[plIdx].updated_at = new Date().toISOString();
-          }
-        }
-      } catch (e) {}
-
-      // 2) LOCAL UPDATE (IDs-only) + SAVE
-
-      try {
-        const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p.id === pl.id) : -1);
-        if (idx !== -1) {
-          const plRef = playlists[idx];
-          if (!Array.isArray(plRef.trackIds)) plRef.trackIds = [];
-          const existingCanon = new Set(plRef.trackIds.map(canonTrackIdLocal));
-          trackIds.forEach((tid) => {
-            if (!existingCanon.has(tid)) {
-              plRef.trackIds.push(tid);
-              existingCanon.add(tid);
-            }
-          });
-          plRef.songCount = plRef.trackIds.length;
-          plRef.updated_at = new Date().toISOString();
-        }
-        savePlaylists();
-      } catch (e) {}
-
-      // Update auto cover after adding
-      try { await updatePlaylistAutoCoverById(pl.id); } catch (e) {}
-
-      try { renderPlaylists(); } catch (e) {}
-      try { if (activePlaylistId === pl.id) showView('playlist', playlists.findIndex(p => p.id === pl.id)); } catch (e) {}
-      try { closePlaylistSubmenu(); } catch (e) {}
-            closeContextMenu(); // closes both sheets + backdrop
-      try {
-  const first = (targets && targets[0]) ? (targets[0].title || targets[0].name || targets[0].fileName || targets[0].id || "") : "";
-  const songLabel = first ? String(first).replace(/\.[^/.]+$/, "") : "Song";
-  const plName = pl?.name || "playlist";
-  const msg = (trackIds.length > 1)
-    ? `"${songLabel}" (+${trackIds.length - 1}) added to ${plName}`
-    : `"${songLabel}" added to ${plName}`;
-  showActionToast(msg);
-} catch (e) {}
-
-
-
-      // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
-      try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e) {}
-    };
-    items.appendChild(div);
-
-  });
 
   // ✅ closeContextMenu() may have hidden this sheet with inline styles — undo that
  sub.style.display = 'block';
@@ -19279,7 +19240,8 @@ function renderPlaylists() {
   // 2) LOCAL UPDATE (IDs-only) + SAVE (so a refresh keeps it immediately too)
   if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
 
-  const existingCanon = new Set(pl.trackIds.map(canonTrackIdLocal));
+  const existingCanon = new Set(pl.trackIds.map(canonTrackId));
+
 
   if (!existingCanon.has(trackId)) {
     pl.trackIds.push(trackId);
