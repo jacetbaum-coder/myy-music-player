@@ -4560,7 +4560,8 @@ if (!window.__mobileTrackSelectTapGuard) {
         !!(ps && (ps === e.target || ps.contains(e.target)));
 
       if (!row) {
-        if (!tappedInsideTrackList && !tappedInsideOverlay) setSongSelectEnabled(false);
+        /* if (!tappedInsideTrackList && !tappedInsideOverlay) setSongSelectEnabled(false); */
+
         return;
       }
 
@@ -16590,28 +16591,66 @@ try {
       .filter(x => !!x.pid);
 
     rows.forEach(({ pid, name }) => {
-      const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.justifyContent = 'space-between';
-      row.style.padding = '14px 12px';
-      row.style.color = '#fff';
-      row.style.cursor = 'pointer';
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.alignItems = 'center';
+  row.style.justifyContent = 'flex-start';
+  row.style.gap = '10px';
+  row.style.padding = '14px 12px';
+  row.style.color = '#fff';
+  row.style.cursor = 'pointer';
 
-      const label = document.createElement('div');
-      label.textContent = name;
-      label.style.fontWeight = '800';
-      label.style.fontSize = '16px';
+  // --- cover (left) ---
+  const pObj = (plsAll || []).find(p => {
+    const id = (p && (p.id || p.playlistId || p.playlist_id)) || '';
+    return String(id) === String(pid);
+  }) || null;
 
-      const bubble = document.createElement('div');
-      bubble.style.width = '26px';
-      bubble.style.height = '26px';
-      bubble.style.borderRadius = '50%';
-      bubble.style.border = '2px solid rgba(255,255,255,.4)';
-      bubble.style.display = 'grid';
-      bubble.style.placeItems = 'center';
+  const coverSrc =
+    (pObj && (pObj.cover || pObj.coverUrl || pObj.image || pObj.img || pObj.art)) || '';
 
-      function paint() {
+  const cover = document.createElement('img');
+  cover.alt = '';
+  cover.draggable = false;
+  cover.style.width = '28px';
+  cover.style.height = '28px';
+  cover.style.borderRadius = '6px';
+  cover.style.objectFit = 'cover';
+  cover.style.flex = '0 0 auto';
+  cover.style.background = 'rgba(255,255,255,.10)';
+  cover.style.border = '1px solid rgba(255,255,255,.10)';
+  if (coverSrc) cover.src = String(coverSrc);
+
+  // --- label (middle) ---
+  const label = document.createElement('div');
+  label.textContent = name;
+  label.style.fontWeight = '800';
+  label.style.fontSize = '16px';
+  label.style.flex = '1 1 auto';
+  label.style.textAlign = 'left';
+  label.style.paddingLeft = '2px';
+  label.style.minWidth = '0';
+  label.style.whiteSpace = 'nowrap';
+  label.style.overflow = 'hidden';
+  label.style.textOverflow = 'ellipsis';
+
+  // --- bubble (right) ---
+  const bubble = document.createElement('div');
+  bubble.style.width = '26px';
+  bubble.style.height = '26px';
+  bubble.style.borderRadius = '50%';
+  bubble.style.border = '2px solid rgba(255,255,255,.4)';
+  bubble.style.display = 'grid';
+  bubble.style.placeItems = 'center';
+  bubble.style.flex = '0 0 auto';
+  bubble.style.marginLeft = 'auto';
+
+  row.appendChild(cover);
+  row.appendChild(label);
+  row.appendChild(bubble);
+
+  function paint() {
+
         const on = sub.__selectedPlaylistIds.has(pid);
         if (on) {
           bubble.style.background = '#1db954';
