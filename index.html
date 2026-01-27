@@ -13106,7 +13106,38 @@ if (npArtistEl) {
     e.stopPropagation();
   }, { passive: true, capture: true });
 
+  // ✅ iOS fallback: if click doesn’t fire, open on touchend
+  btn.addEventListener('touchend', (e) => {
+    try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (err) {}
+    try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (err) {}
+    e.stopPropagation();
+
+    // Guard: don’t double-open when click ALSO fires
+    const now = Date.now();
+    if (btn.__lastMenuTap && (now - btn.__lastMenuTap) < 450) return;
+    btn.__lastMenuTap = now;
+
+    const r = btn.getBoundingClientRect();
+    const x = r.left + (r.width / 2);
+    const y = r.top + r.height;
+
+    try {
+      showContextMenuAt(
+        x,
+        y,
+        (typeof currentSong !== 'undefined' && currentSong) ? currentSong : (window.currentSong || null),
+        btn
+      );
+    } catch (err) {
+      console.warn("np-more touchend showContextMenuAt failed:", err);
+    }
+  }, { passive: true, capture: true });
+
   btn.addEventListener('click', (e) => {
+    // Guard: if touchend already opened it, ignore this click
+    const now = Date.now();
+    if (btn.__lastMenuTap && (now - btn.__lastMenuTap) < 450) return;
+
     e.preventDefault();
     e.stopPropagation();
 
