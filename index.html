@@ -16735,8 +16735,9 @@ return `
 if (!wrap) {
   wrap = document.createElement('div');
   wrap.id = pillId;
-  wrap.className = 'flex flex-wrap gap-2 mt-3 mb-4';
-  wrap.style.maxWidth = '100%';
+  wrap.className = 'grid grid-cols-2 gap-3 mt-3 mb-4';
+wrap.style.maxWidth = '100%';
+
 
   // ✅ INSERT INTO DOM (mobile was missing this)
   try {
@@ -16766,24 +16767,51 @@ if (!wrap) {
       return null;
     };
 
-        const base = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap';
-    const baseEmpty = 'px-4 py-2 rounded-full font-extrabold text-sm whitespace-nowrap min-w-[140px]';
-    const onCls = 'bg-white/10 text-white hover:bg-white/15';
+        const cardCls = 'mobile-recent-card w-full text-left';
+const emptyCardCls = 'mobile-recent-card w-full text-left opacity-35';
 
-    const emptyCls = 'bg-white/5 text-white/20 border border-white/5';
+const getCoverForPid = (pid) => {
+  if (!pid) return '';
+  try {
+    const local = Array.isArray(window.playlists)
+      ? window.playlists.find(p => String(p?.id) === String(pid))
+      : null;
 
-// placeholder label is visually blank but keeps height
+    if (local) {
+      if (typeof getEffectivePlaylistCover === 'function') {
+        return String(getEffectivePlaylistCover(local) || '').trim();
+      }
+      return String(local.cover || local.autoCover || '').trim();
+    }
+
+    const cloud = Array.isArray(window.cloudPlaylists)
+      ? window.cloudPlaylists.find(p => String(p?.playlist_id) === String(pid))
+      : null;
+
+    if (cloud) return String(cloud.cover || cloud.cover_url || '').trim();
+  } catch (e) {}
+  return '';
+};
+
+// 4 slots: real pinned cards + grey placeholders
 wrap.innerHTML = slots.map((idOrNull, idx) => {
+  const pl = idOrNull ? findPlaylistById(idOrNull) : null;
 
-      const pl = idOrNull ? findPlaylistById(idOrNull) : null;
-            const label = pl ? String(pl.name || 'Playlist') : '';
-      const safe = label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const label = pl ? String(pl.name || 'Playlist') : '';
+  const safe = label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-      const disabled = pl ? '' : 'disabled';
-            const cls = (pl ? base : baseEmpty) + ' ' + (pl ? onCls : emptyCls);
-      const pid = pl ? String(pl.id) : '';
+  const disabled = pl ? '' : 'disabled';
+  const pid = pl ? String(pl.id) : '';
 
-      return `<button class="${cls}" data-pid="${pid}" ${disabled}>${safe}</button>`;
+  const coverUrl = pl ? getCoverForPid(pid) : '';
+  const coverMarkup = coverUrl
+    ? `<img src="${coverUrl}" alt="">`
+    : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex-shrink-0"></div>`;
+
+  const cls = pl ? cardCls : emptyCardCls;
+
+  return `<button class="${cls}" data-pid="${pid}" ${disabled}>${coverMarkup}<div class="min-w-0"><div class="title">${safe || '&nbsp;'}</div></div></button>`;
+
     }).join('');
 
     Array.from(wrap.querySelectorAll('button[data-pid]')).forEach(btn => {
