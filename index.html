@@ -15037,6 +15037,34 @@ async function loadNpBio(artistName){
 }
 
 // ✅ Mobile fix: allow tapping expanded lyrics to collapse back
+window.toggleNpLyricsExpanded = window.toggleNpLyricsExpanded || function(e){
+  try {
+    if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
+  } catch (_) {}
+
+  const body = document.getElementById('np-lyrics-body');
+  const icon = document.getElementById('np-lyrics-expand-icon');
+  const btn  = document.getElementById('np-lyrics-expand');
+  if (!body) return;
+
+  const isExpanded = body.classList.contains('np-lyrics-expanded');
+
+  // toggle classes
+  body.classList.toggle('np-lyrics-expanded', !isExpanded);
+  body.classList.toggle('np-lyrics-collapsed', isExpanded);
+
+  // toggle icon (FontAwesome)
+  if (icon) {
+    icon.classList.toggle('fa-up-right-and-down-left-from-center', isExpanded);
+    icon.classList.toggle('fa-down-left-and-up-right-to-center', !isExpanded);
+  }
+
+  // aria label
+  if (btn) {
+    btn.setAttribute('aria-label', isExpanded ? 'Expand lyrics' : 'Collapse lyrics');
+  }
+};
+
 (function bindNpLyricsCollapse(){
   if (window.__npLyricsCollapseBound) return;
   window.__npLyricsCollapseBound = true;
@@ -15051,13 +15079,13 @@ async function loadNpBio(artistName){
       body.classList.contains('np-lyrics-expanded') &&
       body.contains(e.target)
     ) {
-      toggleNpLyricsExpanded(e);
+      window.toggleNpLyricsExpanded(e);
     }
   }, true);
 })();
 
-
 async function shareNpLyrics(e){
+
   if (e) { e.preventDefault(); e.stopPropagation(); }
 
   const text = (document.getElementById('np-lyrics-body')?.textContent || '').trim();
