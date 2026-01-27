@@ -9259,14 +9259,24 @@ try { renderHome(); } catch (e) {}
 
 
 
-                if (viewType === 'search') {
+                       if (viewType === 'search') {
       document.getElementById('search-view').classList.remove('hidden');
 
       // ✅ Do NOT auto-focus (prevents keyboard popping immediately)
       try { renderSearchRecents(); } catch (e) {}
 
-      // ✅ Enable swipe-down-to-dismiss keyboard (mobile)
+      // ✅ Enable swipe/scroll-to-dismiss keyboard (mobile)
       try { initSearchSwipeToDismissOnce(); } catch (e) {}
+
+      // ✅ IMPORTANT: if the user already has text (e.g. after swipe-back),
+      // re-run the search so the results are not blank.
+      try {
+        const input = document.getElementById('global-search');
+        const q = input ? String(input.value || '').trim() : '';
+        if (q) handleSearch(q);
+      } catch (e) {}
+    }
+
 
       // ✅ iOS keyboard: blur on touchstart/touchmove/scroll of the main list
       try {
@@ -11773,7 +11783,31 @@ function initSearchSwipeDownDismiss(){
   }, { passive: true });
 }
 
+// ✅ Dismiss keyboard as soon as user starts scrolling Search results
+function initSearchSwipeToDismissOnce(){
+  if (window.__searchSwipeToDismissOnceInstalled) return;
+  window.__searchSwipeToDismissOnceInstalled = true;
+
+  const sc = document.getElementById('main-scroll-area');
+  if (!sc) return;
+
+  const blurIfSearch = () => {
+    try {
+      if (!window.navCurrent || window.navCurrent.type !== 'search') return;
+      const input = document.getElementById('global-search');
+      if (input && document.activeElement === input) input.blur();
+    } catch (e) {}
+  };
+
+  // iOS: touchmove is the earliest reliable signal
+  sc.addEventListener('touchmove', blurIfSearch, { passive: true });
+
+  // Also handle normal scroll
+  sc.addEventListener('scroll', blurIfSearch, { passive: true });
+}
+
 try { setTimeout(initSearchSwipeDownDismiss, 0); } catch (e) {}
+
 
 function handleSearch(query) {
 
