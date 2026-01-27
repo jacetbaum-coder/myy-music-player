@@ -1530,11 +1530,17 @@ body.np-open #context-menu{
 }
 
 /* ✅ submenu items scroll (not the whole sheet) */
-#playlist-submenu-items{
-  max-height: min(320px, calc(100vh - 260px));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
+  .ps_pl_icon{
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex: 0 0 auto;
+    margin-left: 14px;
+    margin-right: 10px;
+    background: rgba(255,255,255,0.08);
+  }
+
 
 /* ✅ match main menu item styling */
 #playlist-submenu .menu-item{
@@ -16470,8 +16476,34 @@ try {
         paint();
       }, true);
 
-      row.append(label, bubble);
+            // --- icon (playlist cover) ---
+      const icon = document.createElement('img');
+      icon.className = 'ps_pl_icon';
+      icon.alt = '';
+      icon.decoding = 'async';
+      icon.loading = 'lazy';
+
+      try {
+        const pls = Array.isArray(window.playlists) ? window.playlists : [];
+        const pl = pls.find(p => (p && (p.id || p.playlistId || p.playlist_id)) === pid);
+
+        let cover =
+          (pl && (pl.cover || pl.coverUrl || pl.cover_url || pl.image || pl.img)) ? (pl.cover || pl.coverUrl || pl.cover_url || pl.image || pl.img) : '';
+
+        // If cover is an object like { url: ... }
+        if (cover && typeof cover === 'object') cover = cover.url || cover.href || '';
+
+        icon.src = cover || '';
+      } catch (e) {
+        icon.src = '';
+      }
+
+      // Nudge title right a bit
+      try { label.style.marginLeft = '2px'; } catch (e) {}
+
+      row.append(icon, label, bubble);
       items.appendChild(row);
+
     });
   }
 
