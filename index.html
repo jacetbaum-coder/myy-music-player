@@ -423,6 +423,22 @@ img {
           mask-image: none;
 }
 
+/* Mobile Now Playing: Lyrics collapsed vs expanded */
+#np-lyrics-body.np-lyrics-collapsed{
+  max-height: 132px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);
+          mask-image: linear-gradient(to bottom, black 70%, transparent);
+}
+#np-lyrics-body.np-lyrics-expanded{
+  max-height: 55vh;
+  overflow: auto;
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+
+}
+
 /* When CENTER lyrics is open (mic mode), hide right lyrics + let bio take that space */
 body.lyrics-mode #right-lyrics-card{
   display: none;
