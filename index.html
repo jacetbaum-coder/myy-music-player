@@ -2628,18 +2628,19 @@ body.qs-lock {
     </div>
   </div>
 
-  <div class="cm-divider"></div>
+ <div class="cm-divider"></div>
 
-      <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
-    Add song to playlist
-    <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+<div class="menu-item" id="menu-add-opt" onclick="openAddToPlaylistSubmenu(event)">
+  <span>Add to playlist</span>
+  <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+</div>
 
-  </div>
-
-    <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
-    Remove song from this playlist
-
-  </div>
+<div class="menu-item text-red-400"
+     id="menu-remove-opt"
+     onclick="menuAction('remove')"
+     style="display:none;">
+  Remove song from this playlist
+</div>
 
    <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
   Add to queue
@@ -4025,11 +4026,11 @@ let playContext = null;
                 New playlist
               </button>
 
-              <div style="margin-top:10px;background:#111;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
-                <span style="color:rgba(255,255,255,.65)">🔎</span>
+                            <div style="margin-top:10px;background:rgba(255,255,255,.10);border-radius:12px;padding:10px 12px;display:flex;align-items:center;">
                 <input id="ps_search" placeholder="Find playlist" autocomplete="off"
-                  style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
+                  style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
               </div>
+
             </div>
 
             <div id="ps_listwrap" style="overflow-y:auto;-webkit-overflow-scrolling:touch; padding:8px 0 90px 0;"></div>
