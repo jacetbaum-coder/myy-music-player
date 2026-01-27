@@ -203,7 +203,54 @@
   display: block;
 }
 
+/* ✅ Pretty “Liked Songs” (gradient + white heart) */
+.home-square-card[data-type="liked"] .cover{
+  background: linear-gradient(135deg, #3a2bff 0%, #bfeee6 100%) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-square-card[data-type="liked"] .cover > *{
+  display: none !important; /* hide old fallback icon/html if any */
+}
+.home-square-card[data-type="liked"] .cover::before{
+  content: "";
+  width: 44%;
+  height: 44%;
+  background: rgba(255,255,255,0.95);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 21s-7.2-4.4-9.5-8C.7 9.6 2.2 6.5 5.5 6.1c1.7-.2 3.1.6 3.9 1.6.8-1 2.2-1.8 3.9-1.6 3.3.4 4.8 3.5 3 6.9C19.2 16.6 12 21 12 21z'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 21s-7.2-4.4-9.5-8C.7 9.6 2.2 6.5 5.5 6.1c1.7-.2 3.1.6 3.9 1.6.8-1 2.2-1.8 3.9-1.6 3.3.4 4.8 3.5 3 6.9C19.2 16.6 12 21 12 21z'/></svg>") center / contain no-repeat;
+}
+
+/* ✅ Pretty “Folder” (dark tile + folder outline) */
+.home-square-card[data-type="folder"] .cover{
+  background: rgba(255,255,255,0.06) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-square-card[data-type="folder"] .cover > *{
+  display: none !important; /* hide old fallback icon/html if any */
+}
+.home-square-card[data-type="folder"] .cover::before{
+  content: "";
+  width: 52%;
+  height: 52%;
+  background: rgba(255,255,255,0.62);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6zm10 4H4v10h16V8z'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6zm10 4H4v10h16V8z'/></svg>") center / contain no-repeat;
+}
+
 .home-square-card .title{
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
   font-weight: 900;
   font-size: 16px;
   line-height: 1.15;
@@ -17663,8 +17710,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
       (tab === 'playlists') ? 'Recent playlists' :
       (tab === 'albums')    ? 'Recent albums' :
       (tab === 'artists')   ? 'Recent artists' :
-      (tab === 'liked')     ? 'Liked songs' :
-      'Recents';
+      (tab === 'liked')     ? 'Folders' :
+'Recents';
 
     // update any h2 inside Home that currently says "Recents" (mobile + desktop)
     try {
