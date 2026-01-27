@@ -330,10 +330,14 @@ img {
 
 /* ✅ Scroll performance: isolate album tiles so offscreen ones don’t cost layout/paint */
 .album-card{
+  /* ✅ Remove grey background behind album cards */
+  background: transparent !important;
+
   content-visibility: auto;
   contain-intrinsic-size: 220px 300px;
   contain: layout paint style;
 }
+
 .album-card img{
   backface-visibility: hidden;
   transform: translateZ(0);
