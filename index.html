@@ -6539,12 +6539,76 @@ window.deleteAlbumFromCloud = async function (artistName, albumName) {
     throw new Error("Delete album failed: " + res.status + " " + t);
   }
 
-  const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
   return data;
 };
 
 
+// -----------------------
+// ✅ RECENTLY DELETED (localStorage)
+// -----------------------
+window.__RECENTLY_DELETED_KEY = "recentlyDeleted_v1";
+
+window.getRecentlyDeleted = function () {
+  try {
+    const raw = localStorage.getItem(window.__RECENTLY_DELETED_KEY);
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+window.saveRecentlyDeleted = function (arr) {
+  try {
+    localStorage.setItem(window.__RECENTLY_DELETED_KEY, JSON.stringify(Array.isArray(arr) ? arr : []));
+  } catch (e) {}
+};
+
+window.addToRecentlyDeleted = function (entry) {
+  try {
+    const list = window.getRecentlyDeleted();
+
+    const e = entry && typeof entry === "object" ? entry : {};
+    if (!e.kind) return;
+    if (!e.deletedAt) e.deletedAt = new Date().toISOString();
+
+    // default expiry: 30 days (playlists, songs, folders use this)
+    if (!e.expiresAt) e.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    // stable id for this trash item
+    if (!e.trashId) {
+      try { e.trashId = crypto.randomUUID(); }
+      catch { e.trashId = "trash_" + Math.random().toString(16).slice(2) + "_" + Date.now(); }
+    }
+
+    list.unshift(e);
+    window.saveRecentlyDeleted(list);
+  } catch (e) {}
+};
+
+window.pruneRecentlyDeleted = function () {
+  try {
+    const list = window.getRecentlyDeleted();
+    const now = Date.now();
+
+    const kept = list.filter(x => {
+      const exp = Date.parse(String(x?.expiresAt || ""));
+      // if expiresAt missing or invalid, keep it
+      if (!Number.isFinite(exp)) return true;
+      return exp >= now;
+    });
+
+    if (kept.length !== list.length) window.saveRecentlyDeleted(kept);
+    return kept;
+  } catch (e) {
+    return window.getRecentlyDeleted();
+  }
+};
+
+
 // ✅ Cross-device Now Playing (cloud)
+
 window.syncNowPlayingToCloud = async function (payload) {
   if (!payload || !payload.userId || !payload.trackId) return;
   try {
@@ -18934,10 +18998,26 @@ function showPlaylistMenuAt(x, y, playlistId) {
         if (!confirm(`Delete "${name}"?\n\nThis will move it to Recently Deleted for 30 days.`)) return;
 
 
-        // Close menu immediately so it feels responsive
+                // Close menu immediately so it feels responsive
         safeClose();
 
+        // ✅ Save snapshot into Recently Deleted (30 days)
+        try {
+          const snapshot = pl ? JSON.parse(JSON.stringify(pl)) : null;
+          if (snapshot) {
+            window.addToRecentlyDeleted({
+              kind: "playlist",
+              playlistId: id,
+              name: String(snapshot.name || snapshot.title || "Playlist"),
+              data: snapshot,
+              deletedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            });
+          }
+        } catch (e) {}
+
         // Delete in cloud first so the other device sees it too
+
         try {
           if (typeof window.deletePlaylistFromCloud === 'function') {
             await window.deletePlaylistFromCloud(id);
@@ -19682,6 +19762,13 @@ function renderPlaylists() {
   });
 
     // Build the “Add to playlist” submenu (ALL playlists, not limited to 4)
+
+  // ✅ CRITICAL: If the Add-to-playlist sheet is already open, DO NOT touch its DOM.
+  // Background cloud refresh calls renderPlaylists() and was wiping bubbles/covers.
+  if (sub && sub.classList && sub.classList.contains('open')) {
+    return;
+  }
+
   const psItems = document.getElementById('playlist-submenu-items');
 
   // ✅ Always clear the scroll list first (prevents duplicates)
@@ -19699,6 +19786,7 @@ function renderPlaylists() {
   }
 
   playlists.forEach((pl, i) => {
+
 
     const item = document.createElement('div');
     item.className = "menu-item";
