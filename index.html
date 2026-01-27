@@ -8940,7 +8940,11 @@ function initSwipeBack() {
       area.style.transition = 'transform 180ms ease, opacity 180ms ease';
       area.style.transform = `translateX(${edgeDir * window.innerWidth}px)`;
 
+            let doneCalled = false;
       const done = () => {
+        if (doneCalled) return;
+        doneCalled = true;
+
         area.removeEventListener('transitionend', done);
         reset(false);
         goBack();
@@ -8951,6 +8955,7 @@ function initSwipeBack() {
       setTimeout(() => {
         try { done(); } catch (e) {}
       }, 220);
+
 
       return;
     }
@@ -9254,7 +9259,7 @@ try { renderHome(); } catch (e) {}
 
 
 
-        if (viewType === 'search') {
+                if (viewType === 'search') {
       document.getElementById('search-view').classList.remove('hidden');
 
       // ✅ Do NOT auto-focus (prevents keyboard popping immediately)
@@ -9262,6 +9267,28 @@ try { renderHome(); } catch (e) {}
 
       // ✅ Enable swipe-down-to-dismiss keyboard (mobile)
       try { initSearchSwipeToDismissOnce(); } catch (e) {}
+
+      // ✅ iOS keyboard: blur on touchstart/touchmove/scroll of the main list
+      try {
+        const area = document.getElementById('main-scroll-area');
+        const input = document.getElementById('global-search');
+        if (area && input && !area.__searchKbDismissBound) {
+          area.__searchKbDismissBound = true;
+
+          const dismiss = () => {
+            try {
+              if (document.activeElement === input) input.blur();
+              else if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+              }
+            } catch (e) {}
+          };
+
+          area.addEventListener('touchstart', dismiss, { passive: true });
+          area.addEventListener('touchmove', dismiss, { passive: true });
+          area.addEventListener('scroll', dismiss, { passive: true });
+        }
+      } catch (e) {}
     }
 
 
