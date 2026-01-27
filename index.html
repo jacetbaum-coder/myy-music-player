@@ -7273,11 +7273,31 @@ let contextMenuAnchor = null;
 let contextMenuCloseTimer = null;
 
 
-       function closeContextMenu() {
+       function closeContextMenu(e) {
+
   const sub = document.getElementById('playlist-submenu');
 
   // Mobile: animate down then hide
-  if (window.innerWidth <= 768) {
+  if (window.innerWidth <= 768) {  const sub = document.getElementById('playlist-submenu');
+
+  // ✅ If this close was triggered by a click/tap INSIDE the playlist submenu, ignore it.
+  // This prevents the global capture outside-dismiss from nuking the submenu.
+  try {
+    if (e && e.target) {
+      if (sub && (sub === e.target || sub.contains(e.target))) return;
+
+      // If user just hit "Add to playlist" option, submenu is about to open — don't close.
+      if (e.target.closest && e.target.closest('#menu-add-opt')) return;
+    }
+  } catch (_) {}
+
+  // ✅ If we JUST opened, ignore this close (ghost / stacked dismiss listeners)
+  try {
+    const sc = (typeof suppressContextMenuCloseUntil !== 'undefined') ? suppressContextMenuCloseUntil : 0;
+    const sp = (typeof suppressPlaylistMenuCloseUntil !== 'undefined') ? suppressPlaylistMenuCloseUntil : 0;
+    if (Date.now() < sc || Date.now() < sp) return;
+  } catch (_) {}
+
     if (contextMenuBackdrop) {
       contextMenuBackdrop.style.opacity = '0';
     }
