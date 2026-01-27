@@ -16466,13 +16466,19 @@ try {
 
       // 1) CLOUD FIRST
       try {
-        if (typeof window.addTrackToPlaylistInCloud !== 'function') {
+                if (typeof window.addTrackToPlaylistInCloud !== 'function') {
           throw new Error('addTrackToPlaylistInCloud is missing');
         }
+
+        // ✅ Some playlists don't have .id (may be playlist_id / playlistId)
+        const pid = (pl && (pl.id || pl.playlistId || pl.playlist_id || pl.uuid || pl._id)) || "";
+        if (!pid) throw new Error("Missing playlistId");
+
         for (const tid of trackIds) {
-          await window.addTrackToPlaylistInCloud(pl.id, tid);
+          await window.addTrackToPlaylistInCloud(pid, tid);
         }
       } catch (e) {
+
         console.warn('Cloud add failed:', e);
         try { showActionToast("Couldn’t add (cloud sync failed). Try again."); } catch (e) {}
 return;
@@ -16486,7 +16492,9 @@ return;
           // small retry (covers “write ok but read immediately misses it”)
           let latest = null;
           for (let attempt = 0; attempt < 3; attempt++) {
-            latest = await window.loadPlaylistItemsFromCloud(pl.id);
+                        const pid2 = (pl && (pl.id || pl.playlistId || pl.playlist_id || pl.uuid || pl._id)) || "";
+            latest = await window.loadPlaylistItemsFromCloud(pid2 || pl.id);
+
             if (Array.isArray(latest) && latest.length) break;
             await new Promise(r => setTimeout(r, 250));
           }
