@@ -6018,7 +6018,13 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
 window.addTrackToPlaylistInCloud = async function (playlistId, trackId) {
   if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
 
-  const body = {
+// ✅ Always record the last add attempt (even if the function gets reassigned later)
+try {
+  window.__lastAddToPlaylist = { playlistId, trackId, at: new Date().toISOString() };
+} catch (e) {}
+
+const body = {
+
     playlistId,
     playlist_id: playlistId,
     id: playlistId,
@@ -15424,6 +15430,18 @@ function initResizers() {
       if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
       // ✅ If the user is clicking the Now Playing "•••" button (or its inner icon), don’t close.
+try {
+  const npMore = document.getElementById('np-more');
+  if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
+} catch (e) {}
+
+// ✅ If clicking "Add to playlist", don't close (submenu is about to open)
+try {
+  if (e.target && e.target.closest && e.target.closest('#menu-add-opt')) return;
+} catch (e) {}
+
+// ✅ If click is inside the playlist submenu, DO NOT treat as "outside"
+
       try {
         const npMore = document.getElementById('np-more');
         if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
@@ -15860,8 +15878,15 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 
 
         function openPlaylistSubmenu(event){
+  // ✅ Prevent the global "click outside" closer from instantly closing menus
+  try { suppressContextMenuCloseUntil = Date.now() + 650; } catch(e){}
+  try { suppressPlaylistMenuCloseUntil = Date.now() + 650; } catch(e){}
+
+  try { if (event) event.preventDefault(); } catch(e){}
   try { if (event) event.stopPropagation(); } catch(e){}
-      const sub = document.getElementById('playlist-submenu');
+
+  const sub = document.getElementById('playlist-submenu');
+
   if (!sub) return;
 
   // ✅ playlist-submenu-items may be missing at runtime (DOM rebuild) — recreate it
