@@ -281,45 +281,6 @@
 }
 
 
-/* Home: special tiles (Liked + Folder) icons */
-.home-square-card[data-type="liked"] .cover{
-  background: linear-gradient(135deg, #3a2bff 0%, #bfeee6 100%) !important;
-  position: relative;
-}
-
-/* Hide any existing icon/img inside liked tile cover (prevents double-heart) */
-.home-square-card[data-type="liked"] .cover > * { display:none !important; }
-
-.home-square-card[data-type="liked"] .cover::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  margin:auto;
-  width: 44%;
-  height: 44%;
-  background:#fff;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21s-7.4-4.35-10-9.14C-0.2 7.26 2.4 3 6.52 3c2.05 0 3.72 1.1 4.48 2.2C11.76 4.1 13.43 3 15.48 3 19.6 3 22.2 7.26 22 11.86 19.4 16.65 12 21 12 21z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21s-7.4-4.35-10-9.14C-0.2 7.26 2.4 3 6.52 3c2.05 0 3.72 1.1 4.48 2.2C11.76 4.1 13.43 3 15.48 3 19.6 3 22.2 7.26 22 11.86 19.4 16.65 12 21 12 21z'/%3E%3C/svg%3E") center / contain no-repeat;
-  opacity: .98;
-}
-
-/* Folder tile: dark card + centered folder outline */
-.home-square-card[data-type="folder"] .cover{
-  background: rgba(255,255,255,0.10) !important;
-  position: relative;
-}
-.home-square-card[data-type="folder"] .cover > * { display:none !important; }
-.home-square-card[data-type="folder"] .cover::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  margin:auto;
-  width: 54%;
-  height: 54%;
-  background: rgba(255,255,255,0.70);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M10 4l2 2h8c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6z'/%3E%3C/svg%3E") center / contain no-repeat;
-}
 
 /* NOW PLAYING overlay: enable on mobile + desktop */
 
@@ -18763,6 +18724,9 @@ function hidePlaylistMenu() {
 }
 
 function showPlaylistMenuAt(x, y, playlistId) {
+  // ✅ prevent the global "click outside closes menu" from instantly closing this
+  try { suppressPlaylistMenuCloseUntil = Date.now() + 350; } catch (e) {}
+
 
   let m = document.getElementById('playlist-menu');
 
@@ -19103,6 +19067,10 @@ function attachPlaylistPressHandlers(el, playlistId) {
 
 // Menu buttons + outside click (run AFTER the page HTML exists)
 window.addEventListener('DOMContentLoaded', () => {
+  // ✅ Disabled: playlist menu buttons are bound inside showPlaylistMenuAt() (m.__playlistMenuBound)
+  // This block causes duplicate bindings (ex: duplicate delBtn) and breaks the 3-dots menu.
+  return;
+
   // ✅ Make sure queue clear buttons get wired when DOM exists
   try { if (typeof wireQueueClearButtons === 'function') wireQueueClearButtons(); } catch (e) {}
 
