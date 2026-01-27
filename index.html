@@ -18977,8 +18977,25 @@ function renderPlaylists() {
     list.appendChild(div);
   });
 
-  // Build the “Add to playlist” submenu (ALL playlists, not limited to 4)
+    // Build the “Add to playlist” submenu (ALL playlists, not limited to 4)
+  const psItems = document.getElementById('playlist-submenu-items');
+
+  // ✅ Always clear the scroll list first (prevents duplicates)
+  if (psItems) psItems.innerHTML = '';
+
+  // ✅ Remove any stray menu-item children that got appended directly to #playlist-submenu
+  if (sub && sub.children) {
+    [...sub.children].forEach((n) => {
+      try {
+        if (n && n.classList && n.classList.contains('menu-item') && n.id !== 'playlist-submenu-items') {
+          n.remove();
+        }
+      } catch (e) {}
+    });
+  }
+
   playlists.forEach((pl, i) => {
+
     const item = document.createElement('div');
     item.className = "menu-item";
     item.innerText = pl.name;
@@ -19074,7 +19091,8 @@ function renderPlaylists() {
 };
 
 
-    sub.appendChild(item);
+    if (psItems) psItems.appendChild(item);
+
   });
 } // This closes renderPlaylists
 
