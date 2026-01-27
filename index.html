@@ -261,13 +261,15 @@
   overscroll-behavior: none;
 
     /* If iOS tries to reveal the “page behind”, make it black */
-  background: #121212 !important;
-  background-color: #121212 !important;
+    background: #000 !important;
+  background-color: #000 !important;
+
 
 
 
 body { 
-  background-color: #121212 !important;
+  background-color: #000 !important;
+
 
 
   /* Spotify-style: colored glow at top fading to black */
@@ -288,8 +290,23 @@ font-feature-settings: "liga" 1, "calt" 1;
 
   flex-direction: column; 
   overflow: hidden; 
-  overflow-x: hidden;
+    overflow-x: hidden;
   margin: 0;
+}
+
+/* ✅ Paint ONLY the iPhone status-bar safe-area so it matches the app bg */
+body::before{
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background: var(--bg-surface);
+  z-index: 999999;
+  pointer-events: none;
+}
+
 }
 
 /* Prevent any view container from forcing the page wider than the screen */
@@ -2055,7 +2072,7 @@ body.qs-lock{
     ) !important;
 
     /* ✅ rounded like Spotify */
-    border-radius: 18px;
+    border-radius: 16px;
 
     border: none;
     padding: 10px 12px;
