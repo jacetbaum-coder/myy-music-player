@@ -16592,7 +16592,8 @@ try {
 
     rows.forEach(({ pid, name }) => {
   const row = document.createElement('div');
-  row.style.display = 'flex';
+  row.style.setProperty('display', 'flex', 'important');
+
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
   row.style.gap = '10px';
@@ -16640,7 +16641,10 @@ try {
   bubble.style.height = '26px';
   bubble.style.borderRadius = '50%';
   bubble.style.border = '2px solid rgba(255,255,255,.4)';
-  bubble.style.display = 'grid';
+  bubble.style.setProperty('display', 'grid', 'important');
+bubble.style.setProperty('visibility', 'visible', 'important');
+bubble.style.setProperty('opacity', '1', 'important');
+
   bubble.style.placeItems = 'center';
   bubble.style.flex = '0 0 auto';
   bubble.style.marginLeft = 'auto';
@@ -16672,33 +16676,9 @@ try {
         paint();
       }, true);
 
-            // --- icon (playlist cover) ---
-      const icon = document.createElement('img');
-      icon.className = 'ps_pl_icon';
-      icon.alt = '';
-      icon.decoding = 'async';
-      icon.loading = 'lazy';
-
-      try {
-        const pls = Array.isArray(window.playlists) ? window.playlists : [];
-        const pl = pls.find(p => (p && (p.id || p.playlistId || p.playlist_id)) === pid);
-
-        let cover =
-          (pl && (pl.cover || pl.coverUrl || pl.cover_url || pl.image || pl.img)) ? (pl.cover || pl.coverUrl || pl.cover_url || pl.image || pl.img) : '';
-
-        // If cover is an object like { url: ... }
-        if (cover && typeof cover === 'object') cover = cover.url || cover.href || '';
-
-        icon.src = cover || '';
-      } catch (e) {
-        icon.src = '';
-      }
-
-      // Nudge title right a bit
-      try { label.style.marginLeft = '2px'; } catch (e) {}
-
-      row.append(icon, label, bubble);
+                  // ✅ Append row (cover + label + bubble were already built above)
       items.appendChild(row);
+
 
     });
   }
