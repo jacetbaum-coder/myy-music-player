@@ -13800,7 +13800,45 @@ window.addEventListener('resize', () => {
 ------------------------ */
 const npSheet = document.getElementById('np-sheet');
 
+/* ✅ Mobile: ensure ••• works even when iOS doesn't generate "click" */
+(function bindNpMoreTapFix(){
+  const btn = document.getElementById('np-more');
+  if (!btn || btn.__npMoreTapFixBound) return;
+  btn.__npMoreTapFixBound = true;
+
+  let lastFire = 0;
+
+  const fire = (e) => {
+    // De-dupe (iOS can fire multiple event types per tap)
+    const now = Date.now();
+    if (now - lastFire < 350) return;
+    lastFire = now;
+
+    try { e.preventDefault(); } catch (err) {}
+    try { e.stopPropagation(); } catch (err) {}
+
+    try {
+      const r = btn.getBoundingClientRect();
+      const x = r.left + (r.width / 2);
+      const y = r.top + r.height;
+
+      const song =
+        (typeof currentSong !== 'undefined' && currentSong) ? currentSong :
+        (window.currentSong || null);
+
+      showContextMenuAt(x, y, song, btn);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  // pointerup covers most modern mobile browsers; touchend covers iOS quirks
+  btn.addEventListener('pointerup', fire, { passive: false });
+  btn.addEventListener('touchend', fire, { passive: false });
+})();
+ 
 let npDragActive = false;
+
 let npStartY = 0;
 let npStartX = 0;
 let npLastDown = 0;
