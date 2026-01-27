@@ -896,11 +896,10 @@ body.song-multiselect .track-row:hover{
     margin-top: 6px;
 }
 
-        .track-row:hover { 
-            background: rgba(255,255,255,0.1); 
-            color: white; 
-            cursor: pointer; 
-        }
+        .track-row:hover {
+  background: transparent !important;
+}
+
 
 .track-row.is-current,
 .track-row.active-track {
@@ -1551,7 +1550,8 @@ body.np-open #context-menu{
 }
 
 #playlist-submenu .menu-item:active{ transform: scale(0.99); }
-#playlist-submenu .menu-item:hover{ background: rgba(255,255,255,0.06); }
+#playlist-submenu .menu-item:hover{ background: transparent; }
+
 #playlist-submenu .menu-item.cm-armed{ background: rgba(255,255,255,0.10); }
 
 /* header row injected by JS */
@@ -15925,35 +15925,58 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   try { suppressPlaylistMenuCloseUntil = Date.now() + 650; } catch(e){}
 
   try { if (event) event.preventDefault(); } catch(e){}
-  try { if (event) event.stopPropagation(); } catch(e){}
+    try { if (event) event.stopPropagation(); } catch(e){}
+
+  // ✅ Prevent “ghost tap” (finger release clicking first playlist item)
+  try {
+    const tmp = document.getElementById('playlist-submenu');
+    if (tmp) {
+      tmp.style.pointerEvents = 'none';
+      setTimeout(() => { try { tmp.style.pointerEvents = 'auto'; } catch(e){} }, 250);
+    }
+  } catch(e){}
 
   const sub = document.getElementById('playlist-submenu');
 
+
   if (!sub) return;
 
-  // ✅ Make submenu fully replace the context menu (same position/size)
+    // ✅ Spotify-ish: full-width sheet that slides up (not a tiny floating box)
   try {
     const cm = document.getElementById('context-menu');
     if (cm && cm.style) {
-      const r = cm.getBoundingClientRect();
-
-      sub.style.position = 'fixed';
-      sub.style.left = Math.round(r.left) + 'px';
-      sub.style.top  = Math.round(r.top) + 'px';
-      sub.style.transform = 'none';
-      sub.style.zIndex = '2147483647';
-      sub.style.width = Math.round(r.width) + 'px';
-      sub.style.maxHeight = Math.round(Math.min(window.innerHeight - r.top - 16, 520)) + 'px';
-      sub.style.overflow = 'auto';
-      sub.style.display = 'block';
-      sub.style.visibility = 'visible';
-      sub.style.opacity = '1';
-      sub.style.pointerEvents = 'auto';
-
-      // Hide the old menu so the submenu “takes its place”
       try { cm.style.display = 'none'; } catch (e) {}
     }
+
+    sub.style.position = 'fixed';
+    sub.style.left = '0';
+    sub.style.top  = '0';
+    sub.style.right = '0';
+    sub.style.bottom = '0';
+    sub.style.width = '100vw';
+    sub.style.maxHeight = 'none';
+    sub.style.overflow = 'auto';
+    sub.style.zIndex = '2147483647';
+    sub.style.display = 'block';
+    sub.style.visibility = 'visible';
+    sub.style.pointerEvents = 'auto';
+
+    // sheet visuals
+    sub.style.background = 'rgba(18,18,18,0.98)';
+    sub.style.borderRadius = '0';
+    sub.style.boxShadow = 'none';
+
+    // animate in (slide up fast)
+    sub.style.transition = 'transform 160ms ease, opacity 160ms ease';
+    sub.style.transform = 'translateY(18px)';
+    sub.style.opacity = '0';
+
+    requestAnimationFrame(() => {
+      sub.style.transform = 'translateY(0)';
+      sub.style.opacity = '1';
+    });
   } catch (e) {}
+
 
   // ✅ playlist-submenu-items may be missing at runtime (DOM rebuild) — recreate it
 
@@ -16061,8 +16084,100 @@ function showMultiSelectContextMenuFromHero(anchorEl){
         }
       } catch (e) {}
 
-      // ✅ DUPLICATE GUARD (ask before adding duplicates)
+            // ✅ DUPLICATE GUARD (ask before adding duplicates)
+
+      // ✅ Spotify-ish confirm sheet (no browser confirm())
+      if (typeof window.__sheetConfirm !== "function") {
+        window.__sheetConfirm = function(message) {
+          return new Promise((resolve) => {
+            try {
+              // remove existing
+              const old = document.getElementById("sheet-confirm");
+              if (old) old.remove();
+
+              const wrap = document.createElement("div");
+              wrap.id = "sheet-confirm";
+              wrap.style.position = "fixed";
+              wrap.style.inset = "0";
+              wrap.style.zIndex = "2147483647";
+              wrap.style.background = "rgba(0,0,0,0.55)";
+              wrap.style.display = "flex";
+              wrap.style.alignItems = "flex-end";
+              wrap.style.justifyContent = "center";
+
+              const sheet = document.createElement("div");
+              sheet.style.width = "min(520px, 92vw)";
+              sheet.style.margin = "0 0 16px 0";
+              sheet.style.background = "rgba(30,30,30,0.98)";
+              sheet.style.borderRadius = "18px";
+              sheet.style.padding = "18px 16px";
+              sheet.style.boxShadow = "0 20px 60px rgba(0,0,0,0.6)";
+              sheet.style.transform = "translateY(18px)";
+              sheet.style.opacity = "0";
+              sheet.style.transition = "transform 160ms ease, opacity 160ms ease";
+
+              const msg = document.createElement("div");
+              msg.textContent = String(message || "");
+              msg.style.color = "white";
+              msg.style.fontSize = "15px";
+              msg.style.lineHeight = "1.25";
+              msg.style.marginBottom = "14px";
+
+              const row = document.createElement("div");
+              row.style.display = "flex";
+              row.style.gap = "10px";
+              row.style.justifyContent = "flex-end";
+
+              const cancel = document.createElement("button");
+              cancel.textContent = "Cancel";
+              cancel.style.padding = "10px 14px";
+              cancel.style.borderRadius = "999px";
+              cancel.style.border = "0";
+              cancel.style.background = "rgba(255,255,255,0.12)";
+              cancel.style.color = "white";
+              cancel.style.fontWeight = "700";
+
+              const ok = document.createElement("button");
+              ok.textContent = "OK";
+              ok.style.padding = "10px 16px";
+              ok.style.borderRadius = "999px";
+              ok.style.border = "0";
+              ok.style.background = "#1db954";
+              ok.style.color = "black";
+              ok.style.fontWeight = "800";
+
+              const close = (val) => {
+                try { wrap.remove(); } catch(e){}
+                resolve(!!val);
+              };
+
+              cancel.onclick = (e) => { try{ e.preventDefault(); e.stopPropagation(); }catch(_){} close(false); };
+              ok.onclick = (e) => { try{ e.preventDefault(); e.stopPropagation(); }catch(_){} close(true); };
+              wrap.onclick = () => close(false);
+              sheet.onclick = (e) => { try{ e.stopPropagation(); }catch(_){} };
+
+              row.appendChild(cancel);
+              row.appendChild(ok);
+              sheet.appendChild(msg);
+              sheet.appendChild(row);
+              wrap.appendChild(sheet);
+              document.body.appendChild(wrap);
+
+              // animate in
+              requestAnimationFrame(() => {
+                sheet.style.transform = "translateY(0)";
+                sheet.style.opacity = "1";
+              });
+            } catch (e) {
+              // fallback: behave like “cancel”
+              resolve(false);
+            }
+          });
+        };
+      }
+
       try {
+
         const plIdx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
         const plRef = (plIdx >= 0) ? playlists[plIdx] : null;
         const existing = new Set(
@@ -16072,11 +16187,12 @@ function showMultiSelectContextMenuFromHero(anchorEl){
         const dupCount = trackIds.filter(tid => existing.has(canonTrackIdLocal(tid))).length;
         if (dupCount > 0) {
           const plName = pl?.name || "this playlist";
-          const ok = confirm(
+                    const ok = await window.__sheetConfirm(
             dupCount === 1
               ? `That song is already in "${plName}". Add a duplicate anyway?`
               : `${dupCount} of these songs are already in "${plName}". Add duplicates anyway?`
           );
+
           if (!ok) {
             // user said no duplicates: remove dupes from this add
             trackIds = trackIds.filter(tid => !existing.has(canonTrackIdLocal(tid)));
