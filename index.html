@@ -18850,8 +18850,40 @@ function showPlaylistMenuAt(x, y, playlistId) {
   // ✅ prevent the global "click outside closes menu" from instantly closing this
   try { suppressPlaylistMenuCloseUntil = Date.now() + 350; } catch (e) {}
 
+  // ✅ playlists use the unified #context-menu system (no #playlist-menu)
+  try {
+    const ctxFn =
+      (typeof window.showContextMenuAt === 'function') ? window.showContextMenuAt :
+      (typeof showContextMenuAt === 'function') ? showContextMenuAt :
+      null;
+
+    if (ctxFn) {
+      let pl = null;
+      try {
+        const arr =
+          (Array.isArray(window.playlists) ? window.playlists :
+          (typeof playlists !== 'undefined' ? playlists : [])) || [];
+        pl = arr.find(p => p && p.id === playlistId) || null;
+      } catch (e) {}
+
+      const pseudo = {
+        type: 'playlist',
+        id: playlistId,
+        playlistId: playlistId,
+        title: pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
+        name:  pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
+        cover: pl ? (pl.cover || pl.autoCover || '') : ''
+      };
+
+      ctxFn(x, y, pseudo, null);
+      return;
+    }
+  } catch (err) {
+    console.warn('showPlaylistMenuAt → context-menu failed:', err);
+  }
 
   let m = document.getElementById('playlist-menu');
+
 
   // ✅ If the menu got removed from DOM, recreate it on demand
   if (!m) {
