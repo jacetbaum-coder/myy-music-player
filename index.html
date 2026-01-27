@@ -16737,26 +16737,26 @@ return `
     const pillId = isMobile ? 'home-pinned-pills-mobile' : 'home-pinned-pills-desktop';
 
     let wrap = document.getElementById(pillId);
-if (!wrap) {
-  wrap = document.createElement('div');
-  wrap.id = pillId;
-  wrap.className = 'grid grid-cols-2 gap-3 mt-3 mb-4';
-wrap.style.maxWidth = '100%';
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = pillId;
+      wrap.className = 'grid grid-cols-2 gap-3 mt-3 mb-4';
+      wrap.style.maxWidth = '100%';
 
+      // ✅ INSERT INTO DOM (mobile was missing this)
+      try {
+        const titleRow = t.parentElement;
+        const outer = titleRow && titleRow.parentElement ? titleRow.parentElement : null;
 
-  // ✅ INSERT INTO DOM (mobile was missing this)
-  try {
-    const titleRow = t.parentElement;
-const outer = titleRow && titleRow.parentElement ? titleRow.parentElement : null;
+        // Insert AFTER the whole title row (prevents "grid on the right" in flex headers)
+        try {
+          if (outer) outer.insertBefore(wrap, titleRow.nextSibling);
+          else titleRow.insertBefore(wrap, t.nextSibling);
+        } catch (e) {}
+      } catch (e) {}
+    }
 
-// Insert AFTER the whole title row (prevents "grid on the right" in flex headers)
-try {
-  if (outer) outer.insertBefore(wrap, titleRow.nextSibling);
-  else titleRow.insertBefore(wrap, t.nextSibling);
-} catch (e) {}
-
-
-	// pull pinned ids (your existing helpers)
+    // pull pinned ids (your existing helpers)
 
     let pinned = [];
     try { pinned = (typeof loadPinnedPlaylists === 'function') ? loadPinnedPlaylists() : []; } catch (e) { pinned = []; }
