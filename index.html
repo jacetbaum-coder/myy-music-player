@@ -5580,13 +5580,11 @@ if (rdBtn) rdBtn.addEventListener('click', (e) => {
   e.stopImmediatePropagation();
 
   try { close(); } catch (e) {}
-  try { showView('settings'); } catch (e) {}
 
-  setTimeout(() => {
-    const btn = document.getElementById('settings-open-recently-deleted');
-    try { btn && btn.click(); } catch (e) {}
-  }, 60);
+  // ✅ Go straight to Recently Deleted view
+  try { showView('recently-deleted'); } catch (e) {}
 }, true);
+
 
 const profileBtn = document.getElementById('profile-menu-profile');
 if (profileBtn) profileBtn.addEventListener('click', (e) => {
