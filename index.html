@@ -18338,23 +18338,22 @@ function updateMobileHomeTabUI() {
     });
   };
 
-  // Mobile tabs
-  applyMap({
+  const map = {
+    // Mobile
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
     artists: 'mobile-home-tab-artists',
-    liked: 'mobile-home-tab-liked',
+    folders: 'mobile-home-tab-liked',
     all: 'mobile-home-tab-all',
-  });
 
-  // Desktop tabs
-  applyMap({
-    playlists: 'desktop-home-tab-playlists',
-    albums: 'desktop-home-tab-albums',
-    artists: 'desktop-home-tab-artists',
-    liked: 'desktop-home-tab-liked',
-    all: 'desktop-home-tab-all',
-  });
+    // Desktopf
+    playlists_desktop: 'desktop-home-tab-playlists',
+    albums_desktop: 'desktop-home-tab-albums',
+    artists_desktop: 'desktop-home-tab-artists',
+    folders_desktop: 'desktop-home-tab-liked',
+    all_desktop: 'desktop-home-tab-all',
+  };
+
 }
 
 function initMobileHomeTabsOnce() {
@@ -18398,9 +18397,14 @@ const HOME_VIEW_BY_TAB_KEY = 'homeViewByTab';
 
 function normalizeHomeTabKey(tab) {
   const t = String(tab || '').toLowerCase();
-  if (t === 'all' || t === 'playlists' || t === 'albums' || t === 'artists' || t === 'liked') return t;
+
+  // ✅ Back-compat: old code used "liked" to mean "folders"
+  if (t === 'liked') return 'folders';
+
+  if (t === 'all' || t === 'playlists' || t === 'albums' || t === 'artists' || t === 'folders') return t;
   return 'all';
 }
+
 
 function normalizeHomeSortMode(mode){
   const m = String(mode || '').trim();
@@ -18554,7 +18558,7 @@ function getHomeRecentsItems() {
     // ✅ filter based on window.homeTopTab
   const tab = window.homeTopTab;
 
-  if (tab === 'liked') {
+  if (tab === 'folders') {
   // Home "Folders" tab: show Liked Songs + all folders
   const likedItem = { type: 'liked' };
 
@@ -18572,6 +18576,7 @@ function getHomeRecentsItems() {
 
   return [likedItem, ...folderItems].slice(0, max);
 }
+
 
 
   if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
