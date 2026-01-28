@@ -18183,16 +18183,20 @@ for (let i = 0; i < slotCount; i++) {
 
     const type = String(h.type || '');
     const title =
-      (type === 'playlist') ? (h.name || 'Playlist') :
-      (type === 'artist')   ? (h.artist || 'Artist') :
-      (type === 'liked')    ? 'Liked Songs' :
-                              (h.album || 'Album');
+  (type === 'playlist') ? (h.name || 'Playlist') :
+  (type === 'artist')   ? (h.artist || 'Artist') :
+  (type === 'liked')    ? 'Liked Songs' :
+  (type === 'folder')   ? (h.name || 'Folder') :
+                          (h.album || 'Album');
+
 
     const sub =
-      (type === 'playlist') ? 'Playlist' :
-      (type === 'artist')   ? 'Artist' :
-      (type === 'liked')    ? '' :
-                              (h.artist || '');
+  (type === 'playlist') ? 'Playlist' :
+  (type === 'artist')   ? 'Artist' :
+  (type === 'liked')    ? '' :
+  (type === 'folder')   ? `${Number(h.count || 0)} playlists` :
+                          (h.artist || '');
+
 
     const safeId = String(h.id || '').replace(/"/g,'&quot;');
     const safeAlbum = String(h.album || '').replace(/"/g,'&quot;');
@@ -18289,8 +18293,18 @@ for (let i = 0; i < slotCount; i++) {
         return;
       }
 
-      // ✅ ALBUM (fallback: by name)
-      const album = card.getAttribute('data-album');
+      // ✅ FOLDER
+if (type === 'folder') {
+  const id = card.getAttribute('data-id');
+  if (id) {
+    try { openFolderViewById(String(id)); } catch (e) {}
+  }
+  return;
+}
+
+// ✅ ALBUM (fallback: by name)
+const album = card.getAttribute('data-album');
+
       if (album) openAlbumByName(album);
 
     });
@@ -18339,7 +18353,29 @@ function updateMobileHomeTabUI() {
     });
   };
 
-  const map = {
+  // Mobile
+  applyMap({
+    playlists: 'mobile-home-tab-playlists',
+    albums: 'mobile-home-tab-albums',
+    artists: 'mobile-home-tab-artists',
+    folders: 'mobile-home-tab-liked',
+    all: 'mobile-home-tab-all',
+  });
+
+  // Desktop
+  applyMap({
+    playlists: 'desktop-home-tab-playlists',
+    albums: 'desktop-home-tab-albums',
+    artists: 'desktop-home-tab-artists',
+    folders: 'desktop-home-tab-liked',
+    all: 'desktop-home-tab-all',
+  });
+}
+
+function initMobileHomeTabsOnce() {
+  if (__homeTabsBound) return;
+
+      const map = {
     // Mobile
     playlists: 'mobile-home-tab-playlists',
     albums: 'mobile-home-tab-albums',
@@ -18347,7 +18383,7 @@ function updateMobileHomeTabUI() {
     folders: 'mobile-home-tab-liked',
     all: 'mobile-home-tab-all',
 
-    // Desktopf
+    // Desktop
     playlists_desktop: 'desktop-home-tab-playlists',
     albums_desktop: 'desktop-home-tab-albums',
     artists_desktop: 'desktop-home-tab-artists',
@@ -18355,25 +18391,8 @@ function updateMobileHomeTabUI() {
     all_desktop: 'desktop-home-tab-all',
   };
 
-}
+  applyMap(map);
 
-function initMobileHomeTabsOnce() {
-  if (__homeTabsBound) return;
-
-    const map = {
-    // Mobile
-    playlists: 'mobile-home-tab-playlists',
-    albums: 'mobile-home-tab-albums',
-    artists: 'mobile-home-tab-artists',
-    liked: 'mobile-home-tab-liked',
-    all: 'mobile-home-tab-all',
-
-    // Desktop
-    playlists_desktop: 'desktop-home-tab-playlists',
-    albums_desktop: 'desktop-home-tab-albums',
-    artists_desktop: 'desktop-home-tab-artists',
-    liked_desktop: 'desktop-home-tab-liked',
-    all_desktop: 'desktop-home-tab-all',
   };
 
   Object.entries(map).forEach(([key, id]) => {
@@ -18908,7 +18927,7 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
       (tab === 'playlists') ? 'Recent playlists' :
       (tab === 'albums')    ? 'Recent albums' :
       (tab === 'artists')   ? 'Recent artists' :
-      (tab === 'liked')     ? 'Folders' :
+      (tab === 'folders')   ? 'Folders' :
 'Recents';
 
     // update any h2 inside Home that currently says "Recents" (mobile + desktop)
