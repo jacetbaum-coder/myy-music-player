@@ -18594,7 +18594,7 @@ function getHomeRecentsItems() {
 
     return [likedItem, ...folderItems].slice(0, max);
 
-
+  }
 
   if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
   if (tab === 'albums')    out = out.filter(x => x.type === 'album');
