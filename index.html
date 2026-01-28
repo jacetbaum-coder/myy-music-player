@@ -17072,12 +17072,8 @@ function renderFolderViewRecents(folderObj){
   }catch(e){}
 
   const submenu = document.getElementById('playlist-submenu');
-  const items = document.getElementById('playlist-submenu-items');
-  const title = submenu ? submenu.querySelector('.cm-submenu-title') : null;
+if (!submenu) { console.warn('playlist-submenu missing'); }
 
-  if (!submenu || !items || !title) {
-    console.warn("Add-to-folder submenu missing DOM pieces");
-    return;
   }
 
   // Title
