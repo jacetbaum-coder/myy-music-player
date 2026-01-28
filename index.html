@@ -17214,8 +17214,9 @@ try{ openFolderRenameModal(id, 'new'); }catch(e){}
 
   } // ✅ end renderFolderTiles()
 
-  // First paint
-  renderFolderTiles();
+ // First paint
+try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing:", e); }
+
 
   // Show submenu
   submenu.style.display = 'block';
