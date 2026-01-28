@@ -21486,7 +21486,8 @@ function cycleRepeat() {
   else if (repeatMode === 'all') repeatMode = 'one';
   else repeatMode = 'off';
 
-  syncRepeatUI();
+  try { syncRepeatUI(); } catch (e) { console.warn("syncRepeatUI failed:", e); }
+
 }
 
 function isRepeatAllOn() {
