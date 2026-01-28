@@ -4354,6 +4354,7 @@ body.qs-lock {
 <audio id="audio-player" preload="auto"></audio>
 
 
+    <script src="scripts/playlist-submenu-prototype.js"></script>
     <script>
         
         // GLOBAL APP STATE
@@ -17430,27 +17431,17 @@ if (!submenu) { console.warn('playlist-submenu missing'); }
 
    // Show submenu
   const submenu = document.getElementById('playlist-submenu');
-  if (!submenu) return;
+  const submenuReady = typeof applyPlaylistSubmenuPrototype === 'function'
+    ? applyPlaylistSubmenuPrototype(submenu)
+    : false;
 
-  submenu.style.display = 'block';
-
-  submenu.style.transform = 'translateY(0)';
-  submenu.style.opacity = '1';
-  submenu.style.zIndex = '200500';
-  submenu.style.pointerEvents = 'auto';
-  submenu.style.overflow = 'hidden';
-  submenu.style.overflowX = 'hidden';
-  submenu.style.top = '70px';
-  submenu.style.height = 'calc(100vh - 120px)';
-
-  submenu.classList.add('open');
-
-  // ✅ APPLY YOUR PROTOTYPE BEHAVIOR (scroll + bubbles + backdrop fix)
-  (() => {
-    const sub = document.getElementById("playlist-submenu");
-    const items = document.getElementById("playlist-submenu-items");
-    const bd = document.getElementById("context-menu-backdrop");
-    if (!sub || !items) return console.log("missing submenu/items");
+  if (submenuReady) {
+    // ✅ APPLY YOUR PROTOTYPE BEHAVIOR (scroll + bubbles + backdrop fix)
+    (() => {
+      const sub = document.getElementById("playlist-submenu");
+      const items = document.getElementById("playlist-submenu-items");
+      const bd = document.getElementById("context-menu-backdrop");
+      if (!sub || !items) return console.log("missing submenu/items");
 
     // 1) Backdrop is blocking clicks/scroll
     if (bd) {
@@ -17557,7 +17548,8 @@ grid.style.paddingRight = "12px";
         refresh();
       }, true);
     }
-  })();
+    })();
+  }
 }
 
 
