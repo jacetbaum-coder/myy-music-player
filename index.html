@@ -18521,9 +18521,24 @@ function getHomeRecentsItems() {
   const tab = window.homeTopTab;
 
   if (tab === 'liked') {
-    // Home "Liked" tab is a special item that opens the Liked view
-    return [{ type: 'liked' }].slice(0, max);
-  }
+  // Home "Folders" tab: show Liked Songs + all folders
+  const likedItem = { type: 'liked' };
+
+  let folders = [];
+  try {
+    folders = Array.isArray(window.folders) ? window.folders : [];
+  } catch (e) { folders = []; }
+
+  const folderItems = folders.map(f => ({
+    type: 'folder',
+    id: String(f?.id || ''),
+    name: String(f?.name || 'Folder'),
+    count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
+  }));
+
+  return [likedItem, ...folderItems].slice(0, max);
+}
+
 
   if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
   if (tab === 'albums')    out = out.filter(x => x.type === 'album');
@@ -18610,39 +18625,52 @@ function renderHomeRecentsRow(containerId) {
 
          row.innerHTML = items.map(item => {
             const title =
-  (item.type === 'liked')    ? 'Liked songs'
+  (item.type === 'liked')      ? 'Liked songs'
+  : (item.type === 'folder')   ? (item.name || 'Folder')
   : (item.type === 'playlist') ? (item.name || 'Playlist')
-  : (item.type === 'artist') ? (item.artist || 'Artist')
+  : (item.type === 'artist')   ? (item.artist || 'Artist')
   : (item.album || 'Album');
 
 const sub =
-  (item.type === 'liked')    ? 'Playlist'
+  (item.type === 'liked')      ? 'Liked Songs'
+  : (item.type === 'folder')   ? `${Number(item.count || 0)} playlists`
   : (item.type === 'playlist') ? 'Playlist'
-  : (item.type === 'artist') ? 'Artist'
+  : (item.type === 'artist')   ? 'Artist'
   : (item.artist || '');
 
-const safeAlbum = String(item.album || '').replace(/'/g, "\\'");
-const safeId = String(item.id || '').replace(/"/g, '&quot;');
+const safeAlbum  = String(item.album || '').replace(/'/g, "\\'");
+const safeId     = String(item.id || '').replace(/"/g, '&quot;');
 const safeArtist = String(item.artist || '').replace(/"/g, '&quot;');
+const safeFolderId = String(item.id || '').replace(/"/g, '&quot;');
 
 const dataAttrs =
-  (item.type === 'liked')    ? `data-type="liked"`
+  (item.type === 'liked')      ? `data-type="liked"`
+  : (item.type === 'folder')   ? `data-type="folder" data-folder-id="${safeFolderId}"`
   : (item.type === 'playlist') ? `data-type="playlist" data-id="${safeId}"`
-  : (item.type === 'artist') ? `data-type="artist" data-artist="${safeArtist}"`
+  : (item.type === 'artist')   ? `data-type="artist" data-artist="${safeArtist}"`
   : `data-type="album" data-album="${safeAlbum}"`;
 
+let coverUrl = item.cover || '';
 
-                        let coverUrl = item.cover || '';
             let coverMarkup = '';
 
             if (item.type === 'playlist') {
-              const pl2 = playlists.find(pl => String(pl.id) === String(item.id));
-              if (pl2 && typeof getPlaylistCoverMarkup === 'function') {
-                coverMarkup = getPlaylistCoverMarkup(pl2, "w-full h-full");
-              } else if (pl2 && typeof getEffectivePlaylistCover === 'function') {
-                coverUrl = getEffectivePlaylistCover(pl2) || coverUrl;
-              }
-            }
+  const pl2 = playlists.find(pl => String(pl.id) === String(item.id));
+  if (pl2 && typeof getPlaylistCoverMarkup === 'function') {
+    coverMarkup = getPlaylistCoverMarkup(pl2, "w-full h-full");
+  } else if (pl2 && typeof getEffectivePlaylistCover === 'function') {
+    coverUrl = getEffectivePlaylistCover(pl2) || coverUrl;
+  }
+}
+
+if (item.type === 'folder') {
+  // simple, safe cover (no dependencies)
+  coverUrl = '';
+  coverMarkup = `<div class="w-full h-full bg-gradient-to-br from-indigo-500/60 to-cyan-300/40 flex items-center justify-center">
+    <i class="fas fa-folder text-4xl text-white/90"></i>
+  </div>`;
+}
+
 
 
 return `
