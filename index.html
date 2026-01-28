@@ -1267,28 +1267,7 @@ body.song-multiselect .track-row:hover{
   background: rgba(var(--accent-rgb), 0.88);
 }
 
-// ✅ GLOBAL handler for inline onclick="toggleNpLyricsExpanded(event)"
-window.toggleNpLyricsExpanded = function(e){
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  const body = document.getElementById('np-lyrics-body');
-  const icon = document.getElementById('np-lyrics-expand-icon');
-  if (!body) return;
-
-  const expanded = body.classList.contains('np-lyrics-expanded');
-
-  body.classList.toggle('np-lyrics-expanded', !expanded);
-  body.classList.toggle('np-lyrics-collapsed', expanded);
-
-  if (icon) {
-    icon.className = !expanded
-      ? "fas fa-compress text-white/90 text-sm"
-      : "fas fa-up-right-and-down-left-from-center text-white/90 text-sm";
-  }
-};
+/* (removed) JS mistakenly pasted into CSS */
 
   display: block;
   -webkit-line-clamp: unset;
