@@ -16925,13 +16925,27 @@ function renderFolderViewRecents(folderObj){
 }
 
 
+  function openAddToFolderSubmenu(event){
+  try{
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+  }catch(e){}
+
+  const submenu = document.getElementById('playlist-submenu');
+  const items = document.getElementById('playlist-submenu-items');
+  const title = submenu ? submenu.querySelector('.cm-submenu-title') : null;
+
+  if (!submenu || !items || !title) {
+    console.warn("Add-to-folder submenu missing DOM pieces");
+    return;
+  }
+
   // Title
   title.textContent = "Add to folder";
 
   // Clear old items
   items.innerHTML = "";
 
-    // ---- Folders UI: centered pill + Spotify-ish tiles ----
+  // ---- Folders UI: centered pill + Spotify-ish tiles ----
   items.innerHTML = `
     <div class="folder-new-row">
       <button id="folder-new-pill" type="button">+ New Folder</button>
@@ -16950,47 +16964,44 @@ function renderFolderViewRecents(folderObj){
 
   const folderIconSvg = `
     <svg class="folder-tile-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M3.5 6.8C3.5 5.53 4.53 4.5 5.8 4.5H9.2C9.77 4.5 10.31 4.76 10.66 5.2L11.25 5.95C11.6 6.39 12.14 6.65 12.7 6.65H18.2C19.47 6.65 20.5 7.68 20.5 8.95V17.2C20.5 18.47 19.47 19.5 18.2 19.5H5.8C4.53 19.5 3.5 18.47 3.5 17.2V6.8Z"
-            stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M3 6.5C3 5.119 4.119 4 5.5 4h5l2 2h6C19.881 6 21 7.119 21 8.5v9c0 1.381-1.119 2.5-2.5 2.5h-13C4.119 20 3 18.881 3 17.5v-11z" fill="rgba(255,255,255,0.78)"/>
+      <path d="M3 8h18v1.6H3V8z" fill="rgba(0,0,0,0.18)"/>
     </svg>
   `;
 
   const ensureTileCount = (arr, minCount) => {
-  const out = Array.isArray(arr) ? arr.slice() : [];
+    const out = Array.isArray(arr) ? arr.slice() : [];
 
-  // If there are no real folders, create EXACTLY the 9 demo folders
-  if (out.length === 0) {
-    out.push({ id: "demo-my-first-folder", name: "My First Folder", playlistIds: [] });
-    for (let i = 1; i <= 8; i++) {
-      out.push({ id: `demo-test-${i}`, name: `Test ${i}`, playlistIds: [] });
+    // If there are no real folders, create EXACTLY the 9 demo folders
+    if (out.length === 0) {
+      out.push({ id: "demo-my-first-folder", name: "My First Folder", playlistIds: [] });
+      for (let i = 1; i <= 8; i++) {
+        out.push({ id: `demo-test-${i}`, name: `Test ${i}`, playlistIds: [] });
+      }
+      return out.slice(0, minCount);
     }
+
+    // If there ARE folders, pad to minCount with demo folders (never null)
+    let n = 1;
+    while (out.length < minCount) {
+      out.push({ id: `demo-test-${n}`, name: `Test ${n}`, playlistIds: [] });
+      n++;
+    }
+
     return out.slice(0, minCount);
-  }
-
-  // If there ARE folders, pad to minCount with demo folders (never null)
-  let n = 1;
-  while (out.length < minCount) {
-    out.push({ id: `demo-test-${n}`, name: `Test ${n}`, playlistIds: [] });
-    n++;
-  }
-
-  return out.slice(0, minCount);
-};
-
-
+  };
 
   function renderFolderTiles(){
     if (!gridEl) return;
-const tiles = ensureTileCount(window.folders, 9);
+    const tiles = ensureTileCount(window.folders, 9);
 
-        gridEl.innerHTML = tiles.map((f) => {
+    gridEl.innerHTML = tiles.map((f) => {
       const name = String(f.name || "Folder");
       const count = Array.isArray(f.playlistIds) ? f.playlistIds.length : (Number(f.count) || 0);
       const fid = String(f.id || "");
 
       return `
         <div class="folder-tile" data-folder-id="${fid}">
-
           <div class="folder-tile-square">${folderIconSvg}</div>
           <div class="folder-tile-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
           <div class="folder-tile-sub">${count} playlists</div>
@@ -17014,31 +17025,29 @@ const tiles = ensureTileCount(window.folders, 9);
       });
     } catch (err) {}
 
+    // Create folder (prototype)
+    const newBtn = document.getElementById('folder-new-pill');
+    if (newBtn) {
+      newBtn.onclick = () => {
+        try{
+          const name = prompt('Folder name?', 'New Folder');
+          if(!name) return;
 
+          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+          window.folders.push({ id, name: String(name), playlistIds: [] });
 
-  // Create folder (prototype)
+          renderFolderTiles();
+          openFolderViewById(id);
 
-  const newBtn = document.getElementById('folder-new-pill');
-  if (newBtn) {
-    newBtn.onclick = () => {
-      try{
-        const name = prompt('Folder name?', 'New Folder');
-        if(!name) return;
+        }catch(e){}
+      };
+    }
+  } // ✅ end renderFolderTiles()
 
-        const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-        window.folders.push({ id, name: String(name), playlistIds: [] });
+  // First paint
+  renderFolderTiles();
 
-        renderFolderTiles();
-        openFolderViewById(id);
-
-      }catch(e){}
-    };
-  }
-} // ✅ end renderFolderTiles()
-
-
-    // Show submenu
-
+  // Show submenu
   submenu.style.display = 'block';
   submenu.style.transform = 'translateY(0)';
   submenu.style.opacity = '1';
@@ -17048,7 +17057,6 @@ const tiles = ensureTileCount(window.folders, 9);
   submenu.style.overflowX = 'hidden';
   submenu.style.top = '70px';
   submenu.style.height = 'calc(100vh - 40px)';
-
 
   submenu.classList.add('open');
 
@@ -17068,7 +17076,6 @@ const tiles = ensureTileCount(window.folders, 9);
     // 2) Grid wrapper (tiles container)
     const grid = document.getElementById("folder-tiles-grid");
     if (!grid) return console.log("no grid found");
-
 
     // 3) Make grid scrollable by giving it a real height
     const subRect = sub.getBoundingClientRect();
@@ -17163,6 +17170,7 @@ const tiles = ensureTileCount(window.folders, 9);
       }, true);
     }
   })();
+}
 
 
         function openPlaylistSubmenu(event){
