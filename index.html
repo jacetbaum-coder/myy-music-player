@@ -3059,10 +3059,14 @@ body.qs-lock {
             <div class="flex items-center gap-3">
               <!-- profile -->
 <button id="library-profile-btn" type="button"
-  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shadow-md border border-white/10 overflow-hidden active:scale-95"
   aria-label="Profile menu">
-  <i class="fas fa-user text-white/70 text-sm"></i>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5Z" stroke="white" stroke-opacity=".9" stroke-width="2"/>
+    <path d="M4 22c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="white" stroke-opacity=".9" stroke-width="2" stroke-linecap="round"/>
+  </svg>
 </button>
+
 
               <div class="text-3xl font-black leading-none">My Library</div>
             </div>
@@ -5546,49 +5550,56 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
 
   const settingsBtn = document.getElementById('profile-menu-settings');
 if (settingsBtn) settingsBtn.addEventListener('click', (e) => {
-  e.stopPropagation();   // ✅ prevent outside-close from stealing the click
   e.preventDefault();
-  close();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  try { close(); } catch (e) {}
   try { showView('settings'); } catch (e) {}
-});
+}, true);
 
 const syncBtn = document.getElementById('profile-menu-sync');
 if (syncBtn) syncBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
   e.preventDefault();
-  close();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 
+  try { close(); } catch (e) {}
   try { showView('settings'); } catch (e) {}
 
-  // After Settings renders, trigger the existing Settings item (if present)
   setTimeout(() => {
-    try { document.getElementById('settings-open-sync')?.click(); } catch (e) {}
-  }, 0);
-});
+    const btn = document.getElementById('settings-open-sync');
+    try { btn && btn.click(); } catch (e) {}
+  }, 60);
+}, true);
 
 const rdBtn = document.getElementById('profile-menu-recently-deleted');
 if (rdBtn) rdBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
   e.preventDefault();
-  close();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 
+  try { close(); } catch (e) {}
   try { showView('settings'); } catch (e) {}
 
-  // After Settings renders, trigger the existing Settings item (if present)
   setTimeout(() => {
-    try { document.getElementById('settings-open-recently-deleted')?.click(); } catch (e) {}
-  }, 0);
-});
+    const btn = document.getElementById('settings-open-recently-deleted');
+    try { btn && btn.click(); } catch (e) {}
+  }, 60);
+}, true);
 
 const profileBtn = document.getElementById('profile-menu-profile');
 if (profileBtn) profileBtn.addEventListener('click', (e) => {
-  e.stopPropagation();   // ✅ same fix here
   e.preventDefault();
-  close();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  try { close(); } catch (e) {}
   try { alert('Profile (coming soon)'); } catch (e) {}
-});
+}, true);
 
 })();
+
 	
 // -----------------------
 // PLAY BUTTON (delegated)
@@ -22119,9 +22130,7 @@ function renderCrateStats() {
 
       <div class="h-px bg-white/10"></div>
 
-      <button id="profile-menu-recently-deleted" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-        Recently Deleted
-      </button>
+      
 
       <div class="h-px bg-white/10"></div>
 
