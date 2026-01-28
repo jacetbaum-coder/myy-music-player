@@ -17370,10 +17370,10 @@ function renderFolderViewRecents(folderObj){
     };
 
 
-  function renderFolderTiles(){
-
-
+ function renderFolderTiles(){
+    const gridEl = document.getElementById('folder-tiles-grid');
     if (!gridEl) return;
+
     const tiles = ensureTileCount(window.folders, 9);
 
     gridEl.innerHTML = tiles.map((f) => {
@@ -18521,7 +18521,8 @@ for (let i = 0; i < slotCount; i++) {
 // -----------------------
 // HOME TOP TABS (Recents filter)
 // -----------------------
-let homeTopTab = 'all';
+var homeTopTab = (window.homeTopTab || 'all'); window.homeTopTab = window.homeTopTab || homeTopTab;
+
 let __homeTabsBound = false;
 
 function setHomeTopTab(tab) {
@@ -21618,7 +21619,8 @@ function isShuffleOn() {
 
 
         // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
-let repeatMode = 'off'; // 'off' | 'all' | 'one'
+var repeatMode = (window.repeatMode || 'off'); window.repeatMode = repeatMode; // 'off' | 'all' | 'one'
+
 
 function syncRepeatUI() {
   const d = document.getElementById('btn-repeat');
@@ -21660,7 +21662,9 @@ function cycleRepeat() {
   else if (repeatMode === 'all') repeatMode = 'one';
   else repeatMode = 'off';
 
+  window.repeatMode = repeatMode;
   syncRepeatUI();
+
 }
 
 function isRepeatAllOn() {
