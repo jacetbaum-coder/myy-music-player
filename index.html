@@ -16476,36 +16476,169 @@ function openAddToFolderSubmenu(event){
   // Clear old items
   items.innerHTML = "";
 
-  // ---- Sample folder (prototype) ----
-  items.innerHTML += `
-    <div class="menu-item" onclick="alert('Added to My First Folder (prototype)')">
-      My First Folder
+  // ---- Prototype UI: pill + 2x2 tiles (1 real + 3 placeholders) ----
+  items.innerHTML = `
+    <div style="display:flex; gap:10px; padding:12px 12px 8px 12px;">
+      <button id="folder-new-pill" type="button"
+        style="background:#fff; color:#111; border-radius:9999px; padding:10px 14px; font-weight:700; border:none; cursor:pointer;"
+        onclick="(function(){
+          try{
+            const name = prompt('Folder name?', 'New Folder');
+            if(!name) return;
+            window.folders = Array.isArray(window.folders) ? window.folders : [];
+            window.folders.push({ id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()), name: String(name), playlistIds: [] });
+            alert('Created folder: ' + name + ' (prototype)');
+          }catch(e){}
+        })()">
+        + New Folder
+      </button>
+    </div>
+
+    <div id="folder-tiles-grid" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; padding:6px 12px 12px 12px;">
+      <div class="folder-tile-wrap">
+        <div class="folder-tile-square" style="aspect-ratio:1/1; border-radius:14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);"></div>
+        <div class="folder-tile-label" style="margin-top:8px; font-size:14px; color:rgba(255,255,255,0.92);">My First Folder</div>
+      </div>
+
+      <div class="folder-tile-wrap">
+        <div class="folder-tile-square" style="aspect-ratio:1/1; border-radius:14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);"></div>
+        <div class="folder-tile-label" style="margin-top:8px; font-size:14px; color:rgba(255,255,255,0.0);">.</div>
+      </div>
+
+      <div class="folder-tile-wrap">
+        <div class="folder-tile-square" style="aspect-ratio:1/1; border-radius:14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);"></div>
+        <div class="folder-tile-label" style="margin-top:8px; font-size:14px; color:rgba(255,255,255,0.0);">.</div>
+      </div>
+
+      <div class="folder-tile-wrap">
+        <div class="folder-tile-square" style="aspect-ratio:1/1; border-radius:14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);"></div>
+        <div class="folder-tile-label" style="margin-top:8px; font-size:14px; color:rgba(255,255,255,0.0);">.</div>
+      </div>
     </div>
   `;
 
-  // ---- New folder option ----
-  items.innerHTML += `
-    <div class="menu-item" onclick="alert('Create new folder (next step)')">
-      + New Folder
-    </div>
-  `;
-
-  // Show submenu
-  // ✅ closeContextMenu() / other code can leave inline styles that override CSS
+    // Show submenu
   submenu.style.display = 'block';
   submenu.style.transform = 'translateY(0)';
+  submenu.style.opacity = '1';
   submenu.style.zIndex = '200500';
   submenu.style.pointerEvents = 'auto';
   submenu.style.overflow = 'hidden';
 
-  if (items) {
-    items.style.overflowY = 'auto';
-    items.style.webkitOverflowScrolling = 'touch';
-  }
-
   submenu.classList.add('open');
 
+  // ✅ APPLY YOUR PROTOTYPE BEHAVIOR (scroll + bubbles + backdrop fix)
+  (() => {
+    const sub = document.getElementById("playlist-submenu");
+    const items = document.getElementById("playlist-submenu-items");
+    const bd = document.getElementById("context-menu-backdrop");
+    if (!sub || !items) return console.log("missing submenu/items");
+
+    // 1) Backdrop is blocking clicks/scroll
+    if (bd) {
+      bd.style.pointerEvents = "none";
+      bd.style.opacity = bd.style.opacity || "1";
+    }
+
+    // 2) Grid wrapper (tiles container)
+    const grid = items.querySelector("div[style*='grid']");
+    if (!grid) return console.log("no grid found");
+
+    // 3) Make grid scrollable by giving it a real height
+    const subRect = sub.getBoundingClientRect();
+    const pill = items.firstElementChild; // + New Folder pill
+    const pillH = pill ? pill.getBoundingClientRect().height : 0;
+
+    grid.style.maxHeight = Math.max(160, subRect.height - pillH - 90) + "px";
+    grid.style.overflowY = "auto";
+    grid.style.webkitOverflowScrolling = "touch";
+    grid.style.paddingBottom = grid.style.paddingBottom || "96px";
+    grid.style.pointerEvents = "auto";
+
+    // Prevent other global handlers from killing scroll
+    if (!window.__FOLDER_SCROLL_GUARD) {
+      window.__FOLDER_SCROLL_GUARD = true;
+
+      grid.addEventListener("wheel", (e) => { e.stopPropagation(); }, { capture: true });
+      grid.addEventListener("touchmove", (e) => { e.stopPropagation(); }, { capture: true, passive: true });
+    }
+
+    // 4) Selection: bubbles on squares (click square toggles)
+    const selected = window.__FOLDER_SELECTED_SET || new Set();
+    window.__FOLDER_SELECTED_SET = selected;
+
+    const tileWraps = [...grid.children].filter(el => el && el.firstElementChild);
+
+    const ensureBubble = (wrap) => {
+      const sq = wrap.firstElementChild;
+      if (!sq) return null;
+      sq.style.position = "relative";
+
+      let bub = sq.querySelector(".__ms_bubble");
+      if (!bub) {
+        bub = document.createElement("div");
+        bub.className = "__ms_bubble";
+        bub.style.position = "absolute";
+        bub.style.right = "8px";
+        bub.style.bottom = "8px";
+        bub.style.width = "18px";
+        bub.style.height = "18px";
+        bub.style.borderRadius = "9999px";
+        bub.style.border = "2px solid rgba(255,255,255,0.8)";
+        bub.style.background = "rgba(0,0,0,0.25)";
+        bub.style.display = "none";
+        bub.style.pointerEvents = "none";
+        sq.appendChild(bub);
+      }
+      return bub;
+    };
+
+    const refresh = () => {
+      const selecting = !!window.__FOLDER_SELECTING;
+      tileWraps.forEach((wrap, i) => {
+        const bub = ensureBubble(wrap);
+        if (!bub) return;
+
+        if (!selecting) { bub.style.display = "none"; return; }
+        bub.style.display = "block";
+
+        if (selected.has(i)) {
+          bub.style.background = "#1db954";
+          bub.style.borderColor = "#1db954";
+        } else {
+          bub.style.background = "rgba(0,0,0,0.25)";
+          bub.style.borderColor = "rgba(255,255,255,0.8)";
+        }
+      });
+    };
+
+    tileWraps.forEach((w)=>ensureBubble(w));
+    refresh();
+
+    if (!window.__FOLDER_TILE_CLICK_GUARD) {
+      window.__FOLDER_TILE_CLICK_GUARD = true;
+
+      grid.addEventListener("click", (e) => {
+        if (!window.__FOLDER_SELECTING) return;
+
+        const wrap = e.target.closest(":scope > div");
+        if (!wrap) return;
+
+        const idx = tileWraps.indexOf(wrap);
+        if (idx < 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (selected.has(idx)) selected.delete(idx);
+        else selected.add(idx);
+
+        refresh();
+      }, true);
+    }
+  })();
 }
+
 
         function openPlaylistSubmenu(event){
   // ✅ Prevent the global "click outside" closer from instantly closing menus
