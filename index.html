@@ -1267,7 +1267,28 @@ body.song-multiselect .track-row:hover{
   background: rgba(var(--accent-rgb), 0.88);
 }
 
-/* (removed) JS mistakenly pasted into CSS */
+// ✅ GLOBAL handler for inline onclick="toggleNpLyricsExpanded(event)"
+window.toggleNpLyricsExpanded = function(e){
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const body = document.getElementById('np-lyrics-body');
+  const icon = document.getElementById('np-lyrics-expand-icon');
+  if (!body) return;
+
+  const expanded = body.classList.contains('np-lyrics-expanded');
+
+  body.classList.toggle('np-lyrics-expanded', !expanded);
+  body.classList.toggle('np-lyrics-collapsed', expanded);
+
+  if (icon) {
+    icon.className = !expanded
+      ? "fas fa-compress text-white/90 text-sm"
+      : "fas fa-up-right-and-down-left-from-center text-white/90 text-sm";
+  }
+};
 
   display: block;
   -webkit-line-clamp: unset;
@@ -6419,6 +6440,7 @@ try { if (typeof window.hydrateCloudPlaylistCovers === "function") window.hydrat
   }
 
   return data.playlists;
+}
 
 // fallback
 window.cloudPlaylists = [];
@@ -17213,6 +17235,7 @@ if (!submenu) { console.warn('playlist-submenu missing'); }
   }catch(e){}
 }
 
+  };
 
   // ✅ Small modal: Folder name / Rename (used by both "create" and title-click rename)
   if (typeof window.openFolderNameModal !== "function") {
@@ -17402,8 +17425,140 @@ if (!submenu) { console.warn('playlist-submenu missing'); }
 
   } // ✅ end renderFolderTiles()
 
-   // First paint
+  // First paint
   renderFolderTiles();
+
+   // Show submenu
+  const submenu = document.getElementById('playlist-submenu');
+  if (!submenu) return;
+
+  submenu.style.display = 'block';
+
+  submenu.style.transform = 'translateY(0)';
+  submenu.style.opacity = '1';
+  submenu.style.zIndex = '200500';
+  submenu.style.pointerEvents = 'auto';
+  submenu.style.overflow = 'hidden';
+  submenu.style.overflowX = 'hidden';
+  submenu.style.top = '70px';
+  submenu.style.height = 'calc(100vh - 120px)';
+
+  submenu.classList.add('open');
+
+  // ✅ APPLY YOUR PROTOTYPE BEHAVIOR (scroll + bubbles + backdrop fix)
+  (() => {
+    const sub = document.getElementById("playlist-submenu");
+    const items = document.getElementById("playlist-submenu-items");
+    const bd = document.getElementById("context-menu-backdrop");
+    if (!sub || !items) return console.log("missing submenu/items");
+
+    // 1) Backdrop is blocking clicks/scroll
+    if (bd) {
+      bd.style.pointerEvents = "none";
+      bd.style.opacity = bd.style.opacity || "1";
+    }
+
+    // 2) Grid wrapper (tiles container)
+    const grid = document.getElementById("folder-tiles-grid");
+    if (!grid) return console.log("no grid found");
+
+    // 3) Make grid scrollable by giving it a real height
+    const subRect = sub.getBoundingClientRect();
+    const pill = items.firstElementChild; // + New Folder pill
+    const pillH = pill ? pill.getBoundingClientRect().height : 0;
+
+    grid.style.maxHeight = Math.max(160, subRect.height - pillH - 90) + "px";
+    grid.style.overflowY = "auto";
+    grid.style.webkitOverflowScrolling = "touch";
+    grid.style.paddingBottom = grid.style.paddingBottom || "96px";
+grid.style.paddingLeft = "22px";
+grid.style.paddingRight = "12px";
+
+    grid.style.pointerEvents = "auto";
+
+    // Prevent other global handlers from killing scroll
+    if (!window.__FOLDER_SCROLL_GUARD) {
+      window.__FOLDER_SCROLL_GUARD = true;
+
+      grid.addEventListener("wheel", (e) => { e.stopPropagation(); }, { capture: true });
+      grid.addEventListener("touchmove", (e) => { e.stopPropagation(); }, { capture: true, passive: true });
+    }
+
+    // 4) Selection: bubbles on squares (click square toggles)
+    const selected = window.__FOLDER_SELECTED_SET || new Set();
+    window.__FOLDER_SELECTED_SET = selected;
+
+    const tileWraps = [...grid.children].filter(el => el && el.firstElementChild);
+
+    const ensureBubble = (wrap) => {
+      const sq = wrap.firstElementChild;
+      if (!sq) return null;
+      sq.style.position = "relative";
+
+      let bub = sq.querySelector(".__ms_bubble");
+      if (!bub) {
+        bub = document.createElement("div");
+        bub.className = "__ms_bubble";
+        bub.style.position = "absolute";
+        bub.style.right = "8px";
+        bub.style.bottom = "8px";
+        bub.style.width = "18px";
+        bub.style.height = "18px";
+        bub.style.borderRadius = "9999px";
+        bub.style.border = "2px solid rgba(255,255,255,0.8)";
+        bub.style.background = "rgba(0,0,0,0.25)";
+        bub.style.display = "none";
+        bub.style.pointerEvents = "none";
+        sq.appendChild(bub);
+      }
+      return bub;
+    };
+
+    const refresh = () => {
+      const selecting = !!window.__FOLDER_SELECTING;
+      tileWraps.forEach((wrap, i) => {
+        const bub = ensureBubble(wrap);
+        if (!bub) return;
+
+        if (!selecting) { bub.style.display = "none"; return; }
+        bub.style.display = "block";
+
+        if (selected.has(i)) {
+          bub.style.background = "#1db954";
+          bub.style.borderColor = "#1db954";
+        } else {
+          bub.style.background = "rgba(0,0,0,0.25)";
+          bub.style.borderColor = "rgba(255,255,255,0.8)";
+        }
+      });
+    };
+
+    tileWraps.forEach((w)=>ensureBubble(w));
+    refresh();
+
+    if (!window.__FOLDER_TILE_CLICK_GUARD) {
+      window.__FOLDER_TILE_CLICK_GUARD = true;
+
+      grid.addEventListener("click", (e) => {
+        if (!window.__FOLDER_SELECTING) return;
+
+        const wrap = e.target.closest(":scope > div");
+        if (!wrap) return;
+
+        const idx = tileWraps.indexOf(wrap);
+        if (idx < 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (selected.has(idx)) selected.delete(idx);
+        else selected.add(idx);
+
+        refresh();
+      }, true);
+    }
+  })();
+}
 
 
         function openPlaylistSubmenu(event){
