@@ -5512,7 +5512,52 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   const open = () => {
     const m = document.getElementById('profile-menu-modal');
     if (m) m.classList.remove('hidden');
+
+    // ✅ Bind menu buttons on-open (menu rows may not exist when the script first ran)
+    const settingsBtn = document.getElementById('profile-menu-settings');
+    if (settingsBtn && !settingsBtn.__pmBound) {
+      settingsBtn.__pmBound = true;
+      settingsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        try { close(); } catch (e) {}
+        try { showView('settings'); } catch (e) {}
+      }, true);
+    }
+
+    const rdBtn = document.getElementById('profile-menu-recently-deleted');
+    if (rdBtn && !rdBtn.__pmBound) {
+      rdBtn.__pmBound = true;
+      rdBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        try { close(); } catch (e) {}
+        try { showView('settings'); } catch (e) {}
+
+        setTimeout(() => {
+          const btn = document.getElementById('settings-open-recently-deleted');
+          try { btn && btn.click(); } catch (e) {}
+        }, 60);
+      }, true);
+    }
+
+    const profileBtn = document.getElementById('profile-menu-profile');
+    if (profileBtn && !profileBtn.__pmBound) {
+      profileBtn.__pmBound = true;
+      profileBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        try { close(); } catch (e) {}
+        try { alert('Profile (coming soon)'); } catch (e) {}
+      }, true);
+    }
   };
+
 
   const close = () => {
     const m = document.getElementById('profile-menu-modal');
