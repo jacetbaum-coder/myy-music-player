@@ -16491,8 +16491,18 @@ function openAddToFolderSubmenu(event){
   `;
 
   // Show submenu
-  // ✅ Inline display:none overrides the .open CSS, so force it on
+  // ✅ closeContextMenu() / other code can leave inline styles that override CSS
   submenu.style.display = 'block';
+  submenu.style.transform = 'translateY(0)';
+  submenu.style.zIndex = '200500';
+  submenu.style.pointerEvents = 'auto';
+  submenu.style.overflow = 'hidden';
+
+  if (items) {
+    items.style.overflowY = 'auto';
+    items.style.webkitOverflowScrolling = 'touch';
+  }
+
   submenu.classList.add('open');
 
 }
