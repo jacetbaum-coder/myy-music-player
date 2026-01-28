@@ -1683,17 +1683,11 @@ body.np-open #context-menu{
   font-family: inherit;
 }
 
-#playlist-submenu .folder-tiles-grid{
-  /* ✅ Approved: 3 across */
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+justify-content: center;
 
-  /* ✅ Approved spacing */
-  gap: 8px;
-  row-gap: 10px;
+  /* ✅ Jason-approved: nudge the grid right */
+  transform: translateX(44px);
 
-  /* ✅ Center the whole grid evenly (no left shove) */
-  justify-content: center;
 
   /* ✅ Keep the same top spacing */
   margin-top: 28px;
