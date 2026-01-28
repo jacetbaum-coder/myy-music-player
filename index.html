@@ -18589,11 +18589,12 @@ function getHomeRecentsItems() {
   } catch (e) { folders = []; }
 
   const folderItems = folders.map(f => ({
-    type: 'folder',
-    id: String(f?.id || ''),
-    name: String(f?.name || 'Folder'),
-    count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
-  }));
+  type: 'folder',
+  id: String(f?.id || ''),
+  name: String(f?.name || 'Folder'),
+  count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
+}));
+
 
   return [likedItem, ...folderItems].slice(0, max);
 }
