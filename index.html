@@ -1758,6 +1758,170 @@ body.np-open #context-menu{
   text-overflow: ellipsis;
 }
 
+/* =========================
+   FOLDER VIEW OVERLAY
+========================= */
+#folder-view-overlay{
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 210000;
+}
+
+#folder-view-overlay.hidden{ display: none; }
+
+#folder-view-overlay .folder-view-panel{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 220ms ease;
+}
+
+#folder-view-overlay.open .folder-view-panel{
+  transform: translateX(0);
+}
+
+#folder-view-overlay .folder-view-top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 10px 16px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+
+#folder-view-overlay .folder-view-left{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+#folder-view-overlay .folder-view-back{
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  border: none;
+}
+
+#folder-view-overlay .folder-view-kicker{
+  font-size: 14px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.1;
+}
+
+#folder-view-overlay .folder-view-title{
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 52vw;
+}
+
+#folder-view-overlay .folder-view-create{
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 900;
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#folder-view-overlay .folder-view-body{
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 120px 16px;
+}
+
+#folder-view-overlay .folder-empty{
+  text-align: center;
+  padding: 90px 10px 40px 10px;
+}
+
+#folder-view-overlay .folder-empty h2{
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0;
+}
+
+#folder-view-overlay .folder-empty p{
+  margin-top: 10px;
+  font-size: 16px;
+  color: rgba(255,255,255,0.70);
+}
+
+#folder-view-overlay .folder-recents-title{
+  margin-top: 18px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+}
+
+#folder-view-overlay .folder-recents-list{
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#folder-view-overlay .folder-recents-item{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+#folder-view-overlay .folder-recents-meta{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#folder-view-overlay .folder-recents-name{
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#folder-view-overlay .folder-recents-sub{
+  font-size: 13px;
+  color: rgba(255,255,255,0.70);
+}
+
+#folder-view-overlay .folder-recents-add{
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 900;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+
 #playlist-submenu .folder-tile.placeholder .folder-tile-name,
 #playlist-submenu .folder-tile.placeholder .folder-tile-sub{
   visibility: hidden;
@@ -3259,7 +3423,41 @@ body.qs-lock {
           <div id="library-search-results-overlay" class="mt-2"></div>
         </div>
 
-        <!-- Library controls (Sort + View as) -->
+                <!-- FOLDER VIEW overlay (New Folder screen) -->
+        <div id="folder-view-overlay" class="hidden md:hidden">
+          <div class="folder-view-panel">
+            <div class="folder-view-top">
+              <div class="folder-view-left">
+                <button id="folder-view-back" class="folder-view-back" type="button" aria-label="Back">
+                  <span style="font-size:20px; line-height:1;">‹</span>
+                </button>
+
+                <div style="min-width:0;">
+                  <div class="folder-view-kicker">Your Library</div>
+                  <div id="folder-view-title" class="folder-view-title">New Folder</div>
+                </div>
+              </div>
+
+              <button id="folder-view-create" class="folder-view-create" type="button">
+                <span style="font-size:18px; line-height:1;">＋</span>
+                <span>Create</span>
+              </button>
+            </div>
+
+            <div id="folder-view-body" class="folder-view-body">
+              <div class="folder-empty">
+                <h2>This folder looks empty</h2>
+                <p>No playlists added yet. Start adding playlists below.</p>
+              </div>
+
+              <div class="folder-recents-title">Add playlists</div>
+              <div id="folder-view-recents" class="folder-recents-list"></div>
+            </div>
+          </div>
+        </div>
+
+<!-- Library controls (Sort + View as) -->
+
 
         <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
           <!-- Left: Sort dropdown (Spotify-style “Recents” text button, no pill background) -->
@@ -16576,18 +16774,156 @@ function showMultiSelectContextMenuFromHero(anchorEl){
   row.addEventListener('touchcancel', cancel, { passive: true });
 }
 
-function openAddToFolderSubmenu(event){
-  event.preventDefault();
-  event.stopPropagation();
+// =========================
+// Folder View Overlay helpers
+// =========================
+function openFolderViewById(folderId){
+  try{
+    const fid = String(folderId || "").trim();
+    if(!fid) return;
+    window.folders = Array.isArray(window.folders) ? window.folders : [];
+    const f = window.folders.find(x => String(x && x.id || "") === fid);
+    if(!f) return;
+    openFolderViewOverlay(f);
+  }catch(e){}
+}
 
-  const submenu = document.getElementById('playlist-submenu');
-  const items = document.getElementById('playlist-submenu-items');
-  const title = submenu.querySelector('.cm-submenu-title');
+function openFolderViewOverlay(folderObj){
+  try{
+    const ov = document.getElementById('folder-view-overlay');
+    const panel = ov ? ov.querySelector('.folder-view-panel') : null;
+    const title = document.getElementById('folder-view-title');
+    if(!ov || !panel || !title) return;
 
-  if (!submenu || !items || !title) {
-    console.warn("Add-to-folder submenu missing DOM pieces");
-    return;
-  }
+    // title
+    title.textContent = String(folderObj && folderObj.name || "New Folder");
+
+    // bind back
+    const back = document.getElementById('folder-view-back');
+    if (back && !back.__bound) {
+      back.__bound = true;
+      back.onclick = () => { try{ closeFolderViewOverlay(); }catch(e){} };
+    }
+
+    // Create button: (no-op for now; keeps UI parity)
+    const createBtn = document.getElementById('folder-view-create');
+    if (createBtn && !createBtn.__bound) {
+      createBtn.__bound = true;
+      createBtn.onclick = () => { try{}catch(e){} };
+    }
+
+    // render recents list
+    renderFolderViewRecents(folderObj);
+
+    // show + animate
+    ov.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      ov.classList.add('open');
+    });
+  }catch(e){}
+}
+
+function closeFolderViewOverlay(){
+  try{
+    const ov = document.getElementById('folder-view-overlay');
+    if(!ov) return;
+    ov.classList.remove('open');
+    setTimeout(() => {
+      try{ ov.classList.add('hidden'); }catch(e){}
+    }, 240);
+  }catch(e){}
+}
+
+function getRecentPlaylistsForFolderView(max){
+  const limit = Number(max) > 0 ? Number(max) : 8;
+
+  // Prefer historyLog playlist recents
+  try{
+    const h = JSON.parse(localStorage.getItem('historyLog') || '[]');
+    if (Array.isArray(h)) {
+      const ids = [];
+      for (const it of h) {
+        if (!it) continue;
+        if (String(it.type || '').toLowerCase() !== 'playlist') continue;
+        const pid = String(it.id || it.playlistId || '').trim();
+        if (pid && !ids.includes(pid)) ids.push(pid);
+        if (ids.length >= limit) break;
+      }
+      const all = Array.isArray(window.playlists) ? window.playlists : [];
+      const fromHistory = ids.map(id => all.find(p => String(p && (p.id || p.playlistId) || "") === id)).filter(Boolean);
+      if (fromHistory.length) return fromHistory.slice(0, limit);
+    }
+  }catch(e){}
+
+  // fallback: first N playlists
+  try{
+    const all = Array.isArray(window.playlists) ? window.playlists : [];
+    return all.slice(0, limit);
+  }catch(e){}
+  return [];
+}
+
+function renderFolderViewRecents(folderObj){
+  try{
+    const list = document.getElementById('folder-view-recents');
+    if(!list) return;
+
+    const f = folderObj || {};
+    const fid = String(f.id || '').trim();
+    if(!fid) return;
+
+    const recents = getRecentPlaylistsForFolderView(8);
+
+    if (!recents.length) {
+      list.innerHTML = '<div style="opacity:0.7; font-size:14px; padding:10px 2px;">No playlists found.</div>';
+      return;
+    }
+
+    list.innerHTML = recents.map((pl) => {
+      const pid = String(pl && (pl.id || pl.playlistId) || '');
+      const name = String(pl && (pl.name || pl.title) || 'Playlist');
+      const count = Array.isArray(pl && pl.trackIds) ? pl.trackIds.length : (Number(pl && pl.count) || 0);
+
+      return `
+        <div class="folder-recents-item" data-pl-id="${pid}">
+          <div class="folder-recents-meta">
+            <div class="folder-recents-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+            <div class="folder-recents-sub">${count} songs</div>
+          </div>
+          <button class="folder-recents-add" type="button">Add</button>
+        </div>
+      `;
+    }).join('');
+
+    // wire "Add" buttons
+    Array.from(list.querySelectorAll('.folder-recents-item')).forEach((row) => {
+      const btn = row.querySelector('.folder-recents-add');
+      if (!btn) return;
+      btn.onclick = (e) => {
+        try{
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = String(row.getAttribute('data-pl-id') || '').trim();
+          if(!pid) return;
+
+          window.folders = Array.isArray(window.folders) ? window.folders : [];
+          const folder = window.folders.find(x => String(x && x.id || "") === fid);
+          if(!folder) return;
+
+          folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
+          if(!folder.playlistIds.includes(pid)) folder.playlistIds.push(pid);
+
+          // Update empty state text (simple)
+          const empty = document.querySelector('#folder-view-overlay .folder-empty p');
+          if (empty) empty.textContent = 'Playlists added: ' + String(folder.playlistIds.length);
+
+        }catch(err){}
+      };
+    });
+
+  }catch(e){}
+}
+
 
   // Title
   title.textContent = "Add to folder";
@@ -16662,8 +16998,26 @@ const tiles = ensureTileCount(window.folders, 9);
       `;
     }).join("");
 
+    // ✅ Click a tile to open the folder view
+    try {
+      const tilesEls = gridEl ? Array.from(gridEl.querySelectorAll('.folder-tile')) : [];
+      tilesEls.forEach((el) => {
+        el.onclick = (e) => {
+          try {
+            e.preventDefault();
+            e.stopPropagation();
+            const fid = String(el.getAttribute('data-folder-id') || '').trim();
+            if (!fid) return;
+            openFolderViewById(fid);
+          } catch (err) {}
+        };
+      });
+    } catch (err) {}
+
+
 
   // Create folder (prototype)
+
   const newBtn = document.getElementById('folder-new-pill');
   if (newBtn) {
     newBtn.onclick = () => {
@@ -16675,6 +17029,8 @@ const tiles = ensureTileCount(window.folders, 9);
         window.folders.push({ id, name: String(name), playlistIds: [] });
 
         renderFolderTiles();
+        openFolderViewById(id);
+
       }catch(e){}
     };
     }
@@ -16689,6 +17045,10 @@ const tiles = ensureTileCount(window.folders, 9);
   submenu.style.zIndex = '200500';
   submenu.style.pointerEvents = 'auto';
   submenu.style.overflow = 'hidden';
+  submenu.style.overflowX = 'hidden';
+  submenu.style.top = '70px';
+  submenu.style.height = 'calc(100vh - 40px)';
+
 
   submenu.classList.add('open');
 
