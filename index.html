@@ -5526,22 +5526,29 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
       }, true);
     }
 
-    const rdBtn = document.getElementById('profile-menu-recently-deleted');
-    if (rdBtn && !rdBtn.__pmBound) {
-      rdBtn.__pmBound = true;
-      rdBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
+   const rdBtn = document.getElementById('profile-menu-recently-deleted');
+if (rdBtn) rdBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 
-        try { close(); } catch (e) {}
-        try { showView('settings'); } catch (e) {}
+  try { close(); } catch (e) {}
 
-        setTimeout(() => {
-          const btn = document.getElementById('settings-open-recently-deleted');
-          try { btn && btn.click(); } catch (e) {}
-        }, 60);
-      }, true);
+  // 1) Open Settings
+  try { showView('settings'); } catch (e) {}
+
+  // 2) Reset internal Settings panel state (same as back arrow)
+  setTimeout(() => {
+    document
+      .querySelectorAll('#settings-view .hidden')
+      .forEach(el => el.classList.remove('hidden'));
+
+    // 3) Open Recently Deleted
+    const btn = document.getElementById('settings-open-recently-deleted');
+    try { btn && btn.click(); } catch (e) {}
+  }, 0);
+}, true);
+
     }
 
     const profileBtn = document.getElementById('profile-menu-profile');
