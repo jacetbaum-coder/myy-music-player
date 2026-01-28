@@ -1560,7 +1560,7 @@ body.np-open #context-menu{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+  top: 70px;
 
   margin: 0 auto;
   max-width: 680px;
@@ -1573,9 +1573,11 @@ body.np-open #context-menu{
   padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
   z-index: 2100;
 
-  /* ✅ same “sheet size” feel as main menu */
-  max-height: min(420px, calc(100vh - 160px));
+  /* ✅ match the “full sheet” feel */
+  height: calc(100vh - 40px);
+  max-height: none;
   overflow: hidden;
+  overflow-x: hidden;
 
   /* hidden by default */
   display: none;
@@ -1585,8 +1587,9 @@ body.np-open #context-menu{
 
 #playlist-submenu.open{
   display: block;
-  transform: translateY(0) translateY(-52px);
+  transform: translateY(0);
 }
+
 
 
 /* ✅ submenu items scroll (not the whole sheet) */
@@ -1652,39 +1655,51 @@ body.np-open #context-menu{
 #playlist-submenu .folder-new-row{
   display: flex;
   justify-content: center;
-  padding: 12px 12px 8px 12px;
+  padding: 10px 12px 0 12px;
 }
 
 #playlist-submenu #folder-new-pill{
   background: #fff;
   color: #111;
   border-radius: 9999px;
-  padding: 19px 50px;
-  font-weight: 900;
-  font-size: 22px;
+  padding: 10px 22px;
+  font-size: 18px;
+  font-weight: 800;
   border: none;
   cursor: pointer;
   font-family: inherit;
 }
 
-
 #playlist-submenu .folder-tiles-grid{
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 6px 12px 16px 12px;
+  grid-template-columns: repeat(3, 110px);
+  justify-content: center;
+  column-gap: 14px;
+  row-gap: 18px;
+
+  /* ✅ more space under the pill */
+  margin-top: 28px;
+
+  /* ✅ allow vertical scroll only */
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding: 0 12px calc(140px + env(safe-area-inset-bottom)) 12px;
+  max-height: calc(100vh - 260px);
 }
 
 #playlist-submenu .folder-tile{
   display: flex;
   flex-direction: column;
   gap: 0;
+  margin: 0;
+  padding: 0;
   font-family: inherit;
 }
 
 #playlist-submenu .folder-tile-square{
-  width: 280px;
-  height: 280px;
+  width: 110px;
+  height: 110px;
   border-radius: 18px;
   background: rgba(255,255,255,0.10);
   border: 1px solid rgba(255,255,255,0.12);
@@ -1692,25 +1707,23 @@ body.np-open #context-menu{
   place-items: center;
 }
 
-
 #playlist-submenu .folder-tile-icon{
-  width: 74px;
-  height: 74px;
+  width: 32px;
+  height: 32px;
   opacity: 0.78;
 }
 
 #playlist-submenu .folder-tile-name{
   margin-top: 10px;
-  font-size: 22px;
-  font-weight: 900;
+  margin-bottom: 2px;
+  font-size: 18px;
+  font-weight: 600;
   color: #fff;
   line-height: 1.15;
 }
 
-
-
 #playlist-submenu .folder-tile-sub{
-  margin-top: 4px;
+  margin-top: 0;
   font-size: 14px;
   font-weight: 700;
   color: rgba(255,255,255,0.65);
@@ -1719,6 +1732,8 @@ body.np-open #context-menu{
 #playlist-submenu .folder-tile.placeholder .folder-tile-name,
 #playlist-submenu .folder-tile.placeholder .folder-tile-sub{
   visibility: hidden;
+}
+
 }
 
 /* ===== QUEUE TOAST (mobile) ===== */
@@ -16577,40 +16592,46 @@ function openAddToFolderSubmenu(event){
 
   const ensureTileCount = (arr, minCount) => {
     const out = arr.slice();
-    while (out.length < minCount) out.push(null);
-    // keep an even grid feel (2 columns)
-    if (out.length % 2 !== 0) out.push(null);
+
+    // Fill missing tiles with demo folders (so they’re clickable/functional)
+    let demoN = 1;
+    while (out.length < minCount) {
+      out.push({
+        id: "__demo_folder_" + demoN,
+        name: "Test " + demoN,
+        playlistIds: []
+      });
+      demoN++;
+    }
+
     return out;
   };
 
+
   function renderFolderTiles(){
     if (!gridEl) return;
+const tiles = ensureTileCount(window.folders, 9);
 
-    const tiles = ensureTileCount(window.folders, 4);
+    gridEl.innerHTML = tiles.map((f, idx) => {
+      // ✅ Force 9 visible, named folders (even if f is null/placeholder)
+      const isReal = !!f;
+      const name = isReal
+        ? String(f.name || "Folder")
+        : ("Test " + String(idx + 1));
 
-    gridEl.innerHTML = tiles.map((f) => {
-      if (!f) {
-        return `
-          <div class="folder-tile placeholder">
-            <div class="folder-tile-square">${folderIconSvg}</div>
-            <div class="folder-tile-name">.</div>
-            <div class="folder-tile-sub">.</div>
-          </div>
-        `;
-      }
 
-      const name = String(f.name || "New Folder");
-      const count = Array.isArray(f.playlistIds) ? f.playlistIds.length : 0;
+      const count = isReal ? (Array.isArray(f.playlistIds) ? f.playlistIds.length : (Number(f.count) || 0)) : 0;
+      const fid = isReal ? String(f.id || "") : ("test-" + String(idx));
 
       return `
-        <div class="folder-tile" data-folder-id="${String(f.id || "")}">
+        <div class="folder-tile ${isReal ? "" : "placeholder"}" data-folder-id="${fid}">
           <div class="folder-tile-square">${folderIconSvg}</div>
           <div class="folder-tile-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
           <div class="folder-tile-sub">${count} playlists</div>
         </div>
       `;
     }).join("");
-  }
+
 
   renderFolderTiles();
 
