@@ -1585,8 +1585,9 @@ body.np-open #context-menu{
 
 #playlist-submenu.open{
   display: block;
-  transform: translateY(0);
+  transform: translateY(0) translateY(-52px);
 }
+
 
 /* ✅ submenu items scroll (not the whole sheet) */
   .ps_pl_icon{
@@ -1658,12 +1659,14 @@ body.np-open #context-menu{
   background: #fff;
   color: #111;
   border-radius: 9999px;
-  padding: 12px 18px;
+  padding: 19px 50px;
   font-weight: 900;
+  font-size: 22px;
   border: none;
   cursor: pointer;
   font-family: inherit;
 }
+
 
 #playlist-submenu .folder-tiles-grid{
   display: grid;
@@ -1680,13 +1683,15 @@ body.np-open #context-menu{
 }
 
 #playlist-submenu .folder-tile-square{
-  aspect-ratio: 1 / 1;
+  width: 280px;
+  height: 280px;
   border-radius: 18px;
   background: rgba(255,255,255,0.10);
   border: 1px solid rgba(255,255,255,0.12);
   display: grid;
   place-items: center;
 }
+
 
 #playlist-submenu .folder-tile-icon{
   width: 74px;
@@ -1696,11 +1701,13 @@ body.np-open #context-menu{
 
 #playlist-submenu .folder-tile-name{
   margin-top: 10px;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 900;
   color: #fff;
   line-height: 1.15;
 }
+
+
 
 #playlist-submenu .folder-tile-sub{
   margin-top: 4px;
