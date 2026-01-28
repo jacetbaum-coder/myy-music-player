@@ -9150,16 +9150,23 @@ safe(window.renderHistory);
 
     // Load cloud playlists first (then your existing renderer can use them later)
     try {
-    if (typeof window.loadPlaylistsFromCloud === "function") {
-      await window.loadPlaylistsFromCloud();
-      console.log("cloudPlaylists:", window.cloudPlaylists);
-    } else {
-      console.warn("loadPlaylistsFromCloud missing at runtime");
+      if (typeof window.loadPlaylistsFromCloud === "function") {
+        await window.loadPlaylistsFromCloud();
+        console.log("cloudPlaylists:", window.cloudPlaylists);
+
+        // ✅ NEW: pull pinned playlist names from server -> convert to IDs -> save to localStorage
+        if (typeof window.reconcilePinnedPlaylistsFromServer === "function") {
+          await window.reconcilePinnedPlaylistsFromServer();
+        }
+      } else {
+        console.warn("loadPlaylistsFromCloud missing at runtime");
+      }
+    } catch (e) {
+      console.warn(e);
     }
-  } catch (e) {
-    console.warn(e);
-  }
-  safe(window.renderPlaylists);
+
+    safe(window.renderPlaylists);
+    safe(window.renderHome);
 
 
 
