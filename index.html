@@ -1612,7 +1612,7 @@ body.np-open #context-menu{
     border-radius: 8px;
     object-fit: cover;
     flex: 0 0 auto;
-    margin-left: 24px;
+    margin-left: 14px;
     margin-right: 10px;
     background: rgba(255,255,255,0.08);
   }
@@ -16818,20 +16818,6 @@ function openFolderViewOverlay(folderObj){
     // title
     title.textContent = String(folderObj && folderObj.name || "New Folder");
 
-    // ✅ Click title to rename (small modal)
-    if (!title.__renameBound) {
-      title.__renameBound = true;
-      title.style.cursor = "pointer";
-      title.onclick = () => {
-        try{
-          if (typeof window.openFolderNameModal === "function") {
-            window.openFolderNameModal(String(folderObj && folderObj.id || ""), false);
-          }
-        }catch(e){}
-      };
-    }
-
-
     // remember which folder is open (for rename)
     try{ window.__activeFolderViewId = String(folderObj && folderObj.id || ""); }catch(e){}
 
@@ -17132,248 +17118,8 @@ function renderFolderViewRecents(folderObj){
     return out.slice(0, minCount);
   };
 
-  function openFolderRenameModal(folderId){
-  try{
-    const fid = String(folderId || "").trim();
-    if (!fid) return;
-
-    const folders = Array.isArray(window.folders) ? window.folders : [];
-    const f = folders.find(x => String(x?.id || "") === fid);
-    if (!f) return;
-
-    let modal = document.getElementById("folder-rename-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "folder-rename-modal";
-      modal.style.position = "fixed";
-      modal.style.inset = "0";
-      modal.style.zIndex = "300000";
-      modal.style.display = "none";
-      modal.style.alignItems = "center";
-      modal.style.justifyContent = "center";
-      modal.style.background = "rgba(0,0,0,0.55)";
-      modal.innerHTML = `
-        <div style="
-          width: min(520px, calc(100vw - 48px));
-          background: rgba(35,35,35,0.98);
-          border-radius: 22px;
-          padding: 26px 26px 22px 26px;
-          box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-          color: #fff;
-        ">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px;">
-            <div style="font-size:44px; font-weight:800; letter-spacing:-0.02em;">Rename</div>
-            <button id="folder-rename-x" style="
-              width: 44px; height: 44px;
-              border-radius: 999px;
-              border: none;
-              background: transparent;
-              color: rgba(255,255,255,0.85);
-              font-size: 34px;
-              line-height: 44px;
-              cursor: pointer;
-            ">×</button>
-          </div>
-
-          <input id="folder-rename-input" type="text" value="" style="
-            width: 100%;
-            height: 64px;
-            border-radius: 10px;
-            border: 2px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-            font-size: 26px;
-            padding: 0 16px;
-            outline: none;
-          "/>
-
-          <div style="display:flex; justify-content:flex-end; margin-top: 22px;">
-            <button id="folder-rename-save" style="
-              height: 70px;
-              padding: 0 46px;
-              border-radius: 999px;
-              border: none;
-              background: #fff;
-              color: #000;
-              font-size: 26px;
-              font-weight: 800;
-              cursor: pointer;
-            ">Save</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-
-    const input = modal.querySelector("#folder-rename-input");
-    const btnX = modal.querySelector("#folder-rename-x");
-    const btnSave = modal.querySelector("#folder-rename-save");
-
-    const close = () => { modal.style.display = "none"; };
-
-    btnX.onclick = close;
-    modal.onclick = (e) => { if (e.target === modal) close(); };
-
-    input.value = String(f.name || "New Folder");
-    modal.style.display = "flex";
-    setTimeout(() => { try { input.focus(); input.select(); } catch(e) {} }, 0);
-
-    btnSave.onclick = () => {
-      try{
-        const v = String(input.value || "").trim();
-        if (!v) return;
-
-        f.name = v;
-
-        // update tiles + any folder header text if present
-        try { if (typeof renderFolderTiles === "function") renderFolderTiles(); } catch(e) {}
-
-        try {
-          const t1 = document.getElementById("folder-view-title");
-          if (t1) t1.textContent = v;
-        } catch(e) {}
-
-        close();
-      }catch(e){}
-    };
-  }catch(e){}
-}
-
-  };
-
-  // ✅ Small modal: Folder name / Rename (used by both "create" and title-click rename)
-  if (typeof window.openFolderNameModal !== "function") {
-    window.openFolderNameModal = function(folderId, isCreate){
-      try{
-        const fid = String(folderId || "").trim();
-        if (!fid) return;
-
-        window.folders = Array.isArray(window.folders) ? window.folders : [];
-        const f = window.folders.find(x => String(x && x.id || "") === fid);
-        if (!f) return;
-
-        let host = document.getElementById("folder-name-modal");
-        if (!host) {
-          host = document.createElement("div");
-          host.id = "folder-name-modal";
-          host.style.position = "fixed";
-          host.style.inset = "0";
-          host.style.zIndex = "999999";
-          host.style.display = "none";
-
-          host.innerHTML = `
-            <div id="folder-name-modal-backdrop" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
-
-            <div id="folder-name-modal-card"
-                 style="
-                   position:absolute;
-                   left:50%;
-                   top:50%;
-                   transform:translate(-50%,-50%);
-                   width:92vw;
-                   max-width:520px;
-                   background:rgba(36,36,36,0.98);
-                   border-radius:18px;
-                   box-shadow:0 20px 60px rgba(0,0,0,0.6);
-                   padding:22px;
-                 ">
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                <div id="folder-name-modal-title" style="font-size:28px; font-weight:900; color:#fff;">Folder name</div>
-                <button id="folder-name-modal-x"
-                        type="button"
-                        aria-label="Close"
-                        style="
-                          width:36px;
-                          height:36px;
-                          border-radius:9999px;
-                          border:none;
-                          background:rgba(255,255,255,0.10);
-                          color:#fff;
-                          font-size:22px;
-                          cursor:pointer;
-                        ">×</button>
-              </div>
-
-              <div style="margin-top:14px;">
-                <input id="folder-name-modal-input"
-                       type="text"
-                       autocomplete="off"
-                       style="
-                         width:100%;
-                         height:46px;
-                         border-radius:10px;
-                         border:1px solid rgba(255,255,255,0.18);
-                         background:rgba(255,255,255,0.06);
-                         color:#fff;
-                         padding:0 14px;
-                         font-size:16px;
-                         font-weight:700;
-                         outline:none;
-                       "/>
-              </div>
-
-              <div style="display:flex; justify-content:flex-end; margin-top:18px;">
-                <button id="folder-name-modal-save"
-                        type="button"
-                        style="
-                          height:46px;
-                          padding:0 22px;
-                          border-radius:9999px;
-                          border:none;
-                          background:#fff;
-                          color:#000;
-                          font-size:18px;
-                          font-weight:900;
-                          cursor:pointer;
-                        ">Save</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(host);
-
-          const close = () => { try{ host.style.display = "none"; }catch(e){} };
-
-          const bd = host.querySelector("#folder-name-modal-backdrop");
-          const x  = host.querySelector("#folder-name-modal-x");
-          if (bd) bd.addEventListener("click", close);
-          if (x)  x.addEventListener("click", close);
-
-          const saveBtn = host.querySelector("#folder-name-modal-save");
-          if (saveBtn) {
-            saveBtn.addEventListener("click", () => {
-              try{
-                const input = host.querySelector("#folder-name-modal-input");
-                const v = String(input ? input.value : "").trim();
-                if (v) f.name = v;
-
-                // refresh tiles + folder view title
-                try { if (typeof renderFolderTiles === "function") renderFolderTiles(); } catch (e) {}
-                try { openFolderViewById(fid); } catch (e) {}
-
-                close();
-              }catch(e){}
-            });
-          }
-        }
-
-        const titleEl = host.querySelector("#folder-name-modal-title");
-        const inputEl = host.querySelector("#folder-name-modal-input");
-
-        if (titleEl) titleEl.textContent = isCreate ? "Folder name" : "Rename";
-        if (inputEl) {
-          inputEl.value = String(f.name || "New Folder");
-          setTimeout(() => { try{ inputEl.focus(); inputEl.select(); }catch(e){} }, 0);
-        }
-
-        host.style.display = "block";
-      }catch(e){}
-    };
-
-
- function renderFolderTiles(){
-    const gridEl = document.getElementById('folder-tiles-grid');
+  function renderFolderTiles(){
     if (!gridEl) return;
-
     const tiles = ensureTileCount(window.folders, 9);
 
     gridEl.innerHTML = tiles.map((f) => {
@@ -17410,21 +17156,17 @@ function renderFolderViewRecents(folderObj){
     const newBtn = document.getElementById('folder-new-pill');
     if (newBtn) {
       newBtn.onclick = () => {
-  try{
-    const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+        try{
+          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+          window.folders.push({ id, name: "New Folder", playlistIds: [] });
 
-    // create with default name, then open the folder page
-    window.folders.push({ id, name: "New Folder", playlistIds: [] });
+          renderFolderTiles();
+          openFolderViewById(id);
 
-    renderFolderTiles();
-    openFolderViewById(id);
-
-    // immediately prompt rename using our modal (next edit adds this function)
-    openFolderNameModal(id, true);
-
-  }catch(e){}
-};
-
+          // ✅ immediately show the Rename modal (Spotify behavior)
+          try{ openFolderRenameModal(id); }catch(e){}
+        }catch(e){}
+      };
     }
 
   } // ✅ end renderFolderTiles()
@@ -17432,12 +17174,8 @@ function renderFolderViewRecents(folderObj){
   // First paint
   renderFolderTiles();
 
-   // Show submenu
-  const submenu = document.getElementById('playlist-submenu');
-  if (!submenu) return;
-
+  // Show submenu
   submenu.style.display = 'block';
-
   submenu.style.transform = 'translateY(0)';
   submenu.style.opacity = '1';
   submenu.style.zIndex = '200500';
@@ -17445,7 +17183,7 @@ function renderFolderViewRecents(folderObj){
   submenu.style.overflow = 'hidden';
   submenu.style.overflowX = 'hidden';
   submenu.style.top = '70px';
-  submenu.style.height = 'calc(100vh - 120px)';
+  submenu.style.height = 'calc(100vh - 40px)';
 
   submenu.classList.add('open');
 
@@ -17475,9 +17213,6 @@ function renderFolderViewRecents(folderObj){
     grid.style.overflowY = "auto";
     grid.style.webkitOverflowScrolling = "touch";
     grid.style.paddingBottom = grid.style.paddingBottom || "96px";
-grid.style.paddingLeft = "22px";
-grid.style.paddingRight = "12px";
-
     grid.style.pointerEvents = "auto";
 
     // Prevent other global handlers from killing scroll
@@ -18525,8 +18260,7 @@ for (let i = 0; i < slotCount; i++) {
 // -----------------------
 // HOME TOP TABS (Recents filter)
 // -----------------------
-var homeTopTab = (window.homeTopTab || 'all'); window.homeTopTab = window.homeTopTab || homeTopTab;
-
+let homeTopTab = 'all';
 let __homeTabsBound = false;
 
 function setHomeTopTab(tab) {
@@ -21623,8 +21357,7 @@ function isShuffleOn() {
 
 
         // --- Repeat mode (Spotify-style): off -> all -> one -> off ---
-var repeatMode = (window.repeatMode || 'off'); window.repeatMode = repeatMode; // 'off' | 'all' | 'one'
-
+let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
 function syncRepeatUI() {
   const d = document.getElementById('btn-repeat');
@@ -21666,9 +21399,7 @@ function cycleRepeat() {
   else if (repeatMode === 'all') repeatMode = 'one';
   else repeatMode = 'off';
 
-  window.repeatMode = repeatMode;
   syncRepeatUI();
-
 }
 
 function isRepeatAllOn() {
