@@ -18787,6 +18787,8 @@ return `
 
 
         function renderHome() {
+  try { void homeTopTab; } catch (e) { console.warn("homeTopTab not initialized yet; skipping renderHome"); return; }
+
   // ✅ Home section title is always "Pinned playlists"
   const t = document.getElementById(
     window.innerWidth <= 768
@@ -21447,6 +21449,8 @@ function isShuffleOn() {
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
 function syncRepeatUI() {
+  try { void repeatMode; } catch (e) { console.warn("repeatMode not initialized yet; skipping syncRepeatUI"); return; }
+
   const d = document.getElementById('btn-repeat');
   const mIcon = document.getElementById('np-repeat-icon');
   const mDot = document.getElementById('np-repeat-dot');
