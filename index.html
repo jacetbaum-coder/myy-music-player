@@ -1556,39 +1556,52 @@ body.np-open #context-menu{
 }
 
 /* ✅ MOBILE: playlist submenu becomes its own overlay panel */
-#playlist-submenu{
+#playlist-submenu {
   position: fixed;
   left: 0;
   right: 0;
+
+  /* ✅ Approved sheet geometry */
   top: 70px;
-
-  margin: 0 auto;
-  max-width: 680px;
-
-  background: rgba(30,30,30,0.92);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-
-  border-radius: 18px 18px 0 0;
-  padding: 10px 12px calc(18px + env(safe-area-inset-bottom));
-  z-index: 2100;
-
-  /* ✅ match the “full sheet” feel */
   height: calc(100vh - 40px);
-  max-height: none;
-  overflow: hidden;
+
+  width: 100vw;
+  max-width: 100vw;
+
+  /* ✅ Cover behind + no peek-through */
+  background: rgba(18,18,18,0.98);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  /* ✅ Kill horizontal scroll/grey bars */
   overflow-x: hidden;
+  overflow-y: hidden;
 
-  /* hidden by default */
+  /* Keep your existing rounding/shadow feel */
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+
+  /* Default closed state */
   display: none;
-  transform: translateY(100%);
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  opacity: 0;
+  transform: translateY(0);
+
+  z-index: 200500;
+  pointer-events: none;
 }
 
-#playlist-submenu.open{
+
+#playlist-submenu.open {
   display: block;
+  opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
+
+  /* ✅ extra safety: never allow sideways scroll in open state */
+  overflow-x: hidden;
 }
+
 
 
 
@@ -1671,22 +1684,29 @@ body.np-open #context-menu{
 }
 
 #playlist-submenu .folder-tiles-grid{
+  /* ✅ Approved: 3 across */
   display: grid;
-  grid-template-columns: repeat(3, 110px);
+  grid-template-columns: repeat(3, 1fr);
+
+  /* ✅ Approved spacing */
+  gap: 8px;
+  row-gap: 10px;
+
   justify-content: center;
-  column-gap: 14px;
-  row-gap: 18px;
 
-  /* ✅ more space under the pill */
+  /* ✅ Approved “perfect push” + top spacing */
   margin-top: 28px;
+  margin-left: 12px;
 
-  /* ✅ allow vertical scroll only */
-  overflow-y: auto;
+  /* ✅ No horizontal scroll + allow vertical scroll */
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
-  padding: 0 12px calc(140px + env(safe-area-inset-bottom)) 12px;
-  max-height: calc(100vh - 260px);
+  /* ✅ Approved: last row not blocked */
+  padding-bottom: 140px;
 }
+
 
 #playlist-submenu .folder-tile{
   display: flex;
@@ -1700,33 +1720,42 @@ body.np-open #context-menu{
 #playlist-submenu .folder-tile-square{
   width: 110px;
   height: 110px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.12);
-  display: grid;
-  place-items: center;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
+
 
 #playlist-submenu .folder-tile-icon{
   width: 32px;
   height: 32px;
-  opacity: 0.78;
 }
 
 #playlist-submenu .folder-tile-name{
-  margin-top: 10px;
-  margin-bottom: 2px;
+  display: block;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
-  line-height: 1.15;
+  margin-top: 10px;
+  margin-bottom: 2px;
+  color: rgba(255,255,255,0.92);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+
 #playlist-submenu .folder-tile-sub{
-  margin-top: 0;
   font-size: 14px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.65);
+  opacity: 0.7;
+  color: rgba(255,255,255,0.80);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #playlist-submenu .folder-tile.placeholder .folder-tile-name,
@@ -16591,40 +16620,41 @@ function openAddToFolderSubmenu(event){
   `;
 
   const ensureTileCount = (arr, minCount) => {
-    const out = arr.slice();
+  const out = Array.isArray(arr) ? arr.slice() : [];
 
-    // Fill missing tiles with demo folders (so they’re clickable/functional)
-    let demoN = 1;
-    while (out.length < minCount) {
-      out.push({
-        id: "__demo_folder_" + demoN,
-        name: "Test " + demoN,
-        playlistIds: []
-      });
-      demoN++;
+  // If there are no real folders, create EXACTLY the 9 demo folders
+  if (out.length === 0) {
+    out.push({ id: "demo-my-first-folder", name: "My First Folder", playlistIds: [] });
+    for (let i = 1; i <= 8; i++) {
+      out.push({ id: `demo-test-${i}`, name: `Test ${i}`, playlistIds: [] });
     }
+    return out.slice(0, minCount);
+  }
 
-    return out;
-  };
+  // If there ARE folders, pad to minCount with demo folders (never null)
+  let n = 1;
+  while (out.length < minCount) {
+    out.push({ id: `demo-test-${n}`, name: `Test ${n}`, playlistIds: [] });
+    n++;
+  }
+
+  return out.slice(0, minCount);
+};
+
 
 
   function renderFolderTiles(){
     if (!gridEl) return;
 const tiles = ensureTileCount(window.folders, 9);
 
-    gridEl.innerHTML = tiles.map((f, idx) => {
-      // ✅ Force 9 visible, named folders (even if f is null/placeholder)
-      const isReal = !!f;
-      const name = isReal
-        ? String(f.name || "Folder")
-        : ("Test " + String(idx + 1));
-
-
-      const count = isReal ? (Array.isArray(f.playlistIds) ? f.playlistIds.length : (Number(f.count) || 0)) : 0;
-      const fid = isReal ? String(f.id || "") : ("test-" + String(idx));
+        gridEl.innerHTML = tiles.map((f) => {
+      const name = String(f.name || "Folder");
+      const count = Array.isArray(f.playlistIds) ? f.playlistIds.length : (Number(f.count) || 0);
+      const fid = String(f.id || "");
 
       return `
-        <div class="folder-tile ${isReal ? "" : "placeholder"}" data-folder-id="${fid}">
+        <div class="folder-tile" data-folder-id="${fid}">
+
           <div class="folder-tile-square">${folderIconSvg}</div>
           <div class="folder-tile-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
           <div class="folder-tile-sub">${count} playlists</div>
@@ -16632,8 +16662,6 @@ const tiles = ensureTileCount(window.folders, 9);
       `;
     }).join("");
 
-
-  renderFolderTiles();
 
   // Create folder (prototype)
   const newBtn = document.getElementById('folder-new-pill');
@@ -16649,10 +16677,12 @@ const tiles = ensureTileCount(window.folders, 9);
         renderFolderTiles();
       }catch(e){}
     };
-  }
+    }
 
+} // ✅ end renderFolderTiles()
 
     // Show submenu
+
   submenu.style.display = 'block';
   submenu.style.transform = 'translateY(0)';
   submenu.style.opacity = '1';
