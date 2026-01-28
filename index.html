@@ -16854,7 +16854,8 @@ function openFolderViewOverlay(folderObj){
   }catch(e){}
 }
 
-function openFolderRenameModal(folderId){
+function openFolderRenameModal(folderId, mode){
+
   try{
     const fid = String(folderId || (window.__activeFolderViewId || "")).trim();
     if(!fid) return;
@@ -16863,8 +16864,8 @@ function openFolderRenameModal(folderId){
     const folder = window.folders.find(x => String(x && x.id || "") === fid);
     if(!folder) return;
 
-    const ov = document.getElementById('folder-view-overlay');
-    if(!ov) return;
+    const root = document.body;
+
 
     let modal = document.getElementById('folder-rename-modal');
     if(!modal){
@@ -16875,7 +16876,7 @@ function openFolderRenameModal(folderId){
         <div style="position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:220000; display:flex; align-items:center; justify-content:center; padding:18px;">
           <div style="width:min(560px, 92vw); background:rgba(35,35,35,0.96); border-radius:18px; padding:22px; box-shadow:0 18px 60px rgba(0,0,0,0.6);">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;">
-              <div style="font-size:34px; font-weight:900; color:#fff;">Rename</div>
+              <div style="font-size:34px; font-weight:900; color:#fff;">New folder</div>
               <button id="folder-rename-x" type="button" style="background:transparent; border:none; color:#fff; font-size:34px; line-height:1; cursor:pointer;">×</button>
             </div>
 
@@ -16892,7 +16893,7 @@ function openFolderRenameModal(folderId){
           </div>
         </div>
       `;
-      ov.appendChild(modal);
+      root.appendChild(modal);
 
       const close = () => { try{ modal.classList.add('hidden'); }catch(e){} };
 
@@ -16933,7 +16934,14 @@ function openFolderRenameModal(folderId){
     }
 
     // show + fill
-    modal.classList.remove('hidden');
+    // set header text (New folder vs Rename)
+try{
+  const titleEl = modal.querySelector('#folder-rename-title');
+  if (titleEl) titleEl.textContent = (String(mode||'') === 'new') ? 'New folder' : 'Rename';
+}catch(e){}
+
+modal.classList.remove('hidden');
+
     const input = modal.querySelector('#folder-rename-input');
     if (input) {
       input.value = String(folder.name || 'New Folder');
@@ -17164,7 +17172,8 @@ function renderFolderViewRecents(folderObj){
           openFolderViewById(id);
 
           // ✅ immediately show the Rename modal (Spotify behavior)
-          try{ openFolderRenameModal(id); }catch(e){}
+try{ openFolderRenameModal(id, 'new'); }catch(e){}
+
         }catch(e){}
       };
     }
