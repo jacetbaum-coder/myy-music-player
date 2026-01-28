@@ -9095,18 +9095,26 @@ try {
   // ✅ If a menu was JUST opened, don't instantly close it on the same pointerdown
   if (Date.now() < (window.__outsideDismissSkipUntil || 0)) return;
 
-  // ✅ Close profile menu on any tap/click outside the sheet
+    // ✅ Close profile menu only when tapping OUTSIDE the sheet
   try {
     const pm = document.getElementById('profile-menu-modal');
     if (pm && !pm.classList.contains('hidden')) {
-            const card = pm.querySelector('#profile-menu-panel');
+      const panel = pm.querySelector('#profile-menu-panel');
 
-        pm.classList.add('hidden');
-        return; // we handled this tap
+      // ✅ If the pointerdown started INSIDE the menu panel, do NOT close.
+      if (panel && panel.contains(e.target)) {
+        // let the button handlers run normally
+        return;
       }
+
+      // ✅ Otherwise (tap outside), close the menu
+      pm.classList.add('hidden');
+      return; // we handled this tap
+    }
   } catch (err) {}
 
   // If click is inside a menu/popover, do nothing
+
 
   const inside =
     e.target.closest('#context-menu') ||
