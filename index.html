@@ -16822,9 +16822,34 @@ function openFolderViewOverlay(folderObj){
     const ov = document.getElementById('folder-view-overlay');
     const panel = ov ? ov.querySelector('.folder-view-panel') : null;
     const title = document.getElementById('folder-view-title');
-    if(!ov || !panel || !title) return;
+     if(!ov || !panel || !title) return;
 
-    // title
+    // ✅ FIX: folder overlay is inside #grid-view. If #grid-view is hidden, overlay measures 0x0.
+    try{
+      const gv = document.getElementById('grid-view');
+      if (gv) {
+        const gvDisp = getComputedStyle(gv).display;
+        const gvHidden = gv.classList.contains('hidden') || gvDisp === 'none';
+        if (gvHidden) {
+          if (!window.__folderGridViewPrev) {
+            window.__folderGridViewPrev = {
+              className: gv.className,
+              styleAttr: gv.getAttribute('style') || ''
+            };
+          }
+          gv.classList.remove('hidden');
+          gv.style.display = 'block';
+          gv.style.visibility = 'visible';
+          gv.style.opacity = '1';
+          gv.style.pointerEvents = 'auto';
+          gv.style.width = '100%';
+          gv.style.minHeight = '100vh';
+        }
+      }
+    }catch(e){}
+
+     // title
+
     title.textContent = String(folderObj && folderObj.name || "New Folder");
 
     // remember which folder is open (for rename)
@@ -22577,8 +22602,22 @@ setIconRotation(0);
       // clear transition after snap back
       if (animated) {
         setTimeout(() => {
-          try { area.style.transition = ''; } catch (e) {}
-        }, 260);
+       try{ ov.classList.add('hidden'); }catch(e){}
+
+       // ✅ restore #grid-view if we forced it visible
+       try{
+         const prev = window.__folderGridViewPrev;
+         if (prev) {
+           const gv = document.getElementById('grid-view');
+           if (gv) {
+             gv.className = prev.className || gv.className;
+             gv.setAttribute('style', prev.styleAttr || '');
+           }
+           window.__folderGridViewPrev = null;
+         }
+       }catch(e){}
+     }, 240);
+
       } else {
         try { area.style.transition = ''; } catch (e) {}
       }
