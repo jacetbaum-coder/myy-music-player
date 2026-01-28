@@ -9148,7 +9148,7 @@ safe(window.renderHistory);
   // You already upgrade playlist IDs elsewhere; do NOT hard-require ensurePlaylistIds()
   // safe(window.ensurePlaylistIds);
 
-    // Load cloud playlists first (then your existing renderer can use them later)
+     // Load cloud playlists first (then your existing renderer can use them later)
     try {
       if (typeof window.loadPlaylistsFromCloud === "function") {
         await window.loadPlaylistsFromCloud();
@@ -9166,6 +9166,8 @@ safe(window.renderHistory);
     }
 
     safe(window.renderPlaylists);
+    safe(window.renderHome);
+
     safe(window.renderHome);
 
 
