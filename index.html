@@ -17130,38 +17130,11 @@ function renderFolderViewRecents(folderObj){
   }
 
   const gridEl = document.getElementById('folder-tiles-grid');
+if (!gridEl) return;
 
-  const folderIconSvg = `
-    <svg class="folder-tile-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M3 6.5C3 5.119 4.119 4 5.5 4h5l2 2h6C19.881 6 21 7.119 21 8.5v9c0 1.381-1.119 2.5-2.5 2.5h-13C4.119 20 3 18.881 3 17.5v-11z" fill="rgba(255,255,255,0.78)"/>
-      <path d="M3 8h18v1.6H3V8z" fill="rgba(0,0,0,0.18)"/>
-    </svg>
-  `;
+// 🚫 do NOT render folders inside swipe-back underlay (duplicate ghost grid)
+if (gridEl.closest('#swipe-back-underlay-inner')) return;
 
-  const ensureTileCount = (arr, minCount) => {
-    const out = Array.isArray(arr) ? arr.slice() : [];
-
-    // If there are no real folders, create EXACTLY the 9 demo folders
-    if (out.length === 0) {
-      out.push({ id: "demo-my-first-folder", name: "My First Folder", playlistIds: [] });
-      for (let i = 1; i <= 8; i++) {
-        out.push({ id: `demo-test-${i}`, name: `Test ${i}`, playlistIds: [] });
-      }
-      return out.slice(0, minCount);
-    }
-
-    // If there ARE folders, pad to minCount with demo folders (never null)
-    let n = 1;
-    while (out.length < minCount) {
-      out.push({ id: `demo-test-${n}`, name: `Test ${n}`, playlistIds: [] });
-      n++;
-    }
-
-    return out.slice(0, minCount);
-  };
-
-  function renderFolderTiles(){
-    if (!gridEl) return;
     const tiles = ensureTileCount(window.folders, 9);
 
     gridEl.innerHTML = tiles.map((f) => {
