@@ -18580,24 +18580,21 @@ function getHomeRecentsItems() {
   const tab = window.homeTopTab;
 
   if (tab === 'folders') {
-  // Home "Folders" tab: show Liked Songs + all folders
-  const likedItem = { type: 'liked' };
+    // Home "Folders" tab: show Liked Songs + all folders
+    const likedItem = { type: 'liked' };
 
-  let folders = [];
-  try {
-    folders = Array.isArray(window.folders) ? window.folders : [];
-  } catch (e) { folders = []; }
+    const folders = Array.isArray(window.folders) ? window.folders : [];
 
-  const folderItems = folders.map(f => ({
-    type: 'folder',
-    id: String(f?.id || ''),
-    name: String(f?.name || 'Folder'),
-    count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
-  }));
+    const folderItems = folders.map((f) => ({
+      type: 'folder',
+      id: String(f?.id || ''),
+      name: String(f?.name || 'Folder'),
+      count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
+    }));
 
-  return [likedItem, ...folderItems].slice(0, max);
+    return [likedItem, ...folderItems].slice(0, max);
+  }
 
-}
 
   if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
   if (tab === 'albums')    out = out.filter(x => x.type === 'album');
