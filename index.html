@@ -1612,7 +1612,7 @@ body.np-open #context-menu{
     border-radius: 8px;
     object-fit: cover;
     flex: 0 0 auto;
-    margin-left: 14px;
+    margin-left: 24px;
     margin-right: 10px;
     background: rgba(255,255,255,0.08);
   }
@@ -16818,6 +16818,20 @@ function openFolderViewOverlay(folderObj){
     // title
     title.textContent = String(folderObj && folderObj.name || "New Folder");
 
+    // ✅ Click title to rename (small modal)
+    if (!title.__renameBound) {
+      title.__renameBound = true;
+      title.style.cursor = "pointer";
+      title.onclick = () => {
+        try{
+          if (typeof window.openFolderNameModal === "function") {
+            window.openFolderNameModal(String(folderObj && folderObj.id || ""), false);
+          }
+        }catch(e){}
+      };
+    }
+
+
     // remember which folder is open (for rename)
     try{ window.__activeFolderViewId = String(folderObj && folderObj.id || ""); }catch(e){}
 
@@ -17225,7 +17239,139 @@ function renderFolderViewRecents(folderObj){
   }catch(e){}
 }
 
-function renderFolderTiles(){
+  };
+
+  // ✅ Small modal: Folder name / Rename (used by both "create" and title-click rename)
+  if (typeof window.openFolderNameModal !== "function") {
+    window.openFolderNameModal = function(folderId, isCreate){
+      try{
+        const fid = String(folderId || "").trim();
+        if (!fid) return;
+
+        window.folders = Array.isArray(window.folders) ? window.folders : [];
+        const f = window.folders.find(x => String(x && x.id || "") === fid);
+        if (!f) return;
+
+        let host = document.getElementById("folder-name-modal");
+        if (!host) {
+          host = document.createElement("div");
+          host.id = "folder-name-modal";
+          host.style.position = "fixed";
+          host.style.inset = "0";
+          host.style.zIndex = "999999";
+          host.style.display = "none";
+
+          host.innerHTML = `
+            <div id="folder-name-modal-backdrop" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+
+            <div id="folder-name-modal-card"
+                 style="
+                   position:absolute;
+                   left:50%;
+                   top:50%;
+                   transform:translate(-50%,-50%);
+                   width:92vw;
+                   max-width:520px;
+                   background:rgba(36,36,36,0.98);
+                   border-radius:18px;
+                   box-shadow:0 20px 60px rgba(0,0,0,0.6);
+                   padding:22px;
+                 ">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div id="folder-name-modal-title" style="font-size:28px; font-weight:900; color:#fff;">Folder name</div>
+                <button id="folder-name-modal-x"
+                        type="button"
+                        aria-label="Close"
+                        style="
+                          width:36px;
+                          height:36px;
+                          border-radius:9999px;
+                          border:none;
+                          background:rgba(255,255,255,0.10);
+                          color:#fff;
+                          font-size:22px;
+                          cursor:pointer;
+                        ">×</button>
+              </div>
+
+              <div style="margin-top:14px;">
+                <input id="folder-name-modal-input"
+                       type="text"
+                       autocomplete="off"
+                       style="
+                         width:100%;
+                         height:46px;
+                         border-radius:10px;
+                         border:1px solid rgba(255,255,255,0.18);
+                         background:rgba(255,255,255,0.06);
+                         color:#fff;
+                         padding:0 14px;
+                         font-size:16px;
+                         font-weight:700;
+                         outline:none;
+                       "/>
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+                <button id="folder-name-modal-save"
+                        type="button"
+                        style="
+                          height:46px;
+                          padding:0 22px;
+                          border-radius:9999px;
+                          border:none;
+                          background:#fff;
+                          color:#000;
+                          font-size:18px;
+                          font-weight:900;
+                          cursor:pointer;
+                        ">Save</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(host);
+
+          const close = () => { try{ host.style.display = "none"; }catch(e){} };
+
+          const bd = host.querySelector("#folder-name-modal-backdrop");
+          const x  = host.querySelector("#folder-name-modal-x");
+          if (bd) bd.addEventListener("click", close);
+          if (x)  x.addEventListener("click", close);
+
+          const saveBtn = host.querySelector("#folder-name-modal-save");
+          if (saveBtn) {
+            saveBtn.addEventListener("click", () => {
+              try{
+                const input = host.querySelector("#folder-name-modal-input");
+                const v = String(input ? input.value : "").trim();
+                if (v) f.name = v;
+
+                // refresh tiles + folder view title
+                try { if (typeof renderFolderTiles === "function") renderFolderTiles(); } catch (e) {}
+                try { openFolderViewById(fid); } catch (e) {}
+
+                close();
+              }catch(e){}
+            });
+          }
+        }
+
+        const titleEl = host.querySelector("#folder-name-modal-title");
+        const inputEl = host.querySelector("#folder-name-modal-input");
+
+        if (titleEl) titleEl.textContent = isCreate ? "Folder name" : "Rename";
+        if (inputEl) {
+          inputEl.value = String(f.name || "New Folder");
+          setTimeout(() => { try{ inputEl.focus(); inputEl.select(); }catch(e){} }, 0);
+        }
+
+        host.style.display = "block";
+      }catch(e){}
+    };
+  }
+
+  function renderFolderTiles(){
+
 
     if (!gridEl) return;
     const tiles = ensureTileCount(window.folders, 9);
@@ -17274,7 +17420,8 @@ function renderFolderTiles(){
     openFolderViewById(id);
 
     // immediately prompt rename using our modal (next edit adds this function)
-    openFolderRenameModal(id);
+    openFolderNameModal(id, true);
+
   }catch(e){}
 };
 
@@ -17294,7 +17441,7 @@ function renderFolderTiles(){
   submenu.style.overflow = 'hidden';
   submenu.style.overflowX = 'hidden';
   submenu.style.top = '70px';
-  submenu.style.height = 'calc(100vh - 140px)';
+  submenu.style.height = 'calc(100vh - 120px)';
 
   submenu.classList.add('open');
 
