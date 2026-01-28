@@ -17432,8 +17432,12 @@ function renderFolderViewRecents(folderObj){
   // First paint
   renderFolderTiles();
 
-  // Show submenu
+   // Show submenu
+  const submenu = document.getElementById('playlist-submenu');
+  if (!submenu) return;
+
   submenu.style.display = 'block';
+
   submenu.style.transform = 'translateY(0)';
   submenu.style.opacity = '1';
   submenu.style.zIndex = '200500';
