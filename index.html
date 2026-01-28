@@ -16491,7 +16491,10 @@ function openAddToFolderSubmenu(event){
   `;
 
   // Show submenu
+  // ✅ Inline display:none overrides the .open CSS, so force it on
+  submenu.style.display = 'block';
   submenu.classList.add('open');
+
 }
 
         function openPlaylistSubmenu(event){
