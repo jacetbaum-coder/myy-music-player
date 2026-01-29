@@ -372,7 +372,25 @@
   background-color: #121212 !important;
 }
 
-body { 
+/* ✅ CRITICAL: Album/Playlist view must be its own scroll container
+   because html/body scrolling is disabled above */
+#album-view{
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+
+  background: #000;
+  z-index: 70;
+
+  padding: 16px;
+  padding-bottom: 190px; /* space for dock + now playing */
+}
+
+body {
+
   background-color: #121212 !important;
 
   /* ✅ NO gradient — solid app background everywhere */
