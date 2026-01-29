@@ -339,6 +339,7 @@
   }
 
   /* ✅ Mobile: make these views full-screen overlays so they don't get pushed below main content */
+@media (max-width: 768px) {
   #settings-view,
   #recently-deleted-view {
     position: fixed;
@@ -348,6 +349,11 @@
     z-index: 80;
     padding: 16px;
     padding-bottom: 190px; /* space for dock + now playing */
+  }
+
+  /* ✅ CRITICAL: when Home is visible, don't let Library exist below it */
+  #home-view:not(.hidden) ~ #grid-view {
+    display: none !important;
   }
 }
 
