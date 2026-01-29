@@ -16961,16 +16961,29 @@ function openFolderRenameModal(folderId, mode){
             const val = String(inp && inp.value || '').trim();
             if(!val) return;
 
-            // update data
+                        // update data
             folder.name = val;
+
+            // persist + refresh Home tiles
+            try { localStorage.setItem('folders', JSON.stringify(window.folders)); } catch (e) {}
+            try { renderHome(); } catch (e) {}
 
             // update folder view title
             const t = document.getElementById('folder-view-title');
             if (t) t.textContent = val;
 
+
             // update tile label if visible
-            const tileName = document.querySelector('.folder-tile[data-folder-id="' + fid.replace(/"/g,'&quot;') + '"] .folder-tile-name');
-            if (tileName) tileName.textContent = val;
+                        const safeFid = fid.replace(/"/g,'&quot;');
+
+            // submenu tiles (data-folder-id)
+            const tileNameA = document.querySelector('.folder-tile[data-folder-id="' + safeFid + '"] .folder-tile-name');
+            if (tileNameA) tileNameA.textContent = val;
+
+            // home tiles (data-id)
+            const tileNameB = document.querySelector('[data-type="folder"][data-id="' + safeFid + '"] .folder-tile-name');
+            if (tileNameB) tileNameB.textContent = val;
+
 
             close();
           }catch(err){}
