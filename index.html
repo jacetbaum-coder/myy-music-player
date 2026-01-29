@@ -1264,17 +1264,6 @@ body.song-multiselect .track-row:hover{
   background: rgba(var(--accent-rgb), 0.88);
 }
 
-/* Lyrics body expanded state */
-#np-lyrics-body{
-  display: block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-}
-
-.sidebar-hidden { 
-  display: none !important; 
-}
-
 .active-green { 
   color: var(--spotify-green) !important; 
 }
@@ -18140,11 +18129,8 @@ if (showPickerList) list.style.display = "";
 
           const pid = __getCurrentPlaylistId();
           if (!pid) {
-            console.warn("Add-to-folder: missing current playlistId", {
-              "navCurrent.playlistId": window.navCurrent && window.navCurrent.playlistId,
-              "menuTargetSong.playlistId": window.menuTargetSong && window.menuTargetSong.playlistId,
-              "menuTargetSong.id": window.menuTargetSong && window.menuTargetSong.id
-            });
+            console.warn("Add-to-folder: missing current playlistId");
+
             __toast("Couldn’t find playlist");
             return;
           }
