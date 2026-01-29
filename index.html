@@ -17188,7 +17188,7 @@ function renderFolderViewRecents(folderObj){
       `;
     }).join("");
 
-    // ✅ Click a tile to open the folder view
+  // ✅ Click a tile to add current playlist to that folder (submenu action)
     try {
       const tilesEls = gridEl ? Array.from(gridEl.querySelectorAll('.folder-tile')) : [];
       tilesEls.forEach((el) => {
@@ -17196,13 +17196,35 @@ function renderFolderViewRecents(folderObj){
           try {
             e.preventDefault();
             e.stopPropagation();
+
             const fid = String(el.getAttribute('data-folder-id') || '').trim();
             if (!fid) return;
-            openFolderViewById(fid);
+
+            const pid = String(window?.menuTargetSong?.playlistId || "").trim();
+            if (!pid) {
+              console.warn("Add-to-folder: missing menuTargetSong.playlistId");
+              return;
+            }
+
+            const foldersArr = Array.isArray(window.folders) ? window.folders : [];
+            const folder = foldersArr.find(x => String(x?.id || "") === fid);
+            if (!folder) return;
+
+            folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
+            if (!folder.playlistIds.includes(pid)) folder.playlistIds.push(pid);
+
+            try { localStorage.setItem('folders', JSON.stringify(foldersArr)); } catch (e) {}
+
+            try { renderFolderTiles(); } catch (e) {}
+            try { renderHome(); } catch (e) {}
+
+            // close submenu after add
+            try { closePlaylistSubmenu(e); } catch (e) {}
           } catch (err) {}
         };
       });
     } catch (err) {}
+
 
     // Create folder (prototype)
     const newBtn = document.getElementById('folder-new-pill');
