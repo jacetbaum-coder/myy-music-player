@@ -1161,11 +1161,13 @@ body.song-multiselect .track-row:hover{
         .nav-item i { font-size: 22px; }
 
         /* --- SEARCH BOX --- */
-        .search-container {
+                .search-container {
             position: relative;
             max-width: 400px;
-            margin-bottom: 24px;
+            width: 100%;
+            margin: 0 auto 24px;
         }
+
                 .search-input {
             width: 100%;
             background: rgba(255,255,255,0.08);
@@ -10403,7 +10405,20 @@ else if (viewType === 'playlist') {
 
 const scrollArea = document.getElementById('main-scroll-area');
 
+// ✅ SAFETY: if any view container is outside #main-scroll-area (HTML nesting glitch),
+// move it in so it can be scrolled / shown (fixes Search tab appearing "hidden").
+try {
+  const viewIds = ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','recently-deleted-view'];
+  if (scrollArea) {
+    viewIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== scrollArea) scrollArea.appendChild(el);
+    });
+  }
+} catch (e) {}
+
 if (scrollArea) {
+
   // ✅ Don't jump to top during back navigation (goBack() restores scrollTop)
   if (!window.__isBackNav) {
     scrollArea.scrollTop = 0;
