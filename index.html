@@ -17183,41 +17183,99 @@ function renderFolderViewRecents(folderObj){
     }).join("");
 
   // ✅ Click a tile to add current playlist to that folder (submenu action)
-    try {
-      const tilesEls = gridEl ? Array.from(gridEl.querySelectorAll('.folder-tile')) : [];
-      tilesEls.forEach((el) => {
-        el.onclick = (e) => {
-          try {
-            e.preventDefault();
-            e.stopPropagation();
+  // ✅ Adds: toast confirm, dupe prevention, hard-stop bubbling, closes menus
+  try {
+    // tiny in-app toast
+    const __toast = (msg) => {
+      let el = document.getElementById('__reson_toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = '__reson_toast';
+        el.style.position = 'fixed';
+        el.style.left = '50%';
+        el.style.bottom = '26px';
+        el.style.transform = 'translateX(-50%)';
+        el.style.padding = '10px 12px';
+        el.style.borderRadius = '999px';
+        el.style.background = 'rgba(0,0,0,0.75)';
+        el.style.color = '#fff';
+        el.style.fontSize = '14px';
+        el.style.fontWeight = '700';
+        el.style.zIndex = '999999';
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 120ms ease';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(window.__resonToastT);
+      window.__resonToastT = setTimeout(() => { el.style.opacity = '0'; }, 900);
+    };
 
-            const fid = String(el.getAttribute('data-folder-id') || '').trim();
-            if (!fid) return;
+    const __getCurrentPlaylistId = () => {
+      const a = (window.navCurrent && window.navCurrent.playlistId) ? String(window.navCurrent.playlistId) : "";
+      const b = (window.menuTargetSong && window.menuTargetSong.playlistId) ? String(window.menuTargetSong.playlistId) : "";
+      const c = (window.menuTargetSong && window.menuTargetSong.id) ? String(window.menuTargetSong.id) : "";
+      return (a || b || c || "").trim();
+    };
 
-            const pid = String(window?.menuTargetSong?.playlistId || "").trim();
-            if (!pid) {
-              console.warn("Add-to-folder: missing menuTargetSong.playlistId");
-              return;
-            }
+    const tilesEls = gridEl ? Array.from(gridEl.querySelectorAll('.folder-tile')) : [];
+    tilesEls.forEach((el) => {
+      el.onclick = (e) => {
+        try {
+          // ✅ stop click from triggering ANY other menu (“Add song to playlist”, etc.)
+          try { e.preventDefault(); } catch (err) {}
+          try { e.stopPropagation(); } catch (err) {}
+          try { e.stopImmediatePropagation(); } catch (err) {}
 
-            const foldersArr = Array.isArray(window.folders) ? window.folders : [];
-            const folder = foldersArr.find(x => String(x?.id || "") === fid);
-            if (!folder) return;
+          const fid = String(el.getAttribute('data-folder-id') || '').trim();
+          if (!fid) return;
 
-            folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
-            if (!folder.playlistIds.includes(pid)) folder.playlistIds.push(pid);
+          const pid = __getCurrentPlaylistId();
+          if (!pid) {
+            console.warn("Add-to-folder: missing current playlistId", {
+              "navCurrent.playlistId": window.navCurrent && window.navCurrent.playlistId,
+              "menuTargetSong.playlistId": window.menuTargetSong && window.menuTargetSong.playlistId,
+              "menuTargetSong.id": window.menuTargetSong && window.menuTargetSong.id
+            });
+            __toast("Couldn’t find playlist");
+            return;
+          }
 
-            try { localStorage.setItem('folders', JSON.stringify(foldersArr)); } catch (e) {}
+          const foldersArr = Array.isArray(window.folders) ? window.folders : [];
+          const folder = foldersArr.find(x => String(x?.id || "") === fid);
+          if (!folder) { __toast("Folder not found"); return; }
 
-            try { renderFolderTiles(); } catch (e) {}
-            try { renderHome(); } catch (e) {}
+          folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds.map(String) : [];
 
-            // close submenu after add
-            try { closePlaylistSubmenu(e); } catch (e) {}
-          } catch (err) {}
-        };
-      });
-    } catch (err) {}
+          // ✅ dupe prevention + confirm
+          if (folder.playlistIds.includes(pid)) {
+            __toast("Already in folder");
+            try { if (typeof window.closeContextMenu === "function") window.closeContextMenu(); } catch (err) {}
+            try { closePlaylistSubmenu(e); } catch (err) {}
+            return;
+          }
+
+          folder.playlistIds.push(pid);
+
+          try { localStorage.setItem('folders', JSON.stringify(foldersArr)); } catch (err) {}
+
+          __toast("Added to folder");
+
+          // ✅ update counts / UI
+          try { renderFolderTiles(); } catch (err) {}
+          try { renderHome(); } catch (err) {}
+
+          // ✅ close BOTH sheets so nothing else “pops”
+          try { if (typeof window.closeContextMenu === "function") window.closeContextMenu(); } catch (err) {}
+          try { closePlaylistSubmenu(e); } catch (err) {}
+
+        } catch (err) {}
+      };
+    });
+  } catch (err) {}
+
 
 
     // Create folder (prototype)
