@@ -13849,11 +13849,23 @@ function exitSearch() { clearSearch(); }
     document.addEventListener('scroll', () => saveSearchStateNow('scroll'), true);
   }
 
-  // Wrap showView so Search restore happens AFTER re-render (multiple passes)
+    // Wrap showView so Search restore happens AFTER re-render (multiple passes)
   const origShowView = window.showView;
   if (typeof origShowView === 'function' && !origShowView.__wrappedSearchPersistFinal) {
     window.showView = function(...args) {
       const out = origShowView.apply(this, args);
+
+      // ✅ Keep album grid from leaking into Search / other views
+      try {
+        const ag = document.getElementById('album-grid');
+        if (ag) {
+          if (ag.__oldDisplay == null) ag.__oldDisplay = ag.style.display;
+          const v = String(args[0] || '').toLowerCase();
+          const isDesktopHome = (v === 'home' && window.innerWidth > 768);
+          const isLibrary = isDesktopHome || v.includes('grid') || v.includes('library') || v.includes('albums');
+          ag.style.display = isLibrary ? (ag.__oldDisplay ?? '') : 'none';
+        }
+      } catch (e) {}
 
       const target = args[0];
       if (target === 'search') {
@@ -13867,6 +13879,8 @@ function exitSearch() { clearSearch(); }
       return out;
     };
     window.showView.__wrappedSearchPersistFinal = true;
+  }
+
   }
 })();
 
