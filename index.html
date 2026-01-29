@@ -10431,15 +10431,20 @@ if (scrollArea) {
     scrollArea.__wheelScrollFixInstalled = true;
 
     scrollArea.addEventListener('wheel', (e) => {
-      // Only apply when the gesture is over the main scroll area
-      // and there is actually something to scroll.
-      if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
+  // ✅ If the wheel is happening inside the Album view, scroll THAT (not main-scroll-area)
+  const av = document.getElementById('album-view');
+  if (av && av.contains(e.target) && av.scrollHeight > av.clientHeight + 1) {
+    if (e.cancelable) e.preventDefault();
+    av.scrollTop += e.deltaY;
+    return;
+  }
 
-      // If the event is cancelable, prevent the page from trying to scroll the body.
-      if (e.cancelable) e.preventDefault();
+  // Otherwise: scroll the main scroll area
+  if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
+  if (e.cancelable) e.preventDefault();
+  scrollArea.scrollTop += e.deltaY;
+}, { passive: false });
 
-      scrollArea.scrollTop += e.deltaY;
-    }, { passive: false });
   }
 }
 
