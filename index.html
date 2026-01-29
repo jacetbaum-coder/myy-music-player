@@ -1954,7 +1954,7 @@ body.np-open #context-menu{
 
 /* ✅ Folder: playlist grid (desktop reference) */
 #folder-view-overlay .folder-playlists-grid{
-  margin-top: 18px;
+  margin-top: 30px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 16px;
@@ -3504,7 +3504,7 @@ body.qs-lock {
 
               <button id="folder-view-create" class="folder-view-create" type="button">
                 <span style="font-size:18px; line-height:1;">＋</span>
-                <span>Create</span>
+                <span>Add</span>
               </button>
             </div>
 
@@ -16994,7 +16994,8 @@ function openFolderRenameModal(folderId, mode){
       `;
       root.appendChild(modal);
 
-      const close = () => { try{ modal.classList.add('hidden'); }catch(e){} };
+      const close = () => { try{ modal.classList.add('hidden'); }catch(e){} try{ const body = document.getElementById('folder-view-body'); if (body && modal && modal.dataset && modal.dataset.solo === '1') body.style.display = ''; }catch(e){} try{ if(modal && modal.dataset) delete modal.dataset.solo; }catch(e){} };
+
 
       const x = modal.querySelector('#folder-rename-x');
       if (x) x.onclick = (e) => { try{ e.preventDefault(); e.stopPropagation(); }catch(_){} close(); };
@@ -17052,7 +17053,15 @@ try{
   if (titleEl) titleEl.textContent = (String(mode||'') === 'new') ? 'New folder' : 'Rename';
 }catch(e){}
 
+try{
+  const body = document.getElementById('folder-view-body');
+  if (body && String(mode||'') === 'new') {
+    body.style.display = 'none';
+    if (modal && modal.dataset) modal.dataset.solo = '1';
+  }
+}catch(e){}
 modal.classList.remove('hidden');
+
 
     const input = modal.querySelector('#folder-rename-input');
     if (input) {
