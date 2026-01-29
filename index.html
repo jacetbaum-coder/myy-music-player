@@ -17123,13 +17123,17 @@ function renderFolderViewRecents(folderObj){
     <div id="folder-tiles-grid" class="folder-tiles-grid"></div>
   `;
 
-  // Data (prototype): folders live in window.folders
-  window.folders = Array.isArray(window.folders) ? window.folders : [];
-  if (!window.folders.length) {
-    window.folders.push({ id: "folder-1", name: "My First Folder", playlistIds: [] });
+    // Data: folders persisted in localStorage (single source of truth)
+  try {
+    const raw = localStorage.getItem('folders');
+    const arr = raw ? JSON.parse(raw) : [];
+    window.folders = Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    window.folders = [];
   }
 
   const gridEl = document.getElementById('folder-tiles-grid');
+
 
   const folderIconSvg = `
     <svg class="folder-tile-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -17200,9 +17204,11 @@ function renderFolderViewRecents(folderObj){
       newBtn.onclick = () => {
         try{
           const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-          window.folders.push({ id, name: "New Folder", playlistIds: [] });
+                   window.folders.push({ id, name: "New Folder", playlistIds: [] });
+          try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
 
           renderFolderTiles();
+
           openFolderViewById(id);
 
           // ✅ immediately show the Rename modal (Spotify behavior)
