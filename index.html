@@ -18576,23 +18576,31 @@ function getHomeRecentsItems() {
   const tab = window.homeTopTab;
 
   if (tab === 'folders') {
-    // Home "Folders" tab: show Liked Songs + all folders
-    const likedItem = { type: 'liked' };
+  // Home "Folders" tab: show Liked Songs + all folders
+  const likedItem = { type: 'liked' };
 
-    const folders = Array.isArray(window.folders) ? window.folders : [];
+  // ✅ ensure folders exist even if submenu was never opened
+  let folders = [];
+  try { folders = JSON.parse(localStorage.getItem('folders') || '[]'); } catch (e) { folders = []; }
+  if (!Array.isArray(folders)) folders = [];
 
-    const folderItems = [];
-    for (let i = 0; i < folders.length; i++) {
-      const f = folders[i];
-      folderItems.push({
-        type: 'folder',
-        id: String(f?.id || ''),
-        name: String(f?.name || 'Folder'),
-        count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
-      });
-    }
+  // keep a global mirror for other code paths
+  window.folders = folders;
 
-    return [likedItem, ...folderItems].slice(0, max);
+  const folderItems = [];
+  for (let i = 0; i < folders.length; i++) {
+    const f = folders[i];
+    folderItems.push({
+      type: 'folder',
+      id: String(f?.id || ''),
+      name: String(f?.name || 'Folder'),
+      count: Array.isArray(f?.playlistIds) ? f.playlistIds.length : 0
+    });
+  }
+
+  return [likedItem, ...folderItems].slice(0, max);
+}
+
 
   }
 
