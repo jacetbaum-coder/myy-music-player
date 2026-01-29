@@ -16835,21 +16835,22 @@ function openFolderViewOverlay(folderObj){
     const title = document.getElementById('folder-view-title');
      if(!ov || !panel || !title) return;
 
-    // ✅ FIX: ensure overlay is in <body> and actually visible/clickable
-try {
-  // If it's currently inside grid-view, move it to body.
-  const gv = document.getElementById('grid-view');
-  if (gv && gv.contains(overlay)) document.body.appendChild(overlay);
+     // ✅ FIX: ensure overlay is in <body> and actually visible/clickable
+    try {
+      // If it's currently inside grid-view, move it to body.
+      const gv = document.getElementById('grid-view');
+      if (gv && gv.contains(ov)) document.body.appendChild(ov);
 
-  overlay.classList.remove('hidden', 'md:hidden');
-  overlay.style.display = 'flex';
-  overlay.style.pointerEvents = 'auto';
+      ov.classList.remove('hidden', 'md:hidden');
+      ov.style.display = 'flex';
+      ov.style.pointerEvents = 'auto';
 
-  // slide in
-  requestAnimationFrame(() => {
-    try { overlay.classList.add('open'); } catch (e) {}
-  });
-} catch (e) {}
+      // slide in
+      requestAnimationFrame(() => {
+        try { ov.classList.add('open'); } catch (e) {}
+      });
+    } catch (e) {}
+
 
 
      // title
@@ -16884,11 +16885,9 @@ try {
     // render recents list
     renderFolderViewRecents(folderObj);
 
-    // show + animate
-    ov.classList.remove('hidden');
-    requestAnimationFrame(() => {
-      ov.classList.add('open');
-    });
+        // show + animate (already slid in above, just ensure classes are correct)
+    ov.classList.remove('hidden', 'md:hidden');
+
   }catch(e){}
 }
 
