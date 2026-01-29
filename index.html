@@ -16946,8 +16946,51 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 }
 
 // =========================
+// Global Undo (Ctrl/Cmd+Z)
+// =========================
+(function(){
+  window.__undoStack = Array.isArray(window.__undoStack) ? window.__undoStack : [];
+
+  window.__pushUndo = function(action){
+    try{
+      if (!action || typeof action.undo !== "function") return;
+      window.__undoStack.push(action);
+      if (window.__undoStack.length > 50) window.__undoStack.shift();
+    }catch(e){}
+  };
+
+  window.__performUndo = async function(){
+    try{
+      const st = Array.isArray(window.__undoStack) ? window.__undoStack : [];
+      const a = st.pop();
+      if (!a) return;
+      await a.undo();
+    }catch(e){
+      console.warn("Undo failed:", e);
+    }
+  };
+
+  if (!window.__undoKeyBound) {
+    window.__undoKeyBound = true;
+    document.addEventListener('keydown', (e) => {
+      try{
+        const k = String(e.key || "");
+        const isZ = (k === "z" || k === "Z");
+        const mod = !!(e.ctrlKey || e.metaKey);
+
+        if (mod && isZ && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          window.__performUndo();
+        }
+      }catch(err){}
+    }, true);
+  }
+})();
+
+// =========================
 // Folder View Overlay helpers
 // =========================
+
 function openFolderViewById(folderId){
   try{
     const fid = String(folderId || "").trim();
@@ -17403,9 +17446,31 @@ function folderCtxAddPlaylistToFolder(folderId, playlistId){
     if (!folder) return;
 
     folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
-    if (!folder.playlistIds.includes(playlistId)) folder.playlistIds.push(playlistId);
+    const __had = folder.playlistIds.includes(playlistId);
+if (!__had) folder.playlistIds.push(playlistId);
 
-    try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+
+try{
+  if (!__had && typeof window.__pushUndo === "function") {
+    window.__pushUndo({
+      type: "folder:addPlaylist",
+      folderId,
+      playlistId,
+      undo: async () => {
+        try{
+          window.folders = Array.isArray(window.folders) ? window.folders : [];
+          const f2 = window.folders.find(f => String(f.id || "") === String(folderId));
+          if (!f2) return;
+          f2.playlistIds = Array.isArray(f2.playlistIds) ? f2.playlistIds : [];
+          f2.playlistIds = f2.playlistIds.filter(x => String(x) !== String(playlistId));
+          try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+          try{ openFolderViewById(folderId); }catch(e){}
+        }catch(e){}
+      }
+    });
+  }
+}catch(e){}
 
     // stay in same folder + immediately show new tile
     try{ openFolderViewById(folderId); }catch(e){}
@@ -17422,7 +17487,35 @@ function folderCtxCreateChildFolder(){
     window.folders = Array.isArray(window.folders) ? window.folders : [];
     window.folders.push({ id, name: "New Folder", playlistIds: [], parentId });
 
-    try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+
+try{
+  if (typeof window.__pushUndo === "function") {
+    const __newId = String(id || "").trim();
+    const __parent = String(parentId || "").trim();
+    window.__pushUndo({
+      type: "folder:createChild",
+      folderId: __newId,
+      parentId: __parent,
+      undo: async () => {
+        try{
+          window.folders = Array.isArray(window.folders) ? window.folders : [];
+          window.folders = window.folders.filter(f => String(f?.id || "") !== __newId);
+          try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+          try{ renderHome(); }catch(e){}
+          // if you were viewing the new folder, bounce back to parent
+          try{
+            if (String(window.__activeFolderViewId || "") === __newId) {
+              if (__parent) openFolderViewById(__parent);
+              else closeFolderViewOverlay();
+            }
+          }catch(e){}
+        }catch(e){}
+      }
+    });
+  }
+}catch(e){}
+
     try{ renderHome(); }catch(e){}
 
     // open + rename (matches your existing behavior)
@@ -18549,9 +18642,42 @@ bubble.style.setProperty('opacity', '1', 'important');
         }
       }
 
-      try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e4) {}
-      try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e5) {}
-      try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (e6) {}
+// ✅ UNDO: adding track(s) to playlist(s)
+try{
+  if (typeof window.__pushUndo === "function") {
+    const __pids = Array.isArray(ids) ? ids.slice() : [];
+    const __tids = Array.isArray(trackIds) ? trackIds.slice() : [];
+
+    if (__pids.length && __tids.length) {
+      window.__pushUndo({
+        type: "playlist:addTracks",
+        playlistIds: __pids,
+        trackIds: __tids,
+        undo: async () => {
+          try{
+            // try cloud remove first (keeps devices in sync)
+            if (typeof window.removeTrackFromPlaylistInCloud === "function") {
+              for (const pid of __pids) {
+                for (const tid of __tids) {
+                  try{ await window.removeTrackFromPlaylistInCloud(pid, tid); }catch(e){}
+                }
+              }
+            }
+
+            // best-effort refresh UI
+            try { if (typeof window.loadPlaylistsFromCloud === "function") await window.loadPlaylistsFromCloud(); } catch(e) {}
+            try { if (typeof window.renderPlaylists === "function") window.renderPlaylists(); } catch(e) {}
+            try { if (typeof window.renderHome === "function") window.renderHome(); } catch(e) {}
+          }catch(e){}
+        }
+      });
+    }
+  }
+}catch(e){}
+
+try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e4) {}
+try { if (typeof window.forceCloudPlaylistPull === 'function') window.forceCloudPlaylistPull(); } catch (e5) {}
+try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (e6) {}
     }, true);
   }
 
@@ -20102,7 +20228,39 @@ try { if (typeof window.saveHistoryToCloud === "function") window.saveHistoryToC
         if (String(pls[i]?.name || '').trim() === name) { idx = i; break; }
       }
 
-      // Close overlay + menu and open playlist view
+      // ✅ Register undo (delete the newly-created playlist)
+try{
+  if (idx >= 0 && typeof window.__pushUndo === "function") {
+    const __pid = String(pls[idx]?.id || pls[idx]?.playlistId || pls[idx]?.playlist_id || "").trim();
+    const __name = String(name || "").trim();
+
+    if (__pid) {
+      window.__pushUndo({
+        type: "playlist:create",
+        playlistId: __pid,
+        name: __name,
+        undo: async () => {
+          try{
+            try{
+              if (typeof window.deletePlaylistFromCloud === "function") {
+                await window.deletePlaylistFromCloud(__pid);
+              } else if (typeof window.deletePlaylistInCloud === "function") {
+                await window.deletePlaylistInCloud(__pid);
+              }
+            }catch(e){}
+
+            try{ await window.loadPlaylistsFromCloud(); }catch(e){}
+            try{ renderPlaylists(); }catch(e){}
+            try{ if (typeof renderHome === "function") renderHome(); }catch(e){}
+          }catch(e){}
+        }
+      });
+    }
+  }
+}catch(e){}
+
+// Close overlay + menu and open playlist view
+
       closeOverlay();
       try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (e) {}
 
@@ -21907,6 +22065,43 @@ try {
     }
 
     try { window.__pendingRemoveTrackIds = null; } catch (e) {}
+
+try{
+  if (typeof window.__pushUndo === "function") {
+    const __plId = (pl && pl.id) ? pl.id : activePlaylistId;
+    const __before = Array.isArray(__plBeforeIds) ? __plBeforeIds.slice() : null;
+    const __removed = Array.isArray(__idsToRemoveCloud) ? __idsToRemoveCloud.slice() : [trackId];
+
+    window.__pushUndo({
+      type: "playlist:removeTrack",
+      playlistId: __plId,
+      trackIds: __removed,
+      undo: async () => {
+        try{
+          // restore local list immediately
+          try{
+            const pls = Array.isArray(window.playlists) ? window.playlists : [];
+            const p = pls.find(x => String(x?.id || x?.playlistId || x?.playlist_id || "") === String(__plId));
+            if (p && __before) p.trackIds = __before.slice();
+            try{ if (typeof window.savePlaylists === "function") window.savePlaylists(); }catch(e){}
+          }catch(e){}
+
+          // restore in cloud
+          if (typeof window.addTrackToPlaylistInCloud === "function") {
+            for (const tid of __removed) {
+              try{ await window.addTrackToPlaylistInCloud(__plId, tid); }catch(e){}
+            }
+          }
+
+          try{ await window.loadPlaylistsFromCloud(); }catch(e){}
+          try{ renderPlaylists(); }catch(e){}
+          try{ if (typeof renderHome === "function") renderHome(); }catch(e){}
+        }catch(e){}
+      }
+    });
+  }
+}catch(e){}
+
 
   }
   try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
