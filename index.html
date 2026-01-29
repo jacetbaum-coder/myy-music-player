@@ -16835,29 +16835,22 @@ function openFolderViewOverlay(folderObj){
     const title = document.getElementById('folder-view-title');
      if(!ov || !panel || !title) return;
 
-    // ✅ FIX: folder overlay is inside #grid-view. If #grid-view is hidden, overlay measures 0x0.
-    try{
-      const gv = document.getElementById('grid-view');
-      if (gv) {
-        const gvDisp = getComputedStyle(gv).display;
-        const gvHidden = gv.classList.contains('hidden') || gvDisp === 'none';
-        if (gvHidden) {
-          if (!window.__folderGridViewPrev) {
-            window.__folderGridViewPrev = {
-              className: gv.className,
-              styleAttr: gv.getAttribute('style') || ''
-            };
-          }
-          gv.classList.remove('hidden');
-          gv.style.display = 'block';
-          gv.style.visibility = 'visible';
-          gv.style.opacity = '1';
-          gv.style.pointerEvents = 'auto';
-          gv.style.width = '100%';
-          gv.style.minHeight = '100vh';
-        }
-      }
-    }catch(e){}
+    // ✅ FIX: ensure overlay is in <body> and actually visible/clickable
+try {
+  // If it's currently inside grid-view, move it to body.
+  const gv = document.getElementById('grid-view');
+  if (gv && gv.contains(overlay)) document.body.appendChild(overlay);
+
+  overlay.classList.remove('hidden', 'md:hidden');
+  overlay.style.display = 'flex';
+  overlay.style.pointerEvents = 'auto';
+
+  // slide in
+  requestAnimationFrame(() => {
+    try { overlay.classList.add('open'); } catch (e) {}
+  });
+} catch (e) {}
+
 
      // title
 
@@ -17167,26 +17160,10 @@ function renderFolderViewRecents(folderObj){
   `;
 
   const ensureTileCount = (arr, minCount) => {
-    const out = Array.isArray(arr) ? arr.slice() : [];
+  // ✅ No demo/default folders. Only show real folders.
+  return Array.isArray(arr) ? arr.slice() : [];
+};
 
-    // If there are no real folders, create EXACTLY the 9 demo folders
-    if (out.length === 0) {
-      out.push({ id: "demo-my-first-folder", name: "My First Folder", playlistIds: [] });
-      for (let i = 1; i <= 8; i++) {
-        out.push({ id: `demo-test-${i}`, name: `Test ${i}`, playlistIds: [] });
-      }
-      return out.slice(0, minCount);
-    }
-
-    // If there ARE folders, pad to minCount with demo folders (never null)
-    let n = 1;
-    while (out.length < minCount) {
-      out.push({ id: `demo-test-${n}`, name: `Test ${n}`, playlistIds: [] });
-      n++;
-    }
-
-    return out.slice(0, minCount);
-  };
 
   function renderFolderTiles(){
     if (!gridEl) return;
@@ -17253,8 +17230,6 @@ function renderFolderViewRecents(folderObj){
                    try{ window.folders = JSON.parse(localStorage.getItem('folders') || '[]'); }catch(e){ window.folders = []; }
           if (!Array.isArray(window.folders)) window.folders = [];
           window.folders.push({ id, name: "New Folder", playlistIds: [] });
-          try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
-
           try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
 
           renderFolderTiles();
