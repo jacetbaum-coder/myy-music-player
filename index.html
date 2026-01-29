@@ -17924,7 +17924,49 @@ if (showPickerList) list.style.display = "";
 
         grid.innerHTML = idsToRender.map((pidRaw) => {
 
+			const pid = String(pidRaw || "").trim();
+          if (!pid) return "";
 
+          const pl = byId.get(pid);
+          if (!pl) return "";
+
+          const name = String(pl?.name || pl?.title || "Playlist");
+          const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const safePid = pid.replace(/"/g, "&quot;");
+
+          let coverMarkup = "";
+          let coverUrl = "";
+
+          if (typeof getPlaylistCoverMarkup === "function") {
+            coverMarkup = getPlaylistCoverMarkup(pl, "w-full h-full");
+          }
+
+          if (!coverMarkup && typeof getEffectivePlaylistCover === "function") {
+            coverUrl = String(getEffectivePlaylistCover(pl) || "").trim();
+          }
+
+          if (!coverMarkup && !coverUrl) {
+            coverUrl = String(pl?.cover || pl?.cover_url || "").trim();
+          }
+
+          return `
+            <div class="folder-pl-card" data-playlist-id="${safePid}">
+              <div class="folder-pl-cover">
+                ${
+                  coverMarkup
+                    ? coverMarkup
+                    : (coverUrl
+                        ? `<img src="${coverUrl}" class="w-full h-full object-cover" alt="">`
+                        : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
+                             <i class="fas fa-music text-3xl text-zinc-500"></i>
+                           </div>`
+                      )
+                }
+              </div>
+              <div class="folder-pl-name">${safeName}</div>
+            </div>
+          `;
+        }).join("");
         // click playlist card (safe)
         Array.from(grid.querySelectorAll('.folder-pl-card')).forEach((card) => {
           card.onclick = (e) => {
@@ -19293,25 +19335,22 @@ for (let i = 0; i < slotCount; i++) {
     card.addEventListener('click', () => {
       const type = card.getAttribute('data-type');
         if (!type) return;
-            // ✅ LIKED
-            if (type === 'liked') {
+      // ✅ LIKED
+      if (type === 'liked') {
         try { showView('liked'); } catch (e) {}
         return;
       }
 
       if (type === 'folder') {
-                 const fid = String(card.getAttribute('data-folder-id') || '').trim();
-                 if (!fid) return;
+                 const fid = String(card.getAttribute('data-folder-id') || card.getAttribute('data-id') || '').trim();
+        if (!fid) return;
 
-                 try {
-                   const ov = document.getElementById('folder-view-overlay');
-                   if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
-                 } catch (e) {}
-
-                 try { openFolderViewById(fid); } catch (e) {}
-                 return;
-               }
-
+                try {
+          const ov = document.getElementById('folder-view-overlay');
+          if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+        } catch (e) {}
+		try { openFolderViewById(fid); } catch (e) {}
+        return;
       }
 
       // ✅ PLAYLIST
@@ -19324,17 +19363,8 @@ for (let i = 0; i < slotCount; i++) {
         return;
       }
 
-      // ✅ FOLDER
-if (type === 'folder') {
-  const id = card.getAttribute('data-id');
-  if (id) {
-    try { openFolderViewById(String(id)); } catch (e) {}
-  }
-  return;
-}
-
-// ✅ ALBUM (fallback: by name)
-const album = card.getAttribute('data-album');
+      // ✅ ALBUM (fallback: by name)
+      const album = card.getAttribute('data-album');
 
       if (album) openAlbumByName(album);
 
@@ -19814,56 +19844,40 @@ return `
             card.addEventListener('click', () => {
               const type = card.getAttribute('data-type');
 
-                            // ✅ LIKED
-                           if (type === 'liked') {
-                showView('liked');
-                return;
-              }
+                // ✅ LIKED
+            if (type === 'liked') {
+              showView('liked');
+              return;
+            }
 
               // ✅ FOLDER
 if (type === 'folder') {
-  const fid = String(card.getAttribute('data-folder-id') || '').trim();
-  if (!fid) return;
+                const fid = String(card.getAttribute('data-folder-id') || '').trim();
+                if (!fid) return;
 
-  try {
-    const ov = document.getElementById('folder-view-overlay');
-    if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
-  } catch (e) {}
 
-  try { openFolderViewById(fid); } catch (e) {}
-  return;
-}
+ 			    try {
+                  const ov = document.getElementById('folder-view-overlay');
+                  if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+                } catch (e) {}
 
+                try { openFolderViewById(fid); } catch (e) {}
+                return;
               }
 
-                            // ✅ PLAYLIST
-    if (type === 'playlist') {
+                    // ✅ PLAYLIST
+              if (type === 'playlist') {
+                const id = card.getAttribute('data-id') || '';
+                const list = Array.isArray(playlists) ? playlists : [];
 
+                const idx = list.findIndex(pl =>
+                  String(pl?.id) === String(id) ||
+                  String(pl?.name) === String(id)
+                );
 
-      const id = card.getAttribute('data-id') || '';
-      const list = Array.isArray(playlists) ? playlists : [];
-
-      const idx = list.findIndex(pl =>
-        String(pl?.id) === String(id) ||
-        String(pl?.name) === String(id)
-      );
-
-      if (idx >= 0) showView('playlist', idx);
-      return;
-    }
-
-    // ✅ FOLDER
-    if (type === 'folder') {
-      const folderId = card.getAttribute('data-folder-id');
-      if (folderId && typeof openFolderViewById === 'function') {
-        openFolderViewById(folderId);
-      }
-      return;
-    }
-
-    // ✅ ARTIST
-
-
+                if (idx >= 0) showView('playlist', idx);
+                return;
+              }
 
               // ✅ ARTIST
               if (type === 'artist') {
