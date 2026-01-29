@@ -1794,7 +1794,12 @@ body.np-open #context-menu{
 }
 
 
-#folder-view-overlay.hidden{ display: none; }
+#folder-view-overlay.hidden,
+#folder-view-overlay.md\:hidden{
+  display: none !important;
+  pointer-events: none !important;
+}
+
 
 #folder-view-overlay .folder-view-panel{
   position: absolute;
