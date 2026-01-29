@@ -18317,13 +18317,28 @@ for (let i = 0; i < slotCount; i++) {
       const type = card.getAttribute('data-type');
         if (!type) return;
             // ✅ LIKED
-      if (type === 'liked') {
+            if (type === 'liked') {
         try { showView('liked'); } catch (e) {}
+        return;
+      }
+
+      // ✅ FOLDER
+      if (type === 'folder') {
+        const fid = String(card.getAttribute('data-id') || '').trim();
+        if (!fid) return;
+
+        try {
+          const ov = document.getElementById('folder-view-overlay');
+          if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+        } catch (e) {}
+
+        try { openFolderViewById(fid); } catch (e) {}
         return;
       }
 
       // ✅ PLAYLIST
       if (type === 'playlist') {
+
         const id = card.getAttribute('data-id');
         const idx = playlists.findIndex(pl => String(pl.id) === String(id));
 
@@ -18799,13 +18814,28 @@ return `
               const type = card.getAttribute('data-type');
 
                             // ✅ LIKED
-              if (type === 'liked') {
+                           if (type === 'liked') {
                 showView('liked');
+                return;
+              }
+
+              // ✅ FOLDER
+              if (type === 'folder') {
+                const fid = String(card.getAttribute('data-id') || '').trim();
+                if (!fid) return;
+
+                try {
+                  const ov = document.getElementById('folder-view-overlay');
+                  if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+                } catch (e) {}
+
+                try { openFolderViewById(fid); } catch (e) {}
                 return;
               }
 
                             // ✅ PLAYLIST
     if (type === 'playlist') {
+
 
       const id = card.getAttribute('data-id') || '';
       const list = Array.isArray(playlists) ? playlists : [];
