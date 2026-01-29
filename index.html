@@ -17117,7 +17117,7 @@ function openFolderViewOverlay(folderObj){
       };
     }
 
-    // Add button (top right) -> open small context menu
+        // Add button (top right) -> open small context menu
     const createBtn = document.getElementById('folder-view-create');
     if (createBtn && !createBtn.__bound) {
       createBtn.__bound = true;
@@ -17130,7 +17130,82 @@ function openFolderViewOverlay(folderObj){
       };
     }
 
+    // ✅ Sort button (next to Add)
+    try{
+      const ov = document.getElementById('folder-view-overlay');
+      const header = createBtn ? createBtn.parentElement : null;
+
+      if (header && !document.getElementById('folder-view-sort')) {
+        const btn = document.createElement('button');
+        btn.id = 'folder-view-sort';
+        btn.type = 'button';
+        btn.setAttribute('aria-label','Sort');
+        btn.style.width = '44px';
+        btn.style.height = '44px';
+        btn.style.borderRadius = '999px';
+        btn.style.background = 'rgba(255,255,255,0.10)';
+        btn.style.border = '1px solid rgba(255,255,255,0.10)';
+        btn.style.display = 'grid';
+        btn.style.placeItems = 'center';
+        btn.style.marginRight = '10px';
+        btn.innerHTML = `<i class="fas fa-sort-amount-down" style="font-size:16px;color:#fff;opacity:.92"></i>`;
+
+        // insert immediately before the Add button
+        header.insertBefore(btn, createBtn);
+
+        // menu
+        const menu = document.createElement('div');
+        menu.id = 'folder-view-sort-menu';
+        menu.style.position = 'fixed';
+        menu.style.zIndex = '999999';
+        menu.style.minWidth = '220px';
+        menu.style.background = 'rgba(26,26,26,0.96)';
+        menu.style.border = '1px solid rgba(255,255,255,0.10)';
+        menu.style.borderRadius = '14px';
+        menu.style.padding = '8px';
+        menu.style.boxShadow = '0 18px 55px rgba(0,0,0,0.55)';
+        menu.style.display = 'none';
+
+        menu.innerHTML = `
+          <div style="padding:10px 10px 8px;font-size:13px;color:rgba(255,255,255,0.75)">Sort</div>
+          <div class="folder-sort-item" data-mode="recent" style="padding:12px 10px;border-radius:10px;cursor:pointer;color:#fff;font-size:18px;">Recently added</div>
+          <div class="folder-sort-item" data-mode="alpha"  style="padding:12px 10px;border-radius:10px;cursor:pointer;color:#fff;font-size:18px;">Alphabetical</div>
+        `;
+
+        (ov || document.body).appendChild(menu);
+
+        const closeMenu = () => { try{ menu.style.display = 'none'; }catch(e){} };
+
+        btn.onclick = (e) => {
+          try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
+          try{
+            const r = btn.getBoundingClientRect();
+            menu.style.left = Math.max(10, Math.round(r.left - 160)) + 'px';
+            menu.style.top  = Math.round(r.bottom + 10) + 'px';
+            menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+          }catch(err){}
+        };
+
+        menu.addEventListener('click', (e) => {
+          const t = e.target;
+          const row = t && t.closest ? t.closest('.folder-sort-item') : null;
+          if (!row) return;
+          const mode = String(row.getAttribute('data-mode') || 'recent');
+          try{ localStorage.setItem('folderPlaylistSortMode', mode); }catch(_){}
+          closeMenu();
+          try{ renderFolderViewRecents(folderObj); }catch(_){}
+        });
+
+        // click outside closes
+        setTimeout(() => {
+          document.addEventListener('click', closeMenu, true);
+          document.addEventListener('touchstart', closeMenu, { passive:true, capture:true });
+        }, 0);
+      }
+    }catch(e){}
+
     // render recents list
+
 
 renderFolderViewRecents(folderObj);
 
@@ -17841,22 +17916,38 @@ if (showPickerList) list.style.display = "";
           if (!byId.has(pid)) byId.set(pid, p);
         }
 
-        grid.innerHTML = folder.playlistIds.map((pidRaw) => {
-          const pid = String(pidRaw || "").trim();
-          const pl = byId.get(pid) || { id: pid, name: "Playlist", trackIds: [] };
-          const name = String(pl?.name || pl?.title || "Playlist");
+        // ✅ apply folder playlist sort
+        let idsToRender = folder.playlistIds.slice();
 
-          const cover = (typeof getPlaylistCoverMarkup === "function")
-            ? getPlaylistCoverMarkup(pl, "folder-pl-cover")
-            : `<div class="folder-pl-cover"></div>`;
+        try{
+          const sortMode = String(localStorage.getItem('folderPlaylistSortMode') || 'recent');
 
-          return `
-            <div class="folder-pl-card" data-playlist-id="${pid}">
-              ${cover}
-              <div class="folder-pl-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
-            </div>
-          `;
-        }).join("");
+          if (sortMode === 'alpha') {
+            const plsLocal = Array.isArray(window.playlists) ? window.playlists : [];
+            const plsCloud = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
+            const getPid = (p) => String(p?.id || p?.playlistId || p?.playlist_id || "").trim();
+
+            const nameById = new Map();
+            for (const p of [...plsCloud, ...plsLocal]) {
+              const pid = getPid(p);
+              if (!pid) continue;
+              const nm = String(p?.name || p?.title || "");
+              if (!nameById.has(pid)) nameById.set(pid, nm);
+            }
+
+            idsToRender.sort((a,b) => {
+              const na = String(nameById.get(String(a)) || "").toLowerCase();
+              const nb = String(nameById.get(String(b)) || "").toLowerCase();
+              return na.localeCompare(nb);
+            });
+          } else {
+            // 'recent' = keep stored order (latest-added last is common), so reverse to show newest first
+            idsToRender = idsToRender.slice().reverse();
+          }
+        }catch(e){}
+
+        grid.innerHTML = idsToRender.map((pidRaw) => {
+
 
         // click playlist card (safe)
         Array.from(grid.querySelectorAll('.folder-pl-card')).forEach((card) => {
@@ -19236,18 +19327,19 @@ for (let i = 0; i < slotCount; i++) {
         return;
       }
 
-      // ✅ FOLDER
       if (type === 'folder') {
-        const fid = String(card.getAttribute('data-id') || '').trim();
-        if (!fid) return;
+                 const fid = String(card.getAttribute('data-folder-id') || '').trim();
+                 if (!fid) return;
 
-        try {
-          const ov = document.getElementById('folder-view-overlay');
-          if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
-        } catch (e) {}
+                 try {
+                   const ov = document.getElementById('folder-view-overlay');
+                   if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+                 } catch (e) {}
 
-        try { openFolderViewById(fid); } catch (e) {}
-        return;
+                 try { openFolderViewById(fid); } catch (e) {}
+                 return;
+               }
+
       }
 
       // ✅ PLAYLIST
@@ -19576,7 +19668,8 @@ function getHomeRecentsItems() {
     });
   }
 
-  return [likedItem, ...folderItems].slice(0, max);
+  out = [likedItem, ...folderItems];
+
 }
 
   if (tab === 'playlists') out = out.filter(x => x.type === 'playlist');
@@ -19591,11 +19684,14 @@ const dir  = getHomeSortDirForTab(tabKey);
 
 // Recent = keep history order (already newest-first in historyLog)
 if (mode === 'Alphabetical') {
-  const label = (x) => {
+    const label = (x) => {
+    if (x.type === 'liked')   return 'Liked Songs';
+    if (x.type === 'folder')  return String(x.name || '');
     if (x.type === 'playlist') return String(x.name || '');
     if (x.type === 'artist') return String(x.artist || '');
     return String(x.album || '');
   };
+
   out.sort((a,b) => label(a).localeCompare(label(b), undefined, { sensitivity: 'base' }));
 }
 
@@ -19608,12 +19704,20 @@ if (mode === 'Recently added') {
         const idx = arr.findIndex(a => String(a.albumName) === String(x.album) && String(a.artistName) === String(x.artist));
         return idx;
       }
+            if (x.type === 'liked') return 999999; // keep liked at top-ish when sorting
+      if (x.type === 'folder') {
+        let folders = [];
+        try { folders = JSON.parse(localStorage.getItem('folders') || '[]'); } catch (e) { folders = []; }
+        if (!Array.isArray(folders)) folders = [];
+        return folders.findIndex(f => String(f?.id || '') === String(x.id));
+      }
       if (x.type === 'playlist') {
         const idx = (Array.isArray(playlists) ? playlists : []).findIndex(p => String(p.id) === String(x.id));
         return idx;
       }
       // artist “added” rank not tracked; keep stable
       return 0;
+
     } catch (e) {
       return 0;
     }
