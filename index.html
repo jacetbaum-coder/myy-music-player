@@ -1872,7 +1872,82 @@ body.np-open #context-menu{
   gap: 8px;
 }
 
+/* ✅ folder view right-click + Add button menus */
+.folder-ctx-menu,
+.folder-ctx-submenu{
+  position: fixed;
+  z-index: 219000;
+  background: rgba(45,45,45,0.98);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  min-width: 220px;
+}
+
+.folder-ctx-menu.hidden,
+.folder-ctx-submenu.hidden{
+  display: none !important;
+}
+
+.folder-ctx-item{
+  padding: 14px 16px;
+  font-weight: 800;
+  font-size: 16px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.folder-ctx-item:hover{
+  background: rgba(255,255,255,0.08);
+}
+
+.folder-ctx-search{
+  padding: 10px 10px 6px 10px;
+}
+#folder-ctx-search-input{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-weight: 700;
+  outline: none;
+}
+
+.folder-ctx-list{
+  max-height: 420px;
+  overflow: auto;
+  padding: 6px 6px 10px 6px;
+}
+
+.folder-ctx-pl{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #fff;
+}
+.folder-ctx-pl:hover{
+  background: rgba(255,255,255,0.08);
+}
+.folder-ctx-pl-name{
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.2;
+}
+.folder-ctx-pl-sub{
+  opacity: 0.75;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
 #folder-view-overlay .folder-view-body{
+
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -3521,15 +3596,29 @@ body.qs-lock {
 
   <!-- ✅ suggestions (JS will show/hide) -->
   <div class="folder-recents-title" id="folder-recents-title">Add playlists</div>
-  <div id="folder-view-recents" class="folder-recents-list"></div>
+    <div id="folder-view-recents" class="folder-recents-list"></div>
 
 </div>
+
+  <!-- ✅ folder view context menus (shown on right-click / Add button) -->
+  <div id="folder-view-ctx" class="folder-ctx-menu hidden" role="menu" aria-hidden="true">
+    <div class="folder-ctx-item" id="folder-ctx-add-playlist" role="menuitem">Add playlist</div>
+    <div class="folder-ctx-item" id="folder-ctx-create-folder" role="menuitem">Create folder</div>
+  </div>
+
+  <div id="folder-view-ctx-sub" class="folder-ctx-submenu hidden" aria-hidden="true">
+    <div class="folder-ctx-search">
+      <input id="folder-ctx-search-input" type="text" placeholder="Search in Playlists" autocomplete="off" />
+    </div>
+    <div id="folder-ctx-playlist-list" class="folder-ctx-list"></div>
+  </div>
 
             </div>
           </div>
         </div>
 
 <!-- Library controls (Sort + View as) -->
+
 
 
         <div id="library-controls" class="hidden mb-4 flex items-center justify-between gap-3">
@@ -16899,8 +16988,22 @@ function openFolderViewOverlay(folderObj){
 
     title.textContent = String(folderObj && folderObj.name || "New Folder");
 
-    // remember which folder is open (for rename)
-    try{ window.__activeFolderViewId = String(folderObj && folderObj.id || ""); }catch(e){}
+    // remember which folder is open (for rename) + folder nav stack
+    try{
+      const nextId = String(folderObj && folderObj.id || "").trim();
+      const prevId = String(window.__activeFolderViewId || "").trim();
+      const stack = Array.isArray(window.__folderNavStack) ? window.__folderNavStack : [];
+      const suppress = !!window.__suppressFolderNavPush;
+
+      if (!suppress && prevId && nextId && prevId !== nextId) {
+        stack.push(prevId);
+      }
+
+      window.__folderNavStack = stack;
+      window.__activeFolderViewId = nextId;
+      window.__suppressFolderNavPush = false;
+    }catch(e){}
+
 
     // ✅ click title to rename (Spotify feel)
     if (!title.__renameBound) {
@@ -16909,45 +17012,45 @@ function openFolderViewOverlay(folderObj){
       title.onclick = () => { try{ openFolderRenameModal(String(folderObj && folderObj.id || "")); }catch(e){} };
     }
 
-// bind back
+// bind back (folder nav stack)
 
     const back = document.getElementById('folder-view-back');
     if (back && !back.__bound) {
       back.__bound = true;
-      back.onclick = () => { try{ folderViewGoBack(); }catch(e){} };
-
+      back.onclick = () => {
+        try{
+          const stack = Array.isArray(window.__folderNavStack) ? window.__folderNavStack : [];
+          if (stack.length) {
+            const prevId = String(stack.pop() || '').trim();
+            window.__folderNavStack = stack;
+            if (prevId) {
+              try { window.__suppressFolderNavPush = true; } catch(e){}
+              try { window.__folderOpenMode = "normal"; } catch(e){}
+              openFolderViewById(prevId);
+              return;
+            }
+          }
+          try { window.__folderNavStack = []; } catch(e){}
+          closeFolderViewOverlay();
+        }catch(e){}
+      };
     }
 
-     // Add button: open folder add menu (Make new folder / Add playlists)
-const createBtn = document.getElementById('folder-view-create');
-if (createBtn && !createBtn.__bound) {
-  createBtn.__bound = true;
-  createBtn.onclick = (e) => {
-    try{
-      const fid = String(folderObj && folderObj.id || "").trim();
-      if (!fid) return;
-      openFolderAddMenu(e, fid);
-    }catch(err){}
-  };
-}
-
+    // Add button (top right) -> open small context menu
+    const createBtn = document.getElementById('folder-view-create');
+    if (createBtn && !createBtn.__bound) {
+      createBtn.__bound = true;
+      createBtn.onclick = (ev) => {
+        try{
+          if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+          const r = createBtn.getBoundingClientRect();
+          openFolderCtxMenuAt(Math.round(r.right - 6), Math.round(r.bottom + 8), String(folderObj && folderObj.id || ""));
+        }catch(e){}
+      };
     }
 
-    // right-click blank space in folder view => open same Add menu
-try{
-  if (!ov.__folderAddCtxBound) {
-    ov.__folderAddCtxBound = true;
-    ov.addEventListener('contextmenu', (e) => {
-      try{
-        // only blank-space (ignore right-click on tiles/buttons)
-        if (e.target && e.target.closest && e.target.closest('.folder-playlist-tile, .folder-recents-item, button, a, input')) return;
-      }catch(_){}
-      openFolderAddMenu(e, String(folderObj && folderObj.id || ""));
-    });
-  }
-}catch(e){}
+    // render recents list
 
-// render recents list
 renderFolderViewRecents(folderObj);
 
         // show + animate (already slid in above, just ensure classes are correct)
@@ -17093,8 +17196,242 @@ function closeFolderViewOverlay(){
     setTimeout(() => {
       try{ ov.classList.add('hidden'); }catch(e){}
     }, 240);
+
+    // ✅ also close any folder ctx menus
+    try{ closeFolderCtxMenus(); }catch(e){}
+    try{ window.__folderNavStack = []; }catch(e){}
   }catch(e){}
 }
+
+function closeFolderCtxMenus(){
+  try{
+    const m = document.getElementById('folder-view-ctx');
+    const s = document.getElementById('folder-view-ctx-sub');
+    if (m) { m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); }
+    if (s) { s.classList.add('hidden'); s.setAttribute('aria-hidden','true'); }
+  }catch(e){}
+}
+
+function openFolderCtxMenuAt(x, y, folderId){
+  try{
+    const ov = document.getElementById('folder-view-overlay');
+    const m  = document.getElementById('folder-view-ctx');
+    if (!ov || !m) return;
+
+    closeFolderCtxMenus();
+
+    window.__folderCtxFolderId = String(folderId || "").trim();
+
+    const pad = 8;
+    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+    m.classList.remove('hidden');
+    m.setAttribute('aria-hidden','false');
+
+    // measure
+    m.style.left = '0px';
+    m.style.top  = '0px';
+    const r = m.getBoundingClientRect();
+
+    let left = Math.min(Math.max(pad, x), vw - r.width - pad);
+    let top  = Math.min(Math.max(pad, y), vh - r.height - pad);
+
+    m.style.left = Math.round(left) + 'px';
+    m.style.top  = Math.round(top) + 'px';
+
+    const add = document.getElementById('folder-ctx-add-playlist');
+    const cre = document.getElementById('folder-ctx-create-folder');
+
+    if (add && !add.__bound) {
+      add.__bound = true;
+      add.onclick = (e) => {
+        try{ e.preventDefault(); e.stopPropagation(); }catch(err){}
+        openFolderCtxAddPlaylistSubmenu();
+      };
+    }
+
+    if (cre && !cre.__bound) {
+      cre.__bound = true;
+      cre.onclick = (e) => {
+        try{ e.preventDefault(); e.stopPropagation(); }catch(err){}
+        closeFolderCtxMenus();
+        folderCtxCreateChildFolder();
+      };
+    }
+
+    // ✅ close menus on outside click (bind once)
+    if (!ov.__ctxBound) {
+      ov.__ctxBound = true;
+
+      ov.addEventListener('click', (e) => {
+        try{
+          const mm = document.getElementById('folder-view-ctx');
+          const ss = document.getElementById('folder-view-ctx-sub');
+          if (mm && mm.contains(e.target)) return;
+          if (ss && ss.contains(e.target)) return;
+          closeFolderCtxMenus();
+        }catch(err){}
+      }, true);
+
+      ov.addEventListener('contextmenu', (e) => {
+        try{
+          // only while folder overlay is open
+          if (!ov.classList.contains('open')) return;
+          e.preventDefault();
+          e.stopPropagation();
+          openFolderCtxMenuAt(e.clientX, e.clientY, String(window.__activeFolderViewId || ""));
+        }catch(err){}
+      });
+
+      window.addEventListener('keydown', (e) => {
+        try{
+          if (e.key === 'Escape') closeFolderCtxMenus();
+        }catch(err){}
+      });
+    }
+
+  }catch(e){}
+}
+
+function openFolderCtxAddPlaylistSubmenu(){
+  try{
+    const m = document.getElementById('folder-view-ctx');
+    const s = document.getElementById('folder-view-ctx-sub');
+    if (!m || !s) return;
+
+    const mr = m.getBoundingClientRect();
+    const pad = 8;
+    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+    s.classList.remove('hidden');
+    s.setAttribute('aria-hidden','false');
+
+    // measure
+    s.style.left = '0px';
+    s.style.top  = '0px';
+    const sr = s.getBoundingClientRect();
+
+    let left = mr.right + 10;
+    if (left + sr.width + pad > vw) left = Math.max(pad, mr.left - sr.width - 10);
+
+    let top = mr.top;
+    if (top + sr.height + pad > vh) top = Math.max(pad, vh - sr.height - pad);
+
+    s.style.left = Math.round(left) + 'px';
+    s.style.top  = Math.round(top) + 'px';
+
+    const input = document.getElementById('folder-ctx-search-input');
+    const list  = document.getElementById('folder-ctx-playlist-list');
+    if (!list) return;
+
+    const folderId = String(window.__folderCtxFolderId || "").trim();
+    const folder   = (Array.isArray(window.folders) ? window.folders : []).find(f => String(f.id || "") === folderId);
+    const existing = new Set((folder && Array.isArray(folder.playlistIds)) ? folder.playlistIds.map(x => String(x)) : []);
+
+    const src = Array.isArray(window.playlists) ? window.playlists : [];
+    const seen = new Set();
+    const items = [];
+
+    src.forEach(p => {
+      const pid = String(p.id || "").trim();
+      if (!pid || seen.has(pid)) return;
+      seen.add(pid);
+
+      const name  = String(p.name || p.title || "Playlist").trim();
+      const count = Array.isArray(p.trackIds) ? p.trackIds.length : (Number(p.count) || 0);
+
+      items.push({ pid, name, count });
+    });
+
+    items.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+
+    function render(q){
+      const qq = String(q || "").toLowerCase().trim();
+
+      const rows = items.filter(p => {
+        if (existing.has(p.pid)) return false;
+        if (!qq) return true;
+        return String(p.name || "").toLowerCase().includes(qq);
+      });
+
+      list.innerHTML = rows.map(p => `
+        <div class="folder-ctx-pl" data-pid="${p.pid}">
+          <div style="min-width:0;">
+            <div class="folder-ctx-pl-name">${String(p.name||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+            <div class="folder-ctx-pl-sub">${p.count} songs</div>
+          </div>
+        </div>
+      `).join('') || `<div style="padding:12px 12px 14px 12px; opacity:0.75; font-weight:700;">No playlists found</div>`;
+
+      Array.from(list.querySelectorAll('.folder-ctx-pl')).forEach(el => {
+        if (el.__bound) return;
+        el.__bound = true;
+        el.onclick = (ev) => {
+          try{
+            ev.preventDefault(); ev.stopPropagation();
+            const pid = String(el.getAttribute('data-pid') || "").trim();
+            if (!pid) return;
+            folderCtxAddPlaylistToFolder(folderId, pid);
+            closeFolderCtxMenus();
+          }catch(err){}
+        };
+      });
+    }
+
+    if (input && !input.__bound) {
+      input.__bound = true;
+      input.oninput = () => render(input.value);
+      input.onkeydown = (e) => { if (e.key === 'Escape') closeFolderCtxMenus(); };
+    }
+
+    try{ if (input) { input.value = ""; input.focus(); } }catch(e){}
+    render("");
+
+  }catch(e){}
+}
+
+function folderCtxAddPlaylistToFolder(folderId, playlistId){
+  try{
+    folderId   = String(folderId || "").trim();
+    playlistId = String(playlistId || "").trim();
+    if (!folderId || !playlistId) return;
+
+    window.folders = Array.isArray(window.folders) ? window.folders : [];
+    const folder = window.folders.find(f => String(f.id || "") === folderId);
+    if (!folder) return;
+
+    folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
+    if (!folder.playlistIds.includes(playlistId)) folder.playlistIds.push(playlistId);
+
+    try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+
+    // stay in same folder + immediately show new tile
+    try{ openFolderViewById(folderId); }catch(e){}
+  }catch(e){}
+}
+
+function folderCtxCreateChildFolder(){
+  try{
+    const parentId = String(window.__folderCtxFolderId || "").trim();
+    if (!parentId) return;
+
+    const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+
+    window.folders = Array.isArray(window.folders) ? window.folders : [];
+    window.folders.push({ id, name: "New Folder", playlistIds: [], parentId });
+
+    try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+    try{ renderHome(); }catch(e){}
+
+    // open + rename (matches your existing behavior)
+    try{ window.__folderOpenMode = "home-new"; }catch(e){}
+    openFolderViewById(id);
+    try{ openFolderRenameModal(id, "new"); }catch(e){}
+  }catch(e){}
+}
+
 
 /* -----------------------
    FOLDER VIEW: back-stack + add menu
