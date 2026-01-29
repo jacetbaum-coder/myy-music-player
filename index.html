@@ -17204,7 +17204,11 @@ function renderFolderViewRecents(folderObj){
       newBtn.onclick = () => {
         try{
           const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-                   window.folders.push({ id, name: "New Folder", playlistIds: [] });
+                   try{ window.folders = JSON.parse(localStorage.getItem('folders') || '[]'); }catch(e){ window.folders = []; }
+          if (!Array.isArray(window.folders)) window.folders = [];
+          window.folders.push({ id, name: "New Folder", playlistIds: [] });
+          try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
+
           try{ localStorage.setItem('folders', JSON.stringify(window.folders)); }catch(e){}
 
           renderFolderTiles();
