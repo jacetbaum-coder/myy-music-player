@@ -10306,9 +10306,28 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-      ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'recently-deleted-view'].forEach(id => {
+       ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'recently-deleted-view'].forEach(id => {
   document.getElementById(id)?.classList.add('hidden');
 });
+
+  // ✅ SAFETY: if swipe-back ever left the main scroller “locked”, unlock it now
+  try {
+    const area = document.getElementById('main-scroll-area');
+    if (area) {
+      area.classList.remove('sb-dragging');
+      area.style.transition = '';
+      area.style.transform = '';
+      area.style.opacity = '';
+      area.style.willChange = '';
+      area.style.overflow = '';
+      area.style.overflowX = 'hidden';
+      area.style.overflowY = 'auto';
+      area.style.touchAction = 'pan-y';
+
+      // ✅ Search should always start at the top so the search bar is visible
+      if (viewType === 'search') area.scrollTop = 0;
+    }
+  } catch (e) {}
 
 
 
