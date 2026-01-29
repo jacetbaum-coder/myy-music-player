@@ -3476,12 +3476,19 @@ body.qs-lock {
             </div>
 
             <div id="folder-view-body" class="folder-view-body">
-              <div class="folder-empty">
-                <h2>This folder looks empty</h2>
-                <p>No playlists added yet. Start adding playlists below.</p>
-              </div>
+              ${(
+  Array.isArray(folder.playlistIds) &&
+  folder.playlistIds.length === 0 &&
+  window.__folderOpenMode === "home-new"
+) ? `
+  <div class="folder-empty">
+    <h2>This folder looks empty</h2>
+    <p>No playlists added yet. Start adding playlists below.</p>
+  </div>
+` : ""}
 
-              <div class="folder-recents-title">Add playlists</div>
+<div class="folder-recents-title">Add playlists</div>
+
               <div id="folder-view-recents" class="folder-recents-list"></div>
             </div>
           </div>
@@ -17263,13 +17270,16 @@ function renderFolderViewRecents(folderObj){
 
           __toast("Added to folder");
 
-          // ✅ update counts / UI
-          try { renderFolderTiles(); } catch (err) {}
-          try { renderHome(); } catch (err) {}
+// mark this open as coming from add-flow
+window.__folderOpenMode = "add-flow";
 
-          // ✅ close BOTH sheets so nothing else “pops”
-          try { if (typeof window.closeContextMenu === "function") window.closeContextMenu(); } catch (err) {}
-          try { closePlaylistSubmenu(e); } catch (err) {}
+// navigate to folder home view
+try { openFolderViewById(fid); } catch (err) {}
+
+// close menus so nothing overlays the folder
+try { if (typeof window.closeContextMenu === "function") window.closeContextMenu(); } catch (err) {}
+try { closePlaylistSubmenu(e); } catch (err) {}
+
 
         } catch (err) {}
       };
