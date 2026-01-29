@@ -244,17 +244,9 @@
 
 .home-square-card .title{
   font-weight: 900;
-  font-size: 16px;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 2px;
-}
-
-  font-weight: 900;
-  font-size: 16px;
-  line-height: 1.15;
+  font-size: 14px;
+  line-height: 1.2;
+  margin-top: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1267,52 +1259,31 @@ body.song-multiselect .track-row:hover{
   -webkit-line-clamp: unset;
   overflow: visible;
 }
-
 /* NOW PLAYING: Lyrics card uses NON-muted accent color */
 #np-lyrics-card{
   background: rgba(var(--accent-rgb), 0.88);
 }
 
-// ✅ GLOBAL handler for inline onclick="toggleNpLyricsExpanded(event)"
-window.toggleNpLyricsExpanded = function(e){
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  const body = document.getElementById('np-lyrics-body');
-  const icon = document.getElementById('np-lyrics-expand-icon');
-  if (!body) return;
-
-  const expanded = body.classList.contains('np-lyrics-expanded');
-
-  body.classList.toggle('np-lyrics-expanded', !expanded);
-  body.classList.toggle('np-lyrics-collapsed', expanded);
-
-  if (icon) {
-    icon.className = !expanded
-      ? "fas fa-compress text-white/90 text-sm"
-      : "fas fa-up-right-and-down-left-from-center text-white/90 text-sm";
-  }
-};
-
+/* Lyrics body expanded state */
+#np-lyrics-body{
   display: block;
   -webkit-line-clamp: unset;
   overflow: visible;
 }
 
+.sidebar-hidden { 
+  display: none !important; 
+}
 
-.sidebar-hidden { display: none !important; }
-
-
-
-
-        .active-green { color: var(--spotify-green) !important; }
+.active-green { 
+  color: var(--spotify-green) !important; 
+}
 
 /* Repeat states:
    - .repeat-all  => green (no dot)
    - .repeat-one  => green + dot under icon
 */
+
 #btn-repeat.repeat-one {
   position: relative;
 }
@@ -1767,12 +1738,6 @@ body.np-open #context-menu{
   }
 }
 
-
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* =========================
    FOLDER VIEW OVERLAY
@@ -3100,6 +3065,28 @@ body.qs-lock {
 
 </style>
 
+// ✅ GLOBAL handler for inline onclick="toggleNpLyricsExpanded(event)"
+window.toggleNpLyricsExpanded = function(e){
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const body = document.getElementById('np-lyrics-body');
+  const icon = document.getElementById('np-lyrics-expand-icon');
+  if (!body) return;
+
+  const expanded = body.classList.contains('np-lyrics-expanded');
+
+  body.classList.toggle('np-lyrics-expanded', !expanded);
+  body.classList.toggle('np-lyrics-collapsed', expanded);
+
+  if (icon) {
+    icon.className = !expanded
+      ? "fas fa-compress text-white/90 text-sm"
+      : "fas fa-up-right-and-down-left-from-center text-white/90 text-sm";
+  }
+};
 
 
 </head>
@@ -19849,17 +19836,19 @@ return `
               }
 
               // ✅ FOLDER
-              if (type === 'folder') {
-                const fid = String(card.getAttribute('data-id') || '').trim();
-                if (!fid) return;
+if (type === 'folder') {
+  const fid = String(card.getAttribute('data-folder-id') || '').trim();
+  if (!fid) return;
 
-                try {
-                  const ov = document.getElementById('folder-view-overlay');
-                  if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
-                } catch (e) {}
+  try {
+    const ov = document.getElementById('folder-view-overlay');
+    if (ov) { ov.classList.remove('hidden','md:hidden'); ov.style.display = 'flex'; }
+  } catch (e) {}
 
-                try { openFolderViewById(fid); } catch (e) {}
-                return;
+  try { openFolderViewById(fid); } catch (e) {}
+  return;
+}
+
               }
 
                             // ✅ PLAYLIST
