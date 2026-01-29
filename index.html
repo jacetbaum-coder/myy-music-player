@@ -1952,6 +1952,39 @@ body.np-open #context-menu{
   color: #fff;
 }
 
+/* ✅ Folder: playlist grid (desktop reference) */
+#folder-view-overlay .folder-playlists-grid{
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+}
+
+#folder-view-overlay .folder-pl-card{
+  cursor: pointer;
+  user-select: none;
+}
+
+#folder-view-overlay .folder-pl-cover{
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+#folder-view-overlay .folder-pl-name{
+  margin-top: 10px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
 
 #playlist-submenu .folder-tile.placeholder .folder-tile-name,
 #playlist-submenu .folder-tile.placeholder .folder-tile-sub{
@@ -3476,20 +3509,22 @@ body.qs-lock {
             </div>
 
             <div id="folder-view-body" class="folder-view-body">
-              ${(
-  Array.isArray(folder.playlistIds) &&
-  folder.playlistIds.length === 0 &&
-  window.__folderOpenMode === "home-new"
-) ? `
-  <div class="folder-empty">
+
+  <!-- ✅ playlists already in this folder (desktop reference grid) -->
+  <div id="folder-view-playlists" class="folder-playlists-grid"></div>
+
+  <!-- ✅ empty state (JS will show/hide) -->
+  <div class="folder-empty" id="folder-empty-state">
     <h2>This folder looks empty</h2>
     <p>No playlists added yet. Start adding playlists below.</p>
   </div>
-` : ""}
 
-<div class="folder-recents-title">Add playlists</div>
+  <!-- ✅ suggestions (JS will show/hide) -->
+  <div class="folder-recents-title" id="folder-recents-title">Add playlists</div>
+  <div id="folder-view-recents" class="folder-recents-list"></div>
 
-              <div id="folder-view-recents" class="folder-recents-list"></div>
+</div>
+
             </div>
           </div>
         </div>
@@ -16882,11 +16917,33 @@ function openFolderViewOverlay(folderObj){
       back.onclick = () => { try{ closeFolderViewOverlay(); }catch(e){} };
     }
 
-    // Create button: (no-op for now; keeps UI parity)
+     // Create button: ✅ create a NEW folder inside this folder
     const createBtn = document.getElementById('folder-view-create');
     if (createBtn && !createBtn.__bound) {
       createBtn.__bound = true;
-      createBtn.onclick = () => { try{}catch(e){} };
+      createBtn.onclick = () => {
+        try{
+          const parentId = String(folderObj && folderObj.id || "").trim();
+          if (!parentId) return;
+
+          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+
+          window.folders = Array.isArray(window.folders) ? window.folders : [];
+          window.folders.push({ id, name: "New Folder", playlistIds: [], parentId });
+
+          try { localStorage.setItem('folders', JSON.stringify(window.folders)); } catch (e) {}
+          try { renderHome(); } catch (e) {}
+
+          // ✅ open the NEW folder in the same folder overlay
+          try { window.__folderOpenMode = "home-new"; } catch (e) {}
+          openFolderViewById(id);
+
+          // ✅ immediately rename
+          try { openFolderRenameModal(id, "new"); } catch (e) {}
+        }catch(e){}
+      };
+    }
+
     }
 
     // render recents list
@@ -17058,11 +17115,89 @@ function getRecentPlaylistsForFolderView(max){
 function renderFolderViewRecents(folderObj){
   try{
     const list = document.getElementById('folder-view-recents');
+    const grid = document.getElementById('folder-view-playlists');
+    const emptyBox = document.getElementById('folder-empty-state');
+    const recentsTitle = document.getElementById('folder-recents-title');
+
     if(!list) return;
 
     const f = folderObj || {};
     const fid = String(f.id || '').trim();
     if(!fid) return;
+
+    window.folders = Array.isArray(window.folders) ? window.folders : [];
+    const folder = window.folders.find(x => String(x && x.id || "") === fid) || f;
+
+    folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
+    const hasPlaylists = folder.playlistIds.length > 0;
+
+    const mode = String(window.__folderOpenMode || "normal");
+    const showEmptyAndSuggestions = (!hasPlaylists && mode === "home-new");
+
+    // ✅ rules: only show empty-state + suggestions for empty home-new flow
+    if (emptyBox) emptyBox.style.display = showEmptyAndSuggestions ? "" : "none";
+    if (recentsTitle) recentsTitle.style.display = showEmptyAndSuggestions ? "" : "none";
+    if (!showEmptyAndSuggestions) list.style.display = "none";
+    if (showEmptyAndSuggestions) list.style.display = "";
+
+    // ✅ render playlists already in the folder (desktop grid)
+    if (grid) {
+      if (!hasPlaylists) {
+        grid.innerHTML = "";
+        grid.style.display = "none";
+      } else {
+        grid.style.display = "";
+
+        const plsLocal = Array.isArray(window.playlists) ? window.playlists : [];
+        const plsCloud = Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : [];
+
+        const getPid = (p) => String(p?.id || p?.playlistId || p?.playlist_id || "").trim();
+        const byId = new Map();
+        for (const p of [...plsCloud, ...plsLocal]) {
+          const pid = getPid(p);
+          if (!pid) continue;
+          if (!byId.has(pid)) byId.set(pid, p);
+        }
+
+        grid.innerHTML = folder.playlistIds.map((pidRaw) => {
+          const pid = String(pidRaw || "").trim();
+          const pl = byId.get(pid) || { id: pid, name: "Playlist", trackIds: [] };
+          const name = String(pl?.name || pl?.title || "Playlist");
+
+          const cover = (typeof getPlaylistCoverMarkup === "function")
+            ? getPlaylistCoverMarkup(pl, "folder-pl-cover")
+            : `<div class="folder-pl-cover"></div>`;
+
+          return `
+            <div class="folder-pl-card" data-playlist-id="${pid}">
+              ${cover}
+              <div class="folder-pl-name">${name.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+            </div>
+          `;
+        }).join("");
+
+        // click playlist card (safe)
+        Array.from(grid.querySelectorAll('.folder-pl-card')).forEach((card) => {
+          card.onclick = (e) => {
+            try{
+              e.preventDefault(); e.stopPropagation();
+              const pid = String(card.getAttribute('data-playlist-id') || '').trim();
+              if (!pid) return;
+
+              if (typeof window.openPlaylistById === "function") {
+                window.openPlaylistById(pid);
+              }
+            }catch(err){}
+          };
+        });
+      }
+    }
+
+    // ✅ suggestions list (only when showEmptyAndSuggestions)
+    if (!showEmptyAndSuggestions) {
+      list.innerHTML = "";
+      return;
+    }
 
     const recents = getRecentPlaylistsForFolderView(8);
 
@@ -17095,26 +17230,30 @@ function renderFolderViewRecents(folderObj){
         try{
           e.preventDefault();
           e.stopPropagation();
+
           const pid = String(row.getAttribute('data-pl-id') || '').trim();
           if(!pid) return;
 
-          window.folders = Array.isArray(window.folders) ? window.folders : [];
-          const folder = window.folders.find(x => String(x && x.id || "") === fid);
-          if(!folder) return;
+          const realFolder = window.folders.find(x => String(x && x.id || "") === fid);
+          if(!realFolder) return;
 
-          folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds : [];
-          if(!folder.playlistIds.includes(pid)) folder.playlistIds.push(pid);
+          realFolder.playlistIds = Array.isArray(realFolder.playlistIds) ? realFolder.playlistIds : [];
+          if(!realFolder.playlistIds.includes(pid)) realFolder.playlistIds.push(pid);
 
-          // Update empty state text (simple)
-          const empty = document.querySelector('#folder-view-overlay .folder-empty p');
-          if (empty) empty.textContent = 'Playlists added: ' + String(folder.playlistIds.length);
+          try { localStorage.setItem('folders', JSON.stringify(window.folders)); } catch (e) {}
 
+          // ✅ once a playlist exists, folder is no longer “home-new empty”
+          try { window.__folderOpenMode = "normal"; } catch (e) {}
+
+          // re-render this view
+          renderFolderViewRecents(realFolder);
         }catch(err){}
       };
     });
 
   }catch(e){}
 }
+
 
 
   function openAddToFolderSubmenu(event){
