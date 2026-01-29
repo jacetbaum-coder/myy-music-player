@@ -17048,11 +17048,41 @@ function openFolderViewOverlay(folderObj){
     }catch(e){}
 
 
-    // ✅ click title to rename (Spotify feel)
+    // ✅ rename interactions:
+    // Desktop: double-click title
+    // Mobile: long-press title
+    // Also: prevent browser context menu in this area
     if (!title.__renameBound) {
       title.__renameBound = true;
       title.style.cursor = 'pointer';
-      title.onclick = () => { try{ openFolderRenameModal(String(folderObj && folderObj.id || "")); }catch(e){} };
+
+      // Block browser context menu on the title
+      title.addEventListener('contextmenu', (e) => {
+        try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
+        return false;
+      }, true);
+
+      // Desktop: double-click
+      title.ondblclick = (e) => {
+        try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
+        try { openFolderRenameModal(String(folderObj && folderObj.id || "")); } catch(e) {}
+      };
+
+      // Mobile: long-press
+      let lpTimer = null;
+      const lpStart = (e) => {
+        try { if (e) e.stopPropagation(); } catch(_) {}
+        try { clearTimeout(lpTimer); } catch(_) {}
+        lpTimer = setTimeout(() => {
+          try { openFolderRenameModal(String(folderObj && folderObj.id || "")); } catch(_) {}
+        }, 520);
+      };
+      const lpEnd = () => { try { clearTimeout(lpTimer); } catch(_) {} };
+
+      title.addEventListener('touchstart', lpStart, { passive: true });
+      title.addEventListener('touchend', lpEnd, { passive: true });
+      title.addEventListener('touchcancel', lpEnd, { passive: true });
+      title.addEventListener('touchmove', lpEnd, { passive: true });
     }
 
 // bind back (folder nav stack)
@@ -17104,7 +17134,23 @@ renderFolderViewRecents(folderObj);
 
 function openFolderRenameModal(folderId, mode){
 
-  try{
+    try{
+
+    // ✅ Prevent browser right-click menu inside folder overlay (stops the white menu)
+    if (!window.__folderCtxBlockInstalled) {
+      window.__folderCtxBlockInstalled = true;
+      document.addEventListener('contextmenu', (e) => {
+        try{
+          const ov = document.getElementById('folder-view-overlay');
+          if (ov && ov.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }catch(_){}
+      }, true);
+    }
+
     const fid = String(folderId || (window.__activeFolderViewId || "")).trim();
     if(!fid) return;
 
@@ -17177,12 +17223,29 @@ function openFolderRenameModal(folderId, mode){
             if (t) t.textContent = val;
 
 
-            // update tile label if visible
-                        const safeFid = fid.replace(/"/g,'&quot;');
+                        // update tile label if visible
+            const safeFid = fid.replace(/"/g,'&quot;');
 
-            // submenu tiles (data-folder-id)
+            // folder grid tiles (data-folder-id)
             const tileNameA = document.querySelector('.folder-tile[data-folder-id="' + safeFid + '"] .folder-tile-name');
             if (tileNameA) tileNameA.textContent = val;
+
+            // Home / recents cards (your markup uses data-folder-id, not data-id)
+            const folderCardA = document.querySelector('[data-type="folder"][data-folder-id="' + safeFid + '"]');
+            if (folderCardA) {
+              const titleEl =
+                folderCardA.querySelector('.home-square-title, .home-square-name, .mt-3, .font-extrabold, .folder-tile-name');
+              if (titleEl) titleEl.textContent = val;
+            }
+
+            // fallback (if any older code uses data-id)
+            const folderCardB = document.querySelector('[data-type="folder"][data-id="' + safeFid + '"]');
+            if (folderCardB) {
+              const titleEl2 =
+                folderCardB.querySelector('.home-square-title, .home-square-name, .mt-3, .font-extrabold, .folder-tile-name');
+              if (titleEl2) titleEl2.textContent = val;
+            }
+
 
             // home tiles (data-id)
             const tileNameB = document.querySelector('[data-type="folder"][data-id="' + safeFid + '"] .folder-tile-name');
