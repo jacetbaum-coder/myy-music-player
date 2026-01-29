@@ -16914,38 +16914,41 @@ function openFolderViewOverlay(folderObj){
     const back = document.getElementById('folder-view-back');
     if (back && !back.__bound) {
       back.__bound = true;
-      back.onclick = () => { try{ closeFolderViewOverlay(); }catch(e){} };
+      back.onclick = () => { try{ folderViewGoBack(); }catch(e){} };
+
     }
 
-     // Create button: ✅ create a NEW folder inside this folder
-    const createBtn = document.getElementById('folder-view-create');
-    if (createBtn && !createBtn.__bound) {
-      createBtn.__bound = true;
-      createBtn.onclick = () => {
-        try{
-          const parentId = String(folderObj && folderObj.id || "").trim();
-          if (!parentId) return;
+     // Add button: open folder add menu (Make new folder / Add playlists)
+const createBtn = document.getElementById('folder-view-create');
+if (createBtn && !createBtn.__bound) {
+  createBtn.__bound = true;
+  createBtn.onclick = (e) => {
+    try{
+      const fid = String(folderObj && folderObj.id || "").trim();
+      if (!fid) return;
+      openFolderAddMenu(e, fid);
+    }catch(err){}
+  };
+}
 
-          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-
-          window.folders = Array.isArray(window.folders) ? window.folders : [];
-          window.folders.push({ id, name: "New Folder", playlistIds: [], parentId });
-
-          try { localStorage.setItem('folders', JSON.stringify(window.folders)); } catch (e) {}
-          try { renderHome(); } catch (e) {}
-
-          // ✅ open the NEW folder in the same folder overlay
-          try { window.__folderOpenMode = "home-new"; } catch (e) {}
-          openFolderViewById(id);
-
-          // ✅ immediately rename
-          try { openFolderRenameModal(id, "new"); } catch (e) {}
-        }catch(e){}
-      };
     }
 
-    // render recents list
-    renderFolderViewRecents(folderObj);
+    // right-click blank space in folder view => open same Add menu
+try{
+  if (!ov.__folderAddCtxBound) {
+    ov.__folderAddCtxBound = true;
+    ov.addEventListener('contextmenu', (e) => {
+      try{
+        // only blank-space (ignore right-click on tiles/buttons)
+        if (e.target && e.target.closest && e.target.closest('.folder-playlist-tile, .folder-recents-item, button, a, input')) return;
+      }catch(_){}
+      openFolderAddMenu(e, String(folderObj && folderObj.id || ""));
+    });
+  }
+}catch(e){}
+
+// render recents list
+renderFolderViewRecents(folderObj);
 
         // show + animate (already slid in above, just ensure classes are correct)
     ov.classList.remove('hidden', 'md:hidden');
@@ -17076,6 +17079,9 @@ function closeFolderRenameModal(){
     const modal = document.getElementById('folder-rename-modal');
     if(modal) modal.classList.add('hidden');
   }catch(e){}
+
+  // ✅ if we hid the folder view to show “modal only”, restore it now
+  try{ folderViewSetModalOnly(false); }catch(e){}
 }
 
 function closeFolderViewOverlay(){
@@ -17089,6 +17095,143 @@ function closeFolderViewOverlay(){
     }, 240);
   }catch(e){}
 }
+
+/* -----------------------
+   FOLDER VIEW: back-stack + add menu
+------------------------ */
+
+function folderViewSetModalOnly(on){
+  try{
+    const ov = document.getElementById('folder-view-overlay');
+    if(!ov) return;
+
+    const emptyBox = document.getElementById('folder-empty-state');
+    const recentsTitle = document.getElementById('folder-recents-title');
+    const recentsList = document.getElementById('folder-view-recents');
+    const grid = document.getElementById('folder-view-playlists');
+
+    if (on) {
+      try{ ov.__savedFolderHiddenState = {
+        empty: emptyBox ? emptyBox.style.display : "",
+        title: recentsTitle ? recentsTitle.style.display : "",
+        list: recentsList ? recentsList.style.display : "",
+        grid: grid ? grid.style.display : ""
+      }; }catch(e){}
+      if (emptyBox) emptyBox.style.display = "none";
+      if (recentsTitle) recentsTitle.style.display = "none";
+      if (recentsList) recentsList.style.display = "none";
+      if (grid) grid.style.display = "none";
+    } else {
+      const s = ov.__savedFolderHiddenState || null;
+      if (s) {
+        if (emptyBox) emptyBox.style.display = s.empty || "";
+        if (recentsTitle) recentsTitle.style.display = s.title || "";
+        if (recentsList) recentsList.style.display = s.list || "";
+        if (grid) grid.style.display = s.grid || "";
+      }
+      try{ ov.__savedFolderHiddenState = null; }catch(e){}
+    }
+  }catch(e){}
+}
+
+function folderViewGoBack(){
+  try{
+    const stack = Array.isArray(window.__folderViewBackStack) ? window.__folderViewBackStack : [];
+    window.__folderViewBackStack = stack;
+
+    if (stack.length > 0) {
+      const prevId = String(stack.pop() || "").trim();
+      if (prevId) {
+        try { window.__folderOpenMode = "normal"; } catch (e) {}
+        openFolderViewById(prevId);
+        return;
+      }
+    }
+  }catch(e){}
+
+  try{ closeFolderViewOverlay(); }catch(e){}
+}
+
+function closePlaylistSubmenuQuick(){
+  try{
+    const submenu = document.getElementById('playlist-submenu');
+    if (!submenu) return;
+    submenu.classList.remove('open');
+    submenu.style.display = 'none';
+  }catch(e){}
+}
+
+function openFolderAddMenu(event, folderId){
+  try{
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+  }catch(e){}
+
+  const fid = String(folderId || window.__activeFolderViewId || "").trim();
+  if (!fid) return;
+
+  const submenu = document.getElementById('playlist-submenu');
+  const items = document.getElementById('playlist-submenu-items');
+  const title = submenu ? submenu.querySelector('.cm-submenu-title') : null;
+
+  if (!submenu || !items || !title) return;
+
+  try { if (typeof closeContextMenu === 'function') closeContextMenu(); } catch (e) {}
+
+  title.textContent = "Add";
+  items.innerHTML = `
+    <div class="menu-item" id="folder-add-menu-new">Make new folder</div>
+    <div class="menu-item" id="folder-add-menu-playlists">Add playlists</div>
+  `;
+
+  const btnNew = document.getElementById('folder-add-menu-new');
+  const btnPick = document.getElementById('folder-add-menu-playlists');
+
+  if (btnNew) {
+    btnNew.onclick = (e) => {
+      try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
+      closePlaylistSubmenuQuick();
+
+      try{
+        // push current folder so back arrow returns here
+        window.__folderViewBackStack = Array.isArray(window.__folderViewBackStack) ? window.__folderViewBackStack : [];
+        window.__folderViewBackStack.push(fid);
+      }catch(e){}
+
+      try{
+        const parentId = fid;
+        const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+
+        window.folders = Array.isArray(window.folders) ? window.folders : [];
+        window.folders.push({ id, name: "New Folder", playlistIds: [], parentId });
+
+        try { localStorage.setItem('folders', JSON.stringify(window.folders)); } catch (e) {}
+        try { renderHome(); } catch (e) {}
+
+        // open NEW folder, but hide background so it's “black page + modal only”
+        try { window.__folderOpenMode = "home-new"; } catch (e) {}
+        openFolderViewById(id);
+
+        try { folderViewSetModalOnly(true); } catch (e) {}
+        try { openFolderRenameModal(id, "new"); } catch (e) {}
+      }catch(e){}
+    };
+  }
+
+  if (btnPick) {
+    btnPick.onclick = (e) => {
+      try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
+      closePlaylistSubmenuQuick();
+
+      try{ window.__folderOpenMode = "add-playlists"; }catch(e){}
+      try{ openFolderViewById(fid); }catch(e){}
+    };
+  }
+
+  // show submenu
+  submenu.style.display = 'block';
+  submenu.classList.add('open');
+}
+
 
 function getRecentPlaylistsForFolderView(max){
   const limit = Number(max) > 0 ? Number(max) : 8;
@@ -17139,13 +17282,24 @@ function renderFolderViewRecents(folderObj){
     const hasPlaylists = folder.playlistIds.length > 0;
 
     const mode = String(window.__folderOpenMode || "normal");
-    const showEmptyAndSuggestions = (!hasPlaylists && mode === "home-new");
 
-    // ✅ rules: only show empty-state + suggestions for empty home-new flow
-    if (emptyBox) emptyBox.style.display = showEmptyAndSuggestions ? "" : "none";
-    if (recentsTitle) recentsTitle.style.display = showEmptyAndSuggestions ? "" : "none";
-    if (!showEmptyAndSuggestions) list.style.display = "none";
-    if (showEmptyAndSuggestions) list.style.display = "";
+// show picker list when:
+// - empty home-new flow (your existing behavior)
+// - add-playlists flow (new behavior)
+const showEmptyOnly = (!hasPlaylists && mode === "home-new");
+const showPickerList = (mode === "add-playlists") || showEmptyOnly;
+
+// ✅ empty message only for home-new
+if (emptyBox) emptyBox.style.display = showEmptyOnly ? "" : "none";
+
+// ✅ title + list for either home-new OR add-playlists
+if (recentsTitle) {
+  recentsTitle.style.display = showPickerList ? "" : "none";
+  if (mode === "add-playlists") recentsTitle.textContent = "Add playlists";
+}
+if (!showPickerList) list.style.display = "none";
+if (showPickerList) list.style.display = "";
+
 
     // ✅ render playlists already in the folder (desktop grid)
     if (grid) {
