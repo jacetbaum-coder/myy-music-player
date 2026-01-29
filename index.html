@@ -17328,7 +17328,18 @@ function openFolderCtxMenuAt(x, y, folderId){
 
     window.__folderCtxFolderId = String(folderId || "").trim();
 
+    // ✅ If event coords are missing / (0,0), fall back to last known mouse position
+    try{
+      const lm = window.__lastMousePos;
+      const bad = (!Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0));
+      if (bad && lm && Number.isFinite(lm.x) && Number.isFinite(lm.y)) {
+        x = lm.x;
+        y = lm.y;
+      }
+    }catch(e){}
+
     const pad = 8;
+
     const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
 
@@ -17380,7 +17391,16 @@ function openFolderCtxMenuAt(x, y, folderId){
         }catch(err){}
       }, true);
 
-      ov.addEventListener('contextmenu', (e) => {
+        // ✅ Track last mouse position so context menus open where the mouse actually is
+  if (!window.__folderMouseTrackerInstalled) {
+    window.__folderMouseTrackerInstalled = true;
+    document.addEventListener('mousemove', (ev) => {
+      window.__lastMousePos = { x: ev.clientX, y: ev.clientY };
+    }, { passive: true });
+  }
+
+ov.addEventListener('contextmenu', (e) => {
+
         try{
           // only while folder overlay is open
           if (!ov.classList.contains('open')) return;
