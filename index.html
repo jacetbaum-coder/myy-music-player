@@ -1437,7 +1437,7 @@ body.song-multiselect .track-row:hover{
 
   z-index: 10000; /* ✅ ABOVE mobile-nav */
 
-  max-height: calc(100vh - 88px);
+  max-height: 55vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 
@@ -3066,6 +3066,31 @@ body.qs-lock {
   position: relative !important;
 }
 
+
+/* ✅ Search "Recent" row controls (dots + X) */
+.search-recent-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex: 0 0 auto;
+}
+.search-recent-btn{
+  appearance:none;
+  -webkit-appearance:none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,.75);
+  font-size: 20px;
+  line-height: 20px;
+}
+.search-recent-btn:active{
+  transform: scale(0.96);
+}
 </style>
 
 <script>
@@ -10431,20 +10456,15 @@ if (scrollArea) {
     scrollArea.__wheelScrollFixInstalled = true;
 
     scrollArea.addEventListener('wheel', (e) => {
-  // ✅ If the wheel is happening inside the Album view, scroll THAT (not main-scroll-area)
-  const av = document.getElementById('album-view');
-  if (av && av.contains(e.target) && av.scrollHeight > av.clientHeight + 1) {
-    if (e.cancelable) e.preventDefault();
-    av.scrollTop += e.deltaY;
-    return;
-  }
+      // Only apply when the gesture is over the main scroll area
+      // and there is actually something to scroll.
+      if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
 
-  // Otherwise: scroll the main scroll area
-  if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
-  if (e.cancelable) e.preventDefault();
-  scrollArea.scrollTop += e.deltaY;
-}, { passive: false });
+      // If the event is cancelable, prevent the page from trying to scroll the body.
+      if (e.cancelable) e.preventDefault();
 
+      scrollArea.scrollTop += e.deltaY;
+    }, { passive: false });
   }
 }
 
@@ -12925,7 +12945,10 @@ function renderSearchClickRecents(){
           <div class="text-white font-bold truncate">${title}</div>
           <div class="text-sm text-zinc-400 truncate">${subtitle}</div>
         </div>
-        <i class="fas fa-chevron-right text-zinc-600"></i>
+        <div class="search-recent-actions">
+          ${type === 'song' ? `<button class="search-recent-btn" data-search-recent-more="1"><i class="fas fa-ellipsis-h"></i></button>` : ``}
+          <button class="search-recent-btn" data-search-recent-x="1">×</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -12956,6 +12979,82 @@ function renderSearchClickRecents(){
         return;
       }
     });
+
+    // ✅ stop row navigation when tapping controls
+    const xBtn = row.querySelector('[data-search-recent-x="1"]');
+    if (xBtn) {
+      xBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const type = row.getAttribute('data-type') || '';
+        const id = row.getAttribute('data-id') || '';
+        const link = row.getAttribute('data-link') || '';
+        const key = String(type) + '|' + (String(id) || String(link));
+
+        try {
+          const arr = (typeof loadSearchClickRecents === 'function') ? loadSearchClickRecents() : [];
+          const next = Array.isArray(arr) ? arr.filter(it => {
+            const t = String(it.type || '');
+            const i = String(it.id || '');
+            const l = String(it.link || '');
+            return (t + '|' + (i || l)) !== key;
+          }) : [];
+          if (typeof saveSearchClickRecents === 'function') saveSearchClickRecents(next);
+        } catch (err) {}
+
+        renderSearchClickRecents();
+      });
+    }
+
+    const moreBtn = row.querySelector('[data-search-recent-more="1"]');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const type = row.getAttribute('data-type') || '';
+        if (type !== 'song') return;
+
+        const id = row.getAttribute('data-id') || '';
+        const link = row.getAttribute('data-link') || '';
+        const key = String(type) + '|' + (String(id) || String(link));
+
+        let item = null;
+        try {
+          const arr = (typeof loadSearchClickRecents === 'function') ? loadSearchClickRecents() : [];
+          if (Array.isArray(arr)) {
+            item = arr.find(it => {
+              const t = String(it.type || '');
+              const i = String(it.id || '');
+              const l = String(it.link || '');
+              return (t + '|' + (i || l)) === key;
+            }) || null;
+          }
+        } catch (err) {}
+
+        if (!item) return;
+
+        const subtitle = String(item.subtitle || '');
+        const parts = subtitle.split('•').map(s => s.trim()).filter(Boolean);
+        const artist = parts[0] || '';
+        const album = parts[1] || '';
+
+        const song = {
+          title: String(item.title || ''),
+          artist,
+          album,
+          cover: String(item.cover || ''),
+          src: String(item.link || ''),
+          link: String(item.link || ''),
+        };
+
+        try {
+          const r = moreBtn.getBoundingClientRect();
+          showContextMenuAt(r.left, r.top, song, null, moreBtn);
+        } catch (err) {}
+      });
+    }
   });
 }
 
