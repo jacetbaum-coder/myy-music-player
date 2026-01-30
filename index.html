@@ -141,7 +141,32 @@
 
 /* Mobile "Recently listened" rectangles (Spotify-ish) */
 
+/* ✅ Search > Recent must stack 1-per-row (Spotify list) */
+#search-results{
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+  columns: unset !important;
+  column-count: 1 !important;
+}
+
+/* ✅ each recent item must take the full line */
+#search-results [data-search-click-recent]{
+  width: 100% !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+
+  /* if any parent becomes grid, force full-span */
+  grid-column: 1 / -1 !important;
+
+  float: none !important;
+  clear: both !important;
+}
+
 .mobile-recent-card {
+
   display: flex;
   align-items: center;
   gap: 10px;
