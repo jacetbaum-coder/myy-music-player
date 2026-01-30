@@ -9660,19 +9660,25 @@ try {
           if (pop) pop.classList.add('hidden');
         } catch (err) {}
 
-        // Hide search results dropdown area (keeps you in Search view but dismisses results)
-        // ✅ BUT: do NOT hide results when the click is on the mini-player (play/pause)
-        try {
-          const clickedPlayer =
-            !!e.target?.closest?.(
-              "#mobile-play-icon, #mini-player, #mobile-mini-player, #player-bar, #now-playing, #mobile-player, .mini-player, .player-bar, .now-playing"
-            );
+       // Hide search results dropdown area (keeps you in Search view but dismisses results)
+try {
+  const sr = document.getElementById('search-results');
+  if (sr) {
+    const t = e.target;
 
-          if (!clickedPlayer) {
-            const sr = document.getElementById('search-results');
-            if (sr) sr.classList.add('hidden');
-          }
-        } catch (err) {}
+    const clickedSearchUi = !!t?.closest?.('#search-view, #search-results, #global-search');
+    const clickedPlayerUi = !!t?.closest?.('#main-dock, #mobile-play-icon, #mobile-play-btn, .player-bar');
+
+    // ✅ If player was clicked, FORCE results visible (prevents other handlers from leaving it hidden)
+    if (clickedPlayerUi) {
+      sr.classList.remove('hidden');
+    } else if (!clickedSearchUi) {
+      // ✅ only hide if click is truly outside search UI AND not player
+      sr.classList.add('hidden');
+    }
+  }
+} catch (err) {}
+
 
 
         // Close queue sheet if backdrop exists and user tapped outside
