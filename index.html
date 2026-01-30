@@ -3090,7 +3090,45 @@ body.qs-lock {
 .search-recent-btn:active{
   transform: scale(0.96);
 }
+/* ✅ Search Recent row: right-side actions (X + …) */
+.search-recent-row-inner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.search-recent-left{
+  min-width:0;
+  overflow:hidden;
+}
+.search-recent-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex: 0 0 auto;
+}
+.search-recent-btn{
+  appearance:none;
+  -webkit-appearance:none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+}
+ /* ✅ Hide Search header text like “All / Albums” */
+#search-results:not(.hidden) ~ #mobile-library-section-title,
+#search-results:not(.hidden) + #mobile-library-section-title,
+#mobile-library-section-title{
+  display: none !important;
+}
+		
 </style>
+
 
 
 <script>
@@ -12978,16 +13016,65 @@ function renderSearchClickRecents(targetId){
            data-id="${id}"
            data-link="${link}">
         <img src="${cover}" class="w-12 h-12 rounded object-cover" onerror="this.style.opacity='0';" />
-        <div class="flex-1 overflow-hidden">
-          <div class="text-white font-bold truncate">${title}</div>
-          <div class="text-sm text-zinc-400 truncate">${subtitle}</div>
+         <div class="flex-1 overflow-hidden search-recent-row-inner">
+          <div class="search-recent-left">
+            <div class="text-white font-bold truncate">${title}</div>
+            <div class="text-sm text-zinc-400 truncate">${subtitle}</div>
+          </div>
+
+          <div class="search-recent-actions">
+            <button type="button" class="search-recent-btn search-recent-x" aria-label="Remove from recents">✕</button>
+            <button type="button" class="search-recent-btn search-recent-dots" aria-label="More">⋯</button>
+          </div>
         </div>
+
     `;
   }).join('');
 
   results.innerHTML = header + rows;
 
   results.querySelectorAll('[data-search-click-recent="1"]').forEach(row => {
+
+    // ✅ X: just remove the row visually (we’ll do real storage removal later)
+    const xBtn = row.querySelector('.search-recent-x');
+    if (xBtn) {
+      xBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { row.remove(); } catch (err) {}
+      });
+    }
+
+    // ✅ … : open your EXISTING track menu (bottom half-sheet)
+    const dotsBtn = row.querySelector('.search-recent-dots');
+    if (dotsBtn) {
+      dotsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          const link = row.getAttribute('data-link') || '';
+          const title = row.querySelector('.text-white.font-bold.truncate')?.textContent || '';
+          const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent || '';
+          const artist = (subtitle.split('•')[0] || '').trim();
+
+          const songObj = { title, artist, url: link, stream: link, link };
+
+          const r = row.getBoundingClientRect();
+          const fake = { preventDefault(){}, stopPropagation(){}, clientX: r.right - 20, clientY: r.top + 20 };
+
+          if (typeof window.handleContextMenu === 'function') {
+            window.handleContextMenu(fake, songObj);
+          } else if (typeof window.showContextMenuAt === 'function') {
+            window.showContextMenuAt(fake.clientX, fake.clientY, songObj, row);
+          }
+        } catch (err) {
+          console.warn("recent dots failed", err);
+        }
+      });
+    }
+
+    // ✅ Row click: keep your existing behavior (play/open)
     row.addEventListener('click', () => {
       // dismiss keyboard / blinking cursor
       try { const input = document.getElementById('global-search'); if (input) input.blur(); } catch (e) {}
@@ -13005,13 +13092,13 @@ function renderSearchClickRecents(targetId){
         return;
       }
       if (type === 'song' && link) {
-        // best-effort: keep current behavior (play)
         try { playContext = { type: 'search', label: 'Recent' }; } catch (e) {}
         try { playSpecificSong(link, '', '', '', ''); } catch (e) {}
         return;
       }
     });
   });
+
 }
 
 // ✅ Fix the X button crash + use it to show recent clicked items
