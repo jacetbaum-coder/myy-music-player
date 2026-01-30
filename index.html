@@ -16770,7 +16770,13 @@ if (e.target && e.target.closest && e.target.closest('button.track-menu')) retur
   const ps = document.getElementById('playlist-submenu');
   if (ps && (ps === e.target || ps.contains(e.target))) return;
 
-  if (!contextMenu.contains(e.target)) closeContextMenu();
+  // ✅ If click is on Search "Recent" action buttons (X / ⋯), do NOT auto-close
+try {
+  if (e && e.target && e.target.closest && e.target.closest('.search-recent-actions')) return;
+} catch (err) {}
+
+if (!contextMenu.contains(e.target)) closeContextMenu();
+
 
 }, { passive: true });
 
