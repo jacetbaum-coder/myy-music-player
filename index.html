@@ -3188,7 +3188,36 @@ body.qs-lock {
   clear: both !important;
 }
 
+/* ✅ FORCE: Search click-recents must be 1-per-row (Spotify stacked list)
+   Applies to BOTH: main Search tab + Library search overlay. */
+#search-results,
+#library-search-results-overlay{
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+  columns: unset !important;
+  column-count: 1 !important;
+}
+
+/* each recent item must take the full line */
+#search-results [data-search-click-recent],
+#library-search-results-overlay [data-search-click-recent]{
+  width: 100% !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+
+  /* if the parent is grid, force span all columns */
+  grid-column: 1 / -1 !important;
+
+  /* kill side-by-side placement */
+  float: none !important;
+  clear: both !important;
+}
+
 </style>
+
 
 
 
