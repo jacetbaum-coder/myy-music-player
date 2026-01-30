@@ -19887,6 +19887,18 @@ function updateMobileHomeTabUI() {
     });
   };
 
+	  // 🔒 Mark the Home section header once (stable identifier)
+  try {
+    document
+      .querySelectorAll('h2.text-3xl.font-black')
+      .forEach(h2 => {
+        if (!h2.dataset.homeSection && h2.textContent.trim() === 'Folders') {
+          h2.dataset.homeSection = 'true';
+        }
+      });
+  } catch (e) {}
+
+	
   // Mobile
   applyMap({
     playlists: 'mobile-home-tab-playlists',
@@ -19907,12 +19919,11 @@ function updateMobileHomeTabUI() {
     };
 
     document
-      .querySelectorAll('h2.text-3xl.font-black')
-      .forEach(h2 => {
-        if (h2.textContent.trim() === 'Folders') {
-          h2.textContent = labelMap[window.homeTopTab] || 'Folders';
-        }
-      });
+  .querySelectorAll('h2.text-3xl.font-black[data-home-section="true"]')
+  .forEach(h2 => {
+    h2.textContent = labelMap[window.homeTopTab] || 'Folders';
+  });
+
   } catch (e) {}
 
 }	
