@@ -804,7 +804,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 
-                              .main-view { 
+                                                             .main-view { 
   flex: 1;
   min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
   width: 100%;
@@ -828,7 +828,17 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
+/* ✅ DESKTOP ONLY: mute the “insane” accent tint (DO NOT touch mobile) */
+@media (min-width: 769px) {
+  .main-view {
+    background: linear-gradient(180deg,
+      rgba(var(--accent-muted-rgb), 0.32) 0%,
+      rgba(0,0,0,1) 65%) !important;
+  }
+}
+
 #grid-view {
+
   scrollbar-gutter: stable both-edges;
 }
 
@@ -1094,6 +1104,28 @@ body.song-multiselect .track-row:hover{
     -webkit-backdrop-filter: blur(14px);
     border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.55);
+
+    display: flex;
+    align-items: center;
+  }
+
+  /* LEFT: artwork + title */
+  .player-bar > div:nth-child(1) {
+    flex: 0 0 auto;
+    min-width: 260px;
+  }
+
+  /* CENTER: controls — HARD CENTERED */
+  .player-bar > div:nth-child(2) {
+    flex: 0 0 auto;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* RIGHT: options (queue / volume) */
+  .player-bar > div:nth-child(3) {
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 }
 
