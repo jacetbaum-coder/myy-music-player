@@ -13145,7 +13145,8 @@ function renderSearchClickRecents(targetId){
       </div>
 
     `;
-
+	  
+  }).join('');
 
   results.innerHTML = header + rows;
 
@@ -13230,7 +13231,9 @@ function renderSearchClickRecents(targetId){
       }
     });
   });
-
+	
+}
+		
 // ✅ Fix the X button crash + use it to show recent clicked items
 
 function clearSearch(){
