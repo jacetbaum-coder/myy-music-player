@@ -13100,8 +13100,15 @@ function handleSearch(query) {
 
           const raw = String(query || "");
                     if (!raw.trim()) {
+  // ✅ make sure the Search page results box is visible
+  try { results.classList.remove('hidden'); } catch (e) {}
+  try { results.style.display = 'block'; } catch (e) {}
+
+  try { loadSearchClickRecents(); } catch (e) {}
   renderSearchClickRecents();
   return;
+}
+
 }
 
 
