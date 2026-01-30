@@ -9661,10 +9661,19 @@ try {
         } catch (err) {}
 
         // Hide search results dropdown area (keeps you in Search view but dismisses results)
+        // ✅ BUT: do NOT hide results when the click is on the mini-player (play/pause)
         try {
-          const sr = document.getElementById('search-results');
-          if (sr) sr.classList.add('hidden');
+          const clickedPlayer =
+            !!e.target?.closest?.(
+              "#mobile-play-icon, #mini-player, #mobile-mini-player, #player-bar, #now-playing, #mobile-player, .mini-player, .player-bar, .now-playing"
+            );
+
+          if (!clickedPlayer) {
+            const sr = document.getElementById('search-results');
+            if (sr) sr.classList.add('hidden');
+          }
         } catch (err) {}
+
 
         // Close queue sheet if backdrop exists and user tapped outside
         try {
