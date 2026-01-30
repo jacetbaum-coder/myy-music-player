@@ -278,16 +278,8 @@
   padding: 0 2px;
 }
 
-  font-weight: 900;
-  font-size: 16px;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 2px;
-}
-
 .home-square-card .sub{
+
   font-size: 12px;
   color: var(--text-sub);
   white-space: nowrap;
@@ -828,16 +820,20 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
-/* ✅ DESKTOP ONLY: override the REAL scroller background (this is what console showed) */
+/* ✅ DESKTOP ONLY: override the REAL scroller background (console Step B proved this fixes it) */
 @media (min-width: 769px) {
-  main#main-scroll-area.main-view {
-    background: linear-gradient(180deg,
-      rgba(18,18,18,1) 0%,
-      rgba(0,0,0,1) 75%) !important;
+  main#main-scroll-area.main-view{
+    background: #000 !important;
+    background-image: none !important;
+  }
+  html, body{
+    background: #000 !important;
+    background-image: none !important;
   }
 }
 
 #grid-view {
+
   scrollbar-gutter: stable both-edges;
 }
 
