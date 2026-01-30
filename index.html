@@ -13039,10 +13039,14 @@ function renderSearchClickRecents(targetId){
     const xBtn = row.querySelector('.search-recent-x');
     if (xBtn) {
       xBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try { row.remove(); } catch (err) {}
-      });
+  e.preventDefault();
+  e.stopPropagation();
+
+  const link = row.getAttribute('data-link') || '';
+  try { if (window.__removeSearchRecentByLink) window.__removeSearchRecentByLink(link); } catch (err) {}
+  try { row.remove(); } catch (err) {}
+});
+
     }
 
     // ✅ … : open your EXISTING track menu (bottom half-sheet)
@@ -20519,7 +20523,44 @@ try { if (typeof window.saveHistoryToCloud === "function") window.saveHistoryToC
   });
 }
 
-       function createNewPlaylist() {
+       // ✅ Remove Search Recent song by link (permanent)
+window.__removeSearchRecentByLink = function(link){
+  try {
+    link = String(link || "").trim();
+    if (!link) return;
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      const lk = key.toLowerCase();
+      if (!lk.includes('recent') && !lk.includes('search') && !lk.includes('history')) continue;
+
+      let raw;
+      try { raw = localStorage.getItem(key); } catch(e) { continue; }
+      if (!raw) continue;
+
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch(e) { continue; }
+      if (!Array.isArray(parsed)) continue;
+
+      const before = parsed.length;
+
+      const filtered = parsed.filter(item => {
+        if (typeof item === 'string') return item !== link;
+        const u = String(item?.link || item?.url || item?.stream || '');
+        return u !== link;
+      });
+
+      if (filtered.length !== before) {
+        try { localStorage.setItem(key, JSON.stringify(filtered)); } catch(e){}
+      }
+    }
+  } catch(e){}
+};
+
+function createNewPlaylist() {
+
   // Spotify-style in-submenu "Give your playlist a name" modal
   const sub = document.getElementById('playlist-submenu');
   if (!sub) {
