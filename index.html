@@ -12940,9 +12940,10 @@ function pushSearchClickRecent(item){
   } catch (e) {}
 }
 
-function renderSearchClickRecents(){
-  const results = document.getElementById('search-results');
+function renderSearchClickRecents(targetId){
+  const results = document.getElementById(targetId || 'search-results');
   if (!results) return;
+
 
   // ✅ make sure the results container is actually visible
   try { results.classList.remove('hidden'); } catch (e) {}
