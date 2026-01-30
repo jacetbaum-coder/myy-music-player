@@ -804,7 +804,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 
-                                                             .main-view { 
+                                                                                          .main-view { 
   flex: 1;
   min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
   width: 100%;
@@ -828,29 +828,16 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
-/* ✅ DESKTOP ONLY: force mobile-style dark background */
+/* ✅ DESKTOP ONLY: override the REAL scroller background (this is what console showed) */
 @media (min-width: 769px) {
-  .main-view {
-    background: linear-gradient(
-      180deg,
-      rgba(18,18,18,0.92) 0%,
-      rgba(0,0,0,1) 70%
-    ) !important;
-  }
-}
-
-
-/* ✅ DESKTOP ONLY: mute the “insane” accent tint (DO NOT touch mobile) */
-@media (min-width: 769px) {
-  .main-view {
+  main#main-scroll-area.main-view {
     background: linear-gradient(180deg,
-      rgba(var(--accent-muted-rgb), 0.32) 0%,
-      rgba(0,0,0,1) 65%) !important;
+      rgba(18,18,18,1) 0%,
+      rgba(0,0,0,1) 75%) !important;
   }
 }
 
 #grid-view {
-
   scrollbar-gutter: stable both-edges;
 }
 
