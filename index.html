@@ -8982,9 +8982,20 @@ function openLibrarySearchOverlay() {
   if (q) {
     try { box.classList.remove('hidden'); } catch (e) {}
     try { handleLibrarySearch(q, 'library-search-results-overlay'); } catch (e) {}
-  } else {
-    renderLibraryRecentSearches('library-search-results-overlay');
+   } else {
+    // ✅ show click-recents (has data in localStorage: searchClickRecents:v1)
+    try { loadSearchClickRecents(); } catch (e) {}
+    try { renderSearchClickRecents('library-search-results-overlay'); } catch (e) {}
+
+    // fallback (if click-recents render fails for any reason)
+    try {
+      const boxEl = document.getElementById('library-search-results-overlay');
+      if (boxEl && boxEl.children && boxEl.children.length === 0) {
+        renderLibraryRecentSearches('library-search-results-overlay');
+      }
+    } catch (e) {}
   }
+
 
   // Focus for keyboard + blinking caret (do NOT clear value)
   setTimeout(() => {
