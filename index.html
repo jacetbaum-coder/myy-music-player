@@ -3243,7 +3243,47 @@ body.qs-lock {
   clear: both !important;
 }
 
+/* ✅ DESKTOP TEXT COLOR SAFETY OVERRIDES (do NOT affect mobile) */
+@media (min-width: 769px){
+
+  /* Sidebar: playlist names + liked songs label */
+  aside, aside *{
+    color: rgba(240,240,240,0.92);
+  }
+  aside .text-zinc-400,
+  aside .text-zinc-500{
+    color: rgba(161,161,170,0.92) !important;
+  }
+
+  /* Home/library tiles (ex: "big booty bitches") */
+  .home-square-card,
+  .home-square-card *{
+    color: rgba(240,240,240,0.92);
+  }
+  .home-square-card .sub{
+    color: rgba(161,161,170,0.92) !important;
+  }
+
+  /* Playlist/album header area (hero) */
+  #hero,
+  #hero *{
+    color: rgba(240,240,240,0.92);
+  }
+
+  /* Tracklist headers ("Title / Album / Date added") */
+  .track-header,
+  .track-header *{
+    color: rgba(161,161,170,0.92) !important;
+  }
+
+  /* Track rows */
+  .track-row,
+  .track-row *{
+    color: rgba(240,240,240,0.92);
+  }
+}
 </style>
+
 
 
 
