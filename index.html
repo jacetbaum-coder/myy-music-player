@@ -828,6 +828,18 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
+/* ✅ DESKTOP ONLY: force mobile-style dark background */
+@media (min-width: 769px) {
+  .main-view {
+    background: linear-gradient(
+      180deg,
+      rgba(18,18,18,0.92) 0%,
+      rgba(0,0,0,1) 70%
+    ) !important;
+  }
+}
+
+
 /* ✅ DESKTOP ONLY: mute the “insane” accent tint (DO NOT touch mobile) */
 @media (min-width: 769px) {
   .main-view {
