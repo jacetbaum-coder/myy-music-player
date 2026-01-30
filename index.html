@@ -13225,10 +13225,30 @@ function renderSearchClickRecents(targetId){
         return;
       }
       if (type === 'song' && link) {
-        try { playContext = { type: 'search', label: 'Recent' }; } catch (err) {}
-        try { playSpecificSong(link, '', '', '', ''); } catch (err) {}
-        return;
-      }
+  try { playContext = { type: 'search', label: 'Recent' }; } catch (err) {}
+
+  // ✅ Pull visible metadata from the row so the dock can render
+  let title = '';
+  let artist = '';
+  try {
+    title = row.querySelector('.text-white.font-bold.truncate')?.textContent?.trim() || '';
+    const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent?.trim() || '';
+    artist = (subtitle.split('•')[0] || '').trim();
+  } catch (err) {}
+
+  // ✅ If missing, derive a readable title from the stream link
+  if (!title) {
+    try {
+      const u = new URL(link);
+      const id = decodeURIComponent(u.searchParams.get('id') || '');
+      title = (id.split('/').pop() || '').replace(/\.mp3$/i, '').trim();
+    } catch (err) {}
+  }
+
+  try { playSpecificSong(link, title, '', artist, ''); } catch (err) {}
+  return;
+}
+
     });
   });
 	
