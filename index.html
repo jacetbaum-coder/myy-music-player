@@ -13523,7 +13523,20 @@ _score: score
           const artistResults = [...artistMatches.values()];
 
           // Best first
-          matches.sort((a, b) => b._score - a._score);
+matches.sort((a, b) => b._score - a._score);
+
+// ✅ De-dupe song matches by link/url (prevents repeated rows)
+try {
+  const seen = new Set();
+  matches = matches.filter(s => {
+    const k = String(s.link || s.url || s.songUrl || '').trim();
+    if (!k) return true;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+} catch (e) {}
+
              albumResults.sort((a, b) => b._score - a._score);
           artistResults.sort((a, b) => b._score - a._score);
           playlistMatches.sort((a, b) => b._score - a._score);
@@ -13636,7 +13649,8 @@ img.className = 'w-12 h-12 rounded object-cover';
 
             const title = document.createElement('div');
             title.className = 'text-white font-bold truncate';
-            title.textContent = (s.name || '').replace('.mp3', '');
+            title.textContent = (String(s.name || s.title || s.track || s.filename || s.file || s.path || '')).replace(/\.mp3$/i,'');
+
 
                         const meta = document.createElement('div');
             meta.className = 'text-sm text-zinc-400 truncate';
@@ -13673,8 +13687,45 @@ meta.textContent =
             info.appendChild(meta);
             row.appendChild(img);
             row.appendChild(info);
+            // ✅ stable key for de-dupe + menu
+            try { row.setAttribute('data-song-url', String(s.link || s.url || s.songUrl || '')); } catch (e) {}
+
+            // ✅ add ⋯ menu button (same menu system as recents)
+            try {
+              const dotsBtn = document.createElement('button');
+              dotsBtn.type = 'button';
+              dotsBtn.className = 'search-recent-btn search-recent-dots';
+              dotsBtn.setAttribute('aria-label','More');
+              dotsBtn.textContent = '⋯';
+
+              dotsBtn.addEventListener('click', (ev) => {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (err) {}
+                try {
+                  if (typeof window.showContextMenuAt !== 'function') return;
+                  const r = dotsBtn.getBoundingClientRect();
+                  const x = Math.round(r.left + r.width/2);
+                  const y = Math.round(r.top + r.height/2);
+
+                  const songObj = {
+                    type: 'song',
+                    url: String(s.link || s.url || ''),
+                    link: String(s.link || s.url || ''),
+                    title: String(s.name || s.title || '').replace(/\.mp3$/i,''),
+                    artist: String((s.artist || '') + (s.album ? (' • ' + s.album) : '')),
+                    cover: String(s.cover || s.coverArt || '')
+                  };
+
+                  window.showContextMenuAt(x, y, songObj, row);
+                } catch (err) { console.warn('dots failed', err); }
+              });
+
+              // right-side actions (⋯ then play icon)
+              row.appendChild(dotsBtn);
+            } catch (e) {}
+
             row.appendChild(icon);
             results.appendChild(row);
+
           };
 
           const appendAlbumRow = (album) => {
