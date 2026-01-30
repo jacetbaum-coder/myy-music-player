@@ -13076,7 +13076,7 @@ function renderSearchClickRecents(targetId){
     }
   });
 
-  // ✅ Permanent delete on X
+   // ✅ Permanent delete on X
   const xBtn = row.querySelector('.search-recent-x');
   if (xBtn) {
     xBtn.addEventListener('click', (e) => {
@@ -13086,38 +13086,40 @@ function renderSearchClickRecents(targetId){
       try { row.remove(); } catch (err) {}
     }, true);
   }
+
+  // ✅ … : open your EXISTING track menu (bottom half-sheet)
+  const dotsBtn = row.querySelector('.search-recent-dots');
+  if (dotsBtn) {
+    dotsBtn.addEventListener('click', (e) => {
+      try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+
+      try {
+        const link = row.getAttribute('data-link') || '';
+        const title = row.querySelector('.text-white.font-bold.truncate')?.textContent || '';
+        const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent || '';
+        const artist = (subtitle.split('•')[0] || '').trim();
+
+        const songObj = { title, artist, url: link, stream: link, link };
+
+        const r = row.getBoundingClientRect();
+        const fake = { preventDefault(){}, stopPropagation(){}, clientX: r.right - 20, clientY: r.top + 20 };
+
+        if (typeof window.handleContextMenu === 'function') {
+          window.handleContextMenu(fake, songObj);
+        } else if (typeof window.showContextMenuAt === 'function') {
+          window.showContextMenuAt(fake.clientX, fake.clientY, songObj, row);
+        }
+      } catch (err) {
+        console.warn("recent dots failed", err);
+      }
+    }, true);
+  }
 });
 
+
     }
 
-    // ✅ … : open your EXISTING track menu (bottom half-sheet)
-    const dotsBtn = row.querySelector('.search-recent-dots');
-    if (dotsBtn) {
-      dotsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
 
-        try {
-          const link = row.getAttribute('data-link') || '';
-          const title = row.querySelector('.text-white.font-bold.truncate')?.textContent || '';
-          const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent || '';
-          const artist = (subtitle.split('•')[0] || '').trim();
-
-          const songObj = { title, artist, url: link, stream: link, link };
-
-          const r = row.getBoundingClientRect();
-          const fake = { preventDefault(){}, stopPropagation(){}, clientX: r.right - 20, clientY: r.top + 20 };
-
-          if (typeof window.handleContextMenu === 'function') {
-            window.handleContextMenu(fake, songObj);
-          } else if (typeof window.showContextMenuAt === 'function') {
-            window.showContextMenuAt(fake.clientX, fake.clientY, songObj, row);
-          }
-        } catch (err) {
-          console.warn("recent dots failed", err);
-        }
-      });
-    }
 
     // ✅ Row click: keep your existing behavior (play/open)
     row.addEventListener('click', () => {
