@@ -3066,7 +3066,32 @@ body.qs-lock {
   position: relative !important;
 }
 
+/* ✅ Search row controls (dots + X) — no bubble */
+.search-recent-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex: 0 0 auto;
+}
+.search-recent-btn{
+  appearance:none;
+  -webkit-appearance:none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,.75);
+  font-size: 20px;
+  line-height: 20px;
+}
+.search-recent-btn:active{
+  transform: scale(0.96);
+}
 </style>
+
 
 <script>
 // ✅ GLOBAL handler for inline onclick="toggleNpLyricsExpanded(event)"
@@ -12925,8 +12950,6 @@ function renderSearchClickRecents(){
           <div class="text-white font-bold truncate">${title}</div>
           <div class="text-sm text-zinc-400 truncate">${subtitle}</div>
         </div>
-        <i class="fas fa-chevron-right text-zinc-600"></i>
-      </div>
     `;
   }).join('');
 
@@ -13639,12 +13662,17 @@ function clearSearch() {
     input.value = '';
     try { input.focus(); } catch (e) {}
   }
+
+  // ✅ when search is empty, show Search-click recents immediately
   try { handleSearch(''); } catch (e) {}
+  try { renderSearchClickRecents(); } catch (e) {}
 
   // Also clear saved search state
   try {
     window.__globalSearchState = { q: "", scrollTop: 0 };
   } catch (e) {}
+}
+
 }
 
 // Back-compat (in case any older button still calls this)
