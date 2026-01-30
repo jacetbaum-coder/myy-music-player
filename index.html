@@ -19896,15 +19896,25 @@ function updateMobileHomeTabUI() {
     all: 'mobile-home-tab-all',
   });
 
-  // Desktop
-  applyMap({
-    playlists: 'desktop-home-tab-playlists',
-    albums: 'desktop-home-tab-albums',
-    artists: 'desktop-home-tab-artists',
-    folders: 'desktop-home-tab-liked',
-    all: 'desktop-home-tab-all',
-  });
-}
+    // ✅ Update Home section headers (mobile + desktop)
+  try {
+    const labelMap = {
+      playlists: 'Playlists',
+      albums: 'Albums',
+      artists: 'Artists',
+      folders: 'Folders',
+      all: 'All',
+    };
+
+    document
+      .querySelectorAll('h2.text-3xl.font-black')
+      .forEach(h2 => {
+        if (h2.textContent.trim() === 'Folders') {
+          h2.textContent = labelMap[window.homeTopTab] || 'Folders';
+        }
+      });
+  } catch (e) {}
+
 
 function initMobileHomeTabsOnce() {
 
