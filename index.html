@@ -3137,7 +3137,34 @@ body.qs-lock {
   flex: 0 0 auto !important;
 }
 
+/* ===============================
+   SEARCH > RECENT — FORCE STACK
+   (Spotify-style vertical list)
+================================ */
+
+/* Parent must stack vertically */
+#search-results{
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  columns: unset !important;
+  column-count: 1 !important;
+}
+
+/* Each recent row must take full width */
+#search-results [data-search-click-recent]{
+  width: 100% !important;
+  max-width: none !important;
+
+  /* If any grid exists above, span all columns */
+  grid-column: 1 / -1 !important;
+
+  float: none !important;
+  clear: both !important;
+}
+
 </style>
+
 
 
 
