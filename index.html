@@ -12944,7 +12944,12 @@ function renderSearchClickRecents(){
   const results = document.getElementById('search-results');
   if (!results) return;
 
+  // ✅ make sure the results container is actually visible
+  try { results.classList.remove('hidden'); } catch (e) {}
+  try { results.style.display = 'block'; } catch (e) {}
+
   const rec = loadSearchClickRecents();
+
   if (!rec.length) {
     // fallback to the old term-based recent searches (if any)
     try { renderSearchRecents(); } catch (e) {
