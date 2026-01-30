@@ -14,7 +14,7 @@
     <link rel="icon" href="favicon.ico">
     
     <!-- iOS Home Screen icon -->
-    <link rel="apple-touch-icon" href="apple-touch-ifcon.png">
+    <link rel="apple-touch-icon" href="apple-touch-ifcon.png">f
 
 <!-- App name -->
 
@@ -3282,10 +3282,32 @@ body.qs-lock {
     color: rgba(240,240,240,0.92);
   }
 }
+/* ✅ DESKTOP ONLY: fix black text in Home pinned pills + playlist hero + track header */
+@media (min-width: 769px){
+
+  /* Home pinned pills (the "big booty bitches" pill on desktop Home) */
+  #home-pinned-pills-desktop .mobile-recent-card .title,
+  #home-pinned-pills-desktop .mobile-recent-card .sub{
+    color: rgba(240,240,240,0.92) !important;
+  }
+  #home-pinned-pills-desktop .mobile-recent-card .sub{
+    color: rgba(161,161,170,0.92) !important;
+  }
+
+  /* Playlist / album hero title (the big name that’s currently invisible/black) */
+  #album-hero h1,
+  #album-hero p{
+    color: rgba(240,240,240,0.92) !important;
+  }
+
+  /* Track header labels: Title / Album / Date Added */
+  .track-header,
+  .track-header span{
+    color: rgba(161,161,170,0.92) !important;
+  }
+}
+
 </style>
-
-
-
 
 
 
@@ -10706,10 +10728,12 @@ if (scrollArea) {
 try { initMobileHomeTabsOnce(); } catch (e) {}
 try { renderHome(); } catch (e) {}
 
-    } else {
+        } else {
       // DESKTOP: Home shows the new header + still shows your library below
       document.getElementById('grid-view').classList.remove('hidden');
       renderGrid(libraryData);
+      try { initMobileHomeTabsOnce(); } catch (e) {}
+
       try {
     if (typeof window.renderHistory === 'function') window.renderHistory();
     else if (typeof renderHistory === 'function') renderHistory();
