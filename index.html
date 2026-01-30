@@ -13934,12 +13934,32 @@ function exitSearch() { clearSearch(); }
       } catch (e) {}
 
       const target = args[0];
-      if (target === 'search') {
+            if (target === 'search') {
+        // ✅ Always show the Search page results container
+        try {
+          const results = document.getElementById('search-results');
+          if (results) {
+            results.classList.remove('hidden');
+            results.style.display = 'block';
+          }
+        } catch (e) {}
+
+        // ✅ If query is empty, show click-recents immediately (persisted in localStorage)
+        try {
+          const input = document.getElementById('global-search');
+          const q = String(input?.value || '').trim();
+          if (!q && typeof handleSearch === 'function') {
+            handleSearch('');
+          }
+        } catch (e) {}
+
         // Restore late to beat DOM mutations that reset scrollTop
         setTimeout(() => restoreSearchState('t0'), 0);
         setTimeout(() => restoreSearchState('t120'), 120);
         setTimeout(() => restoreSearchState('t400'), 400);
         setTimeout(() => restoreSearchState('t900'), 900);
+      }
+
       }
 
       return out;
