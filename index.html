@@ -13150,92 +13150,89 @@ function renderSearchClickRecents(targetId){
   results.innerHTML = header + rows;
 
   results.querySelectorAll('[data-search-click-recent="1"]').forEach(row => {
-  // ✅ Force LIST view (no grid columns)
-  try {
-    results.classList.remove('grid','grid-cols-2','grid-cols-3','gap-2','gap-3','gap-4');
-    results.classList.add('space-y-2');
-  } catch (e) {}
-  try { results.style.display = 'block'; } catch (e) {}
-  try { results.style.gridTemplateColumns = 'none'; } catch (e) {}
-  try { results.style.columnCount = 'unset'; results.style.columns = 'unset'; } catch (e) {}
+    // ✅ Force LIST view (no grid columns)
+    try {
+      results.classList.remove('grid','grid-cols-2','grid-cols-3','gap-2','gap-3','gap-4');
+      results.classList.add('space-y-2');
+    } catch (e) {}
+    try { results.style.display = 'block'; } catch (e) {}
+    try { results.style.gridTemplateColumns = 'none'; } catch (e) {}
+    try { results.style.columnCount = 'unset'; results.style.columns = 'unset'; } catch (e) {}
 
-  // ✅ X: permanently remove from recent-clicked list
-  const xBtn = row.querySelector('.search-recent-x');
-  if (xBtn) {
-    xBtn.addEventListener('click', (e) => {
-      try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+    // ✅ X: permanently remove from recent-clicked list
+    const xBtn = row.querySelector('.search-recent-x');
+    if (xBtn) {
+      xBtn.addEventListener('click', (e) => {
+        try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+        const type = row.getAttribute('data-type') || '';
+        const id = row.getAttribute('data-id') || '';
+        const link = row.getAttribute('data-link') || '';
+        try { if (typeof window.__removeSearchClickRecent === 'function') window.__removeSearchClickRecent({ type, id, link }); } catch (err) {}
+        try { row.remove(); } catch (err) {}
+      }, true);
+    }
+
+    // ✅ ⋯ : open your EXISTING track context menu (bottom half-sheet)
+    const dotsBtn = row.querySelector('.search-recent-dots');
+    if (dotsBtn) {
+      dotsBtn.addEventListener('click', (e) => {
+        try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+
+        try {
+          const link = row.getAttribute('data-link') || '';
+          const title = row.querySelector('.text-white.font-bold.truncate')?.textContent || '';
+          const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent || '';
+
+          if (!link) return;
+
+          const songObj = { type: 'song', link, title, subtitle };
+
+          if (typeof window.showContextMenuAt === 'function') {
+            const r = dotsBtn.getBoundingClientRect();
+            const fake = { clientX: Math.round(r.left + r.width/2), clientY: Math.round(r.top + r.height/2), preventDefault() {}, stopPropagation() {} };
+            window.showContextMenuAt(fake.clientX, fake.clientY, songObj, row);
+          }
+        } catch (err) {
+          console.warn("recent dots failed", err);
+        }
+      }, true);
+    }
+
+    // ✅ Row click: keep existing behavior (play/open)
+    row.addEventListener('click', (e) => {
+      // X / … should NOT trigger row click
+      try {
+        if (e && e.target && e.target.closest) {
+          if (e.target.closest('.search-recent-actions')) return;
+          if (e.target.closest('.search-recent-btn')) return;
+        }
+      } catch (err) {}
+
+      // dismiss keyboard / blinking cursor
+      try { const input = document.getElementById('global-search'); if (input) input.blur(); } catch (err) {}
+
       const type = row.getAttribute('data-type') || '';
       const id = row.getAttribute('data-id') || '';
       const link = row.getAttribute('data-link') || '';
-      try { if (typeof window.__removeSearchClickRecent === 'function') window.__removeSearchClickRecent({ type, id, link }); } catch (err) {}
-      try { row.remove(); } catch (err) {}
-    }, true);
-  }
 
-  // ✅ ⋯ : open your EXISTING track context menu (bottom half-sheet)
-  const dotsBtn = row.querySelector('.search-recent-dots');
-  if (dotsBtn) {
-    dotsBtn.addEventListener('click', (e) => {
-      try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
-
-      try {
-        const link = row.getAttribute('data-link') || '';
-        const title = row.querySelector('.text-white.font-bold.truncate')?.textContent || '';
-        const subtitle = row.querySelector('.text-sm.text-zinc-400.truncate')?.textContent || '';
-        const artist = (subtitle.split('•')[0] || '').trim();
-
-        const songObj = { title, artist, url: link, stream: link, link };
-
-        const r = row.getBoundingClientRect();
-        const fake = { preventDefault(){}, stopPropagation(){}, clientX: r.right - 20, clientY: r.top + 20 };
-
-        if (typeof window.handleContextMenu === 'function') {
-          window.handleContextMenu(fake, songObj);
-        } else if (typeof window.showContextMenuAt === 'function') {
-          window.showContextMenuAt(fake.clientX, fake.clientY, songObj, row);
-        }
-      } catch (err) {
-        console.warn("recent dots failed", err);
+      if (type === 'album' && id) {
+        try { openAlbumByName(id); } catch (err) {}
+        return;
       }
-    }, true);
-  }
-
-  // ✅ Row click: keep existing behavior (play/open)
-  row.addEventListener('click', (e) => {
-    // X / … should NOT trigger row click
-    try {
-      if (e && e.target && e.target.closest) {
-        if (e.target.closest('.search-recent-actions')) return;
-        if (e.target.closest('.search-recent-btn')) return;
+      if (type === 'playlist' && id) {
+        try { openPlaylistById(id); } catch (err) {}
+        return;
       }
-    } catch (err) {}
-
-    // dismiss keyboard / blinking cursor
-    try { const input = document.getElementById('global-search'); if (input) input.blur(); } catch (err) {}
-
-    const type = row.getAttribute('data-type') || '';
-    const id = row.getAttribute('data-id') || '';
-    const link = row.getAttribute('data-link') || '';
-
-    if (type === 'album' && id) {
-      try { openAlbumByName(id); } catch (err) {}
-      return;
-    }
-    if (type === 'playlist' && id) {
-      try { openPlaylistById(id); } catch (err) {}
-      return;
-    }
-    if (type === 'song' && link) {
-      try { playContext = { type: 'search', label: 'Recent' }; } catch (err) {}
-      try { playSpecificSong(link, '', '', '', ''); } catch (err) {}
-      return;
-    }
+      if (type === 'song' && link) {
+        try { playContext = { type: 'search', label: 'Recent' }; } catch (err) {}
+        try { playSpecificSong(link, '', '', '', ''); } catch (err) {}
+        return;
+      }
+    });
   });
-});
-
-}
 
 // ✅ Fix the X button crash + use it to show recent clicked items
+
 function clearSearch(){
   const input = document.getElementById('global-search');
   if (input) input.value = '';
