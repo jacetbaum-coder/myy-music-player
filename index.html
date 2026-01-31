@@ -278,8 +278,16 @@
   padding: 0 2px;
 }
 
-.home-square-card .sub{
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
 
+.home-square-card .sub{
   font-size: 12px;
   color: var(--text-sub);
   white-space: nowrap;
@@ -796,7 +804,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
 }
 
 
-                                                                                          .main-view { 
+                                                             .main-view { 
   flex: 1;
   min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
   width: 100%;
@@ -820,15 +828,12 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
-/* ✅ DESKTOP ONLY: override the REAL scroller background (console Step B proved this fixes it) */
+/* ✅ DESKTOP ONLY: mute the “insane” accent tint (DO NOT touch mobile) */
 @media (min-width: 769px) {
-  main#main-scroll-area.main-view{
-    background: #000 !important;
-    background-image: none !important;
-  }
-  html, body{
-    background: #000 !important;
-    background-image: none !important;
+  .main-view {
+    background: linear-gradient(180deg,
+      rgba(var(--accent-muted-rgb), 0.32) 0%,
+      rgba(0,0,0,1) 65%) !important;
   }
 }
 
@@ -3243,47 +3248,7 @@ body.qs-lock {
   clear: both !important;
 }
 
-/* ✅ DESKTOP TEXT COLOR SAFETY OVERRIDES (do NOT affect mobile) */
-@media (min-width: 769px){
-
-  /* Sidebar: playlist names + liked songs label */
-  aside, aside *{
-    color: rgba(240,240,240,0.92);
-  }
-  aside .text-zinc-400,
-  aside .text-zinc-500{
-    color: rgba(161,161,170,0.92) !important;
-  }
-
-  /* Home/library tiles (ex: "big booty bitches") */
-  .home-square-card,
-  .home-square-card *{
-    color: rgba(240,240,240,0.92);
-  }
-  .home-square-card .sub{
-    color: rgba(161,161,170,0.92) !important;
-  }
-
-  /* Playlist/album header area (hero) */
-  #hero,
-  #hero *{
-    color: rgba(240,240,240,0.92);
-  }
-
-  /* Tracklist headers ("Title / Album / Date added") */
-  .track-header,
-  .track-header *{
-    color: rgba(161,161,170,0.92) !important;
-  }
-
-  /* Track rows */
-  .track-row,
-  .track-row *{
-    color: rgba(240,240,240,0.92);
-  }
-}
 </style>
-
 
 
 
