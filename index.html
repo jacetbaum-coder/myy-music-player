@@ -34,7 +34,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 
-    <style>
+    /* -----------------------------
+   🔥 Gesture responsiveness
+   ----------------------------- */
+
+/* Kill 300ms tap delay + ghost highlights */
+button,
+.track-row,
+.track-title,
+#mobile-play-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection during fast taps/swipes */
+.track-row,
+.track-title {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow smooth transforms during gestures */
+.track-row {
+  will-change: transform;
+}
+
 
         /* --- ROOT & CORE RESET --- */
                 :root {
@@ -14640,63 +14664,6 @@ function setAllPlayIcons(isPlaying){
     }
   } catch (e) {}
 })();
-
-function togglePlay() {
-
-  // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
-  // start playing from the top instead of doing nothing.
-  if (!currentSong) {
-    if (Array.isArray(currentQueue) && currentQueue.length) {
-      playQueue(currentQueue, 0);
-    }
-    return;
-  }
-
-  const desktopIcon = document.getElementById('play-icon');
-
-  const mobileIcon = document.getElementById('mobile-play-icon');
-  const npIcon = document.getElementById('np-play-icon');
-
-  if (player.paused) {
-    player.play();
-      
-      updateMediaSessionMetadata();
-
-persistPlayerState(true);
-
-// ===== iOS / Lock Screen / Control Center metadata =====
-if ("mediaSession" in navigator && currentSong) {
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: currentSong.title,
-    artist: currentSong.artist,
-    album: currentSong.album || "",
-    artwork: [
-      {
-        src: currentSong.cover,
-        sizes: "512x512",
-        type: "image/png"
-      }
-    ]
-  });
-
-  navigator.mediaSession.setActionHandler("play", () => player.play());
-  navigator.mediaSession.setActionHandler("pause", () => player.pause());
-  navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
-  navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
-}
-
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
-  } else {
-    player.pause();
-      persistPlayerState(false);
-
-    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
-    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-play text-black text-2xl";
-  }
-}
 
 function togglePlay() {
   // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
