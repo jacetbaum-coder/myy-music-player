@@ -14551,22 +14551,10 @@ async function playSpecificSong(url, title, album, artist, cover) {
 
 
   // Set all play/pause icons based on what actually happened
-  const desktopIcon = document.getElementById('play-icon');
-  const mobileIcon = document.getElementById('mobile-play-icon');
-  const npIcon = document.getElementById('np-play-icon');
+setAllPlayIcons(!!started);
 
-  if (started) {
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
+// Sidebars (desktop only, only when a song is playing)
 
-  } else {
-    if (desktopIcon) desktopIcon.className = "fas fa-play ml-1";
-    if (mobileIcon) mobileIcon.className = "fas fa-play text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-play text-white text-2xl";
-  }
-
-    // Sidebars (desktop only, only when a song is playing)
 if (window.innerWidth >= 1024) {
   const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
   toggleRightSidebar(true);
@@ -14616,7 +14604,45 @@ if (window.innerWidth >= 1024) {
   }
 }
         
+function setAllPlayIcons(isPlaying){
+  const desktopIcon = document.getElementById('play-icon');
+  const mobileIcon  = document.getElementById('mobile-play-icon');
+  const npIcon      = document.getElementById('np-play-icon');
+  const heroBtn     = document.getElementById('hero-play-btn');
+
+  const on = !!isPlaying;
+
+  if (desktopIcon) desktopIcon.className = on ? "fas fa-pause" : "fas fa-play ml-1";
+  if (mobileIcon)  mobileIcon.className  = on ? "fas fa-pause text-white text-xl" : "fas fa-play text-white text-xl";
+  if (npIcon)      npIcon.className      = on ? "fas fa-pause text-black text-2xl" : "fas fa-play text-black text-2xl";
+
+  // Album/playlist green hero button (the one you found)
+  if (heroBtn) {
+    heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
+
+    // Force the icon markup to exist (prevents “icon disappears” from stray re-renders)
+    heroBtn.innerHTML = on
+      ? '<i class="fas fa-pause text-black text-xl"></i>'
+      : '<i class="fas fa-play text-black text-xl ml-1"></i>';
+  }
+}
+
+// Bind icon updates to the *real* audio state (never misses)
+(function bindPlayIconSync(){
+  if (window.__playIconSyncBound) return;
+  window.__playIconSyncBound = true;
+
+  try {
+    if (typeof player !== 'undefined' && player) {
+      player.addEventListener('play',  () => setAllPlayIcons(true),  true);
+      player.addEventListener('pause', () => setAllPlayIcons(false), true);
+      player.addEventListener('ended', () => setAllPlayIcons(false), true);
+    }
+  } catch (e) {}
+})();
+
 function togglePlay() {
+
   // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
   // start playing from the top instead of doing nothing.
   if (!currentSong) {
@@ -14672,7 +14698,68 @@ if ("mediaSession" in navigator && currentSong) {
   }
 }
 
+function togglePlay() {
+  // If nothing is selected yet, but we DO have a queue context (album/playlist/etc),
+  // start playing from the top instead of doing nothing.
+  if (!currentSong) {
+    if (Array.isArray(currentQueue) && currentQueue.length) {
+      playQueue(currentQueue, 0);
+    }
+    return;
+  }
+
+  // Prevent rapid double-taps from racing play/pause promises
+  if (window.__togglePlayLock) return;
+  window.__togglePlayLock = true;
+
+  const unlock = () => { window.__togglePlayLock = false; };
+
+  if (player.paused) {
+    // optimistic: UI will be corrected by 'play'/'pause' events regardless
+    let p = null;
+    try { p = player.play(); } catch (e) {}
+
+    try { updateMediaSessionMetadata(); } catch (e) {}
+    try { persistPlayerState(true); } catch (e) {}
+
+    // ===== iOS / Lock Screen / Control Center metadata =====
+    if ("mediaSession" in navigator && currentSong) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          album: currentSong.album || "",
+          artwork: [{ src: currentSong.cover, sizes: "512x512", type: "image/png" }]
+        });
+
+        navigator.mediaSession.setActionHandler("play", () => player.play());
+        navigator.mediaSession.setActionHandler("pause", () => player.pause());
+        navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
+        navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
+      } catch (e) {}
+    }
+
+    // If play() aborts/rejects, force UI to match the *actual* paused state
+    if (p && typeof p.then === "function") {
+      p.then(() => setAllPlayIcons(true))
+       .catch(() => setAllPlayIcons(!player.paused))
+       .finally(unlock);
+    } else {
+      setTimeout(() => { setAllPlayIcons(!player.paused); unlock(); }, 0);
+    }
+
+  } else {
+    try { player.pause(); } catch (e) {}
+    try { persistPlayerState(false); } catch (e) {}
+
+    // pause() is synchronous, but we still rely on audio events for final truth
+    setAllPlayIcons(false);
+    unlock();
+  }
+}
+
 // -----------------------
+
 // NOW PLAYING OVERLAY (desktop)
 // -----------------------
 const nowPlayingOverlay = document.getElementById('now-playing-overlay');
@@ -24076,16 +24163,13 @@ function prevSong() {
 player.addEventListener('ended', () => {
   // Repeat ONE: loop the same track forever
   if (isRepeatOneOn()) {
-    player.currentTime = 0;
-    player.play();
+  player.currentTime = 0;
+  player.play();
 
-    const desktopIcon = document.getElementById('play-icon');
-    const mobileIcon = document.getElementById('mobile-play-icon');
-    const npIcon = document.getElementById('np-play-icon');
+  setAllPlayIcons(true);
+  return;
+}
 
-    if (desktopIcon) desktopIcon.className = "fas fa-pause";
-    if (mobileIcon) mobileIcon.className = "fas fa-pause text-white text-xl";
-    if (npIcon) npIcon.className = "fas fa-pause text-black text-2xl";
     return;
   }
 
