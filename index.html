@@ -24163,20 +24163,18 @@ function prevSong() {
 player.addEventListener('ended', () => {
   // Repeat ONE: loop the same track forever
   if (isRepeatOneOn()) {
-  player.currentTime = 0;
-  player.play();
+    player.currentTime = 0;
+    player.play();
 
-  setAllPlayIcons(true);
-  return;
-}
-
+    setAllPlayIcons(true);
     return;
   }
 
-    // Otherwise advance.
+  // Otherwise advance.
   // Repeat ALL behavior is handled inside nextSong() (it loops instead of stopping).
   const shouldStopAtEnd =
     typeof sleepTimerEndOfTrack !== 'undefined' && sleepTimerEndOfTrack;
+
   if (shouldStopAtEnd) {
     sleepTimerEndOfTrack = false;
     if (typeof npUpdateSleepTimerUI === 'function') {
@@ -24184,7 +24182,8 @@ player.addEventListener('ended', () => {
     }
     return;
   }
-    // ✅ Guard: if queue/index is invalid, do NOT fall into any random/autoplay fallback
+
+  // ✅ Guard: if queue/index is invalid, do NOT fall into any random/autoplay fallback
   if (!Array.isArray(currentQueue) || currentQueue.length === 0) {
     console.warn("⛔ ended(): no currentQueue — stopping (no random)");
     return;
@@ -24196,6 +24195,7 @@ player.addEventListener('ended', () => {
 
   nextSong();
 });
+
 
 
 
