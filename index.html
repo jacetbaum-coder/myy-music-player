@@ -19681,9 +19681,17 @@ try {
     history.unshift({ type: 'artist', artist: engaged, cover: aCover });
 
     // one-shot: only applies to the next play after the artist click
-    try { window.__fromArtistView = ''; } catch (e) {}
+       try { window.__fromArtistView = ''; } catch (e) {}
 
-    localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+    try {
+      localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+    } catch (e) {
+      // QuotaExceededError: trim aggressively and retry once
+      try { history = history.slice(0, 6); } catch (e2) {}
+      try { localStorage.removeItem('historyLog'); } catch (e2) {}
+      try { localStorage.setItem('historyLog', JSON.stringify((history || []).slice(0, 6))); } catch (e2) {}
+    }
+
     renderHistory();
     try { renderHome(); } catch (e) {}
     try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
@@ -19720,10 +19728,18 @@ try {
                 });
             } else {
                 history = history.filter(h => h.album !== album || h.type === 'playlist');
-                history.unshift({ type: 'album', album, artist, cover });
+                               history.unshift({ type: 'album', album, artist, cover });
             }
 
-            localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+            try {
+              localStorage.setItem('historyLog', JSON.stringify(history.slice(0, 16)));
+            } catch (e) {
+              // QuotaExceededError: trim aggressively and retry once
+              try { history = history.slice(0, 6); } catch (e2) {}
+              try { localStorage.removeItem('historyLog'); } catch (e2) {}
+              try { localStorage.setItem('historyLog', JSON.stringify((history || []).slice(0, 6))); } catch (e2) {}
+            }
+
 
             renderHistory();
 
