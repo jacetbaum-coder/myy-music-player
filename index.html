@@ -14951,7 +14951,6 @@ function openNowPlaying() {
 
   setupNowPlayingCoverSwipeOnce();
 
-
   updateNowPlayingUI();
 
   nowPlayingOverlay.classList.remove('hidden');
@@ -15523,6 +15522,16 @@ function setupNowPlayingCoverSwipeOnce(){
   });
 }
 
+function teardownNowPlayingCoverSwipe(){
+  try {
+    const wrap = document.getElementById('np-cover-swipe');
+    if (!wrap) return;
+
+    // Remove all swipe listeners safely by cloning
+    const clone = wrap.cloneNode(true);
+    wrap.parentNode.replaceChild(clone, wrap);
+  } catch (e) {}
+}
 
 function closeNowPlaying() {
   // animate down, then hide
@@ -15539,7 +15548,9 @@ function closeNowPlaying() {
         nowPlayingOverlay.classList.add('hidden');
     try { checkDockVisibility(); } catch (e) {}
     nowPlayingOverlay.style.transform = 'translateY(0)';
-    nowPlayingOverlay.removeEventListener('transitionend', done);
+    teardownNowPlayingCoverSwipe();
+nowPlayingOverlay.removeEventListener('transitionend', done);
+
 
   };
 
