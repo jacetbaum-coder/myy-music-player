@@ -11940,6 +11940,14 @@ if (!album) return;
 
 
   activeAlbumName = album.albumName;
+activeAlbumArtist = album.artistName;
+
+// ✅ Mirror album-intent onto window so other systems (Recents, etc.) can respect it
+try { window.activeAlbumName = activeAlbumName; } catch (e) {}
+try { window.activeAlbumArtist = activeAlbumArtist; } catch (e) {}
+try { window.activeView = 'album'; } catch (e) {}
+try { window.currentView = 'album'; } catch (e) {}
+
   activeAlbumArtist = album.artistName;
 
   const cover = getAlbumCover(album.artistName, album.albumName, album.coverArt);
