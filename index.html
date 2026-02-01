@@ -4384,9 +4384,12 @@ window.toggleNpLyricsExpanded = function(e){
   <div id="np-sheet" class="h-[calc(100%-64px)] overflow-y-auto flex flex-col items-center px-6 py-6">
 
     <div class="w-full max-w-[520px]">
-      <div class="rounded-2xl overflow-hidden shadow-2xl bg-zinc-900">
-        <img id="np-cover" src="" class="w-full aspect-square object-cover bg-zinc-800" alt="">
-      </div>
+      <div id="np-cover-swipe" class="relative rounded-2xl overflow-hidden shadow-2xl bg-zinc-900 w-full aspect-square" style="touch-action: pan-y;">
+  <img id="np-cover-prev" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="" style="transform: translateX(-105%);">
+  <img id="np-cover" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="">
+  <img id="np-cover-next" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="" style="transform: translateX(105%);">
+</div>
+
 
             <div class="mt-8">
         <div class="flex items-start justify-between gap-4">
@@ -8141,7 +8144,9 @@ function refreshAfterAlbumCoverChange(artistName, albumName) {
     if (rc) rc.src = newCover;
 
     const npc = document.getElementById('np-cover');
-    if (npc) npc.src = newCover;
+if (npc) npc.src = newCover;
+updateNPCoverNeighbors();
+
 
     updateAccentFromCover(newCover);
     updateMediaSessionMetadata();
@@ -14886,6 +14891,8 @@ function updateNowPlayingUI() {
     } catch (e) {}
 
     cover.src = resolvedCover || PLACEHOLDER;
+updateNPCoverNeighbors();
+
   }
 
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
@@ -14941,6 +14948,9 @@ function updateNowPlayingUI() {
 
 function openNowPlaying() {
   if (!currentSong) return;
+
+  setupNowPlayingCoverSwipeOnce();
+
 
   updateNowPlayingUI();
 
@@ -15364,6 +15374,155 @@ function hideTrackMissingModal() {
 
 // run once
 initQueueSheetSwipe();
+
+		// ✅ Now Playing: horizontal cover swipe (Spotify-like)
+let __npCoverSwipeReady = false;
+
+function __npGetCoverSrc(s){
+  if (!s) return '';
+  return String(s.cover || s.image || s.artwork || s.coverUrl || '');
+}
+
+function updateNPCoverNeighbors(){
+  try {
+    const prevEl = document.getElementById('np-cover-prev');
+    const nextEl = document.getElementById('np-cover-next');
+
+    if (!prevEl || !nextEl) return;
+    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+
+    const prevSong = currentQueue[currentIndex - 1] || null;
+    const nextSongObj = currentQueue[currentIndex + 1] || null;
+
+    prevEl.src = __npGetCoverSrc(prevSong) || __npGetCoverSrc(currentSong) || '';
+    nextEl.src = __npGetCoverSrc(nextSongObj) || __npGetCoverSrc(currentSong) || '';
+  } catch (e) {}
+}
+
+function __npResetCoverTransforms(){
+  const wrap = document.getElementById('np-cover-swipe');
+  const cur = document.getElementById('np-cover');
+  const prev = document.getElementById('np-cover-prev');
+  const next = document.getElementById('np-cover-next');
+  if (!wrap || !cur || !prev || !next) return;
+
+  prev.style.transition = 'transform 180ms ease';
+  cur.style.transition  = 'transform 180ms ease';
+  next.style.transition = 'transform 180ms ease';
+
+  prev.style.transform = 'translateX(-105%)';
+  cur.style.transform  = 'translateX(0px)';
+  next.style.transform = 'translateX(105%)';
+
+  setTimeout(() => {
+    prev.style.transition = '';
+    cur.style.transition  = '';
+    next.style.transition = '';
+  }, 200);
+}
+
+function setupNowPlayingCoverSwipeOnce(){
+  if (__npCoverSwipeReady) return;
+
+  const wrap = document.getElementById('np-cover-swipe');
+  const cur = document.getElementById('np-cover');
+  const prev = document.getElementById('np-cover-prev');
+  const next = document.getElementById('np-cover-next');
+
+  if (!wrap || !cur || !prev || !next) return;
+
+  __npCoverSwipeReady = true;
+
+  // ensure neighbors correct on first open
+  updateNPCoverNeighbors();
+  __npResetCoverTransforms();
+
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+
+  function apply(dxNow){
+    const w = Math.max(1, wrap.clientWidth);
+    const gap = w * 1.05;
+
+    prev.style.transform = `translateX(${dxNow - gap}px)`;
+    cur.style.transform  = `translateX(${dxNow}px)`;
+    next.style.transform = `translateX(${dxNow + gap}px)`;
+  }
+
+  wrap.addEventListener('pointerdown', (e) => {
+    // only if we actually have a queue context
+    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    dx = 0;
+
+    try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+
+    prev.style.transition = '';
+    cur.style.transition  = '';
+    next.style.transition = '';
+  });
+
+  wrap.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+
+    const mx = e.clientX - startX;
+    const my = e.clientY - startY;
+
+    // If it becomes a vertical gesture, bail so it doesn't feel janky
+    if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 12) {
+      dragging = false;
+      __npResetCoverTransforms();
+      return;
+    }
+
+    dx = mx;
+    apply(dx);
+  });
+
+  function endSwipe(){
+    if (!Array.isArray(currentQueue) || !currentQueue.length) {
+      __npResetCoverTransforms();
+      return;
+    }
+
+    const w = Math.max(1, wrap.clientWidth);
+    const threshold = w * 0.22;
+
+    // keep background/accent “stuck” during drag; only change after release (song actually changes)
+    if (dx <= -threshold) {
+      // swipe left => NEXT
+      try { nextSong(); } catch (e) {}
+    } else if (dx >= threshold) {
+      // swipe right => PREV
+      try { prevSong(); } catch (e) {}
+    }
+
+    __npResetCoverTransforms();
+
+    // after song changes, refresh neighbor covers
+    setTimeout(() => {
+      updateNPCoverNeighbors();
+    }, 80);
+  }
+
+  wrap.addEventListener('pointerup', () => {
+    if (!dragging) return;
+    dragging = false;
+    endSwipe();
+  });
+
+  wrap.addEventListener('pointercancel', () => {
+    if (!dragging) return;
+    dragging = false;
+    __npResetCoverTransforms();
+  });
+}
+
 
 function closeNowPlaying() {
   // animate down, then hide
