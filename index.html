@@ -4384,14 +4384,27 @@ window.toggleNpLyricsExpanded = function(e){
   <div id="np-sheet" class="h-[calc(100%-64px)] overflow-y-auto flex flex-col items-center px-6 py-6">
 
     <div class="w-full max-w-[520px]">
-      <div id="np-cover-swipe" class="relative rounded-2xl overflow-hidden shadow-2xl bg-zinc-900 w-full aspect-square" style="touch-action: pan-y;">
-  <img id="np-cover-prev" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="" style="transform: translateX(-105%);">
-  <img id="np-cover" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="">
-  <img id="np-cover-next" src="" class="absolute inset-0 w-full h-full object-cover bg-zinc-800" alt="" style="transform: translateX(105%);">
-</div>
+       <div id="np-cover-swipe" class="relative rounded-2xl overflow-hidden shadow-2xl bg-zinc-900 w-full aspect-square" style="touch-action: pan-y;">
+        <div id="np-cover-strip"
+             style="display:flex; width:300%; height:100%; transform:translateX(-100%); will-change:transform;">
+          <img id="np-cover-prev" src=""
+               class="w-full h-full object-cover bg-zinc-800"
+               alt=""
+               style="width:33.3333%; flex:0 0 33.3333%; height:100%; object-fit:cover;">
+          <img id="np-cover" src=""
+               class="w-full h-full object-cover bg-zinc-800"
+               alt=""
+               style="width:33.3333%; flex:0 0 33.3333%; height:100%; object-fit:cover;">
+          <img id="np-cover-next" src=""
+               class="w-full h-full object-cover bg-zinc-800"
+               alt=""
+               style="width:33.3333%; flex:0 0 33.3333%; height:100%; object-fit:cover;">
+        </div>
+      </div>
 
 
             <div class="mt-8">
+
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0 flex-1">
             <div id="np-title" class="title-marquee text-3xl md:text-4xl font-black tracking-tight">
@@ -14949,9 +14962,9 @@ updateNPCoverNeighbors();
 function openNowPlaying() {
   if (!currentSong) return;
 
-  setupNowPlayingCoverSwipeOnce();
-
   updateNowPlayingUI();
+
+  bindNPCoverSwipe();
 
   nowPlayingOverlay.classList.remove('hidden');
 
@@ -15375,165 +15388,242 @@ function hideTrackMissingModal() {
 initQueueSheetSwipe();
 
 		// ✅ Now Playing: horizontal cover swipe (Spotify-like)
-let __npCoverSwipeReady = false;
+
+const __npSwipe = {
+  bound: false,
+  wrap: null,
+  strip: null,
+  prev: null,
+  cur: null,
+  next: null,
+  dragging: false,
+  startX: 0,
+  startY: 0,
+  dx: 0,
+  activePointerId: null,
+  onDown: null,
+  onMove: null,
+  onUp: null,
+  onCancel: null,
+};
 
 function __npGetCoverSrc(s){
   if (!s) return '';
   return String(s.cover || s.image || s.artwork || s.coverUrl || '');
 }
 
+function __npGetQueueSong(i){
+  try {
+    if (!Array.isArray(currentQueue) || !currentQueue.length) return null;
+    return currentQueue[i] || null;
+  } catch (e) { return null; }
+}
+
 function updateNPCoverNeighbors(){
   try {
+    const curEl  = document.getElementById('np-cover');
     const prevEl = document.getElementById('np-cover-prev');
     const nextEl = document.getElementById('np-cover-next');
 
-    if (!prevEl || !nextEl) return;
-    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+    if (!curEl || !prevEl || !nextEl) return;
 
-    const prevSong = currentQueue[currentIndex - 1] || null;
-    const nextSongObj = currentQueue[currentIndex + 1] || null;
+    // current cover
+    curEl.src = __npGetCoverSrc(currentSong) || '';
+
+    // neighbor covers MUST come from currentQueue/currentIndex
+    if (!Array.isArray(currentQueue) || !currentQueue.length) {
+      prevEl.src = __npGetCoverSrc(currentSong) || '';
+      nextEl.src = __npGetCoverSrc(currentSong) || '';
+      return;
+    }
+
+    const prevSong = __npGetQueueSong(currentIndex - 1);
+    const nextSongObj = __npGetQueueSong(currentIndex + 1);
 
     prevEl.src = __npGetCoverSrc(prevSong) || __npGetCoverSrc(currentSong) || '';
     nextEl.src = __npGetCoverSrc(nextSongObj) || __npGetCoverSrc(currentSong) || '';
   } catch (e) {}
 }
 
-function __npResetCoverTransforms(){
-  const wrap = document.getElementById('np-cover-swipe');
-  const cur = document.getElementById('np-cover');
-  const prev = document.getElementById('np-cover-prev');
-  const next = document.getElementById('np-cover-next');
-  if (!wrap || !cur || !prev || !next) return;
-
-  prev.style.transition = 'transform 180ms ease';
-  cur.style.transition  = 'transform 180ms ease';
-  next.style.transition = 'transform 180ms ease';
-
-  prev.style.transform = 'translateX(-105%)';
-  cur.style.transform  = 'translateX(0px)';
-  next.style.transform = 'translateX(105%)';
-
-  setTimeout(() => {
-    prev.style.transition = '';
-    cur.style.transition  = '';
-    next.style.transition = '';
-  }, 200);
-}
-
-function setupNowPlayingCoverSwipeOnce(){
-  if (__npCoverSwipeReady) return;
-
-  const wrap = document.getElementById('np-cover-swipe');
-  const cur = document.getElementById('np-cover');
-  const prev = document.getElementById('np-cover-prev');
-  const next = document.getElementById('np-cover-next');
-
-  if (!wrap || !cur || !prev || !next) return;
-
-  __npCoverSwipeReady = true;
-
-  // ensure neighbors correct on first open
-  updateNPCoverNeighbors();
-  __npResetCoverTransforms();
-
-  let dragging = false;
-  let startX = 0;
-  let startY = 0;
-  let dx = 0;
-
-  function apply(dxNow){
-    const w = Math.max(1, wrap.clientWidth);
-    const gap = w * 1.05;
-
-    prev.style.transform = `translateX(${dxNow - gap}px)`;
-    cur.style.transform  = `translateX(${dxNow}px)`;
-    next.style.transform = `translateX(${dxNow + gap}px)`;
-  }
-
-  wrap.addEventListener('pointerdown', (e) => {
-    // only if we actually have a queue context
-    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
-
-    dragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    dx = 0;
-
-    try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
-
-    prev.style.transition = '';
-    cur.style.transition  = '';
-    next.style.transition = '';
-  });
-
-  wrap.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-
-    const mx = e.clientX - startX;
-    const my = e.clientY - startY;
-
-    // If it becomes a vertical gesture, bail so it doesn't feel janky
-    if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 12) {
-      dragging = false;
-      __npResetCoverTransforms();
-      return;
-    }
-
-    dx = mx;
-    apply(dx);
-  });
-
-  function endSwipe(){
-    if (!Array.isArray(currentQueue) || !currentQueue.length) {
-      __npResetCoverTransforms();
-      return;
-    }
-
-    const w = Math.max(1, wrap.clientWidth);
-    const threshold = w * 0.22;
-
-    // keep background/accent “stuck” during drag; only change after release (song actually changes)
-    if (dx <= -threshold) {
-      // swipe left => NEXT
-      try { nextSong(); } catch (e) {}
-    } else if (dx >= threshold) {
-      // swipe right => PREV
-      try { prevSong(); } catch (e) {}
-    }
-
-    __npResetCoverTransforms();
-
-    // after song changes, refresh neighbor covers
-    setTimeout(() => {
-      updateNPCoverNeighbors();
-    }, 80);
-  }
-
-  wrap.addEventListener('pointerup', () => {
-    if (!dragging) return;
-    dragging = false;
-    endSwipe();
-  });
-
-  wrap.addEventListener('pointercancel', () => {
-    if (!dragging) return;
-    dragging = false;
-    __npResetCoverTransforms();
-  });
-}
-
-function teardownNowPlayingCoverSwipe(){
+function __npStripSetX(px){
   try {
-    const wrap = document.getElementById('np-cover-swipe');
-    if (!wrap) return;
-
-    // Remove all swipe listeners safely by cloning
-    const clone = wrap.cloneNode(true);
-    wrap.parentNode.replaceChild(clone, wrap);
+    if (!__npSwipe.strip || !__npSwipe.wrap) return;
+    const w = Math.max(1, __npSwipe.wrap.clientWidth);
+    const base = -w; // center panel
+    __npSwipe.strip.style.transform = `translateX(${base + px}px)`;
   } catch (e) {}
 }
 
+function __npStripSnapCenter(withAnim){
+  try {
+    if (!__npSwipe.strip || !__npSwipe.wrap) return;
+    __npSwipe.strip.style.transition = withAnim ? 'transform 180ms ease' : 'none';
+    __npStripSetX(0);
+    if (withAnim) {
+      setTimeout(() => { try { if (__npSwipe.strip) __npSwipe.strip.style.transition = 'none'; } catch (e) {} }, 200);
+    }
+  } catch (e) {}
+}
+
+function bindNPCoverSwipe(){
+  try {
+    // Non-negotiable: bind ONLY while Now Playing is open
+    const np = document.getElementById('now-playing-overlay');
+    if (!np || np.classList.contains('hidden')) return;
+
+    if (__npSwipe.bound) return;
+
+    const wrap  = document.getElementById('np-cover-swipe');
+    const strip = document.getElementById('np-cover-strip');
+    const cur   = document.getElementById('np-cover');
+    const prev  = document.getElementById('np-cover-prev');
+    const next  = document.getElementById('np-cover-next');
+
+    if (!wrap || !strip || !cur || !prev || !next) return;
+
+    __npSwipe.bound = true;
+    __npSwipe.wrap  = wrap;
+    __npSwipe.strip = strip;
+    __npSwipe.cur   = cur;
+    __npSwipe.prev  = prev;
+    __npSwipe.next  = next;
+
+    // ensure correct covers on open
+    updateNPCoverNeighbors();
+    __npStripSnapCenter(false);
+
+    __npSwipe.onDown = (e) => {
+      // only if we actually have a queue context
+      if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+
+      __npSwipe.dragging = true;
+      __npSwipe.startX = e.clientX;
+      __npSwipe.startY = e.clientY;
+      __npSwipe.dx = 0;
+      __npSwipe.activePointerId = e.pointerId;
+
+      try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+
+      // IMPORTANT: no theme/accent changes here — we only commit after next/prev finishes
+      strip.style.transition = 'none';
+    };
+
+    __npSwipe.onMove = (e) => {
+      if (!__npSwipe.dragging) return;
+
+      const mx = e.clientX - __npSwipe.startX;
+      const my = e.clientY - __npSwipe.startY;
+
+      // If it becomes a vertical gesture, bail (let scroll feel normal)
+      if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 12) {
+        __npSwipe.dragging = false;
+        __npStripSnapCenter(true);
+        return;
+      }
+
+      __npSwipe.dx = mx;
+
+      // move ONLY the strip
+      __npStripSetX(__npSwipe.dx);
+    };
+
+    __npSwipe.onUp = () => {
+      if (!__npSwipe.dragging) return;
+      __npSwipe.dragging = false;
+
+      if (!Array.isArray(currentQueue) || !currentQueue.length) {
+        __npStripSnapCenter(true);
+        return;
+      }
+
+      const w = Math.max(1, wrap.clientWidth);
+      const threshold = w * 0.22;
+
+      // Decide target panel
+      if (__npSwipe.dx <= -threshold) {
+        // swipe left => NEXT
+        strip.style.transition = 'transform 180ms ease';
+        strip.style.transform = `translateX(${-2 * w}px)`; // show next panel
+        setTimeout(() => {
+          // COMMIT after animation (theme/accent can update inside nextSong now)
+          try { nextSong(); } catch (e) {}
+          // reset to center with fresh neighbors
+          updateNPCoverNeighbors();
+          __npStripSnapCenter(false);
+        }, 190);
+        return;
+      }
+
+      if (__npSwipe.dx >= threshold) {
+        // swipe right => PREV
+        strip.style.transition = 'transform 180ms ease';
+        strip.style.transform = `translateX(${0}px)`; // show prev panel
+        setTimeout(() => {
+          // COMMIT after animation (theme/accent can update inside prevSong now)
+          try { prevSong(); } catch (e) {}
+          // reset to center with fresh neighbors
+          updateNPCoverNeighbors();
+          __npStripSnapCenter(false);
+        }, 190);
+        return;
+      }
+
+      // not far enough => snap back (no song change)
+      __npStripSnapCenter(true);
+    };
+
+    __npSwipe.onCancel = () => {
+      if (!__npSwipe.dragging) return;
+      __npSwipe.dragging = false;
+      __npStripSnapCenter(true);
+    };
+
+    // Bind listeners (store fns so we can remove them)
+    wrap.addEventListener('pointerdown', __npSwipe.onDown, { passive: true });
+    wrap.addEventListener('pointermove', __npSwipe.onMove, { passive: true });
+    wrap.addEventListener('pointerup', __npSwipe.onUp, { passive: true });
+    wrap.addEventListener('pointercancel', __npSwipe.onCancel, { passive: true });
+  } catch (e) {}
+}
+
+function unbindNPCoverSwipe(){
+  try {
+    if (!__npSwipe.bound) return;
+
+    const wrap = __npSwipe.wrap;
+
+    if (wrap && __npSwipe.onDown)   wrap.removeEventListener('pointerdown', __npSwipe.onDown);
+    if (wrap && __npSwipe.onMove)   wrap.removeEventListener('pointermove', __npSwipe.onMove);
+    if (wrap && __npSwipe.onUp)     wrap.removeEventListener('pointerup', __npSwipe.onUp);
+    if (wrap && __npSwipe.onCancel) wrap.removeEventListener('pointercancel', __npSwipe.onCancel);
+
+    __npSwipe.bound = false;
+    __npSwipe.dragging = false;
+    __npSwipe.activePointerId = null;
+
+    // reset transform to centered
+    try { __npStripSnapCenter(false); } catch (e) {}
+
+    __npSwipe.wrap = null;
+    __npSwipe.strip = null;
+    __npSwipe.prev = null;
+    __npSwipe.cur = null;
+    __npSwipe.next = null;
+    __npSwipe.onDown = null;
+    __npSwipe.onMove = null;
+    __npSwipe.onUp = null;
+    __npSwipe.onCancel = null;
+  } catch (e) {}
+}
+
+// Backwards-compatible name: closeNowPlaying already calls this.
+// Non-negotiable: unbind happens INSIDE closeNowPlaying().
+function teardownNowPlayingCoverSwipe(){
+  unbindNPCoverSwipe();
+}
+
 function closeNowPlaying() {
+
   // animate down, then hide
   nowPlayingOverlay.classList.remove('np-dragging');
   nowPlayingOverlay.style.transform = 'translateY(100%)';
