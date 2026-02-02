@@ -12046,14 +12046,21 @@ try { window.currentView = 'album'; } catch (e) {}
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) {
     heroPlay.onclick = () => {
-      playContext = { type: 'album', label: name };
-      // shuffle-start handled inside playQueue
-            playQueue(currentQueue, 0);
+      // ✅ Never restart the current song.
+      // If something is already loaded, treat the green button like "Next" (shuffle-safe).
+      if (currentSong) {
+        try { nextSong(); } catch (e) {}
+      } else {
+        playContext = { type: 'album', label: name };
+        // shuffle-start handled inside playQueue
+        playQueue(currentQueue, 0);
+      }
 
       // ✅ force a fresh paint cycle (prevents stuck-invisible hero button)
       try { window.__kickHeroPaint__ && window.__kickHeroPaint__(); } catch (e) {}
       try { requestAnimationFrame(() => window.__kickHeroPaint__ && window.__kickHeroPaint__()); } catch (e) {}
     };
+
   }
 
 
