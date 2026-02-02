@@ -12010,14 +12010,49 @@ try { window.currentView = 'album'; } catch (e) {}
   document.getElementById('album-view')?.classList.remove('hidden');
 
 
+  // ---- hero play button: prevent "invisible paint" compositor bug ----
+  // Clones/replaces #hero-play-btn in-place (keeps onclick) to force a fresh paint.
+  window.__kickHeroPaint__ = function () {
+    const oldBtn = document.getElementById("hero-play-btn");
+    if (!oldBtn || !oldBtn.parentNode) return;
+
+    // Throttle so we don't spam replacements
+    const now = Date.now();
+    if (window.__lastHeroKick && (now - window.__lastHeroKick) < 300) return;
+    window.__lastHeroKick = now;
+
+    const parent = oldBtn.parentNode;
+    const next = oldBtn.nextSibling;
+    const oldOnClick = oldBtn.onclick;
+
+    const newBtn = oldBtn.cloneNode(true);
+    newBtn.onclick = oldOnClick;
+
+    // Paint stability hints (safe if ignored)
+    newBtn.style.transform = "translateZ(0)";
+    newBtn.style.willChange = "transform";
+    newBtn.style.backfaceVisibility = "hidden";
+    newBtn.style.contain = "paint";
+    newBtn.style.isolation = "isolate";
+
+    if (next) parent.insertBefore(newBtn, next);
+    else parent.appendChild(newBtn);
+    parent.removeChild(oldBtn);
+  };
+
   // Hook the big green hero play button to play this album
   // (Bind directly to the already-built currentQueue so it always works + respects shuffle)
+
   const heroPlay = document.getElementById('hero-play-btn');
   if (heroPlay) {
     heroPlay.onclick = () => {
       playContext = { type: 'album', label: name };
       // shuffle-start handled inside playQueue
-      playQueue(currentQueue, 0);
+            playQueue(currentQueue, 0);
+
+      // ✅ force a fresh paint cycle (prevents stuck-invisible hero button)
+      try { window.__kickHeroPaint__ && window.__kickHeroPaint__(); } catch (e) {}
+      try { requestAnimationFrame(() => window.__kickHeroPaint__ && window.__kickHeroPaint__()); } catch (e) {}
     };
   }
 
