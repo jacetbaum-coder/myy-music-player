@@ -14655,14 +14655,37 @@ function setAllPlayIcons(isPlaying){
   if (mobileIcon)  mobileIcon.className  = on ? "fas fa-pause text-white text-xl" : "fas fa-play text-white text-xl";
   if (npIcon)      npIcon.className      = on ? "fas fa-pause text-black text-2xl" : "fas fa-play text-black text-2xl";
 
-  // Album/playlist green hero button (the one you found)
+    // Album/playlist green hero button (the one you found)
   if (heroBtn) {
     heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
 
-    // Force the icon markup to exist (prevents “icon disappears” from stray re-renders)
-    heroBtn.innerHTML = on
-      ? '<i class="fas fa-pause text-black text-xl"></i>'
-      : '<i class="fas fa-play text-black text-xl ml-1"></i>';
+    // ✅ Install once: inline SVG icons (no Font Awesome glyph rendering)
+    if (!heroBtn.__svgInstalled) {
+      heroBtn.__svgInstalled = true;
+
+      heroBtn.innerHTML = `
+        <span class="hero-icon hero-icon-pause" aria-hidden="true" style="display:none; color:#000; line-height:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Pause">
+            <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+            <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+          </svg>
+        </span>
+        <span class="hero-icon hero-icon-play" aria-hidden="true" style="display:none; color:#000; line-height:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Play">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+        </span>
+      `;
+    }
+
+    // ✅ Toggle visibility without rewriting DOM (prevents blink)
+    const pauseEl = heroBtn.querySelector('.hero-icon-pause');
+    const playEl  = heroBtn.querySelector('.hero-icon-play');
+
+    if (pauseEl) pauseEl.style.display = on ? 'inline-flex' : 'none';
+    if (playEl)  playEl.style.display  = on ? 'none' : 'inline-flex';
+  }
+
   }
 }
 
