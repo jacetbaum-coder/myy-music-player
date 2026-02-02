@@ -12050,11 +12050,21 @@ try { window.currentView = 'album'; } catch (e) {}
       // If something is already loaded, treat the green button like "Next" (shuffle-safe).
       if (currentSong) {
         try { nextSong(); } catch (e) {}
+
+        // ✅ ensure dock updates immediately
+        try { checkDockVisibility(); } catch (e) {}
+        try { requestAnimationFrame(() => { try { checkDockVisibility(); } catch (e) {} }); } catch (e) {}
       } else {
+
         playContext = { type: 'album', label: name };
         // shuffle-start handled inside playQueue
         playQueue(currentQueue, 0);
+
+        // ✅ ensure dock updates immediately
+        try { checkDockVisibility(); } catch (e) {}
+        try { requestAnimationFrame(() => { try { checkDockVisibility(); } catch (e) {} }); } catch (e) {}
       }
+
 
       // ✅ force a fresh paint cycle (prevents stuck-invisible hero button)
       try { window.__kickHeroPaint__ && window.__kickHeroPaint__(); } catch (e) {}
