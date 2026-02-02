@@ -14657,34 +14657,43 @@ function setAllPlayIcons(isPlaying){
 
     // Album/playlist green hero button (the one you found)
   if (heroBtn) {
+    // Keep aria label synced
     heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
 
-    // ✅ Install once: inline SVG icons (no Font Awesome glyph rendering)
-    if (!heroBtn.__svgInstalled) {
-      heroBtn.__svgInstalled = true;
+    // ✅ CSS-only icon (no SVG) — prevents the invisible paint/compositor failure
+    if (!heroBtn.__cssIconInstalled) {
+      heroBtn.__cssIconInstalled = true;
 
+      // Install CSS once (global)
+      if (!document.getElementById('hero-css-icon-style')) {
+        const style = document.createElement('style');
+        style.id = 'hero-css-icon-style';
+        style.textContent = `
+          #hero-play-btn .hero-css-icon { width:22px; height:22px; display:inline-block; position:relative; }
+          #hero-play-btn .hero-css-play { width:0; height:0; border-top:7px solid transparent; border-bottom:7px solid transparent; border-left:12px solid #000; position:absolute; left:6px; top:4px; }
+          #hero-play-btn .hero-css-pause { position:absolute; left:6px; top:4px; width:12px; height:14px; }
+          #hero-play-btn .hero-css-pause::before, #hero-play-btn .hero-css-pause::after { content:""; position:absolute; top:0; width:4px; height:14px; background:#000; border-radius:1px; }
+          #hero-play-btn .hero-css-pause::before { left:0; }
+          #hero-play-btn .hero-css-pause::after { right:0; }
+          #hero-play-btn.is-playing .hero-css-play { display:none; }
+          #hero-play-btn:not(.is-playing) .hero-css-pause { display:none; }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Render once (no SVG)
       heroBtn.innerHTML = `
-        <span class="hero-icon hero-icon-pause" aria-hidden="true" style="display:none; color:#000; line-height:0;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Pause">
-            <rect x="6" y="5" width="4" height="14" rx="1"></rect>
-            <rect x="14" y="5" width="4" height="14" rx="1"></rect>
-          </svg>
-        </span>
-        <span class="hero-icon hero-icon-play" aria-hidden="true" style="display:none; color:#000; line-height:0;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Play">
-            <path d="M8 5v14l11-7z"></path>
-          </svg>
+        <span class="hero-css-icon" aria-hidden="true">
+          <span class="hero-css-pause"></span>
+          <span class="hero-css-play"></span>
         </span>
       `;
     }
 
-    // ✅ Toggle visibility without rewriting DOM (prevents blink)
-    const pauseEl = heroBtn.querySelector('.hero-icon-pause');
-    const playEl  = heroBtn.querySelector('.hero-icon-play');
-
-    if (pauseEl) pauseEl.style.display = on ? 'inline-flex' : 'none';
-    if (playEl)  playEl.style.display  = on ? 'none' : 'inline-flex';
+    // ✅ Toggle only via class (no DOM rewrites)
+    heroBtn.classList.toggle('is-playing', on);
   }
+
 
   }
 
