@@ -23938,12 +23938,20 @@ function renderCollection(name, songs, isPlaylist = false) {
   currentIndex = -1;
 
     const heroPlay = document.getElementById('hero-play-btn');
-  if (heroPlay) {
+    if (heroPlay) {
     heroPlay.onclick = () => {
+      // If something is already loaded, treat the green button like "Next"
+      // (nextSong() already respects shuffle/repeat rules)
+      if (currentSong) {
+        try { nextSong(); } catch (e) {}
+        return;
+      }
+
       playContext = { type: (isPlaylist ? 'playlist' : 'album'), label: name };
       playQueue(queue, 0); // shuffle-start handled inside playQueue
     };
   }
+
 
 
     // Prefer custom playlist cover when viewing a playlist
