@@ -16089,7 +16089,11 @@ function persistPlayerState(isPlayingOverride = null) {
   lastPlayedTime = state.updatedAt;
   localStorage.setItem('lastPlayedTime', lastPlayedTime);
 
+  // ✅ Make dock appear immediately on first play (no waiting for intervals)
+  try { checkDockVisibility(); } catch (e) {}
+
   // ✅ Cloud sync (cross-device dock) — best-effort
+
   try {
     const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
     if (uid && typeof window.syncNowPlayingToCloud === "function") {
