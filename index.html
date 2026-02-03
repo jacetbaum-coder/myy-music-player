@@ -22218,8 +22218,27 @@ function openPlaylistPinMenuFromHero(e) {
       if (pid) id = pid;
     }
 
-    if (!id) return;
+    if (!id) {
+      // Album fallback: hero 3-dots should open album cover menu when not in a playlist
+      if (
+        typeof activeAlbumName !== 'undefined' &&
+        typeof activeAlbumArtist !== 'undefined' &&
+        activeAlbumName &&
+        activeAlbumArtist
+      ) {
+        const rect = e?.currentTarget?.getBoundingClientRect?.();
+        const x = rect ? (rect.left + rect.width / 2) : (e?.clientX || 16);
+        const y = rect ? (rect.bottom + 8) : (e?.clientY || 16);
+
+        try {
+          showAlbumCoverMenuAt(Math.round(x), Math.round(y), activeAlbumArtist, activeAlbumName);
+        } catch (err) {}
+      }
+      return;
+    }
+
     const rect = e?.currentTarget?.getBoundingClientRect?.();
+
 
     const x = rect ? (rect.left + rect.width / 2) : (e?.clientX || 16);
     const y = rect ? (rect.bottom + 8) : (e?.clientY || 16);
