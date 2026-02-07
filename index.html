@@ -14629,9 +14629,26 @@ async function playSpecificSong(url, title, album, artist, cover) {
         }, stepMs);
       } catch (e) {}
     }
-  } catch (err) {
+    } catch (err) {
     console.warn('Playback did not start automatically:', err);
     started = false;
+
+    // iOS Safari: AbortError can leave the hero area in a stale compositor frame.
+    // Force a repaint so the green hero button never "disappears" visually.
+    if (err && err.name === 'AbortError') {
+      try {
+        const btn = document.getElementById('hero-play-btn');
+        const hero = btn && btn.parentElement;
+        if (hero) {
+          hero.style.transform = 'translateZ(0)';
+          void hero.offsetHeight;
+          requestAnimationFrame(() => {
+            hero.style.transform = '';
+            void hero.offsetHeight;
+          });
+        }
+      } catch (e) {}
+    }
   }
 
   updateMediaSessionMetadata();
