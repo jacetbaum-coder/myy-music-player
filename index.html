@@ -19997,7 +19997,15 @@ try {
                 });
             } else {
                 history = history.filter(h => h.album !== album || h.type === 'playlist');
-                               history.unshift({ type: 'album', album, artist, cover });
+                                               // keep album recent
+                history.unshift({ type: 'album', album, artist, cover });
+
+                // also keep artist recent (so Recent Artists works)
+                if (artist) {
+                  history = history.filter(h => !(h && h.type === 'artist' && String(h.artist) === String(artist)));
+                  history.unshift({ type: 'artist', artist, cover });
+                }
+
             }
 
             try {
