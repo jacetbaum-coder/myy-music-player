@@ -12027,33 +12027,26 @@ try { window.currentView = 'album'; } catch (e) {}
 
   // ---- hero play button: prevent "invisible paint" compositor bug ----
   // Clones/replaces #hero-play-btn in-place (keeps onclick) to force a fresh paint.
-  window.__kickHeroPaint__ = function () {
-    const oldBtn = document.getElementById("hero-play-btn");
-    if (!oldBtn || !oldBtn.parentNode) return;
+   window.__kickHeroPaint__ = function () {
+    const btn = document.getElementById("hero-play-btn");
+    if (!btn) return;
 
-    // Throttle so we don't spam replacements
+    // Throttle so we don't spam paints
     const now = Date.now();
     if (window.__lastHeroKick && (now - window.__lastHeroKick) < 300) return;
     window.__lastHeroKick = now;
 
-    const parent = oldBtn.parentNode;
-    const next = oldBtn.nextSibling;
-    const oldOnClick = oldBtn.onclick;
+    // ✅ NON-replacing paint nudge (keeps same node; avoids iOS compositor glitch)
+    btn.style.transform = "translateZ(0)";
+    btn.style.willChange = "transform";
+    btn.style.backfaceVisibility = "hidden";
+    btn.style.contain = "paint";
+    btn.style.isolation = "isolate";
 
-    const newBtn = oldBtn.cloneNode(true);
-    newBtn.onclick = oldOnClick;
-
-    // Paint stability hints (safe if ignored)
-    newBtn.style.transform = "translateZ(0)";
-    newBtn.style.willChange = "transform";
-    newBtn.style.backfaceVisibility = "hidden";
-    newBtn.style.contain = "paint";
-    newBtn.style.isolation = "isolate";
-
-    if (next) parent.insertBefore(newBtn, next);
-    else parent.appendChild(newBtn);
-    parent.removeChild(oldBtn);
+    // force reflow
+    void btn.offsetHeight;
   };
+
 
   // Hook the big green hero play button to play this album
   // (Bind directly to the already-built currentQueue so it always works + respects shuffle)
