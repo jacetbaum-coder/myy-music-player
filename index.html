@@ -34,32 +34,53 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 
-   <style>
-/* ----------------------------- 🔥 Gesture responsiveness ----------------------------- */
-/* Kill 300ms tap delay + ghost highlights */
+<style>
+/* === HERO CLEAN ICONS (static, console-proven) === */
 
-button,
-.track-row,
-.track-title,
-#mobile-play-btn {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+#hero-play-btn .hero-css-icon{
+  width: 22px !important;
+  height: 22px !important;
+  position: relative !important;
 }
 
-/* Prevent text selection during fast taps/swipes */
-.track-row,
-.track-title {
-  user-select: none;
-  -webkit-user-select: none;
+/* Hide any existing glyph/mask rendering */
+#hero-play-btn .hero-css-icon > *{
+  display: none !important;
 }
 
-/* Allow smooth transforms during gestures */
-.track-row {
-  will-change: transform;
+/* PLAY triangle (shown when button is playing) */
+#hero-play-btn.is-playing .hero-css-icon::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 7px !important;
+  top: 3px !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-top: 8px solid transparent !important;
+  border-bottom: 8px solid transparent !important;
+  border-left: 12px solid rgba(0,0,0,1) !important;
 }
 
+/* PAUSE bars (shown when button is NOT playing) */
+#hero-play-btn:not(.is-playing) .hero-css-icon::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 2px !important;
+  top: 2px !important;
+  width: 18px !important;
+  height: 18px !important;
+  background: linear-gradient(
+    to right,
+    rgba(0,0,0,1) 0 35%,
+    rgba(0,0,0,0) 35% 55%,
+    rgba(0,0,0,1) 55% 90%,
+    rgba(0,0,0,0) 90% 100%
+  ) !important;
+  border-radius: 2px !important;
+}
 
-        /* --- ROOT & CORE RESET --- */
+/* --- ROOT & CORE RESET --- */
+
                 :root {
             --spotify-green: #1db954;
             --bg-base: #000000;
@@ -14748,22 +14769,8 @@ function setAllPlayIcons(isPlaying){
     if (!heroBtn.__cssIconInstalled) {
       heroBtn.__cssIconInstalled = true;
 
-      // Install CSS once (global)
-      /* === HERO CLEAN ICONS (static, console-proven) === */
+      // (hero clean icon CSS moved to static <style> in <head>)
 
-#hero-play-btn .hero-css-icon{
-  width: 22px !important;
-  height: 22px !important;
-  position: relative !important;
-}
-
-/* Hide any existing glyph/mask rendering */
-#hero-play-btn .hero-css-icon > *{
-  display: none !important;
-}
-
-/* PLAY triangle (shown when button is playing) */
-#hero-play-btn.is-playing .hero-css-icon::before{
   content: "" !important;
   position: absolute !important;
   left: 7px !important;
