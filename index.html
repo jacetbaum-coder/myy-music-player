@@ -14749,29 +14749,57 @@ function setAllPlayIcons(isPlaying){
       heroBtn.__cssIconInstalled = true;
 
       // Install CSS once (global)
-      if (!document.getElementById('hero-css-icon-style')) {
-        const style = document.createElement('style');
-        style.id = 'hero-css-icon-style';
-        style.textContent = `
-          #hero-play-btn .hero-css-icon { width:22px; height:22px; display:inline-block; position:relative; }
-          #hero-play-btn .hero-css-play { width:0; height:0; border-top:7px solid transparent; border-bottom:7px solid transparent; border-left:12px solid #000; position:absolute; left:6px; top:4px; }
-          #hero-play-btn .hero-css-pause { position:absolute; left:6px; top:4px; width:12px; height:14px; }
-          #hero-play-btn .hero-css-pause::before, #hero-play-btn .hero-css-pause::after { content:""; position:absolute; top:0; width:4px; height:14px; background:#000; border-radius:1px; }
-          #hero-play-btn .hero-css-pause::before { left:0; }
-          #hero-play-btn .hero-css-pause::after { right:0; }
-          #hero-play-btn.is-playing .hero-css-play { display:none; }
-          #hero-play-btn:not(.is-playing) .hero-css-pause { display:none; }
-        `;
-        document.head.appendChild(style);
+      /* === HERO CLEAN ICONS (static, console-proven) === */
+
+#hero-play-btn .hero-css-icon{
+  width: 22px !important;
+  height: 22px !important;
+  position: relative !important;
+}
+
+/* Hide any existing glyph/mask rendering */
+#hero-play-btn .hero-css-icon > *{
+  display: none !important;
+}
+
+/* PLAY triangle (shown when button is playing) */
+#hero-play-btn.is-playing .hero-css-icon::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 7px !important;
+  top: 3px !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-top: 8px solid transparent !important;
+  border-bottom: 8px solid transparent !important;
+  border-left: 12px solid rgba(0,0,0,1) !important;
+}
+
+/* PAUSE bars (shown when button is paused) */
+#hero-play-btn:not(.is-playing) .hero-css-icon::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 2px !important;
+  top: 2px !important;
+  width: 18px !important;
+  height: 18px !important;
+  background: linear-gradient(
+    to right,
+    rgba(0,0,0,1) 0 35%,
+    rgba(0,0,0,0) 35% 55%,
+    rgba(0,0,0,1) 55% 90%,
+    rgba(0,0,0,0) 90% 100%
+  ) !important;
+  border-radius: 2px !important;
+}
+
       }
 
       // Render once (no SVG)
       heroBtn.innerHTML = `
-        <span class="hero-css-icon" aria-hidden="true">
-          <span class="hero-css-pause"></span>
-          <span class="hero-css-play"></span>
-        </span>
-      `;
+  <span class="hero-css-icon" aria-hidden="true"></span>
+`;
+
     }
 
     // ✅ Toggle only via class (no DOM rewrites)
