@@ -10677,15 +10677,8 @@ if (scrollArea) {
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
-            document.getElementById('home-view')?.classList.remove('hidden');
-
-      // ✅ PERF: on mobile Home, do NOT keep the hidden Library grids alive
-      document.getElementById('grid-view')?.classList.add('hidden');
-      try { const ag = document.getElementById('album-grid'); if (ag) ag.innerHTML = ''; } catch (e) {}
-      try { const aag = document.getElementById('artist-album-grid'); if (aag) aag.innerHTML = ''; } catch (e) {}
-
+      document.getElementById('home-view')?.classList.remove('hidden');
 try { initMobileHomeTabsOnce(); } catch (e) {}
-
 try { renderHome(); } catch (e) {}
 
     } else {
