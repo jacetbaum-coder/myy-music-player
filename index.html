@@ -7427,8 +7427,18 @@ window.loadHistoryFromCloud = async function () {
     if (!res.ok || !data || !data.ok) return null;
 
     const arr = Array.isArray(data.history) ? data.history : [];
-    localStorage.setItem("historyLog", JSON.stringify(arr));
+        try { localStorage.setItem("historyLog", JSON.stringify(arr)); } catch (e) {}
+
+    // ✅ If Home is currently on screen, re-render the Home recents grid after history arrives
+    try {
+      const grid = document.getElementById("home-recents-grid");
+      if (grid && typeof window.renderHomeRecents === "function") {
+        window.renderHomeRecents("home-recents-grid");
+      }
+    } catch (e) {}
+
     return arr;
+
   } catch (e) {
     console.warn("load history-log failed", e);
     return null;
