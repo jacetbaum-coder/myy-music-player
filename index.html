@@ -19468,17 +19468,11 @@ try {
           stroke="white" stroke-width="2" stroke-linecap="round"/>
   </svg>
 
-    <input id="ps_search" placeholder="Find playlist" autocomplete="off"
+  <input id="ps_search" placeholder="Find playlist" autocomplete="off"
     style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
 </div>
 
-      <div id="__ps_savedin_row" style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;margin-bottom:6px;padding:0 2px;">
-        <div style="color:rgba(255,255,255,.85);font-weight:800;font-size:18px;">Saved in</div>
-        <button id="__ps_clear_all" type="button" style="background:transparent;border:none;color:#1ed760;font-weight:900;font-size:18px;padding:6px 0;">Clear all</button>
-      </div>
-
     `;
-
     sub.insertBefore(header, sub.firstChild);
   }
 
@@ -19556,21 +19550,8 @@ try {
   const qEl = header.querySelector('#ps_search');
   const cancelBtn = header.querySelector('#ps_cancel');
   const newBtn = header.querySelector('#ps_new');
-const clearAllBtn = header.querySelector('#__ps_clear_all');
 
-if (clearAllBtn && !clearAllBtn.__bound) {
-  clearAllBtn.__bound = true;
-  clearAllBtn.addEventListener('click', (e) => {
-    try { e.preventDefault(); } catch (_) {}
-    try { e.stopPropagation(); } catch (_) {}
-    try { e.stopImmediatePropagation(); } catch (_) {}
-    try { sub.__selectedPlaylistIds?.clear?.(); } catch (_) {}
-    try { renderBubbleList(qEl?.value || ""); } catch (_) {}
-  }, { passive: false });
-}
-
-function renderBubbleList(filterText) {
-
+  function renderBubbleList(filterText) {
     const needle = String(filterText || '').toLowerCase().trim();
     items.innerHTML = '';
 
@@ -19605,14 +19586,35 @@ function renderBubbleList(filterText) {
 
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
-  row.style.gap = '14px';
-row.style.padding = '12px 14px';
-row.style.color = '#fff';
-row.style.cursor = 'pointer';
+  row.style.gap = '10px';
+  row.style.padding = '14px 12px';
+  row.style.color = '#fff';
+  row.style.cursor = 'pointer';
 
-cover.style.width = '56px';
-cover.style.height = '56px';
+    // --- cover (left) ---
+  const pObj = (plsAll || []).find(p => {
+    const id = (p && (p.id || p.playlistId || p.playlist_id)) || '';
+    return String(id) === String(pid);
+  }) || null;
 
+  let coverSrc = '';
+  try {
+    if (pObj && typeof window.getEffectivePlaylistCover === 'function') {
+      coverSrc = String(window.getEffectivePlaylistCover(pObj) || '').trim();
+    }
+  } catch (e) {}
+
+  if (!coverSrc) {
+    coverSrc =
+      (pObj && (pObj.cover || pObj.coverUrl || pObj.image || pObj.img || pObj.art)) || '';
+    coverSrc = String(coverSrc || '').trim();
+  }
+
+  const cover = document.createElement('img');
+  cover.alt = '';
+  cover.draggable = false;
+  cover.style.width = '28px';
+  cover.style.height = '28px';
   cover.style.borderRadius = '6px';
   cover.style.objectFit = 'cover';
   cover.style.flex = '0 0 auto';
