@@ -19777,11 +19777,35 @@ sub.classList.add('open');
 }
 
 function closePlaylistSubmenu(event){
-  try { if (event) event.stopPropagation(); } catch(e){}
+  try{
+    if (event) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
+    }
+  }catch(e){}
+
   const sub = document.getElementById('playlist-submenu');
   if (!sub) return;
+
+  // ✅ animate down (matches the open/close sheet feel)
+  sub.style.display = 'block';
+  sub.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease';
   sub.classList.remove('open');
+  sub.style.transform = 'translateY(100%)';
+  sub.style.opacity = '0';
+
+  // ✅ then fully hide so background refresh can't "replace" it while visible
+  setTimeout(() => {
+    try{
+      sub.style.display = 'none';
+      sub.style.transition = '';
+      sub.style.transform = '';
+      sub.style.opacity = '';
+    }catch(e){}
+  }, 240);
 }
+
 
 /* ✅ iOS “slide to choose”: highlight while sliding, fire on lift (works for BOTH sheets) */
 (function bindMenuSlidePick(){
@@ -22855,7 +22879,7 @@ function renderPlaylists() {
     list.innerHTML = '';
 
   // ✅ CRITICAL: do NOT wipe submenu while it's open (it erases the playlist list we append)
-  if (!sub.classList.contains('open')) {
+  if (!sub.classList.contains('open') && sub.style.display !== 'block') {
     sub.innerHTML = `
       <div class="cm-handle"></div>
 
