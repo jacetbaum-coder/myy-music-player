@@ -14744,7 +14744,40 @@ function setAllPlayIcons(isPlaying){
     // Keep aria label synced
     heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
 
+    // ✅ HERO green button: real Play/Pause toggle (captures click so it can't trigger Next)
+    if (!heroBtn.__heroToggleInstalled) {
+      heroBtn.__heroToggleInstalled = true;
+
+      heroBtn.addEventListener('click', (e) => {
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        try { e.stopImmediatePropagation(); } catch (err) {}
+
+        const audio = document.getElementById('audio-player') || window.player || (typeof player !== 'undefined' ? player : null);
+        if (!audio) return console.log("[HERO-TOGGLE] missing audio");
+
+        if (audio.paused) {
+          const p = audio.play();
+          if (p && typeof p.catch === "function") {
+            p.catch(err => console.log("[HERO-TOGGLE] play() blocked", err));
+          }
+        } else {
+          audio.pause();
+        }
+
+        // Force repaint if you have the iOS “invisible hero” paint-kicker installed elsewhere
+        try { if (typeof window.__kickHeroPaint__ === "function") window.__kickHeroPaint__(); } catch (err) {}
+
+        console.log("[HERO-TOGGLE] click toggled", {
+          paused: audio.paused,
+          t: +Number(audio.currentTime || 0).toFixed(3),
+          src: audio.currentSrc || audio.src
+        });
+      }, true); // ✅ capture = wins over any .onclick assignments
+    }
+
     // ✅ CSS-only icon (no SVG) — prevents the invisible paint/compositor failure
+
     if (!heroBtn.__cssIconInstalled) {
       heroBtn.__cssIconInstalled = true;
 
