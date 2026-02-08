@@ -4756,46 +4756,63 @@ let playContext = null;
           sub.style.position = 'relative';
 
           sub.innerHTML = `
-            <div id="ps_header" style="position:sticky;top:0;z-index:10;background:#000;padding:14px 12px;border-bottom:1px solid rgba(255,255,255,.12)">
+            <div id="ps_header" style="position:sticky;top:0;z-index:10;background:#000;padding:18px 16px 14px 16px;border-bottom:1px solid rgba(255,255,255,.12)">
               <div style="display:flex;align-items:center;justify-content:space-between">
-                <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:16px;background:transparent;border:none;">Cancel</button>
-                <div style="color:#fff;font-weight:900;font-size:17px;">Add to playlist</div>
+                <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:18px;background:transparent;border:none;">Cancel</button>
+                <div style="color:#fff;font-weight:900;font-size:18px;">Add to playlist</div>
                 <div style="width:56px;"></div>
               </div>
 
               <button id="ps_new" type="button"
-                style="margin-top:12px;width:100%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:12px 14px;border:none;">
+                style="margin:18px auto 0 auto;display:block;width:64%;max-width:320px;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:14px 18px;border:none;font-size:22px;">
                 New playlist
               </button>
 
-              <div style="margin-top:10px;background:#111;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
-                <span style="color:rgba(255,255,255,.65)">🔎</span>
+              <div style="margin-top:16px;background:#2a2a2a;border-radius:14px;padding:14px 14px;display:flex;align-items:center;gap:12px;">
+                <span style="color:rgba(255,255,255,.75);font-size:18px;line-height:1">🔎</span>
                 <input id="ps_search" placeholder="Find playlist" autocomplete="off"
-                  style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
+                  style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:18px;" />
+              </div>
+
+              <div id="__ps_savedin_row" style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;margin-bottom:6px;padding:0 2px;">
+                <div style="color:rgba(255,255,255,.85);font-weight:800;font-size:18px;">Saved in</div>
+                <button id="__ps_clear_all" type="button" style="background:transparent;border:none;color:#1ed760;font-weight:900;font-size:18px;padding:6px 0;">Clear all</button>
               </div>
             </div>
 
-            <div id="ps_listwrap" style="overflow-y:auto;-webkit-overflow-scrolling:touch; padding:8px 0 90px 0;"></div>
+            <div id="ps_listwrap" style="overflow-y:auto;-webkit-overflow-scrolling:touch; padding:12px 0 120px 0;"></div>
 
             <button id="ps_done" type="button"
               style="position:absolute;left:50%;transform:translateX(-50%);bottom:10px;width:72%;max-width:360px;
-                     background:#1db954;color:#000;font-weight:950;border-radius:999px;padding:14px;border:none;z-index:20;">
+                     background:#1db954;color:#000;font-weight:950;border-radius:999px;padding:14px;border:none;z-index:20;font-size:22px;">
               Done
             </button>
           `;
+
 
           const listWrap = sub.querySelector('#ps_listwrap');
           const search   = sub.querySelector('#ps_search');
           const cancel   = sub.querySelector('#ps_cancel');
           const create   = sub.querySelector('#ps_new');
-          const done     = sub.querySelector('#ps_done');
+                    const done     = sub.querySelector('#ps_done');
+          const clearAll = sub.querySelector('#__ps_clear_all');
+
+			
 
           const headerH = sub.querySelector('#ps_header')?.getBoundingClientRect()?.height || 140;
           const maxH = Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
           sub.style.maxHeight = `${maxH}px`;
           listWrap.style.maxHeight = `${Math.max(200, maxH - headerH)}px`;
 
-          sub.__selected = new Set();
+                    sub.__selected = new Set();
+
+          if (clearAll) {
+            clearAll.onclick = () => {
+              sub.__selected.clear();
+              try { renderList(search?.value || ""); } catch (e) {}
+            };
+          }
+
 
           function canonTrackId(v) {
             let s = String(v || "").trim();
@@ -4848,26 +4865,42 @@ let playContext = null;
               if (!byId.has(pid)) byId.set(pid, p);
             }
 
-            function getPlaylistCover(p) {
-              return String(
+                        function getPlaylistCover(p) {
+              let eff = "";
+              try {
+                if (typeof window.getEffectivePlaylistCover === "function") {
+                  eff = String(window.getEffectivePlaylistCover(p) || "").trim();
+                }
+              } catch (e) {}
+
+              const src = eff ||
+                p?.autoCover ||
                 p?.cover ||
                 p?.coverUrl ||
                 p?.cover_url ||
                 p?.image ||
                 p?.img ||
                 p?.art ||
-                ""
-              ).trim();
+                "";
+
+              return String(src || "").trim();
             }
 
-            const rows = Array.from(byId.values())
+
+                        const rows = Array.from(byId.values())
               .map(p => ({
                 pid: getPlaylistId(p),
                 name: String(p?.name || "Untitled"),
-                cover: getPlaylistCover(p)
+                cover: getPlaylistCover(p),
+                count:
+                  (Array.isArray(p?.trackIds) ? p.trackIds.length : null) ??
+                  (Array.isArray(p?.tracks) ? p.tracks.length : null) ??
+                  (typeof p?.trackCount === "number" ? p.trackCount : null) ??
+                  null
               }))
               .filter(r => r.pid)
               .filter(r => !needle || r.name.toLowerCase().includes(needle));
+
 
             rows.forEach(({ pid, name, cover }) => {
 
@@ -4888,29 +4921,49 @@ let playContext = null;
 
                const img = document.createElement('img');
                img.alt = '';
-               img.style.width = '44px';
-               img.style.height = '44px';
-               img.style.borderRadius = '10px';
-               img.style.objectFit = 'cover';
-               img.style.background = 'rgba(255,255,255,.08)';
-               img.style.flex = '0 0 44px';
+                              img.style.width = '56px';
+               img.style.height = '56px';
+               img.style.flex = '0 0 56px';
+
                if (cover) img.src = cover;
                img.addEventListener('error', () => {
                  // If cover URL is bad/missing, just show the dark placeholder square
                  try { img.removeAttribute('src'); } catch (e) {}
                }, { once: true });
 
-               const label = document.createElement('div');
-               label.textContent = name;
-               label.style.fontWeight = '800';
-               label.style.fontSize = '16px';
-               label.style.textAlign = 'left';
-               label.style.minWidth = '0';
-               label.style.overflow = 'hidden';
-               label.style.textOverflow = 'ellipsis';
-               label.style.whiteSpace = 'nowrap';
+                             const textWrap = document.createElement('div');
+               textWrap.style.display = 'flex';
+               textWrap.style.flexDirection = 'column';
+               textWrap.style.minWidth = '0';
+               textWrap.style.gap = '6px';
 
-               left.append(img, label);
+               const titleEl = document.createElement('div');
+               titleEl.textContent = name;
+               titleEl.style.fontWeight = '900';
+               titleEl.style.fontSize = '22px';
+               titleEl.style.textAlign = 'left';
+               titleEl.style.minWidth = '0';
+               titleEl.style.overflow = 'hidden';
+               titleEl.style.textOverflow = 'ellipsis';
+               titleEl.style.whiteSpace = 'nowrap';
+               titleEl.style.color = '#fff';
+
+               const subEl = document.createElement('div');
+               const countText = (typeof count === 'number' && isFinite(count)) ? `${count} songs` : '';
+               subEl.textContent = countText;
+               subEl.style.fontWeight = '700';
+               subEl.style.fontSize = '18px';
+               subEl.style.textAlign = 'left';
+               subEl.style.minWidth = '0';
+               subEl.style.overflow = 'hidden';
+               subEl.style.textOverflow = 'ellipsis';
+               subEl.style.whiteSpace = 'nowrap';
+               subEl.style.color = 'rgba(255,255,255,.55)';
+
+               textWrap.appendChild(titleEl);
+               if (countText) textWrap.appendChild(subEl);
+
+               left.append(img, textWrap);
 
                const bubble = document.createElement('div');
 
