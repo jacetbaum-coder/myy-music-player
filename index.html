@@ -19468,11 +19468,17 @@ try {
           stroke="white" stroke-width="2" stroke-linecap="round"/>
   </svg>
 
-  <input id="ps_search" placeholder="Find playlist" autocomplete="off"
+    <input id="ps_search" placeholder="Find playlist" autocomplete="off"
     style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
 </div>
 
+      <div id="__ps_savedin_row" style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;margin-bottom:6px;padding:0 2px;">
+        <div style="color:rgba(255,255,255,.85);font-weight:800;font-size:18px;">Saved in</div>
+        <button id="__ps_clear_all" type="button" style="background:transparent;border:none;color:#1ed760;font-weight:900;font-size:18px;padding:6px 0;">Clear all</button>
+      </div>
+
     `;
+
     sub.insertBefore(header, sub.firstChild);
   }
 
@@ -19550,8 +19556,21 @@ try {
   const qEl = header.querySelector('#ps_search');
   const cancelBtn = header.querySelector('#ps_cancel');
   const newBtn = header.querySelector('#ps_new');
+const clearAllBtn = header.querySelector('#__ps_clear_all');
 
-  function renderBubbleList(filterText) {
+if (clearAllBtn && !clearAllBtn.__bound) {
+  clearAllBtn.__bound = true;
+  clearAllBtn.addEventListener('click', (e) => {
+    try { e.preventDefault(); } catch (_) {}
+    try { e.stopPropagation(); } catch (_) {}
+    try { e.stopImmediatePropagation(); } catch (_) {}
+    try { sub.__selectedPlaylistIds?.clear?.(); } catch (_) {}
+    try { renderBubbleList(qEl?.value || ""); } catch (_) {}
+  }, { passive: false });
+}
+
+function renderBubbleList(filterText) {
+
     const needle = String(filterText || '').toLowerCase().trim();
     items.innerHTML = '';
 
