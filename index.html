@@ -19605,35 +19605,14 @@ function renderBubbleList(filterText) {
 
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
-  row.style.gap = '10px';
-  row.style.padding = '14px 12px';
-  row.style.color = '#fff';
-  row.style.cursor = 'pointer';
+  row.style.gap = '14px';
+row.style.padding = '12px 14px';
+row.style.color = '#fff';
+row.style.cursor = 'pointer';
 
-    // --- cover (left) ---
-  const pObj = (plsAll || []).find(p => {
-    const id = (p && (p.id || p.playlistId || p.playlist_id)) || '';
-    return String(id) === String(pid);
-  }) || null;
+cover.style.width = '56px';
+cover.style.height = '56px';
 
-  let coverSrc = '';
-  try {
-    if (pObj && typeof window.getEffectivePlaylistCover === 'function') {
-      coverSrc = String(window.getEffectivePlaylistCover(pObj) || '').trim();
-    }
-  } catch (e) {}
-
-  if (!coverSrc) {
-    coverSrc =
-      (pObj && (pObj.cover || pObj.coverUrl || pObj.image || pObj.img || pObj.art)) || '';
-    coverSrc = String(coverSrc || '').trim();
-  }
-
-  const cover = document.createElement('img');
-  cover.alt = '';
-  cover.draggable = false;
-  cover.style.width = '28px';
-  cover.style.height = '28px';
   cover.style.borderRadius = '6px';
   cover.style.objectFit = 'cover';
   cover.style.flex = '0 0 auto';
