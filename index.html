@@ -22880,7 +22880,7 @@ function renderPlaylists() {
 
   // ✅ CRITICAL: do NOT wipe submenu while it's open (it erases the playlist list we append)
   if (!sub.classList.contains('open') && sub.style.display !== 'block') {
-    sub.innerHTML = `
+        sub.innerHTML = `
       <div class="cm-handle"></div>
 
       <div class="cm-submenu-header">
@@ -22890,15 +22890,148 @@ function renderPlaylists() {
         <div class="cm-submenu-title">Add song to playlist</div>
       </div>
 
-      <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>
+      <div id="ps_header">
+        <button id="ps_new" type="button" onclick="createNewPlaylist()">+ New Playlist</button>
+
+        <div id="ps_search_wrap">
+          <input id="ps_search" type="text" placeholder="Find playlist" autocomplete="off">
+        </div>
+      </div>
 
       <!-- playlists get appended here by JS -->
       <div id="playlist-submenu-items"></div>
-    `;
+
+      <button id="ps_done" type="button" onclick="closePlaylistSubmenu(event)">Done</button>
+       `;
   }
 
+  // ----------
+  // Spotify-like iPhone sheet styling (persistent)
+  // ----------
+  const psHeader = document.getElementById('ps_header');
+  const psNew = document.getElementById('ps_new');
+  const psSearch = document.getElementById('ps_search');
+  const psSearchWrap = document.getElementById('ps_search_wrap');
+  const psDone = document.getElementById('ps_done');
+
+  // New playlist button smaller + centered
+  if (psNew) {
+    psNew.style.width = "68%";
+    psNew.style.margin = "14px auto 0 auto";
+    psNew.style.display = "block";
+    psNew.style.padding = "14px 18px";
+    psNew.style.borderRadius = "999px";
+    psNew.style.fontSize = "20px";
+    psNew.style.fontWeight = "900";
+  }
+
+  // Header padding
+  if (psHeader) {
+    psHeader.style.padding = "18px 14px";
+  }
+
+  // Find playlist pushed lower
+  if (psSearchWrap) {
+    psSearchWrap.style.marginTop = "16px";
+  }
+
+  // Basic search input styling (keeps your existing CSS mostly in control)
+  if (psSearch) {
+    psSearch.style.width = "100%";
+    psSearch.style.padding = "12px 12px";
+    psSearch.style.borderRadius = "12px";
+    psSearch.style.border = "1px solid rgba(255,255,255,.15)";
+    psSearch.style.background = "rgba(255,255,255,.06)";
+    psSearch.style.color = "#fff";
+    psSearch.style.outline = "none";
+    psSearch.style.fontSize = "18px";
+    psSearch.style.fontWeight = "700";
+  }
+
+  // Insert "Saved in / Clear all" row (once)
+  try {
+    if (psHeader && !document.getElementById('__ps_savedin_row')) {
+      const row = document.createElement("div");
+      row.id = "__ps_savedin_row";
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.marginTop = "14px";
+      row.style.marginBottom = "6px";
+      row.style.padding = "0 2px";
+
+      const left = document.createElement("div");
+      left.textContent = "Saved in";
+      left.style.color = "rgba(255,255,255,.85)";
+      left.style.fontWeight = "800";
+      left.style.fontSize = "18px";
+
+      const right = document.createElement("button");
+      right.type = "button";
+      right.textContent = "Clear all";
+      right.style.background = "transparent";
+      right.style.border = "none";
+      right.style.color = "#1ed760";
+      right.style.fontWeight = "900";
+      right.style.fontSize = "18px";
+      right.style.padding = "6px 0";
+
+      // Clear all = unselect visuals (does NOT remove songs from playlists)
+      right.onclick = () => {
+        const listEl = document.getElementById('playlist-submenu-items');
+        const rows = Array.from(listEl ? listEl.children : []);
+        rows.forEach(r => {
+          r.dataset.__psSelected = "0";
+          const ind = r.querySelector("[data-ps-indicator='1']");
+          if (ind) {
+            ind.textContent = "";
+            ind.style.background = "transparent";
+            ind.style.border = "2px solid rgba(255,255,255,.35)";
+            ind.style.color = "#fff";
+          }
+        });
+      };
+
+      row.appendChild(left);
+      row.appendChild(right);
+
+      if (psSearchWrap && psSearchWrap.parentElement) {
+        psSearchWrap.parentElement.insertBefore(row, psSearchWrap.nextSibling);
+      } else {
+        psHeader.appendChild(row);
+      }
+    }
+  } catch (e) {}
+
+  // Done button smaller + centered
+  if (psDone) {
+    psDone.style.width = "58%";
+    psDone.style.margin = "12px auto 18px auto";
+    psDone.style.display = "block";
+    psDone.style.borderRadius = "999px";
+    psDone.style.padding = "16px 18px";
+    psDone.style.fontSize = "22px";
+    psDone.style.fontWeight = "900";
+  }
+
+  // Search filters playlist rows (bound once)
+  try {
+    if (psSearch && !psSearch.dataset.__psBound) {
+      psSearch.dataset.__psBound = "1";
+      psSearch.addEventListener('input', () => {
+        const q = String(psSearch.value || "").trim().toLowerCase();
+        const listEl = document.getElementById('playlist-submenu-items');
+        const rows = Array.from(listEl ? listEl.children : []);
+        rows.forEach((r) => {
+          const name = String(r.dataset.psName || "").toLowerCase();
+          r.style.display = (!q || name.includes(q)) ? 'flex' : 'none';
+        });
+      });
+    }
+  } catch (e) {}
 
   // ---------
+
   // Sort playlists by most-recent first (updated_at, else created_at)
   // ---------
   const sorted = (Array.isArray(playlists) ? playlists.slice() : []).sort((a, b) => {
@@ -23005,12 +23138,156 @@ function renderPlaylists() {
     });
   }
 
-  playlists.forEach((pl, i) => {
+    // Precompute target trackId (so we can show ✓ for already-saved rows)
+  const __psTargetSong = menuTargetSong;
+  let __psTargetTrackId = "";
+  try {
+    if (__psTargetSong) {
+      __psTargetTrackId =
+        __psTargetSong.id ||
+        __psTargetSong.r2Path ||
+        __psTargetSong.track_id ||
+        __psTargetSong.trackId ||
+        __psTargetSong.key ||
+        __psTargetSong.r2_key ||
+        "";
 
+      if (!__psTargetTrackId) {
+        const u = __psTargetSong.link || __psTargetSong.url || "";
+        try {
+          const parsed = new URL(u, window.location.origin);
+          __psTargetTrackId = parsed.searchParams.get("id") || "";
+        } catch (_) {}
+      }
+
+      __psTargetTrackId = canonTrackId(__psTargetTrackId);
+    }
+  } catch (e) {}
+
+  playlists.forEach((pl, i) => {
 
     const item = document.createElement('div');
     item.className = "menu-item";
-    item.innerText = pl.name;
+    item.dataset.psName = String(pl && pl.name ? pl.name : "");
+
+    // Spotify-ish row layout (iPhone sheet)
+    item.style.display = "flex";
+    item.style.alignItems = "center";
+    item.style.gap = "14px";
+    item.style.padding = "12px 14px";
+    item.style.cursor = "pointer";
+
+    // Cover (bigger + visible)
+    const img = document.createElement('img');
+    img.alt = String(pl && pl.name ? pl.name : "");
+    img.style.width = "56px";
+    img.style.height = "56px";
+    img.style.borderRadius = "12px";
+    img.style.objectFit = "cover";
+    img.style.flex = "0 0 auto";
+
+    try {
+      let eff = "";
+      try {
+        if (typeof window.getEffectivePlaylistCover === "function") {
+          eff = String(window.getEffectivePlaylistCover(pl) || "").trim();
+        }
+      } catch (e) {}
+
+      if (eff) {
+        // IMPORTANT: do NOT cache-bust data: URLs
+        img.src = eff.startsWith("data:")
+          ? eff
+          : (eff + (eff.includes("?") ? "&" : "?") + "cb=" + Date.now());
+      }
+    } catch (e) {}
+
+    // Ensure visible
+    img.style.opacity = "1";
+    img.style.display = "block";
+    img.style.visibility = "visible";
+
+    item.appendChild(img);
+
+    // Text: title + subtitle (song count)
+    const textWrap = document.createElement("div");
+    textWrap.style.display = "flex";
+    textWrap.style.flexDirection = "column";
+    textWrap.style.minWidth = "0";
+    textWrap.style.gap = "6px";
+
+    const titleEl = document.createElement("div");
+    titleEl.textContent = String(pl && pl.name ? pl.name : "");
+    titleEl.style.fontSize = "22px";
+    titleEl.style.fontWeight = "900";
+    titleEl.style.color = "#fff";
+    titleEl.style.whiteSpace = "nowrap";
+    titleEl.style.overflow = "hidden";
+    titleEl.style.textOverflow = "ellipsis";
+
+    const count =
+      (Array.isArray(pl && pl.trackIds) ? pl.trackIds.length : null) ??
+      (Array.isArray(pl && pl.tracks) ? pl.tracks.length : null) ??
+      (Array.isArray(pl && pl.songs) ? pl.songs.length : null) ??
+      (typeof (pl && pl.trackCount) === "number" ? pl.trackCount : null) ??
+      (typeof (pl && pl.count) === "number" ? pl.count : null) ??
+      (typeof (pl && pl.songCount) === "number" ? pl.songCount : null);
+
+    const subtitle = (typeof count === "number" && isFinite(count)) ? (count + " songs") : "";
+
+    const subEl = document.createElement("div");
+    subEl.textContent = subtitle;
+    subEl.style.fontSize = "18px";
+    subEl.style.fontWeight = "700";
+    subEl.style.color = "rgba(255,255,255,.55)";
+    subEl.style.whiteSpace = "nowrap";
+    subEl.style.overflow = "hidden";
+    subEl.style.textOverflow = "ellipsis";
+
+    textWrap.appendChild(titleEl);
+    if (subtitle) textWrap.appendChild(subEl);
+
+    item.appendChild(textWrap);
+
+    // Right indicator: Spotify-like ring / green ✓
+    const indicator = document.createElement("div");
+    indicator.dataset.psIndicator = "1";
+    indicator.setAttribute("data-ps-indicator", "1");
+    indicator.style.marginLeft = "auto";
+    indicator.style.width = "26px";
+    indicator.style.height = "26px";
+    indicator.style.borderRadius = "999px";
+    indicator.style.display = "flex";
+    indicator.style.alignItems = "center";
+    indicator.style.justifyContent = "center";
+    item.appendChild(indicator);
+
+    const setIndicator = (selected) => {
+      item.dataset.__psSelected = selected ? "1" : "0";
+      if (selected) {
+        indicator.textContent = "✓";
+        indicator.style.background = "#1ed760";
+        indicator.style.border = "2px solid #1ed760";
+        indicator.style.color = "#000";
+        indicator.style.fontWeight = "900";
+        indicator.style.fontSize = "18px";
+      } else {
+        indicator.textContent = "";
+        indicator.style.background = "transparent";
+        indicator.style.border = "2px solid rgba(255,255,255,.35)";
+        indicator.style.color = "#fff";
+      }
+    };
+
+    // Initial selection: if target track is already in this playlist
+    let wasSelected = false;
+    try {
+      if (__psTargetTrackId && Array.isArray(pl && pl.trackIds)) {
+        const existingCanon = new Set(pl.trackIds.map(canonTrackId));
+        wasSelected = existingCanon.has(__psTargetTrackId);
+      }
+    } catch (e) {}
+    setIndicator(wasSelected);
 
     item.onclick = async () => {
   const s = menuTargetSong;
@@ -23060,7 +23337,6 @@ function renderPlaylists() {
 
   const existingCanon = new Set(pl.trackIds.map(canonTrackId));
 
-
   if (!existingCanon.has(trackId)) {
     pl.trackIds.push(trackId);
   }
@@ -23090,7 +23366,6 @@ function renderPlaylists() {
   closeContextMenu();
 
   // ✅ Spotify-style confirmation toast
-
   try {
     const rawTitle = (s && (s.title || s.name || s.fileName)) ? (s.title || s.name || s.fileName) : "";
     const songLabel = rawTitle ? String(rawTitle).replace(/\.[^/.]+$/, "") : "Song";
@@ -23098,13 +23373,14 @@ function renderPlaylists() {
     showActionToast(`"${songLabel}" added to ${plName}`);
   } catch (e) {}
 
-
   // ✅ Pull latest cloud playlist meta soon (counts/covers/other devices)
   try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
 };
 
-
     if (psItems) psItems.appendChild(item);
+
+  });
+
 
   });
 } // This closes renderPlaylists
