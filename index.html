@@ -19586,8 +19586,9 @@ try {
 
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
-  row.style.gap = '10px';
-  row.style.padding = '14px 12px';
+   row.style.gap = '14px';
+  row.style.padding = '12px 14px';
+
   row.style.color = '#fff';
   row.style.cursor = 'pointer';
 
@@ -19613,15 +19614,16 @@ try {
   const cover = document.createElement('img');
   cover.alt = '';
   cover.draggable = false;
-  cover.style.width = '28px';
-  cover.style.height = '28px';
-  cover.style.borderRadius = '6px';
+    cover.style.width = '56px';
+  cover.style.height = '56px';
+  cover.style.borderRadius = '10px';
+
   cover.style.objectFit = 'cover';
   cover.style.flex = '0 0 auto';
   cover.style.background = 'rgba(255,255,255,.10)';
   cover.style.border = '1px solid rgba(255,255,255,.10)';
 
-  // IMPORTANT: do NOT append cache-busters to data: URLs
+    // IMPORTANT: do NOT append cache-busters to data: URLs
   if (coverSrc) {
     cover.src = coverSrc.startsWith('data:')
       ? coverSrc
@@ -19629,20 +19631,66 @@ try {
   }
 
 
-  // --- label (middle) ---
-  const label = document.createElement('div');
-  label.textContent = name;
-  label.style.fontWeight = '800';
-  label.style.fontSize = '16px';
-  label.style.flex = '1 1 auto';
-  label.style.textAlign = 'left';
-  label.style.paddingLeft = '2px';
-  label.style.minWidth = '0';
-  label.style.whiteSpace = 'nowrap';
-  label.style.overflow = 'hidden';
-  label.style.textOverflow = 'ellipsis';
 
-  // --- bubble (right) ---
+   // --- text (middle) ---
+  const textWrap = document.createElement('div');
+  textWrap.style.display = 'flex';
+  textWrap.style.flexDirection = 'column';
+  textWrap.style.minWidth = '0';
+  textWrap.style.gap = '4px';
+  textWrap.style.flex = '1 1 auto';
+  textWrap.style.textAlign = 'left';
+
+  const titleEl = document.createElement('div');
+  titleEl.textContent = name;
+  titleEl.style.fontWeight = '900';
+  titleEl.style.fontSize = '18px';
+  titleEl.style.color = '#fff';
+  titleEl.style.whiteSpace = 'nowrap';
+  titleEl.style.overflow = 'hidden';
+  titleEl.style.textOverflow = 'ellipsis';
+
+  const subEl = document.createElement('div');
+  subEl.style.fontWeight = '700';
+  subEl.style.fontSize = '14px';
+  subEl.style.color = 'rgba(255,255,255,.55)';
+  subEl.style.whiteSpace = 'nowrap';
+  subEl.style.overflow = 'hidden';
+  subEl.style.textOverflow = 'ellipsis';
+
+  // subtitle: "[folder] • N songs" (best-effort)
+  let subtitle = '';
+  try {
+    const pl = pObj;
+    let n =
+      (Array.isArray(pl?.trackIds) ? pl.trackIds.length : null) ??
+      (Array.isArray(pl?.tracks) ? pl.tracks.length : null) ??
+      (typeof pl?.trackCount === 'number' ? pl.trackCount : null) ??
+      (typeof pl?.count === 'number' ? pl.count : null);
+
+    const folderId = (pl?.folderId || pl?.folder_id || pl?.folder || '');
+    let folderName = '';
+    if (folderId) {
+      try {
+        const folders = JSON.parse(localStorage.getItem('folders') || '[]');
+        if (Array.isArray(folders)) {
+          const f = folders.find(x => String(x?.id || '') === String(folderId));
+          folderName = String(f?.name || '');
+        }
+      } catch (e) {}
+    }
+
+    if (folderName && typeof n === 'number' && isFinite(n)) subtitle = `📁 ${folderName} • ${n} songs`;
+    else if (folderName) subtitle = `📁 ${folderName}`;
+    else if (typeof n === 'number' && isFinite(n)) subtitle = `${n} songs`;
+  } catch (e) {}
+
+  subEl.textContent = subtitle;
+
+  textWrap.appendChild(titleEl);
+  if (subtitle) textWrap.appendChild(subEl);
+
+
   const bubble = document.createElement('div');
   bubble.style.width = '26px';
   bubble.style.height = '26px';
@@ -19657,7 +19705,8 @@ bubble.style.setProperty('opacity', '1', 'important');
   bubble.style.marginLeft = 'auto';
 
   row.appendChild(cover);
-  row.appendChild(label);
+    row.appendChild(textWrap);
+
   row.appendChild(bubble);
 
   function paint() {
