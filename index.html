@@ -19555,7 +19555,19 @@ try {
     const needle = String(filterText || '').toLowerCase().trim();
     items.innerHTML = '';
 
-    const plsAll = Array.isArray(window.playlists) ? window.playlists : [];
+        const plsAllRaw = [
+      ...(Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : []),
+      ...(Array.isArray(window.playlists) ? window.playlists : []),
+    ].filter(Boolean);
+
+    // de-dupe by playlist id (prefer later entries)
+    const __plById = new Map();
+    plsAllRaw.forEach(p => {
+      const id = (p && (p.id || p.playlistId || p.playlist_id)) || '';
+      if (id) __plById.set(String(id), p);
+    });
+    const plsAll = Array.from(__plById.values());
+
     const rows = plsAll
       .filter(p => {
         const name = String(p?.name || '');
@@ -19566,6 +19578,7 @@ try {
         name: String(p?.name || 'Untitled'),
       }))
       .filter(x => !!x.pid);
+
 
     rows.forEach(({ pid, name }) => {
   const row = document.createElement('div');
@@ -19578,14 +19591,24 @@ try {
   row.style.color = '#fff';
   row.style.cursor = 'pointer';
 
-  // --- cover (left) ---
+    // --- cover (left) ---
   const pObj = (plsAll || []).find(p => {
     const id = (p && (p.id || p.playlistId || p.playlist_id)) || '';
     return String(id) === String(pid);
   }) || null;
 
-  const coverSrc =
-    (pObj && (pObj.cover || pObj.coverUrl || pObj.image || pObj.img || pObj.art)) || '';
+  let coverSrc = '';
+  try {
+    if (pObj && typeof window.getEffectivePlaylistCover === 'function') {
+      coverSrc = String(window.getEffectivePlaylistCover(pObj) || '').trim();
+    }
+  } catch (e) {}
+
+  if (!coverSrc) {
+    coverSrc =
+      (pObj && (pObj.cover || pObj.coverUrl || pObj.image || pObj.img || pObj.art)) || '';
+    coverSrc = String(coverSrc || '').trim();
+  }
 
   const cover = document.createElement('img');
   cover.alt = '';
@@ -19597,7 +19620,14 @@ try {
   cover.style.flex = '0 0 auto';
   cover.style.background = 'rgba(255,255,255,.10)';
   cover.style.border = '1px solid rgba(255,255,255,.10)';
-  if (coverSrc) cover.src = String(coverSrc);
+
+  // IMPORTANT: do NOT append cache-busters to data: URLs
+  if (coverSrc) {
+    cover.src = coverSrc.startsWith('data:')
+      ? coverSrc
+      : (coverSrc + (coverSrc.includes('?') ? '&' : '?') + 'cb=' + Date.now());
+  }
+
 
   // --- label (middle) ---
   const label = document.createElement('div');
