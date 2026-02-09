@@ -11181,20 +11181,25 @@ function onNavTap(viewType) {
     // If active tab says "library" but current view is album/playlist/etc
     if (currentType && currentType !== viewType) {
 
-      // ✅ SPECIAL CASE:
-      // Inside album/playlist → double-tap Library should go BACK
+            // ✅ SPECIAL CASE:
+      // Inside album/playlist → single tap Library should go BACK (restore exact location)
+      // Double-tap Library should go to Library ROOT.
       if (viewType === 'library') {
         const now = Date.now();
         const last = __navTapLast[viewType] || 0;
 
         if (now - last <= 350) {
+          // double tap → root library
           __navTapLast[viewType] = 0;
-          goBack(); // restores Library + scroll position
+          popToRootSection('library');
         } else {
+          // single tap → back to previous (preserves scroll position)
           __navTapLast[viewType] = now;
+          goBack();
         }
         return;
       }
+
 
       // Other tabs keep old behavior
       popToRootSection(viewType);
