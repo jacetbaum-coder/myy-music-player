@@ -10714,9 +10714,20 @@ function showView(viewType, playlistIndex = null) {
     }
   } catch (e) {}
 
+  // ✅ CRITICAL FIX: deep overlay (#album-view) must ALWAYS start at top:0
+  // Prevents the "album opens above you, must scroll to top to see it" bug.
+  try {
+    const av = document.getElementById('album-view');
+    if (av) {
+      av.style.removeProperty('top');  // clears any inline top:-scrollTop
+      av.style.top = '0px';            // hard safety
+    }
+  } catch (e) {}
 
 
-    activePlaylistIndex = playlistIndex;
+
+     activePlaylistIndex = playlistIndex;
+
   activePlaylistId = null;
 
   // ✅ Remember which bottom tab is the current "root" section on mobile.
