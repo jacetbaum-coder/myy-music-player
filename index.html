@@ -14908,14 +14908,15 @@ function setAllPlayIcons(isPlaying){
     // Keep aria label synced
     heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
 
-    // ✅ HERO green button: real Play/Pause toggle (captures click so it can't trigger Next)
-    if (!heroBtn.__heroToggleInstalled) {
+        // ✅ HERO green button: Play/Pause toggle
+    // IMPORTANT: album/playlist views set heroBtn.onclick to "start this queue".
+    // If onclick exists, DO NOT install a listener that can block switching.
+    if (!heroBtn.__heroToggleInstalled && !heroBtn.onclick) {
       heroBtn.__heroToggleInstalled = true;
 
       heroBtn.addEventListener('click', (e) => {
         try { e.preventDefault(); } catch (err) {}
         try { e.stopPropagation(); } catch (err) {}
-        try { e.stopImmediatePropagation(); } catch (err) {}
 
         const audio = document.getElementById('audio-player') || window.player || (typeof player !== 'undefined' ? player : null);
         if (!audio) return console.log("[HERO-TOGGLE] missing audio");
@@ -14937,8 +14938,9 @@ function setAllPlayIcons(isPlaying){
           t: +Number(audio.currentTime || 0).toFixed(3),
           src: audio.currentSrc || audio.src
         });
-      }, true); // ✅ capture = wins over any .onclick assignments
+      }, false); // ✅ NOT capture (must not block view-specific onclick)
     }
+
 
     // ✅ CSS-only icon (no SVG) — prevents the invisible paint/compositor failure
 
