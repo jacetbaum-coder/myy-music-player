@@ -1286,7 +1286,83 @@ body.song-multiselect .track-row:hover{
   gap: 10px;
 }
 
+/* ✅ MOBILE: Spotify Recents-like Library grid (3-col, tight, titles visible) */
+@media (max-width: 768px){
+
+  /* Solid black behind the Library grid area */
+  #grid-view{
+    background: #000 !important;
+  }
+
+  /* Tighten the grid spacing */
+  #album-grid{
+    gap: 8px !important;
+  }
+
+  /* IMPORTANT: do NOT clip the whole card (this is what hid titles) */
+  #album-grid .album-card{
+    overflow: visible !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Tighten card padding (your tiles are .album-card.p-4) */
+  #album-grid .album-card.p-4{
+    padding: 8px !important;
+    background: transparent !important;
+  }
+
+  /* Make ONLY the cover square */
+  #album-grid .album-card img{
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    display: block !important;
+    margin-bottom: 6px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Ensure text containers render */
+  #album-grid .album-card > div,
+  #album-grid .album-card .mt-2{
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Title: white */
+  #album-grid .album-card h3{
+    display: block !important;
+    color: #fff !important;
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    margin-top: 2px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Artist: gray */
+  #album-grid .album-card p{
+    display: block !important;
+    color: rgba(255,255,255,0.65) !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+    margin-top: 2px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
 .dock-hidden { transform: translateY(100%); }
+
 
 /* Dock artist name should NOT be interactive (no hover, no click) */
 #p-artist {
