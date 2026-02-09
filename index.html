@@ -1709,6 +1709,13 @@ body.np-open #context-menu{
   overflow-x: hidden;
 }
 
+/* ✅ CRITICAL: when Now Playing is open, keep this sheet ABOVE it */
+body.np-open #playlist-submenu{
+  z-index: 10000000 !important;
+}
+
+}
+
 
 
 
