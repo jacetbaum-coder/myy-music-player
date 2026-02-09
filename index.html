@@ -21685,14 +21685,74 @@ function createNewPlaylist() {
       try { renderPlaylists(); } catch (e) {}
       try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
 
-      // Find the newly-created playlist index (prefer last match by name)
+            // Find the newly-created playlist index (prefer last match by name)
       const pls = Array.isArray(window.playlists) ? window.playlists : [];
       let idx = -1;
       for (let i = pls.length - 1; i >= 0; i--) {
         if (String(pls[i]?.name || '').trim() === name) { idx = i; break; }
       }
 
-      // ✅ Register undo (delete the newly-created playlist)
+      // ✅ NEW: auto-add the current menuTargetSong to this new playlist
+      try {
+        const __canon = (v) => {
+          let s = String(v || '').trim();
+          if (!s) return '';
+          try {
+            if (s.includes('://')) {
+              const u = new URL(s);
+              const id = u.searchParams.get('id');
+              if (id) s = id;
+            }
+          } catch (e) {}
+          if (s.includes('?id=')) {
+            try { s = (s.split('?id=')[1] || '').split('&')[0] || s; } catch (e) {}
+          }
+          try { s = decodeURIComponent(s); } catch (e) {}
+          return s.replace(/^\/+/, '').trim();
+        };
+
+        const __resolveTid = () => {
+          const s = window.menuTargetSong;
+          if (!s) return '';
+          let tid = s.id || s.r2Path || s.track_id || s.trackId || s.key || s.r2_key || '';
+          if (!tid) {
+            const u = s.link || s.url || '';
+            try {
+              const parsed = new URL(u, window.location.origin);
+              tid = parsed.searchParams.get('id') || '';
+            } catch (_) {}
+          }
+          return __canon(tid);
+        };
+
+        const __tid = __resolveTid();
+        const __pid = (idx >= 0)
+          ? String(pls[idx]?.id || pls[idx]?.playlistId || pls[idx]?.playlist_id || '').trim()
+          : '';
+
+        if (__pid && __tid && typeof window.addTrackToPlaylistInCloud === 'function') {
+          // 1) cloud add
+          await window.addTrackToPlaylistInCloud(__pid, __tid);
+
+          // 2) local UI update so it shows "1 song" immediately
+          try {
+            const pl = pls.find(p => String(p?.id || p?.playlistId || p?.playlist_id || '').trim() === __pid);
+            if (pl) {
+              if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+              const set = new Set(pl.trackIds.map(__canon));
+              if (!set.has(__tid)) pl.trackIds.push(__tid);
+              pl.songCount = pl.trackIds.length;
+              pl.updated_at = new Date().toISOString();
+              try { if (typeof window.savePlaylists === 'function') window.savePlaylists(); } catch (e2) {}
+              try { if (typeof window.updatePlaylistAutoCoverById === 'function') await window.updatePlaylistAutoCoverById(__pid); } catch (e3) {}
+            }
+          } catch (e4) {}
+
+          try { renderPlaylists(); } catch (e5) {}
+          try { if (typeof renderHome === "function") renderHome(); } catch (e6) {}
+        }
+      } catch (e) {}
+
 try{
   if (idx >= 0 && typeof window.__pushUndo === "function") {
     const __pid = String(pls[idx]?.id || pls[idx]?.playlistId || pls[idx]?.playlist_id || "").trim();
