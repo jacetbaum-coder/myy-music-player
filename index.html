@@ -832,9 +832,8 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
   width: 100%;
   overflow-y: auto;              /* ✅ vertical scrolling */
-overscroll-behavior-y: contain; /* ✅ stop iOS rubber-band bounce */
-overscroll-behavior-x: none;    /* ✅ no sideways rubber-band */
--webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: touch;
+
   /* subtle accent tint at top -> black */
   background: linear-gradient(180deg,
       rgba(var(--accent-rgb), 0.28) 0%,
@@ -12085,8 +12084,11 @@ try {
 pushNavCurrent();
 setNavCurrent({ type: 'album', albumName: name });
 
-// Preserve Library scroll position when opening album.
-// Do NOT force main-scroll-area to top here.
+// ✅ Critical: make the album visible immediately (prevents “album is above library; scroll up to see it”)
+try {
+  const area = document.getElementById('main-scroll-area');
+  if (area && !window.__isBackNav) area.scrollTop = 0;
+} catch (e) {}
 
 
   playContext = { type: 'album', label: name };
