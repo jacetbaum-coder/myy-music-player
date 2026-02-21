@@ -25027,8 +25027,9 @@ setInterval(checkDockVisibility, 30000);
     function getText(){ return document.getElementById('ptr-text'); }
 
     const THRESH = 92;   // pull distance to trigger
-const MAX = 240;     // max visual pull (was 150)
-const SNAP = 92;     // where it sits while “refreshing” (was 78)
+    const MAX = 150;     // max visual pull
+    const SNAP = 78;     // where it sits while “refreshing”
+
     let active = false;
     let pulling = false;
     let refreshing = false;
@@ -25036,10 +25037,6 @@ const SNAP = 92;     // where it sits while “refreshing” (was 78)
     let startY = 0;
     let current = 0;
     let pid = null;
-
-// ✅ rAF batching for smoother PTR updates on mobile
-let ptrRAF = 0;
-let ptrNextPx = 0;
 
     function setOverlayHeight(px){
       const ov = getOverlay();
@@ -25053,7 +25050,7 @@ let ptrNextPx = 0;
       if (!area) return;
 
       if (animated) {
-        area.style.transition = 'transform 340ms cubic-bezier(0.16, 1, 0.3, 1)';
+        area.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       } else {
         area.style.transition = 'none';
       }
@@ -25222,29 +25219,14 @@ setIconRotation(0);
         e.preventDefault();
 
         // dampen slightly for “weight”
-        // ✅ Faster response for small pulls, heavier damping after
-const easedDy = (dy < 140)
-  ? (dy * 1.05)
-  : (140 + (dy - 140) * 0.35);
-
-const px = Math.min(MAX, Math.round(easedDy));
+        const px = Math.min(MAX, Math.round(dy * 0.65));
         current = px;
 
-        ptrNextPx = px;
+        setOverlayHeight(px);
+        setAreaTranslate(px, false);
 
-if (!ptrRAF) {
-  ptrRAF = requestAnimationFrame(() => {
-    ptrRAF = 0;
-
-    const v = ptrNextPx;
-
-    setOverlayHeight(v);
-    setAreaTranslate(v, false);
-
-    // rotate icon based on pull distance
-    setIconRotation(v * 3.2);
-  });
-}
+        // rotate icon based on pull distance
+        setIconRotation(px * 3.2);
 
         if (px >= THRESH) {
           setStatusText('Release to refresh');
