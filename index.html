@@ -14,7 +14,7 @@
     <link rel="icon" href="favicon.ico">
     
     <!-- iOS Home Screen icon -->
-    <link rel="apple-touch-icon" href="apple-touch-ifcon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <!-- App name -->
 
@@ -27,7 +27,6 @@
 
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,11 +149,6 @@ button,
   transition: none;
 }
 
-@keyframes ptrSpin{
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
 /* Mobile only: makes the drag feel “owned” by the app */
 @media (max-width: 768px){
   #main-scroll-area.ptr-pulling{
@@ -163,30 +157,6 @@ button,
 }
 
 /* Mobile "Recently listened" rectangles (Spotify-ish) */
-
-/* ✅ Search > Recent must stack 1-per-row (Spotify list) */
-#search-results{
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
-  row-gap: 0 !important;
-  column-gap: 0 !important;
-  columns: unset !important;
-  column-count: 1 !important;
-}
-
-/* ✅ each recent item must take the full line */
-#search-results [data-search-click-recent]{
-  width: 100% !important;
-  max-width: none !important;
-  flex: 0 0 auto !important;
-
-  /* if any parent becomes grid, force full-span */
-  grid-column: 1 / -1 !important;
-
-  float: none !important;
-  clear: both !important;
-}
 
 .mobile-recent-card {
 
@@ -301,15 +271,6 @@ button,
   padding: 0 2px;
 }
 
-  font-weight: 900;
-  font-size: 16px;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 2px;
-}
-
 .home-square-card .sub{
   font-size: 12px;
   color: var(--text-sub);
@@ -378,18 +339,10 @@ button,
     user-select: none;
   }
 
-  /* ✅ Mobile: make these views full-screen overlays so they don't get pushed below main content */
-@media (max-width: 768px) {
-    #settings-view,
-  #recently-deleted-view,
-  #search-view {
-
-
   /* ✅ CRITICAL: when Home is visible, don't let Library exist below it */
   #home-view:not(.hidden) ~ #grid-view {
     display: none !important;
   }
-}
 
 
   /* extra safety for text + images */
@@ -467,8 +420,6 @@ body::before{
   background: var(--bg-surface);
   z-index: 999999;
   pointer-events: none;
-}
-
 }
 
 /* Prevent any view container from forcing the page wider than the screen */
@@ -622,8 +573,6 @@ img {
           mask-image: none;
 }
 
-}
-
 /* When CENTER lyrics is open (mic mode), hide right lyrics + let bio take that space */
 body.lyrics-mode #right-lyrics-card{
   display: none;
@@ -691,10 +640,6 @@ body.queue-mode #right-queue-list .queue-hamburger{
   #right-sidebar { display: none !important; }
   #resizer-right { display: none !important; }
 }
-
-/* Make sure the lyrics card can shrink + scroll properly */
-.right-lyrics-card { min-height: 0; }
-.right-lyrics-text { min-height: 0; }
 
 /* -----------------------
    CENTER LYRICS (Dock mic)
@@ -1577,10 +1522,6 @@ body.np-open #context-menu{
     bottom: calc(env(safe-area-inset-bottom) - 96px);
 }
 
-}
-
-}
-
 
 #context-menu .cm-handle{
   width: 44px;
@@ -1714,10 +1655,6 @@ body.np-open #playlist-submenu{
   z-index: 10000000 !important;
 }
 
-}
-
-
-
 
 /* ✅ submenu items scroll (not the whole sheet) */
   .ps_pl_icon{
@@ -1823,8 +1760,6 @@ body.np-open #playlist-submenu{
 
   /* ✅ Approved: last row not blocked */
   padding-bottom: 140px;
-}
-
 }
 
 
@@ -2172,8 +2107,6 @@ body.np-open #playlist-submenu{
   visibility: hidden;
 }
 
-}
-
 /* ===== QUEUE TOAST (mobile) ===== */
 #queue-toast{
   position: fixed;
@@ -2243,11 +2176,6 @@ body.np-open #playlist-submenu{
 /* while dragging, follow finger (no easing) */
 #queue-sheet.qs.qs-dragging{
   transition: none !important;
-}
-
-/* lock page behind the sheet (prevents weird 2-finger scrolling) */
-body.qs-lock{
-  overflow: hidden !important;
 }
 
 /* Sheet container */
@@ -2329,17 +2257,6 @@ body.qs-lock{
   -webkit-overflow-scrolling: touch;
 }
 
-/* Keep this next line EXACTLY as-is (it’s your next rule that already exists) */
-#queue-handle{
-
-  width: 46px;
-  height: 5px;
-  border-radius: 9999px;
-  background: rgba(255,255,255,0.35);
-  margin: 10px auto 8px;
-  flex: 0 0 auto;
-}
-
 #queue-header{
   padding: 0 18px 10px;
   display: flex;
@@ -2397,45 +2314,6 @@ body.qs-lock{
 
 .queue-row:hover{
   background: rgba(255,255,255,0.06);
-}
-
-.queue-cover{
-  width: 40px;               /* ↓ smaller cover */
-  height: 40px;
-  border-radius: 6px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.queue-main{
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.queue-song{
-  font-size: 14px;           /* ↓ smaller title */
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.queue-artist{
-  font-size: 12px;           /* ↓ smaller artist */
-  opacity: 0.75;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.queue-hamburger{
-  margin-left: auto;
-  opacity: 0.6;
-  font-size: 16px;           /* ↓ smaller icon */
 }
 
 
@@ -3217,9 +3095,9 @@ body.qs-lock {
   height: 28px;
   display: grid;
   place-items: center;
-  color: rgba(255,255,255,.75);
-  font-size: 20px;
-  line-height: 20px;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
 }
 .search-recent-btn:active{
   transform: scale(0.96);
@@ -3234,26 +3112,6 @@ body.qs-lock {
   min-width:0;
   overflow:hidden;
 }
-.search-recent-actions{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex: 0 0 auto;
-}
-.search-recent-btn{
-  appearance:none;
-  -webkit-appearance:none;
-  background: transparent;
-  border: none;
-  padding: 0;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  color: #fff;
-  cursor: pointer;
-}
  /* ✅ Hide Search header text like “All / Albums” */
 #search-results:not(.hidden) ~ #mobile-library-section-title,
 #search-results:not(.hidden) + #mobile-library-section-title,
@@ -3261,41 +3119,6 @@ body.qs-lock {
   display: none !important;
 }
 		
-/* ✅ Force Search results to list view (no wrapping into 2 columns) */
-#search-results{
-  display: block !important;
-}
-#search-results [data-search-click-recent="1"]{
-  width: 100% !important;
-  max-width: 100% !important;
-  flex: 0 0 auto !important;
-}
-
-/* ===============================
-   SEARCH > RECENT — FORCE STACK
-   (Spotify-style vertical list)
-================================ */
-
-/* Parent must stack vertically */
-#search-results{
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
-  columns: unset !important;
-  column-count: 1 !important;
-}
-
-/* Each recent row must take full width */
-#search-results [data-search-click-recent]{
-  width: 100% !important;
-  max-width: none !important;
-
-  /* If any grid exists above, span all columns */
-  grid-column: 1 / -1 !important;
-
-  float: none !important;
-  clear: both !important;
-}
 
 /* ✅ FORCE: Search click-recents must be 1-per-row (Spotify stacked list)
    Applies to BOTH: main Search tab + Library search overlay. */
@@ -4555,14 +4378,6 @@ window.toggleNpLyricsExpanded = function(e){
 
 <!-- NOW PLAYING: LYRICS (mobile) -->
 <div id="np-lyrics-card"
-     class="w-full mt-10 rounded-2xl bg-zinc-900 text-white p-5 hidden">
-  <div class="text-sm font-semibold text-white/70 mb-3">Lyrics</div>
-  <div id="np-lyrics-text"
-       class="text-lg leading-relaxed whitespace-pre-wrap"></div>
-</div>
-
-<!-- NOW PLAYING: LYRICS (mobile) -->
-<div id="np-lyrics-card"
      class="w-full mt-4 rounded-2xl text-white p-4 relative overflow-hidden">
 
   <div class="flex items-start justify-between gap-3">
@@ -5251,21 +5066,6 @@ let suppressPlaylistMenuCloseUntil = 0;
 // SONG MULTI-SELECT (desktop + mobile)
 // -----------------------
 
-// ✅ SAFETY: some legacy onclicks still reference this
-// Prevents Safari from throwing and breaking clicks
-window.onNavTap = window.onNavTap || function(viewType){
-  try {
-    const v = String(viewType || '').toLowerCase();
-    if (!v) return;
-    if (typeof showView === 'function') showView(v);
-  } catch (e) {}
-};
-
-function onNavTap(viewType) {
-  return window.onNavTap(viewType);
-}
-
-
         
 window.__songSelect = window.__songSelect || {
   urls: new Set(),
@@ -5854,307 +5654,6 @@ function makeUserId() {
   return "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
 }
 
-/* -----------------------
-   SETTINGS + RECENTLY DELETED UI
------------------------- */
-
-function __effectiveUserId() {
-  return String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
-}
-
-let __rdType = "playlist"; // "playlist" | "album"
-let __rdItems = [];
-
-function __setRdTab(type) {
-  __rdType = (type === "album") ? "album" : "playlist";
-
-  const a = document.getElementById("rd-tab-albums");
-  const p = document.getElementById("rd-tab-playlists");
-
-  if (p) {
-    const on = (__rdType === "playlist");
-    p.classList.toggle("bg-[#1db954]", on);
-    p.classList.toggle("text-black", on);
-    p.classList.toggle("bg-white/10", !on);
-    p.classList.toggle("text-white", !on);
-  }
-
-  if (a) {
-    const on = (__rdType === "album");
-    a.classList.toggle("bg-[#1db954]", on);
-    a.classList.toggle("text-black", on);
-    a.classList.toggle("bg-white/10", !on);
-    a.classList.toggle("text-white", !on);
-  }
-
-  __renderRecentlyDeleted();
-}
-
-async function __fetchRecentlyDeleted(type) {
-  const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
-  const t = (type === "album") ? "album" : "playlist";
-
-  const url =
-    "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
-    encodeURIComponent(uid) +
-    "&type=" + encodeURIComponent(t);
-
-  const res = await fetch(url);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Failed to load Recently Deleted");
-
-  return Array.isArray(data.items) ? data.items : [];
-}
-
-function __formatDaysLeft(expiresAt) {
-  const now = Date.now();
-  const ms = Number(expiresAt || 0) - now;
-  if (!Number.isFinite(ms)) return "";
-  const days = Math.max(0, Math.ceil(ms / (24 * 3600 * 1000)));
-  if (days === 1) return "1 day left";
-  return days + " days left";
-}
-
-async function __restoreRecentlyDeletedItem(item) {
-  const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
-  const type = item?.type || __rdType;
-  const id = item?.id;
-  if (!id) throw new Error("Missing id");
-
-  // Worker route name can vary; try a couple safe options.
-  const tryUrls = [
-    {
-      url: "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/restore?userId=" +
-        encodeURIComponent(uid) + "&type=" + encodeURIComponent(type) + "&id=" + encodeURIComponent(id),
-      method: "POST",
-      body: null
-    },
-    {
-      url: "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/restore",
-      method: "POST",
-      body: JSON.stringify({ userId: uid, type, id })
-    }
-  ];
-
-  let lastErr = null;
-  for (const t of tryUrls) {
-    try {
-      const res = await fetch(t.url, {
-        method: t.method,
-        headers: t.body ? { "Content-Type": "application/json" } : undefined,
-        body: t.body
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data && data.ok) return data;
-      lastErr = new Error(data?.error || "Restore failed");
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-
-  throw lastErr || new Error("Restore failed");
-}
-
-async function __deleteRecentlyDeletedForever(item) {
-  const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
-  const type = item?.type || __rdType;
-  const id = item?.id;
-  if (!id) throw new Error("Missing id");
-
-  // Your console error proved this endpoint wants userId present.
-  // We include it in querystring AND body to be extra safe.
-  const url =
-    "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/forever?userId=" +
-    encodeURIComponent(uid) +
-    "&type=" + encodeURIComponent(type) +
-    "&id=" + encodeURIComponent(id);
-
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: uid, type, id })
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete forever failed");
-  return data;
-}
-
-async function __renderRecentlyDeleted() {
-  const status = document.getElementById("rd-status");
-  const list = document.getElementById("rd-list");
-  const q = String(document.getElementById("rd-search")?.value || "").trim().toLowerCase();
-
-  if (status) { status.classList.remove("hidden"); status.textContent = "Loading…"; }
-  if (list) list.innerHTML = "";
-
-  try {
-    __rdItems = await __fetchRecentlyDeleted(__rdType);
-  } catch (e) {
-    console.warn(e);
-    if (status) status.textContent = "Couldn’t load Recently Deleted.";
-    return;
-  }
-
-  let filtered = __rdItems.filter(it => {
-    const name = String(it?.name || "").toLowerCase();
-    if (!q) return true;
-    return name.includes(q);
-  });
-
-  // ✅ Sort (newest/oldest) by deletedAt (fallback to expiresAt)
-  try {
-    const mode = String(document.getElementById("rd-sort")?.value || "newest");
-    const tms = (it) => {
-      const a = Date.parse(String(it?.deletedAt || it?.deleted_at || it?.expiresAt || it?.expires_at || ""));
-      return Number.isFinite(a) ? a : 0;
-    };
-    filtered.sort((a,b) => (mode === "oldest") ? (tms(a) - tms(b)) : (tms(b) - tms(a)));
-  } catch (e) {}
-
-  if (status) {
-    status.textContent = filtered.length ? (filtered.length + " item(s)") : "Nothing here.";
-  }
-
-  if (!list) return;
-
-  filtered.forEach((it) => {
-    const row = document.createElement("div");
-    row.className = "flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white/10";
-
-    const left = document.createElement("div");
-    left.className = "min-w-0";
-
-    const title = document.createElement("div");
-    title.className = "font-extrabold truncate";
-    title.textContent = String(it?.name || it?.id || "Untitled");
-
-    const sub = document.createElement("div");
-    sub.className = "text-xs text-white/60";
-    sub.textContent = __formatDaysLeft(it?.expiresAt);
-
-    left.appendChild(title);
-    left.appendChild(sub);
-
-    const right = document.createElement("div");
-    right.className = "flex items-center gap-2";
-
-    const restore = document.createElement("button");
-    restore.type = "button";
-    restore.className = "px-3 py-2 rounded-full bg-[#1db954] text-black font-extrabold text-xs active:scale-95";
-    restore.textContent = "Restore";
-
-    restore.onclick = async () => {
-      try {
-        await __restoreRecentlyDeletedItem(it);
-        await __renderRecentlyDeleted();
-        // best-effort: refresh playlists UI if needed
-        try { if (typeof window.loadPlaylistsFromCloud === "function") await window.loadPlaylistsFromCloud(); } catch (e) {}
-        try { renderPlaylists(); } catch (e) {}
-        try { renderHome(); } catch (e) {}
-      } catch (e) {
-        console.warn(e);
-        alert("Restore failed.");
-      }
-    };
-
-    const forever = document.createElement("button");
-    forever.type = "button";
-    forever.className = "px-3 py-2 rounded-full bg-white/10 text-white font-extrabold text-xs active:scale-95";
-    forever.textContent = "Delete forever";
-
-    forever.onclick = async () => {
-      const name = String(it?.name || "this item");
-      if (!confirm(`Delete "${name}" forever? This cannot be undone.`)) return;
-
-      try {
-        await __deleteRecentlyDeletedForever(it);
-        await __renderRecentlyDeleted();
-      } catch (e) {
-        console.warn(e);
-        alert("Delete forever failed.");
-      }
-    };
-
-    right.appendChild(restore);
-    right.appendChild(forever);
-
-    row.appendChild(left);
-    row.appendChild(right);
-
-    list.appendChild(row);
-  });
-}
-
-(function bindSettingsAndRDViews() {
-  const backSettings = document.getElementById("settings-back");
-  const openSync = document.getElementById("settings-open-sync");
-  const openRD = document.getElementById("settings-open-recently-deleted");
-
-  const rdBack = document.getElementById("rd-back");
-
-  // Vertical tabs (new)
-  const rdTabAlbums    = document.getElementById("rd-tab-albums");
-  const rdTabPlaylists = document.getElementById("rd-tab-playlists");
-  const rdTabSongs     = document.getElementById("rd-tab-songs");
-  const rdTabFolders   = document.getElementById("rd-tab-folders");
-
-  const rdSearch = document.getElementById("rd-search");
-  const rdSort   = document.getElementById("rd-sort");
-
-  if (backSettings) backSettings.addEventListener("click", () => {
-    try { showView("home"); } catch (e) {}
-  });
-
-  if (openSync) openSync.addEventListener("click", async () => {
-    try {
-      if (typeof window.openSyncDevicesModal === "function") {
-        await window.openSyncDevicesModal();
-      } else {
-        alert("Sync modal missing.");
-      }
-    } catch (e) {
-      console.warn(e);
-      alert("Could not open Sync Devices.");
-    }
-  });
-
-  // ✅ Settings -> Recently Deleted (route you proved works)
-  if (openRD) openRD.addEventListener("click", () => {
-    try { showView("recently-deleted"); } catch (e) {}
-
-    // ✅ Default to Albums when you arrive
-    try { if (typeof window.__setRdTab === "function") window.__setRdTab("album"); } catch (e) {}
-    try { if (typeof window.__renderRecentlyDeleted === "function") window.__renderRecentlyDeleted(); } catch (e) {}
-  });
-
-  if (rdBack) rdBack.addEventListener("click", () => {
-    try { showView("settings"); } catch (e) {}
-  });
-
-  // Tabs
-  if (rdTabAlbums)    rdTabAlbums.addEventListener("click",    () => { try { __setRdTab("album"); } catch (e) {} });
-  if (rdTabPlaylists) rdTabPlaylists.addEventListener("click", () => { try { __setRdTab("playlist"); } catch (e) {} });
-  if (rdTabSongs)     rdTabSongs.addEventListener("click",     () => { try { __setRdTab("song"); } catch (e) {} });
-  if (rdTabFolders)   rdTabFolders.addEventListener("click",   () => { try { __setRdTab("folder"); } catch (e) {} });
-
-  // Search + sort
-  if (rdSearch) rdSearch.addEventListener("input", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
-  if (rdSort)   rdSort.addEventListener("change", () => { try { __renderRecentlyDeleted(); } catch (e) {} });
-
-  // expose for console debugging
-  window.renderRecentlyDeleted = __renderRecentlyDeleted;
-  window.setRecentlyDeletedTab = __setRdTab;
-})();
-
-
-function makeUserId() {
-  return "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
-}
-
 function readUserIdFromUrl() {
   try {
     const sp = new URLSearchParams(window.location.search || "");
@@ -6305,56 +5804,6 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   const open = () => {
     const m = document.getElementById('profile-menu-modal');
     if (m) m.classList.remove('hidden');
-
-    // ✅ Bind menu buttons on-open (menu rows may not exist when the script first ran)
-    const settingsBtn = document.getElementById('profile-menu-settings');
-    if (settingsBtn && !settingsBtn.__pmBound) {
-      settingsBtn.__pmBound = true;
-      settingsBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        try { close(); } catch (e) {}
-        try { showView('settings'); } catch (e) {}
-      }, true);
-    }
-
-   const rdBtn = document.getElementById('profile-menu-recently-deleted');
-if (rdBtn) rdBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  try { close(); } catch (e) {}
-
-  // 1) Open Settings
-  try { showView('settings'); } catch (e) {}
-
-  // 2) Reset internal Settings panel state (same as back arrow)
-  setTimeout(() => {
-    document
-      .querySelectorAll('#settings-view .hidden')
-      .forEach(el => el.classList.remove('hidden'));
-
-    // 3) Open Recently Deleted
-    const btn = document.getElementById('settings-open-recently-deleted');
-    try { btn && btn.click(); } catch (e) {}
-  }, 0);
-}, true);
-
-
-    const profileBtn = document.getElementById('profile-menu-profile');
-    if (profileBtn && !profileBtn.__pmBound) {
-      profileBtn.__pmBound = true;
-      profileBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        try { close(); } catch (e) {}
-        try { alert('Profile (coming soon)'); } catch (e) {}
-      }, true);
-    }
   };
 
 
@@ -6673,19 +6122,6 @@ function openCrateSection(which) {
     try { renderCrateStats(); } catch (e) {}
   }
 
-}
-
-function toggleFeatureFlag(key) {
-  const k = String(key || "").trim();
-  if (!k) return;
-
-  const lsKey = "reson_feature_" + k;
-  const current = localStorage.getItem(lsKey);
-  const next = (current === "1") ? "0" : "1";
-  localStorage.setItem(lsKey, next);
-
-  // For now: just a tiny confirmation without touching playback yet
-  try { console.log("[feature]", k, "=", next); } catch (e) {}
 }
 
 function initCrateUIOnce() {
@@ -25555,6 +24991,8 @@ function renderCrateStats() {
 })();
 		
 </script>
+
+<script src="src/features/settings/settings.feature.js"></script>
 
 
   <!-- SYNC DEVICES MODAL -->
