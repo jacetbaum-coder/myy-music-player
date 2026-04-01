@@ -711,10 +711,8 @@ function playPlaylistById(playlistId) {
       const pad = 12;
 
       const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
-      // Align to the "Add to playlist" menu item row, falling back to context menu top
-      const addOptEl = event?.target?.closest?.('.menu-item') || null;
-      const addOptRect = addOptEl ? addOptEl.getBoundingClientRect() : null;
-      const baseTop = addOptRect ? addOptRect.top : (cmRect ? cmRect.top : (window.innerHeight * 0.22));
+      // Align submenu to the top of the context menu
+      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.22);
 
       const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
       const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));

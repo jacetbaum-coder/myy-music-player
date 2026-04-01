@@ -2481,6 +2481,13 @@ body.np-open #playlist-submenu{
     min-height: 0;             /* ✅ kills the grey slab */
   }
 
+  /* Hide song header (handle, cover, meta, divider) on desktop — keeps menu compact */
+  #context-menu .cm-handle,
+  #context-menu .cm-song,
+  #context-menu .cm-divider {
+    display: none !important;
+  }
+
   @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.96); }
     to   { opacity: 1; transform: scale(1); }
