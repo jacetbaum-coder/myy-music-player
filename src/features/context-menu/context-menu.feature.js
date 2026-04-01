@@ -735,6 +735,25 @@ try {
 // ✅ Only show "Go to album" if we found an album name
 if (goAlbumOpt) goAlbumOpt.style.display = __albumName ? 'flex' : 'none';
 
+// Desktop hover behavior: arm + open playlist submenu like Spotify
+if (window.innerWidth > 768 && addOpt) {
+  addOpt.onmouseenter = (ev) => {
+    try { addOpt.classList.add('cm-armed'); } catch (e) {}
+    try {
+      if (!window.__cmHoverOpeningPlaylistSubmenu) {
+        window.__cmHoverOpeningPlaylistSubmenu = true;
+        openPlaylistSubmenu(ev);
+        setTimeout(() => { window.__cmHoverOpeningPlaylistSubmenu = false; }, 60);
+      }
+    } catch (e) {
+      window.__cmHoverOpeningPlaylistSubmenu = false;
+    }
+  };
+  addOpt.onmouseleave = () => {
+    try { addOpt.classList.remove('cm-armed'); } catch (e) {}
+  };
+}
+
 
 
   // ✅ Labels
@@ -813,10 +832,23 @@ return;
     }
   } else {
     contextMenu.style.position = 'fixed';
-    contextMenu.style.left = Math.min(x, window.innerWidth - 230) + 'px';
-    contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+    contextMenu.style.display = 'block';
+    contextMenu.style.visibility = 'hidden';
+
+    const mw = contextMenu.offsetWidth || 270;
+    const mh = contextMenu.offsetHeight || 320;
+    const pad = 12;
+    const desiredLeft = x + 10;
+    const desiredTop = y - mh - 10;
+
+    const left = Math.max(pad, Math.min(desiredLeft, window.innerWidth - mw - pad));
+    const top = Math.max(pad, Math.min(desiredTop, window.innerHeight - mh - pad));
+
+    contextMenu.style.left = left + 'px';
+    contextMenu.style.top = top + 'px';
     contextMenu.style.transform = '';
     contextMenu.style.right = '';
+    contextMenu.style.visibility = 'visible';
     contextMenuAnchor = null;
     if (contextMenuScrollHandler) {
       window.removeEventListener('scroll', contextMenuScrollHandler, true);
@@ -924,7 +956,7 @@ function showMultiSelectContextMenuFromHero(anchorEl){
 // ---- handleContextMenu (simple, desktop fallback) ----
 function handleContextMenu(e, song) {
   e.preventDefault();
-  showContextMenuAt(e.pageX, e.pageY, song);
+  showContextMenuAt(e.clientX, e.clientY, song);
 }
 
 // ---- closePlaylistSubmenuQuick ----

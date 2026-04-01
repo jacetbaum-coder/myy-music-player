@@ -833,6 +833,31 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   cursor: pointer;
   position: relative;
 }
+
+/* Desktop table density + columns (Spotify-like) */
+@media (min-width: 769px) {
+  .track-row {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(180px, 0.62fr) 110px;
+    gap: 10px;
+    padding: 6px 10px;
+  }
+
+  .track-row.track-header {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(180px, 0.62fr) 110px;
+  }
+
+  .track-row .track-artist {
+    margin-top: 2px;
+  }
+
+  .track-row .track-menu {
+    display: none !important;
+  }
+
+  .track-row:not(.track-header):hover {
+    background: rgba(255,255,255,0.12) !important;
+  }
+}
 	   
 /* Desktop hover like Spotify (pic 1) */
 @media (hover: hover) and (pointer: fine) {
@@ -970,8 +995,14 @@ body.song-multiselect .track-row:hover{
     margin-top: 6px;
 }
 
-        .track-row:hover {
+.track-row:hover {
   background: transparent !important;
+}
+
+@media (min-width: 769px) {
+  .track-row:not(.track-header):hover {
+    background: rgba(255,255,255,0.12) !important;
+  }
 }
 
 
@@ -1625,6 +1656,18 @@ body.np-open #context-menu{
 /* ✅ iOS slide-to-select highlight (used by touch handlers) */
 #context-menu .menu-item.cm-armed{
   background: rgba(255,255,255,0.10);
+}
+
+@media (min-width: 769px) {
+  #context-menu .menu-item:hover,
+  #context-menu .menu-item.cm-armed {
+    background: rgba(255,255,255,0.14) !important;
+  }
+
+  #playlist-submenu .menu-item:hover,
+  #playlist-submenu .menu-item.cm-armed {
+    background: rgba(255,255,255,0.14) !important;
+  }
 }
 
 /* ✅ MOBILE: playlist submenu becomes its own overlay panel */
@@ -11365,8 +11408,8 @@ let cover = queue[0]?.cover || '';
 
   const coverMarkup = cover
 
-    ? `<img src="${cover}" class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover">`
-    : `<div class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center">
+    ? `<img src="${cover}" class="w-36 h-36 sm:w-40 sm:h-40 md:w-44 md:h-44 shadow-2xl rounded-lg object-cover">`
+    : `<div class="w-36 h-36 sm:w-40 sm:h-40 md:w-44 md:h-44 shadow-2xl rounded-lg bg-zinc-800 flex items-center justify-center">
          <i class="fas fa-music text-4xl text-zinc-500"></i>
        </div>`;
   const label = isPlaylist ? 'Playlist' : name === 'Liked Songs' ? 'Liked Songs' : 'Album';
@@ -11375,7 +11418,7 @@ let cover = queue[0]?.cover || '';
     ${coverMarkup}
     <div class="flex-1">
       <p class="text-xs font-bold uppercase tracking-widest mb-2">${label}</p>
-      <h1 class="text-4xl md:text-7xl font-black mb-6 tracking-tighter">${name}</h1>
+      <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tighter">${name}</h1>
       <div class="flex items-center gap-2 text-sm font-bold">
         <span class="text-zinc-400">• ${queue.length} songs</span>
       </div>

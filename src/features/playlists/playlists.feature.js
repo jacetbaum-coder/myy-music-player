@@ -696,44 +696,79 @@ function playPlaylistById(playlistId) {
 
   if (!sub) return;
 
-    // ✅ Spotify-ish: full-width sheet that slides up (not a tiny floating box)
-  try {
-    const cm = document.getElementById('context-menu');
-    if (cm && cm.style) {
-      try { cm.style.display = 'none'; } catch (e) {}
-    }
+  const isDesktop = window.innerWidth > 768;
 
-    sub.style.position = 'fixed';
-    sub.style.left = '0';
-    sub.style.top  = '0';
-    sub.style.right = '0';
-    sub.style.bottom = '12px';
+  // ✅ Desktop: flyout panel next to context menu (Spotify-like)
+  if (isDesktop) {
+    try {
+      const cm = document.getElementById('context-menu');
+      const cmRect = cm ? cm.getBoundingClientRect() : null;
+      const flyW = 420;
+      const pad = 12;
 
-    sub.style.width = '100vw';
-    sub.style.maxHeight = 'none';
-        sub.style.overflow = 'hidden';
+      const baseLeft = cmRect ? (cmRect.right + 8) : (window.innerWidth * 0.52);
+      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.2);
 
-    // Make it lay out like a proper sheet: header stays, list scrolls
-    sub.style.display = 'flex';
-    sub.style.flexDirection = 'column';
+      const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
+      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - 560));
 
-    // sheet visuals
-    sub.style.background = 'rgba(18,18,18,0.96)';
-    sub.style.backdropFilter = 'blur(14px)';
-    sub.style.borderRadius = '0';
-    sub.style.boxShadow = 'none';
-
-    // animate in (slide up fast)
-    sub.style.transition = 'transform 160ms ease, opacity 160ms ease';
-    sub.style.transform = 'translateY(18px)';
-    sub.style.opacity = '0';
-
-    requestAnimationFrame(() => {
-
-      sub.style.transform = 'translateY(0)';
+      sub.style.position = 'fixed';
+      sub.style.left = `${left}px`;
+      sub.style.top = `${top}px`;
+      sub.style.right = 'auto';
+      sub.style.bottom = 'auto';
+      sub.style.width = `${flyW}px`;
+      sub.style.maxWidth = `min(${flyW}px, calc(100vw - 24px))`;
+      sub.style.height = '560px';
+      sub.style.maxHeight = 'calc(100vh - 24px)';
+      sub.style.overflow = 'hidden';
+      sub.style.display = 'flex';
+      sub.style.flexDirection = 'column';
+      sub.style.background = 'rgba(30,30,30,0.96)';
+      sub.style.backdropFilter = 'blur(14px)';
+      sub.style.webkitBackdropFilter = 'blur(14px)';
+      sub.style.border = '1px solid rgba(255,255,255,0.10)';
+      sub.style.borderRadius = '10px';
+      sub.style.boxShadow = '0 14px 38px rgba(0,0,0,0.45)';
+      sub.style.transition = 'opacity 120ms ease';
+      sub.style.transform = 'none';
       sub.style.opacity = '1';
-    });
-  } catch (e) {}
+      sub.style.zIndex = '200500';
+      sub.style.pointerEvents = 'auto';
+    } catch (e) {}
+  } else {
+    // ✅ Mobile: full-width sheet that slides up
+    try {
+      const cm = document.getElementById('context-menu');
+      if (cm && cm.style) {
+        try { cm.style.display = 'none'; } catch (e) {}
+      }
+
+      sub.style.position = 'fixed';
+      sub.style.left = '0';
+      sub.style.top  = '0';
+      sub.style.right = '0';
+      sub.style.bottom = '12px';
+
+      sub.style.width = '100vw';
+      sub.style.maxHeight = 'none';
+      sub.style.overflow = 'hidden';
+      sub.style.display = 'flex';
+      sub.style.flexDirection = 'column';
+      sub.style.background = 'rgba(18,18,18,0.96)';
+      sub.style.backdropFilter = 'blur(14px)';
+      sub.style.borderRadius = '0';
+      sub.style.boxShadow = 'none';
+      sub.style.transition = 'transform 160ms ease, opacity 160ms ease';
+      sub.style.transform = 'translateY(18px)';
+      sub.style.opacity = '0';
+
+      requestAnimationFrame(() => {
+        sub.style.transform = 'translateY(0)';
+        sub.style.opacity = '1';
+      });
+    } catch (e) {}
+  }
 
 
   // ✅ playlist-submenu-items may be missing at runtime (DOM rebuild) — recreate it
@@ -875,7 +910,9 @@ try {
 
   // Size the submenu so it fits on mobile and keeps Done visible
   const headerH = header.getBoundingClientRect().height || 140;
-  const maxH = Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
+  const maxH = isDesktop
+    ? Math.min(window.innerHeight - 24, 560)
+    : Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
   sub.style.maxHeight = `${maxH}px`;
   items.style.maxHeight = `${Math.max(200, maxH - headerH)}px`;
 
