@@ -1074,6 +1074,19 @@ body.song-multiselect .track-row:hover{
     -webkit-backdrop-filter: blur(14px);
     border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.55);
+    justify-content: center;
+  }
+
+  /* Desktop dock: center the entire layout and keep controls balanced */
+  #main-dock > div:nth-child(1),
+  #main-dock > div:nth-child(3) {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  #main-dock > div:nth-child(2) {
+    flex: 0 1 560px;
+    width: min(560px, 52vw);
   }
 }
 
