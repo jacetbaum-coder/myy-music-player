@@ -52,56 +52,6 @@ if (volumeContainer) {
 
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
-// [MOVED TO src/features/context-menu/context-menu.feature.js] contextMenu globals + closeContextMenu + second initContextMenuDragToClose IIFE
-
-    if (artist) artist.textContent = currentSong.artist || "";
-  try { loadNpBio(currentSong.artist); } catch (e) {}
-  try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), currentSong.artist); } catch (e) {}
-
-
-
-  // ---- CONTEXT LABEL (mobile) ----
-  if (ctx) {
-    let label = "";
-
-    if (!playContext || !playContext.type) {
-      label = "NOW PLAYING";
-    } else if (playContext.type === "album") {
-      label = (playContext.album || playContext.name || playContext.label || "").trim();
-      label = label || "ALBUM";
-    } else if (playContext.type === "playlist") {
-      label = (playContext.playlist || playContext.name || playContext.label || "").trim();
-      label = label || "PLAYLIST";
-    } else if (playContext.type === "artist") {
-      label = (playContext.artist || playContext.name || playContext.label || "").trim();
-      label = label || "ARTIST";
-    } else if (playContext.type === "search") {
-      const q = (playContext.label || playContext.query || "").trim();
-      label = q ? `"${q}" IN SEARCH` : "SEARCH";
-    } else {
-      label = (playContext.label || playContext.name || "").trim() || "NOW PLAYING";
-    }
-
-    ctx.textContent = String(label).toUpperCase();
-  }
-
-  // progress sync
-
-
-  // progress sync
-  const curr = document.getElementById('np-t-curr');
-  const total = document.getElementById('np-t-total');
-  const fill = document.getElementById('np-progress-fill');
-
-  if (curr) curr.textContent = formatTime(player.currentTime || 0);
-  if (total) total.textContent = Number.isFinite(player.duration)
-    ? formatTime(player.duration)
-    : "0:00";
-
-  if (fill && Number.isFinite(player.duration) && player.duration > 0) {
-    fill.style.width = ((player.currentTime / player.duration) * 100) + "%";
-  }
-}
 
 
 function openNowPlaying() {
@@ -1607,6 +1557,319 @@ player.addEventListener('error', () => {
 // Auto-hide dock interval
 setInterval(checkDockVisibility, 30000);
 
+// -----------------------
+// MISSING CORE FUNCTIONS (restored from inline script)
+// -----------------------
+
+function setAllPlayIcons(isPlaying){
+  const desktopIcon = document.getElementById('play-icon');
+  const mobileIcon  = document.getElementById('mobile-play-icon');
+  const npIcon      = document.getElementById('np-play-icon');
+  const heroBtn     = document.getElementById('hero-play-btn');
+
+  const on = !!isPlaying;
+
+  if (desktopIcon) desktopIcon.className = on ? "fas fa-pause" : "fas fa-play ml-1";
+  if (mobileIcon)  mobileIcon.className  = on ? "fas fa-pause text-white text-xl" : "fas fa-play text-white text-xl";
+  if (npIcon)      npIcon.className      = on ? "fas fa-pause text-black text-2xl" : "fas fa-play text-black text-2xl";
+
+  if (heroBtn) {
+    heroBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
+
+    if (!heroBtn.__heroToggleInstalled && !heroBtn.onclick) {
+      heroBtn.__heroToggleInstalled = true;
+      heroBtn.addEventListener('click', (e) => {
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        const audio = document.getElementById('audio-player') || window.player || (typeof player !== 'undefined' ? player : null);
+        if (!audio) return;
+        if (audio.paused) {
+          const p = audio.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        } else {
+          audio.pause();
+        }
+        try { if (typeof window.__kickHeroPaint__ === "function") window.__kickHeroPaint__(); } catch (err) {}
+      }, false);
+    }
+
+    if (!heroBtn.__cssIconInstalled) {
+      heroBtn.__cssIconInstalled = true;
+      if (!document.getElementById('hero-css-icon-style')) {
+        const style = document.createElement('style');
+        style.id = 'hero-css-icon-style';
+        style.textContent = `
+          #hero-play-btn .hero-css-icon { width:22px; height:22px; display:inline-block; position:relative; }
+          #hero-play-btn .hero-css-play { width:0; height:0; border-top:7px solid transparent; border-bottom:7px solid transparent; border-left:12px solid #000; position:absolute; left:6px; top:4px; }
+          #hero-play-btn .hero-css-pause { position:absolute; left:6px; top:4px; width:12px; height:14px; }
+          #hero-play-btn .hero-css-pause::before, #hero-play-btn .hero-css-pause::after { content:""; position:absolute; top:0; width:4px; height:14px; background:#000; border-radius:1px; }
+          #hero-play-btn .hero-css-pause::before { left:0; }
+          #hero-play-btn .hero-css-pause::after { right:0; }
+          #hero-play-btn.is-playing .hero-css-play { display:none; }
+          #hero-play-btn:not(.is-playing) .hero-css-pause { display:none; }
+        `;
+        document.head.appendChild(style);
+      }
+      heroBtn.innerHTML = `
+        <span class="hero-css-icon" aria-hidden="true">
+          <span class="hero-css-pause"></span>
+          <span class="hero-css-play"></span>
+        </span>
+      `;
+    }
+
+    heroBtn.classList.toggle('is-playing', on);
+  }
+}
+
+// Bind icon updates to the real audio state
+(function bindPlayIconSync(){
+  if (window.__playIconSyncBound) return;
+  window.__playIconSyncBound = true;
+  try {
+    if (typeof player !== 'undefined' && player) {
+      player.addEventListener('play',  () => setAllPlayIcons(true),  true);
+      player.addEventListener('pause', () => setAllPlayIcons(false), true);
+      player.addEventListener('ended', () => setAllPlayIcons(false), true);
+    }
+  } catch (e) {}
+})();
+
+function updateNowPlayingUI() {
+  if (!currentSong) return;
+  try { window.currentSong = currentSong; } catch (e) {}
+
+  const cover  = document.getElementById('np-cover');
+  const title  = document.getElementById('np-title');
+  const artist = document.getElementById('np-artist');
+  const ctx    = document.getElementById('np-context');
+
+  if (cover) {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    let resolvedCover = String(currentSong.cover || '').trim();
+    try {
+      if (!resolvedCover && typeof getSongCoverFromPlaylistSong === 'function') {
+        resolvedCover = String(getSongCoverFromPlaylistSong(currentSong) || '').trim();
+      }
+    } catch (e) {}
+    try {
+      if (!resolvedCover) {
+        const rawUrl = String(currentSong.url || currentSong.link || '').trim();
+        let id = '';
+        try { const u = new URL(rawUrl); id = u.searchParams.get('id') || ''; } catch (e) {
+          if (rawUrl.includes('?id=')) id = (rawUrl.split('?id=')[1] || '').split('&')[0] || '';
+        }
+        try { id = decodeURIComponent(id); } catch (e) {}
+        id = id.replace(/^\/+/, '').trim();
+        const parts = String(id || '').split('/').filter(Boolean);
+        if (parts.length >= 2) {
+          const a = parts[0];
+          const al = (parts.length >= 3 ? parts[1] : 'Singles');
+          resolvedCover = "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(`${a}/${al}/cover.jpg`);
+        }
+      }
+    } catch (e) {}
+    cover.src = resolvedCover || PLACEHOLDER;
+    try { updateNPCoverNeighbors(); } catch (e) {}
+  }
+
+  setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
+  if (artist) artist.textContent = currentSong.artist || "";
+  try { loadNpBio(currentSong.artist); } catch (e) {}
+  try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), currentSong.artist); } catch (e) {}
+
+  if (ctx) {
+    let label = "";
+    if (!playContext || !playContext.type) {
+      label = "NOW PLAYING";
+    } else if (playContext.type === "album") {
+      label = (playContext.album || playContext.name || playContext.label || "").trim() || "ALBUM";
+    } else if (playContext.type === "playlist") {
+      label = (playContext.playlist || playContext.name || playContext.label || "").trim() || "PLAYLIST";
+    } else if (playContext.type === "artist") {
+      label = (playContext.artist || playContext.name || playContext.label || "").trim() || "ARTIST";
+    } else if (playContext.type === "search") {
+      const q = (playContext.label || playContext.query || "").trim();
+      label = q ? `"${q}" IN SEARCH` : "SEARCH";
+    } else {
+      label = (playContext.label || playContext.name || "").trim() || "NOW PLAYING";
+    }
+    ctx.textContent = String(label).toUpperCase();
+  }
+
+  const curr  = document.getElementById('np-t-curr');
+  const total = document.getElementById('np-t-total');
+  const fill  = document.getElementById('np-progress-fill');
+  if (curr)  curr.textContent  = formatTime(player.currentTime || 0);
+  if (total) total.textContent = Number.isFinite(player.duration) ? formatTime(player.duration) : "0:00";
+  if (fill && Number.isFinite(player.duration) && player.duration > 0) {
+    fill.style.width = ((player.currentTime / player.duration) * 100) + "%";
+  }
+}
+
+async function playSpecificSong(url, title, album, artist, cover) {
+
+  // Guard: verify stream exists before attempting playback
+  try {
+    const head = await fetch(url, { method: "HEAD" });
+    const ct = String(head.headers.get("content-type") || "");
+    if (!head.ok || ct.includes("application/json")) {
+      let bodyText = "";
+      try { const r = await fetch(url); bodyText = await r.text(); } catch (e) {}
+      let bodyJson = null;
+      try { bodyJson = bodyText ? JSON.parse(bodyText) : null; } catch (e) {}
+      showTrackMissingModal({ reason: "stream_not_found", headStatus: head.status, headContentType: ct, requestedUrl: url, title, album, artist, workerBodyText: bodyText, workerBodyJson: bodyJson, when: new Date().toISOString() });
+      return;
+    }
+  } catch (e) {
+    showTrackMissingModal({ reason: "stream_check_failed", requestedUrl: url, title, album, artist, error: String(e), when: new Date().toISOString() });
+    return;
+  }
+
+  const titleClean = String(title || "").split("/").pop().replace(/\.[^/.]+$/, "");
+  const albumRaw = String(album || "").trim();
+
+  let inferredAlbum = "";
+  try {
+    const u0 = new URL(url, window.location.origin);
+    const id0 = String(u0.searchParams.get("id") || "").trim();
+    const decoded0 = id0 ? decodeURIComponent(id0) : "";
+    const parts0 = decoded0.split("/").filter(Boolean);
+    if (parts0.length >= 3) inferredAlbum = parts0[1] || "";
+  } catch (e) {}
+
+  const albumCandidate = (!albumRaw || albumRaw === "Unknown Album") ? (inferredAlbum || "") : albumRaw;
+  const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(String(albumCandidate || "").trim());
+  const albumFolder = albumIsFile ? "Singles" : (String(albumCandidate || "").trim() || "Singles");
+
+  let resolvedCover = String(cover || "").trim();
+  if (!resolvedCover) {
+    const a = String(artist || "").trim();
+    if (a && albumFolder) {
+      resolvedCover = "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(a + "/" + albumFolder + "/cover.jpg");
+    } else if (a) {
+      resolvedCover = "https://music-streamer.jacetbaum.workers.dev/?id=" + encodeURIComponent(a + "/Singles/cover.jpg");
+    }
+  }
+
+  currentSong = { url, title: titleClean, album: albumFolder, artist, cover: resolvedCover };
+  window.currentSong = currentSong;
+
+  try { player.pause(); } catch (e) {}
+  player.src = url;
+  player.load();
+
+  const __crossfadeOn = (window.isFeatureOn && window.isFeatureOn('crossfade'));
+  if (__crossfadeOn) { try { player.volume = 0; } catch (e) {} }
+
+  let started = false;
+  try {
+    const p = player.play();
+    if (p && typeof p.then === 'function') await p;
+    started = !player.paused;
+    if (started && __crossfadeOn) {
+      try {
+        const ms = 350, stepMs = 25, steps = Math.max(1, Math.round(ms / stepMs));
+        let i = 0;
+        const t = setInterval(() => {
+          i++;
+          try { player.volume = Math.min(1, i / steps); } catch (e) {}
+          if (i >= steps) clearInterval(t);
+        }, stepMs);
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.warn('Playback did not start automatically:', err);
+    started = false;
+    if (err && err.name === 'AbortError') {
+      try {
+        const btn = document.getElementById('hero-play-btn');
+        const hero = btn && btn.parentElement;
+        if (hero) { hero.style.transform = 'translateZ(0)'; void hero.offsetHeight; requestAnimationFrame(() => { hero.style.transform = ''; void hero.offsetHeight; }); }
+      } catch (e) {}
+    }
+  }
+
+  try { updateMediaSessionMetadata(); } catch (e) {}
+
+  lastPlayedTime = Date.now();
+  localStorage.setItem('lastPlayedTime', lastPlayedTime);
+  persistPlayerState(started);
+
+  dock.classList.remove('dock-hidden');
+  {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    const finalCover = String(resolvedCover || '').trim();
+    document.getElementById('p-cover').src = finalCover || PLACEHOLDER;
+  }
+
+  try { updateAccentFromCover(resolvedCover || ""); } catch (e) {}
+  setMarqueeTitle('p-title', titleClean);
+  document.getElementById('p-artist').innerText = artist;
+
+  setAllPlayIcons(!!started);
+
+  if (window.innerWidth >= 1024) {
+    const cleanTitle = String(title || '').replace(/\.mp3$/i, '');
+    toggleRightSidebar(true);
+    setRightSidebarNowPlaying({ title: cleanTitle, artist, cover });
+    try { loadRightLyrics(artist, cleanTitle); } catch (e) {}
+    try { loadRightBio(artist); } catch (e) {}
+  }
+
+  try { updateRightLyricsForSong(currentSong); } catch (e) {}
+  try { updateCenterLyricsForSong(currentSong); } catch (e) {}
+  try { updateHeartUI(); } catch (e) {}
+  try { addToHistory(album, artist, cover); } catch (e) {}
+
+  try {
+    const key = "reson_play_events_v1";
+    const raw = localStorage.getItem(key);
+    const arr = raw ? (JSON.parse(raw) || []) : [];
+    arr.push({ ts: Date.now(), title: titleClean, artist: String(artist || ""), album: String(albumFolder || ""), url: String(url || ""), started: !!started });
+    while (arr.length > 500) arr.shift();
+    localStorage.setItem(key, JSON.stringify(arr));
+  } catch (e) {}
+
+  try { updateTrackListActiveState(); } catch (e) {}
+
+  if (nowPlayingOverlay && !nowPlayingOverlay.classList.contains('hidden')) {
+    try { updateNowPlayingUI(); } catch (e) {}
+  }
+}
+
+function togglePlay() {
+  if (!currentSong) {
+    if (Array.isArray(currentQueue) && currentQueue.length) {
+      if (typeof playQueue === 'function') playQueue(currentQueue, 0);
+    }
+    return;
+  }
+
+  if (window.__togglePlayLock) return;
+  window.__togglePlayLock = true;
+  const unlock = () => { window.__togglePlayLock = false; };
+
+  if (player.paused) {
+    let p = null;
+    try { p = player.play(); } catch (e) {}
+    try { updateMediaSessionMetadata(); } catch (e) {}
+    try { persistPlayerState(true); } catch (e) {}
+
+    if (p && typeof p.then === "function") {
+      p.then(() => setAllPlayIcons(true))
+       .catch(() => setAllPlayIcons(!player.paused))
+       .finally(unlock);
+    } else {
+      setTimeout(() => { setAllPlayIcons(!player.paused); unlock(); }, 0);
+    }
+  } else {
+    try { player.pause(); } catch (e) {}
+    try { persistPlayerState(false); } catch (e) {}
+    setAllPlayIcons(false);
+    unlock();
+  }
+}
 
                // ✅ Export dock/Now Playing controls to global scope
         // (Your dock buttons / inline onclick need these on window)
