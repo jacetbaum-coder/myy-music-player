@@ -4435,63 +4435,31 @@ body.qs-lock {
 
     <!-- NOW PLAYING: options sheet (mobile + desktop) -->
     <div id="np-options-sheet" class="hidden fixed inset-0 z-[4000]">
-      <div class="absolute inset-0 bg-black/60" onclick="npCloseAllSheets()"></div>
+      <!-- Removed: npCloseAllSheets backdrop trigger. Rebuild this dismiss control later if needed. -->
       <div class="absolute left-0 right-0 bottom-0 rounded-t-2xl bg-zinc-900 border-t border-white/10 p-3 pb-6">
         <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-3"></div>
 
-        <button class="w-full flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-left"
-                onclick="npOpenAddToPlaylist()">
-          <i class="fas fa-plus-circle text-white/70 w-5"></i>
-          <div class="flex-1">
-            <div class="text-white font-semibold">Add to playlist</div>
-          </div>
-        </button>
+        <!-- Removed: npOpenAddToPlaylist button. Rebuild this action button later if needed. -->
 
-        <button class="w-full flex items-center gap-3 px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-left"
-                onclick="npOpenSleepTimer()">
-          <i class="far fa-clock text-white/70 w-5"></i>
-          <div class="flex-1">
-            <div class="text-white font-semibold">Sleep timer</div>
-            <div id="np-sleep-status" class="text-xs text-white/50 mt-1 hidden"></div>
-          </div>
-        </button>
+        <!-- Removed: npOpenSleepTimer button and status UI. Rebuild this sleep-timer entry later if needed. -->
 
-        <button class="w-full mt-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/15 text-white/80"
-                onclick="npCloseAllSheets()">Cancel</button>
+        <!-- Removed: npCloseAllSheets cancel button. Rebuild this cancel control later if needed. -->
       </div>
     </div>
 
     <!-- NOW PLAYING: sleep timer sheet -->
     <div id="np-sleep-sheet" class="hidden fixed inset-0 z-[4100]">
-      <div class="absolute inset-0 bg-black/60" onclick="npCloseAllSheets()"></div>
+      <!-- Removed: npCloseAllSheets backdrop trigger. Rebuild this dismiss control later if needed. -->
       <div class="absolute left-0 right-0 bottom-0 rounded-t-2xl bg-zinc-900 border-t border-white/10 p-3 pb-6">
         <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-3"></div>
         <div class="px-4 pb-2 text-white font-semibold text-lg">Stop audio in</div>
 
         <div class="space-y-1">
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(5)">5 minutes</button>
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(10)">10 minutes</button>
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(15)">15 minutes</button>
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(30)">30 minutes</button>
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(45)">45 minutes</button>
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerMinutes(60)">1 hour</button>
-
-          <button class="w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-white"
-                  onclick="npSetSleepTimerEndOfTrack()">End of track</button>
-
-          <button id="np-sleep-clear"
-                  class="hidden w-full text-left px-4 py-4 rounded-xl hover:bg-white/10 active:bg-white/10 text-red-300"
-                  onclick="npClearSleepTimer()">Turn off sleep timer</button>
+            <!-- Removed: npSetSleepTimerMinutes preset buttons and npSetSleepTimerEndOfTrack option. Rebuild sleep duration controls later if needed. -->
+            <!-- Removed: npClearSleepTimer button. Rebuild this reset control later if needed. -->
         </div>
 
-        <button class="w-full mt-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/15 text-white/80"
-                onclick="npBackToOptionsSheet()">Back</button>
+        <!-- Removed: npBackToOptionsSheet back button. Rebuild this navigation control later if needed. -->
       </div>
     </div>
 
