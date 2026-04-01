@@ -1871,6 +1871,19 @@ body.np-open #playlist-submenu{
   opacity: 0.75;
 }
 
+/* Desktop: do not use mobile tile/pill folder UI */
+@media (min-width: 769px) {
+  #playlist-submenu .folder-new-row,
+  #playlist-submenu .folder-tiles-grid,
+  #playlist-submenu .folder-tile,
+  #playlist-submenu .folder-tile-square,
+  #playlist-submenu .folder-tile-icon,
+  #playlist-submenu .folder-tile-name,
+  #playlist-submenu .folder-tile-sub {
+    display: none !important;
+  }
+}
+
 /* ✅ Home → Folders tab: prevent scrolling into other Home sections on mobile */
 @media (max-width: 768px) {
   #main-scroll-area.home-folders-lock{

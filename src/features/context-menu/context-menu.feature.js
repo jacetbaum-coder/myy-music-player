@@ -522,6 +522,15 @@ function closeContextMenu(e) {
   contextMenu.style.transform = '';
   contextMenu.style.right = '';
   contextMenuAnchor = null;
+
+  // Desktop: also hide any open playlist submenu flyout
+  if (sub) {
+    sub.classList.remove('open');
+    sub.style.display = 'none';
+    sub.style.transform = '';
+    sub.style.opacity = '';
+  }
+
   if (contextMenuScrollHandler) {
     window.removeEventListener('scroll', contextMenuScrollHandler, true);
     contextMenuScrollHandler = null;
@@ -981,6 +990,129 @@ function openAddToFolderSubmenu(event){
 
   if (!submenu || !items || !title) {
     console.warn("Add-to-folder submenu missing DOM pieces");
+    return;
+  }
+
+  const isDesktop = window.innerWidth > 768;
+
+  if (isDesktop) {
+    title.textContent = "Add to folder";
+
+    try {
+      const cm = document.getElementById('context-menu');
+      const cmRect = cm ? cm.getBoundingClientRect() : null;
+      const flyW = 360;
+      const flyH = 420;
+      const pad = 12;
+
+      const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
+      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.24);
+
+      const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
+      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));
+
+      submenu.style.position = 'fixed';
+      submenu.style.left = `${left}px`;
+      submenu.style.top = `${top}px`;
+      submenu.style.right = 'auto';
+      submenu.style.bottom = 'auto';
+      submenu.style.width = `${flyW}px`;
+      submenu.style.maxWidth = `min(${flyW}px, calc(100vw - 24px))`;
+      submenu.style.height = `${flyH}px`;
+      submenu.style.maxHeight = 'calc(100vh - 24px)';
+      submenu.style.display = 'block';
+      submenu.style.overflow = 'hidden';
+      submenu.style.background = 'rgba(42,42,42,0.98)';
+      submenu.style.border = '1px solid rgba(255,255,255,0.10)';
+      submenu.style.borderRadius = '8px';
+      submenu.style.boxShadow = '0 14px 38px rgba(0,0,0,0.45)';
+      submenu.style.transform = 'none';
+      submenu.style.opacity = '1';
+      submenu.style.pointerEvents = 'auto';
+      submenu.style.zIndex = '200500';
+      submenu.classList.add('open');
+    } catch (e) {}
+
+    let folders = [];
+    try {
+      const raw = localStorage.getItem('folders');
+      const arr = raw ? JSON.parse(raw) : [];
+      folders = Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      folders = [];
+    }
+
+    const getCurrentPlaylistId = () => {
+      const a = (window.navCurrent && window.navCurrent.playlistId) ? String(window.navCurrent.playlistId) : '';
+      const b = (window.menuTargetSong && window.menuTargetSong.playlistId) ? String(window.menuTargetSong.playlistId) : '';
+      const c = (window.menuTargetSong && window.menuTargetSong.id) ? String(window.menuTargetSong.id) : '';
+      return (a || b || c || '').trim();
+    };
+
+    const addCurrentPlaylistToFolder = (folderId) => {
+      const pid = getCurrentPlaylistId();
+      if (!pid) return;
+      const idx = folders.findIndex(f => String(f?.id || '') === String(folderId));
+      if (idx < 0) return;
+
+      const folder = folders[idx];
+      folder.playlistIds = Array.isArray(folder.playlistIds) ? folder.playlistIds.map(String) : [];
+      if (!folder.playlistIds.includes(pid)) folder.playlistIds.push(pid);
+
+      try { localStorage.setItem('folders', JSON.stringify(folders)); } catch (e) {}
+      try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu(); } catch (e) {}
+    };
+
+    items.innerHTML = `
+      <div style="padding:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.10);border-radius:6px;padding:8px 10px;">
+          <i class="fas fa-search" style="opacity:.75"></i>
+          <input id="folder_desktop_search" placeholder="Find a folder" autocomplete="off"
+                 style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:15px;">
+        </div>
+      </div>
+      <div id="folder_desktop_list" style="max-height:356px;overflow:auto;"></div>
+    `;
+
+    const list = items.querySelector('#folder_desktop_list');
+    const search = items.querySelector('#folder_desktop_search');
+
+    const renderList = (q = '') => {
+      const needle = String(q || '').trim().toLowerCase();
+      const rows = folders.filter(f => !needle || String(f?.name || '').toLowerCase().includes(needle));
+      list.innerHTML = '';
+
+      const mk = (label, onClick, withArrow = false) => {
+        const el = document.createElement('div');
+        el.className = 'menu-item';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'space-between';
+        el.style.padding = '10px 14px';
+        el.style.cursor = 'pointer';
+        el.innerHTML = `<span>${label}</span>${withArrow ? '<i class="fas fa-chevron-right" style="font-size:12px;opacity:.8"></i>' : ''}`;
+        el.addEventListener('mouseenter', () => el.classList.add('cm-armed'));
+        el.addEventListener('mouseleave', () => el.classList.remove('cm-armed'));
+        el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(); });
+        return el;
+      };
+
+      list.appendChild(mk('New Folder', () => {
+        try {
+          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+          folders.push({ id, name: 'New Folder', playlistIds: [] });
+          localStorage.setItem('folders', JSON.stringify(folders));
+          renderList(search ? search.value : '');
+        } catch (e) {}
+      }, true));
+
+      rows.forEach((f) => {
+        list.appendChild(mk(String(f?.name || 'Folder'), () => addCurrentPlaylistToFolder(f.id)));
+      });
+    };
+
+    if (search) search.addEventListener('input', () => renderList(search.value));
+    renderList('');
     return;
   }
 

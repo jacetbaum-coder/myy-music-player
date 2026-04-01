@@ -698,19 +698,20 @@ function playPlaylistById(playlistId) {
 
   const isDesktop = window.innerWidth > 768;
 
-  // ✅ Desktop: flyout panel next to context menu (Spotify-like)
+  // ✅ Desktop: compact flyout list (like Spotify pic 4)
   if (isDesktop) {
     try {
       const cm = document.getElementById('context-menu');
       const cmRect = cm ? cm.getBoundingClientRect() : null;
-      const flyW = 420;
+      const flyW = 360;
+      const flyH = 450;
       const pad = 12;
 
-      const baseLeft = cmRect ? (cmRect.right + 8) : (window.innerWidth * 0.52);
-      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.2);
+      const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
+      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.22);
 
       const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
-      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - 560));
+      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));
 
       sub.style.position = 'fixed';
       sub.style.left = `${left}px`;
@@ -719,23 +720,159 @@ function playPlaylistById(playlistId) {
       sub.style.bottom = 'auto';
       sub.style.width = `${flyW}px`;
       sub.style.maxWidth = `min(${flyW}px, calc(100vw - 24px))`;
-      sub.style.height = '560px';
+      sub.style.height = `${flyH}px`;
       sub.style.maxHeight = 'calc(100vh - 24px)';
       sub.style.overflow = 'hidden';
-      sub.style.display = 'flex';
-      sub.style.flexDirection = 'column';
-      sub.style.background = 'rgba(30,30,30,0.96)';
+      sub.style.display = 'block';
+      sub.style.background = 'rgba(42,42,42,0.98)';
       sub.style.backdropFilter = 'blur(14px)';
       sub.style.webkitBackdropFilter = 'blur(14px)';
       sub.style.border = '1px solid rgba(255,255,255,0.10)';
-      sub.style.borderRadius = '10px';
+      sub.style.borderRadius = '8px';
       sub.style.boxShadow = '0 14px 38px rgba(0,0,0,0.45)';
       sub.style.transition = 'opacity 120ms ease';
       sub.style.transform = 'none';
       sub.style.opacity = '1';
       sub.style.zIndex = '200500';
       sub.style.pointerEvents = 'auto';
-    } catch (e) {}
+      sub.classList.add('open');
+
+      let items = document.getElementById('playlist-submenu-items');
+      if (!items) {
+        items = document.createElement('div');
+        items.id = 'playlist-submenu-items';
+        sub.appendChild(items);
+      }
+
+      const title = sub.querySelector('.cm-submenu-title');
+      if (title) title.textContent = 'Add to playlist';
+
+      // Hide mobile-only header controls for desktop submenu.
+      const mobileHeader = sub.querySelector('#ps_header');
+      const mobileDone = sub.querySelector('#ps_done');
+      if (mobileHeader) mobileHeader.style.display = 'none';
+      if (mobileDone) mobileDone.style.display = 'none';
+
+      const canonTrackId = (v) => {
+        let s = String(v || '').trim();
+        if (!s) return '';
+        try {
+          if (s.includes('://')) {
+            const u = new URL(s);
+            const id = u.searchParams.get('id');
+            if (id) s = id;
+          }
+        } catch (e) {}
+        if (s.includes('?id=')) {
+          try { s = (s.split('?id=')[1] || '').split('&')[0] || s; } catch (e) {}
+        }
+        try { s = decodeURIComponent(s); } catch (e) {}
+        return s.replace(/^\/+/, '').trim();
+      };
+
+      const resolveTrackId = () => {
+        const s = window.menuTargetSong;
+        if (!s) return '';
+        let trackId = s.id || s.r2Path || s.track_id || s.trackId || s.key || s.r2_key || '';
+        if (!trackId) {
+          const u = s.link || s.url || '';
+          try {
+            const parsed = new URL(u, window.location.origin);
+            trackId = parsed.searchParams.get('id') || '';
+          } catch (_) {}
+        }
+        return canonTrackId(trackId);
+      };
+
+      const trackId = resolveTrackId();
+
+      const rowsRaw = [
+        ...(Array.isArray(window.cloudPlaylists) ? window.cloudPlaylists : []),
+        ...(Array.isArray(window.playlists) ? window.playlists : []),
+      ].filter(Boolean);
+
+      const byId = new Map();
+      rowsRaw.forEach((p) => {
+        const pid = String(p?.id || p?.playlistId || p?.playlist_id || '').trim();
+        if (pid) byId.set(pid, p);
+      });
+
+      const allRows = Array.from(byId.values()).map((p) => ({
+        pid: String(p?.id || p?.playlistId || p?.playlist_id || '').trim(),
+        name: String(p?.name || 'Untitled')
+      })).filter(r => r.pid);
+
+      items.innerHTML = `
+        <div style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.10);border-radius:6px;padding:8px 10px;">
+            <i class="fas fa-search" style="opacity:.75"></i>
+            <input id="ps_desktop_search" placeholder="Find a playlist" autocomplete="off"
+                   style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:15px;">
+          </div>
+        </div>
+        <div id="ps_desktop_list" style="max-height:386px;overflow:auto;"></div>
+      `;
+
+      const list = items.querySelector('#ps_desktop_list');
+      const search = items.querySelector('#ps_desktop_search');
+
+      const addTrackToPlaylist = async (playlistId) => {
+        if (!trackId) return;
+        if (typeof window.addTrackToPlaylistInCloud === 'function') {
+          await window.addTrackToPlaylistInCloud(playlistId, trackId);
+        }
+      };
+
+      const renderRows = (q = '') => {
+        const needle = String(q || '').trim().toLowerCase();
+        const rows = allRows.filter(r => !needle || r.name.toLowerCase().includes(needle));
+
+        list.innerHTML = '';
+
+        const mkItem = (label, onClick, withArrow = false) => {
+          const el = document.createElement('div');
+          el.className = 'menu-item';
+          el.style.display = 'flex';
+          el.style.alignItems = 'center';
+          el.style.justifyContent = 'space-between';
+          el.style.padding = '10px 14px';
+          el.style.cursor = 'pointer';
+          el.innerHTML = `<span>${label}</span>${withArrow ? '<i class="fas fa-chevron-right" style="font-size:12px;opacity:.8"></i>' : ''}`;
+          el.addEventListener('mouseenter', () => el.classList.add('cm-armed'));
+          el.addEventListener('mouseleave', () => el.classList.remove('cm-armed'));
+          el.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try { await onClick(); } catch (err) { console.warn(err); }
+          });
+          return el;
+        };
+
+        list.appendChild(mkItem('New playlist', async () => {
+          if (typeof window.createNewPlaylist === 'function') window.createNewPlaylist();
+        }));
+
+        list.appendChild(mkItem('New Folder', async () => {
+          if (typeof window.openAddToFolderSubmenu === 'function') {
+            window.openAddToFolderSubmenu({ preventDefault(){}, stopPropagation(){} });
+          }
+        }, true));
+
+        rows.forEach((r) => {
+          list.appendChild(mkItem(r.name, async () => {
+            await addTrackToPlaylist(r.pid);
+            if (typeof window.closeContextMenu === 'function') window.closeContextMenu();
+          }));
+        });
+      };
+
+      if (search) search.addEventListener('input', () => renderRows(search.value));
+      renderRows('');
+    } catch (e) {
+      console.warn(e);
+    }
+
+    return;
   } else {
     // ✅ Mobile: full-width sheet that slides up
     try {
@@ -902,6 +1039,10 @@ try {
     doneBtn.style.zIndex = '20';
     sub.appendChild(doneBtn);
   }
+
+  // Mobile path: ensure controls are visible (desktop branch may have hidden them earlier)
+  header.style.display = '';
+  doneBtn.style.display = '';
 
   // Make the playlist list area scrollable and leave room for Done
   items.style.overflowY = 'auto';
