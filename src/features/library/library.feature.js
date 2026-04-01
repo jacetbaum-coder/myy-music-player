@@ -424,7 +424,7 @@ showView = function(viewType, playlistIndex = null) {
   setLibraryControlsVisibility();
 
   // If we entered Library, apply sort immediately
-  if (navCurrent && navCurrent.type === 'library') {
+  if (navCurrent && navCurrent.type === 'library' && !window.__isBackNav) {
         renderLibraryMain();
 
   }
@@ -595,12 +595,18 @@ function updateMobileLibraryTabUI() {
 }
 
 function setLibraryTopTab(tab) {
-  libraryTopTab = tab;
-  localStorage.setItem('libraryTopTab', tab);
-window.libraryTopTab = tab;
+  const nextTab = String(tab || 'all');
+  const sameTab = (String(libraryTopTab || '') === nextTab);
+
+  libraryTopTab = nextTab;
+  localStorage.setItem('libraryTopTab', nextTab);
+window.libraryTopTab = nextTab;
 updateMobileLibraryTabUI();
 
   updateMobileLibrarySectionTitle();
+
+  // During back-nav restore, preserve existing Library DOM to avoid flicker/jump.
+  if (window.__isBackNav && sameTab) return;
 
   // ✅ Always re-render immediately on mobile when a top Library tab is clicked.
   // This avoids getting "stuck" when navCurrent / __rootTab is stale.

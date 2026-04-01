@@ -6537,21 +6537,29 @@ window.captureSwipeBackUnderlay = function captureSwipeBackUnderlay() {
   // Clear old snapshot
   inner.innerHTML = '';
 
+  // Record scroll offset so the clone shows the correct part of the page
+  const scrollTop = area.scrollTop;
+
   // Clone scroll area content without duplicating IDs
   const clone = area.cloneNode(true);
   __stripIds(clone);
 
-  // Prevent any transitions in the clone
-  try {
-    clone.style.transition = '';
-    clone.style.transform = 'translateX(0px)';
-    clone.style.opacity = '1';
-  } catch (e) {}
+  // Shift clone UP by scrollTop so the visible strip aligns with what the
+  // user actually sees. Setting .scrollTop on a freshly cloned element
+  // has no visual effect (it isn't laid out yet), so translateY is the
+  // only reliable way to show the correct scroll position in the snapshot.
+  clone.style.transition = '';
+  clone.style.transform = `translateY(-${scrollTop}px)`;
+  clone.style.opacity = '1';
+  clone.style.position = 'absolute';
+  clone.style.top = '0';
+  clone.style.left = '0';
+  clone.style.right = '0';
+  clone.style.bottom = '0';
+  clone.style.overflow = 'hidden';
+  clone.style.pointerEvents = 'none';
 
   inner.appendChild(clone);
-
-  // Match scroll position (best effort)
-  try { clone.scrollTop = area.scrollTop; } catch (e) {}
 };
 
 function showSwipeBackUnderlay() {
@@ -6802,6 +6810,32 @@ function initSwipeBack() {
     area.addEventListener('transitionend', clear);
   }
 
+  // Re-apply scroll for a short window to beat any late layout/render nudge.
+  function forceRestoreMainScrollTop(top, durationMs = 300) {
+    if (typeof top !== 'number' || !isFinite(top)) return;
+
+    const apply = () => {
+      try {
+        const el = document.getElementById('main-scroll-area');
+        if (el) el.scrollTop = top;
+      } catch (e) {}
+    };
+
+    const started = Date.now();
+    const tick = () => {
+      apply();
+      if ((Date.now() - started) < durationMs) {
+        try { requestAnimationFrame(tick); } catch (e) {}
+      }
+    };
+
+    apply();
+    try { requestAnimationFrame(tick); } catch (e) {}
+    try { setTimeout(apply, 50); } catch (e) {}
+    try { setTimeout(apply, 150); } catch (e) {}
+    try { setTimeout(apply, 300); } catch (e) {}
+  }
+
   area.addEventListener('pointerdown', (e) => {
     if (!canStart(e)) return;
 
@@ -6900,8 +6934,30 @@ function initSwipeBack() {
         doneCalled = true;
 
         area.removeEventListener('transitionend', done);
-        reset(false);
+
+        // Snapshot the target scrollTop BEFORE goBack() pops the stack.
+        // We read it for ALL prev types so album/artist back-nav also benefits.
+        let backTargetTop = null;
+        try {
+          const prev = (Array.isArray(navStack) && navStack.length)
+            ? navStack[navStack.length - 1]
+            : null;
+          if (prev && typeof prev.scrollTop === 'number') {
+            backTargetTop = prev.scrollTop;
+          }
+        } catch (e) {}
+
+        // goBack() renders the destination view and restores scrollTop.
         goBack();
+
+        // Immediately hammer the scroll position (goBack restores it, but
+        // late-firing renders can nudge it; we hold it firm for ~300 ms).
+        if (backTargetTop !== null) {
+          forceRestoreMainScrollTop(backTargetTop, 300);
+        }
+
+        // Reveal destination — underlay is dropped by reset(false) below.
+        reset(false);
       };
             area.addEventListener('transitionend', done);
 
@@ -6944,7 +7000,10 @@ function initSwipeBack() {
 function showView(viewType, playlistIndex = null) {
 
     // Capture what's currently on screen so swipe-back shows it behind
-  window.captureSwipeBackUnderlay?.();
+  // Skip during back navigation — the underlay already holds the correct previous-view snapshot
+  if (!window.__isBackNav) {
+    window.captureSwipeBackUnderlay?.();
+  }
   // BACK STACK: push the current state before switching views
   pushNavCurrent();
 
@@ -6961,7 +7020,8 @@ function showView(viewType, playlistIndex = null) {
     if (area) {
       area.classList.remove('sb-dragging');
       area.style.transition = '';
-      area.style.transform = '';
+      // Skip transform reset during back-nav (element is off-screen, reveal happens in reset())
+      if (!window.__isBackNav) area.style.transform = '';
       area.style.opacity = '';
       area.style.willChange = '';
       area.style.overflow = '';
@@ -7063,7 +7123,8 @@ if (scrollArea) {
 
   // ✅ Reset any leftover swipe-down transform (this was pushing Recently Deleted down)
   scrollArea.style.transition = '';
-  scrollArea.style.transform = '';
+  // Skip during back-nav to avoid flash before reset() reveals the correctly-positioned library
+  if (!window.__isBackNav) scrollArea.style.transform = '';
     scrollArea.style.opacity = '';
 
   // ✅ Desktop trackpad/wheel scroll fix:
@@ -7122,7 +7183,7 @@ try { renderHome(); } catch (e) {}
      try { updateMobileLibrarySectionTitle(); } catch (e) {}
 
      // ✅ Render Albums / Playlists / Artists / All based on libraryTopTab
-     renderLibraryMain();
+     if (!window.__isBackNav) renderLibraryMain();
    }
 
 
