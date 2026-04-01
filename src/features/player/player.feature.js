@@ -1550,7 +1550,16 @@ player.addEventListener('error', () => {
 
     // User-initiated click: show error
     console.warn("⚠️ user-click audio error:", src);
-    try { alert("This track is unavailable."); } catch (e) {}
+    try {
+      showTrackMissingModal({
+        reason: "audio_error",
+        requestedUrl: src,
+        title: currentSong ? currentSong.title : "",
+        artist: currentSong ? currentSong.artist : "",
+        album: currentSong ? currentSong.album : "",
+        when: new Date().toISOString()
+      });
+    } catch (e) { try { alert("This track is unavailable."); } catch (_) {} }
   } catch (e) {}
 });
 
@@ -1708,23 +1717,6 @@ function updateNowPlayingUI() {
 }
 
 async function playSpecificSong(url, title, album, artist, cover) {
-
-  // Guard: verify stream exists before attempting playback
-  try {
-    const head = await fetch(url, { method: "HEAD" });
-    const ct = String(head.headers.get("content-type") || "");
-    if (!head.ok || ct.includes("application/json")) {
-      let bodyText = "";
-      try { const r = await fetch(url); bodyText = await r.text(); } catch (e) {}
-      let bodyJson = null;
-      try { bodyJson = bodyText ? JSON.parse(bodyText) : null; } catch (e) {}
-      showTrackMissingModal({ reason: "stream_not_found", headStatus: head.status, headContentType: ct, requestedUrl: url, title, album, artist, workerBodyText: bodyText, workerBodyJson: bodyJson, when: new Date().toISOString() });
-      return;
-    }
-  } catch (e) {
-    showTrackMissingModal({ reason: "stream_check_failed", requestedUrl: url, title, album, artist, error: String(e), when: new Date().toISOString() });
-    return;
-  }
 
   const titleClean = String(title || "").split("/").pop().replace(/\.[^/.]+$/, "");
   const albumRaw = String(album || "").trim();
