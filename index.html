@@ -846,6 +846,9 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
     grid-template-columns: 34px minmax(0, 1fr) minmax(180px, 0.62fr) 110px;
   }
 
+  .sort-col .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.5; font-style: normal; }
+  .sort-col.sort-active .sort-arrow { opacity: 1; }
+
   .track-row .track-artist {
     margin-top: 2px;
   }
@@ -858,7 +861,26 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
     background: rgba(255,255,255,0.12) !important;
   }
 }
-	   
+
+.sort-col {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  opacity: 0.7;
+  user-select: none;
+}
+.sort-col:hover { opacity: 1; }
+.sort-col.sort-active { opacity: 1; color: #1db954; }
+.sort-col .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.6; font-style: normal; }
+
 /* Desktop hover like Spotify (pic 1) */
 @media (hover: hover) and (pointer: fine) {
   .track-row:hover{
@@ -3373,7 +3395,7 @@ body.qs-lock {
                 <div onclick="showView('home')" id="side-nav-home" class="flex items-center gap-4 text-white hover:text-white cursor-pointer transition font-bold text-sm">
                     <i class="fas fa-home text-2xl w-8"></i> Home
                 </div>
-                <div onclick="showView('search')" id="side-nav-search" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
+                <div onclick="showView('search'); setTimeout(()=>{try{document.getElementById('global-search').focus()}catch(e){}},80)" id="side-nav-search" class="flex items-center gap-4 text-zinc-400 hover:text-white cursor-pointer transition font-bold text-sm">
                     <i class="fas fa-search text-2xl w-8"></i> Search
                 </div>
             </div>
@@ -3487,7 +3509,7 @@ body.qs-lock {
             <div class="flex items-center gap-4">
               <!-- search (taps to Search view) -->
               <button type="button"
-                onclick="showView('search')"
+                onclick="showView('search'); setTimeout(()=>{try{document.getElementById('global-search').focus()}catch(e){}},80)"
                 class="text-white/90 hover:text-white"
                 aria-label="Search">
                 <i class="fas fa-search text-xl"></i>
@@ -3921,7 +3943,7 @@ body.qs-lock {
     <i class="fas fa-search search-icon"></i>
     <input type="text" id="global-search" class="search-input"
            placeholder="What do you want to listen to?"
-           oninput="handleSearch(this.value)">
+           oninput="clearTimeout(window.__srchT); window.__srchT = setTimeout(() => handleSearch(this.value), 180)">
   </div>
   <div id="search-results" class="space-y-2">
     <p class="text-zinc-500">Start typing to search your cloud library...</p>
@@ -4167,11 +4189,10 @@ body.qs-lock {
   </div>
 
 <div class="track-row track-header">
-
   <span>#</span>
-  <span>Title</span>
-  <span class="hidden md:block">Album</span>
-  <span class="hidden md:block">Date Added</span>
+  <button class="sort-col" id="sort-col-title" onclick="sortPlaylistBy('title')">Title<i class="sort-arrow"></i></button>
+  <button class="sort-col hidden md:block" id="sort-col-album" onclick="sortPlaylistBy('album')">Album<i class="sort-arrow"></i></button>
+  <button class="sort-col hidden md:block sort-active" id="sort-col-date" onclick="sortPlaylistBy('date')">Date Added<i class="sort-arrow"> ↓</i></button>
   <span class="hidden md:block text-center"><i class="far fa-clock"></i></span>
 </div>
 
@@ -7489,6 +7510,11 @@ function onNavTap(viewType) {
 
      // Normal navigation
   showView(viewType);
+
+  // Search: always focus the input immediately so the user can type right away
+  if (viewType === 'search') {
+    setTimeout(() => { try { document.getElementById('global-search').focus(); } catch(e) {} }, 80);
+  }
 
 }
 
@@ -11447,6 +11473,68 @@ window.resolveTrackIdsToSongs = function (trackIds) {
     .filter(Boolean);
 };
 
+// ===== Playlist column sort =====
+var __plSort = { col: 'date', dir: 'desc' }; // default: date added, newest first
+
+function sortPlaylistBy(col) {
+  if (__plSort.col === col) {
+    __plSort.dir = __plSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    __plSort.col = col;
+    __plSort.dir = col === 'date' ? 'desc' : 'asc';
+  }
+  _applyPlaylistSort();
+}
+window.sortPlaylistBy = sortPlaylistBy;
+
+function _applyPlaylistSort() {
+  const listEl = document.getElementById('track-list');
+  if (!listEl) return;
+
+  const rows = Array.from(listEl.querySelectorAll('.track-row:not(.track-header)'));
+  if (!rows.length) return;
+
+  rows.sort((a, b) => {
+    if (__plSort.col === 'title') {
+      const ta = String(a.querySelector('[data-role="title"]')?.textContent || '').trim().toLowerCase();
+      const tb = String(b.querySelector('[data-role="title"]')?.textContent || '').trim().toLowerCase();
+      return __plSort.dir === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+    } else if (__plSort.col === 'album') {
+      const ta = String(a.querySelector('[data-role="album"]')?.textContent || '').trim().toLowerCase();
+      const tb = String(b.querySelector('[data-role="album"]')?.textContent || '').trim().toLowerCase();
+      return __plSort.dir === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+    } else {
+      // date: use original insertion index stored in data-sort-index
+      const ia = Number(a.dataset.sortIndex || 0);
+      const ib = Number(b.dataset.sortIndex || 0);
+      return __plSort.dir === 'desc' ? ib - ia : ia - ib;
+    }
+  });
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(r => frag.appendChild(r));
+  listEl.appendChild(frag);
+
+  // Update header indicators
+  ['title', 'album', 'date'].forEach(c => {
+    const el = document.getElementById('sort-col-' + c);
+    if (!el) return;
+    let arrow = el.querySelector('.sort-arrow');
+    if (!arrow) {
+      arrow = document.createElement('i');
+      arrow.className = 'sort-arrow';
+      el.appendChild(arrow);
+    }
+    if (__plSort.col === c) {
+      el.classList.add('sort-active');
+      arrow.textContent = __plSort.dir === 'asc' ? ' ↑' : ' ↓';
+    } else {
+      el.classList.remove('sort-active');
+      arrow.textContent = '';
+    }
+  });
+}
+
 function renderCollection(name, songs, isPlaylist = false) {
   const queue = buildQueueFromSongs(songs, { album: name });
   currentQueue = queue;
@@ -11507,6 +11595,22 @@ if (hero && activePlaylistId) {
 
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
+
+  // Reset sort to default (date desc) on each new collection load
+  __plSort = { col: 'date', dir: 'desc' };
+  try {
+    ['title','album','date'].forEach(c => {
+      const el = document.getElementById('sort-col-' + c);
+      if (el) { el.classList.remove('sort-active'); const a = el.querySelector('.sort-arrow'); if (a) a.textContent = ''; }
+    });
+    const dateBtn = document.getElementById('sort-col-date');
+    if (dateBtn) {
+      dateBtn.classList.add('sort-active');
+      let a = dateBtn.querySelector('.sort-arrow');
+      if (!a) { a = document.createElement('i'); a.className = 'sort-arrow'; dateBtn.appendChild(a); }
+      a.textContent = ' ↓';
+    }
+  } catch(e) {}
 
   queue.forEach((song, i) => {
     const row = document.createElement('div');
@@ -11618,6 +11722,7 @@ if (hero && activePlaylistId) {
        // ✅ needed by updateTrackListActiveState()
     row.dataset.url = song.url || '';
     row.dataset.index = String(i + 1);
+    row.dataset.sortIndex = String(i);  // for date-added sort
 
     // ✅ Playlist titles often come in as "Artist/Title" — display only "Title"
     const rawTitle = String(song.title || '').replace('.mp3', '');

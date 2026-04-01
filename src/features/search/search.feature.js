@@ -572,18 +572,12 @@ function initSearchSwipeDownClose() {
 
 function focusGlobalSearch() {
   try {
-    const input =
-      document.querySelector('#search-input') ||
-      document.querySelector('input[type="search"]') ||
-      document.querySelector('input[placeholder*="Search"]');
-
+    const input = document.getElementById('global-search');
     if (!input) return;
-
-    // iOS / mobile needs async focus
+    // Needs a slight delay so the view is visible before focus
     setTimeout(() => {
-      input.focus();
-      input.click();
-    }, 0);
+      try { input.focus(); } catch (e) {}
+    }, 80);
   } catch (e) {}
 }
 
@@ -797,7 +791,7 @@ function renderSearchClickRecents(targetId){
   }
 
   const header = `
-    <div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">Recent</div>
+    <div style="padding:24px 16px 8px;font-size:22px;font-weight:900;color:#fff;">Recent searches</div>
   `;
 
   const rows = rec.map(item => {
@@ -1053,6 +1047,21 @@ function handleSearch(query) {
 }
 
          const q = raw.trim();
+
+          // 1-2 chars: fast includes(); 3+ chars: fuzzy with threshold 55
+          const qNorm = (typeof normalizeForSearch === 'function') ? normalizeForSearch(q) : q.toLowerCase();
+          const isShort = qNorm.length <= 2;
+          const scoreThreshold = isShort ? 0 : 55;
+
+          const quickMatch = (field) => {
+            const f = (typeof normalizeForSearch === 'function') ? normalizeForSearch(field) : String(field || '').toLowerCase();
+            return f.includes(qNorm);
+          };
+          const startsMatch = (field) => {
+            const f = (typeof normalizeForSearch === 'function') ? normalizeForSearch(field) : String(field || '').toLowerCase();
+            return f.startsWith(qNorm);
+          };
+
           let matches = [];
             const albumMatches = new Map();
           const artistMatches = new Map();
@@ -1065,15 +1074,21 @@ function handleSearch(query) {
             album.songs.forEach(song => {
               const songName = song.name || '';
 
+              let score;
+              if (isShort) {
+                if (quickMatch(songName)) score = startsMatch(songName) ? 95 : 85;
+                else if (quickMatch(artistName) || quickMatch(albumName)) score = 65;
+                else score = 0;
+              } else {
               const sTitle = fuzzyScore(q, songName);
               const sArtist = fuzzyScore(q, artistName);
               const sAlbum = fuzzyScore(q, albumName);
-
               // Let title be strongest; artist/album slightly weaker
-              const score = Math.max(sTitle, Math.round(sArtist * 0.90), Math.round(sAlbum * 0.85));
+              score = Math.max(sTitle, Math.round(sArtist * 0.90), Math.round(sAlbum * 0.85));
+              }
 
               // Threshold: typo-tolerant but avoids junk
-              if (score >= 55) {
+              if (score >= scoreThreshold) {
                 matches.push({
                     type: 'song',
                   ...song,
@@ -1089,8 +1104,15 @@ _score: score
               }
             });
 
-              const albumScore = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
-            if (albumScore >= 55 && albumName) {
+              let albumScore;
+              if (isShort) {
+                if (quickMatch(albumName)) albumScore = startsMatch(albumName) ? 95 : 85;
+                else if (quickMatch(artistName)) albumScore = 65;
+                else albumScore = 0;
+              } else {
+              albumScore = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
+              }
+            if (albumScore >= scoreThreshold && albumName) {
               const existing = albumMatches.get(albumName);
               if (!existing || (existing._score || 0) < albumScore) {
                 albumMatches.set(albumName, {
@@ -1104,8 +1126,8 @@ _score: score
             }
 
             if (artistName) {
-              const artistScore = fuzzyScore(q, artistName);
-              if (artistScore >= 55) {
+              const artistScore = isShort ? (quickMatch(artistName) ? (startsMatch(artistName) ? 100 : 90) : 0) : fuzzyScore(q, artistName);
+              if (artistScore >= scoreThreshold) {
                 const existingArtist = artistMatches.get(artistName);
                 if (!existingArtist || (existingArtist._score || 0) < artistScore) {
                   artistMatches.set(artistName, {
@@ -1120,8 +1142,8 @@ _score: score
             
  const playlistMatches = (Array.isArray(playlists) ? playlists : [])
   .map(pl => {
-    const score = fuzzyScore(q, pl.name || '');
-    if (score < 55) return null;
+    const score = isShort ? (quickMatch(pl.name || '') ? (startsMatch(pl.name || '') ? 100 : 90) : 0) : fuzzyScore(q, pl.name || '');
+    if (score < scoreThreshold) return null;
 
     // ✅ include cover so the row renderer can show an image
     const cover = (typeof getEffectivePlaylistCover === 'function')
@@ -1231,6 +1253,48 @@ try {
           }
 
           results.innerHTML = '';
+
+          // --- Typeahead suggestions (appear above results) ---
+          try {
+            const __sugSeen = new Set();
+            const __sugs = [];
+            // from recent typed searches
+            for (const __term of loadSearchRecents()) {
+              const __t = String(__term || '').trim();
+              if (__t && __t.toLowerCase().startsWith(qNorm) && !__sugSeen.has(__t.toLowerCase())) {
+                __sugSeen.add(__t.toLowerCase());
+                __sugs.push(__t);
+              }
+            }
+            // from recently clicked items (artist/playlist/album names)
+            for (const __r of loadSearchClickRecents()) {
+              const __t = String(__r.title || __r.name || '').trim();
+              if (__t && __t.toLowerCase().startsWith(qNorm) && !__sugSeen.has(__t.toLowerCase())) {
+                __sugSeen.add(__t.toLowerCase());
+                __sugs.push(__t);
+              }
+            }
+            __sugs.slice(0, 4).forEach(__sug => {
+              const __row = document.createElement('div');
+              __row.className = 'flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer hover:bg-zinc-900';
+              const __icon = document.createElement('div');
+              __icon.className = 'w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0';
+              __icon.innerHTML = '<i class="fas fa-search text-zinc-400 text-sm"></i>';
+              const __txt = document.createElement('div');
+              __txt.className = 'text-base flex-1 truncate';
+              const __typedPart = String(q).replace(/</g, '&lt;');
+              const __restPart = __sug.slice(q.length).replace(/</g, '&lt;');
+              __txt.innerHTML = `<span style="color:#71717a">${__typedPart}</span><span style="color:#fff;font-weight:600">${__restPart}</span>`;
+              __row.appendChild(__icon);
+              __row.appendChild(__txt);
+              __row.addEventListener('click', () => {
+                const __inp = document.getElementById('global-search');
+                if (__inp) { __inp.value = __sug; }
+                handleSearch(__sug);
+              });
+              results.appendChild(__row);
+            });
+          } catch (__e) {}
 
             const appendSection = (title) => {
             const section = document.createElement('div');
@@ -1358,9 +1422,9 @@ if (!albumLabel || albumLabel === 'Unknown Album') {
 }
 
 meta.textContent =
-  albumLabel
-    ? `${s.artist} • ${albumLabel}`
-    : String(s.artist || '').trim();
+  s.artist
+    ? `Song \u2022 ${s.artist}`
+    : 'Song';
 
 
             const icon = document.createElement('i');
@@ -1454,7 +1518,7 @@ img.src = cover || '';
 
             const meta = document.createElement('div');
             meta.className = 'text-sm text-zinc-400 truncate';
-            meta.textContent = album.artist || 'Album';
+            meta.textContent = album.artist ? `Album \u2022 ${album.artist}` : 'Album';
 
             info.appendChild(title);
             info.appendChild(meta);
@@ -1519,7 +1583,7 @@ img.src = cover || '';
           const appendPlaylistRow = (playlist) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
-                        row.addEventListener('click', () => {
+            row.addEventListener('click', () => {
               // save as a "recent clicked" item
               let c = '';
               try {
@@ -1631,57 +1695,82 @@ if (topType === 'album' && topAlbum?.album) {
   });
 }
 
-// If nothing matched at all, show empty state (and still allow recents)
+// If nothing matched at all, show empty state
 if (!songsOrdered.length && !albumResults.length && !artistResults.length && !playlistMatches.length) {
   results.innerHTML = `<div class="px-4 py-4 text-sm text-zinc-400">No results for "${String(q).replace(/</g,'&lt;')}"</div>`;
 } else {
-  // Render order per your rules:
-  // Album query: Album → Songs (from album first) → Artist
-  // Artist query: Artist → Albums → Songs
-  // Playlist query: Playlist → Songs (from playlist first)
+  // --- Personalization signals ---
 
-  // Primary row first
-  if (topType === 'album' && topAlbum) {
-    appendSection('Album');
-    // Patch click to mark recent
-    const original = openAlbumByName;
-    appendAlbumRow({ ...topAlbum, __onClick: () => { markSearched(); } });
-    openAlbumByName = original;
+  // 1. Playlist membership: songs in more of your playlists rank higher
+  const plMembership = new Map();
+  try {
+    for (const pl of (Array.isArray(playlists) ? playlists : [])) {
+      for (const rawId of (Array.isArray(pl.trackIds) ? pl.trackIds : [])) {
+        const k = String(rawId || '').trim();
+        if (k) plMembership.set(k, (plMembership.get(k) || 0) + 1);
+      }
+    }
+  } catch (e) {}
+
+  // 2. Recently clicked in search = strong familiarity signal
+  const recentClickSet = new Set();
+  const recentClickArtists = new Set();
+  try {
+    for (const r of loadSearchClickRecents()) {
+      const id = String(r.id || r.link || '').trim();
+      if (id) recentClickSet.add(id);
+      if (r.type === 'artist' && r.title) recentClickArtists.add(String(r.title).trim().toLowerCase());
+    }
+  } catch (e) {}
+
+  // Personal relevance bonus for a song (0-40 extra points)
+  const songBonus = (s) => {
+    let bonus = 0;
+    const ids = [s.id, s.r2Path, s.track_id, s.link].map(x => String(x || '').trim()).filter(Boolean);
+    const memberCount = Math.max(0, ...ids.map(k => plMembership.get(k) || 0));
+    bonus += Math.min(memberCount * 5, 20); // up to +20 for playlist membership
+    if (ids.some(k => recentClickSet.has(k))) bonus += 20; // +20 for recently clicked
+    return bonus;
+  };
+
+  const allItems = [
+    ...artistResults.map(x => {
+      let r = (x._score || 0) * 1.4;
+      if (recentClickArtists.has(String(x.artist || '').trim().toLowerCase())) r += 28;
+      return { ...x, _type: 'artist', _ranked: r };
+    }),
+    ...albumResults.map(x => ({ ...x, _type: 'album',    _ranked: (x._score || 0) * 1.2 })),
+    ...playlistMatches.map(x => ({ ...x, _type: 'playlist', _ranked: (x._score || 0) * 1.1 })),
+    ...songsOrdered.map(x => ({ ...x, _type: 'song',     _ranked: (x._score || 0) + songBonus(x) }))
+  ];
+  allItems.sort((a, b) => (b._ranked || 0) - (a._ranked || 0));
+
+  // Diversity cap: max 3 artists, 3 albums, 2 playlists — songs fill the rest
+  const typeCaps = { artist: 3, album: 3, playlist: 4, song: Infinity };
+  const typeCounts = { artist: 0, album: 0, playlist: 0, song: 0 };
+  const shown = [];
+  for (const item of allItems) {
+    if (shown.length >= 40) break;
+    const t = item._type;
+    if ((typeCounts[t] || 0) < typeCaps[t]) {
+      shown.push(item);
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    }
   }
-
-  if (topType === 'artist' && topArtist) {
-    appendSection('Artist');
-    appendArtistRow({ ...topArtist, __onClick: () => { markSearched(); } });
-  }
-
-  if (topType === 'playlist' && topPlaylist) {
-    appendSection('Playlist');
-    appendPlaylistRow({ ...topPlaylist, __onClick: () => { markSearched(); } });
-  }
-
-  // Secondary sections
-  if (topType === 'artist' && topArtist?.artist) {
-    const byArtist = String(topArtist.artist);
-    const albumsBy = albumResults.filter(a => String(a.artist || '') === byArtist);
-    if (albumsBy.length) {
-      appendSection('Albums');
-      albumsBy.slice(0, 8).forEach(appendAlbumRow);
+  // Second pass: fill remaining slots with any skipped items
+  if (shown.length < 40) {
+    for (const item of allItems) {
+      if (shown.length >= 40) break;
+      if (!shown.includes(item)) shown.push(item);
     }
   }
 
-  // Songs always next (but ordered by primary rules above)
-  if (songsOrdered.length) {
-    appendSection('Songs');
-    songsOrdered.slice(0, 25).forEach(appendSongRow);
-  }
-
-  // "Then the artist" for album searches
-  if (topType === 'album' && topAlbum?.artist) {
-    const aName = String(topAlbum.artist);
-    const artistObj = artistResults.find(a => String(a.artist || '') === aName) || { artist: aName, _score: topAlbum._score || 0 };
-    appendSection('Artist');
-    appendArtistRow(artistObj);
-  }
+  shown.forEach(item => {
+    if (item._type === 'artist') appendArtistRow(item);
+    else if (item._type === 'album') appendAlbumRow(item);
+    else if (item._type === 'playlist') appendPlaylistRow(item);
+    else appendSongRow(item);
+  });
 }
 
         }
