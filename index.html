@@ -67,6 +67,7 @@ button,
             --text-main: #ffffff;
             --text-sub: #b3b3b3;
             --nav-height: 70px;
+              --mobile-nav-bottom-offset: 0px;
             --player-height: 90px;
 
              /* Album-derived accent color (default: black) */
@@ -1107,7 +1108,7 @@ body.song-multiselect .track-row:hover{
 /* Mobile: sit directly on top of the bottom tabs (no floating gap) */
 @media (max-width: 768px) {
   .player-bar {
-    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom)) !important;
+    bottom: calc(var(--nav-height) + var(--mobile-nav-bottom-offset, 0px)) !important;
     left: 0 !important;
     right: 0 !important;
 
@@ -1196,17 +1197,17 @@ body.song-multiselect .track-row:hover{
         .mobile-nav {
             display: none;
             position: fixed;
-            bottom: 0;
+          bottom: var(--mobile-nav-bottom-offset, 0px);
             left: 0;
             right: 0;
-            height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+          height: var(--nav-height);
             background: #000 !important;
 
 
             z-index: 9999;
             justify-content: space-around;
             align-items: center;
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: 0;
         }
 
         .nav-item {
@@ -12482,6 +12483,99 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
+
+<script>
+// Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.
+(function initMobileBottomDockCalibration() {
+  const root = document.documentElement;
+
+  function calibrateBottomDock() {
+    try {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const dock = document.getElementById('main-dock');
+      if (!isMobile) {
+        root.style.setProperty('--mobile-nav-bottom-offset', '0px');
+        const navReset = document.querySelector('.mobile-nav');
+        if (navReset) {
+          navReset.style.top = '';
+          navReset.style.bottom = '';
+        }
+        if (dock) {
+          dock.style.top = '';
+          dock.style.bottom = '';
+        }
+        return;
+      }
+
+      const nav = document.querySelector('.mobile-nav');
+      if (!nav) return;
+
+      // Measure from a neutral baseline first.
+      root.style.setProperty('--mobile-nav-bottom-offset', '0px');
+
+      requestAnimationFrame(() => {
+        try {
+          const vv = window.visualViewport;
+          const layoutH = document.documentElement.clientHeight;
+          const visibleBottom = vv ? (vv.offsetTop + vv.height) : window.innerHeight;
+
+          // Space reserved by browser/device UI beneath the visible viewport.
+          // Negative offset moves fixed bottom elements down into that space.
+          let delta = -Math.round(Math.max(0, layoutH - visibleBottom));
+
+          // Ignore tiny jitter from viewport float rounding.
+          if (Math.abs(delta) < 1) delta = 0;
+
+          // If software keyboard is likely open, avoid forcing the dock off-screen.
+          if (vv && vv.height < (window.innerHeight * 0.72)) {
+            delta = 0;
+          }
+
+          root.style.setProperty('--mobile-nav-bottom-offset', `${delta}px`);
+
+          // Hard pin fallback: place nav/dock by explicit viewport coordinates.
+          // This avoids fixed+safe-area quirks on some mobile browsers.
+          const navH = Math.round(nav.getBoundingClientRect().height || 70);
+          const navTop = Math.round(visibleBottom - navH);
+          nav.style.bottom = 'auto';
+          nav.style.top = `${navTop}px`;
+
+          if (dock) {
+            const dockH = Math.round(dock.getBoundingClientRect().height || 74);
+            dock.style.bottom = 'auto';
+            dock.style.top = `${Math.round(navTop - dockH)}px`;
+          }
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+
+  const schedule = () => {
+    try { requestAnimationFrame(calibrateBottomDock); } catch (e) { calibrateBottomDock(); }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', schedule, { once: true });
+  } else {
+    schedule();
+  }
+
+  window.addEventListener('load', schedule, { passive: true });
+  window.addEventListener('pageshow', schedule, { passive: true });
+  window.addEventListener('resize', schedule, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(schedule, 120);
+  }, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', schedule, { passive: true });
+    window.visualViewport.addEventListener('scroll', schedule, { passive: true });
+  }
+
+  // Optional manual hook for debugging in console.
+  window.recalibrateBottomDock = schedule;
+})();
+</script>
 
 
   <!-- SYNC DEVICES MODAL -->
