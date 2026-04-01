@@ -6786,6 +6786,13 @@ function initSwipeBack() {
   }
 
   function canStart(e) {
+    // Root tab front pages should not allow swipe-back.
+    const currentType = (
+      (typeof navCurrent !== 'undefined' && navCurrent && navCurrent.type)
+      || (window.navCurrent && window.navCurrent.type)
+    );
+    if (currentType === 'library' || currentType === 'home' || currentType === 'crate' || currentType === 'search') return false;
+
     // Must have something to go back to
     if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
