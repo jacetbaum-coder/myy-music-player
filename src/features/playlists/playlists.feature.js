@@ -706,12 +706,15 @@ function playPlaylistById(playlistId) {
     try {
       const cm = document.getElementById('context-menu');
       const cmRect = cm ? cm.getBoundingClientRect() : null;
-      const flyW = 260;
-      const flyH = 340;
+      const flyW = 280;
+      const flyH = 380;
       const pad = 12;
 
       const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
-      const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.22);
+      // Align to the "Add to playlist" menu item row, falling back to context menu top
+      const addOptEl = event?.target?.closest?.('.menu-item') || null;
+      const addOptRect = addOptEl ? addOptEl.getBoundingClientRect() : null;
+      const baseTop = addOptRect ? addOptRect.top : (cmRect ? cmRect.top : (window.innerHeight * 0.22));
 
       const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
       const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));
@@ -816,14 +819,14 @@ function playPlaylistById(playlistId) {
       })).filter(r => r.pid);
 
       items.innerHTML = `
-        <div style="padding:6px; border-bottom:1px solid rgba(255,255,255,0.08);">
-          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.10);border-radius:6px;padding:8px 10px;">
-            <i class="fas fa-search" style="opacity:.75"></i>
+        <div style="padding:8px 8px 6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border-radius:6px;padding:7px 10px;">
+            <i class="fas fa-search" style="opacity:.6;font-size:13px;"></i>
             <input id="ps_desktop_search" placeholder="Find a playlist" autocomplete="off"
-                   style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:14px;">
+                   style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:13px;">
           </div>
         </div>
-        <div id="ps_desktop_list" style="max-height:286px;overflow:auto;"></div>
+        <div id="ps_desktop_list" style="max-height:328px;overflow-y:auto;overflow-x:hidden;"></div>
       `;
 
       const list = items.querySelector('#ps_desktop_list');
@@ -842,19 +845,19 @@ function playPlaylistById(playlistId) {
 
         list.innerHTML = '';
 
-        const mkItem = (label, onClick, withArrow = false) => {
+        const mkItem = (label, onClick, withArrow = false, iconHtml = '') => {
           const el = document.createElement('div');
           el.className = 'menu-item';
           el.style.display = 'flex';
           el.style.alignItems = 'center';
-          el.style.justifyContent = 'space-between';
-          el.style.padding = '10px 14px';
+          el.style.gap = '10px';
           el.style.padding = '8px 12px';
           el.style.cursor = 'pointer';
           el.style.fontSize = '14px';
           el.style.lineHeight = '1.2';
           el.style.borderRadius = '6px';
-          el.innerHTML = `<span>${label}</span>${withArrow ? '<i class="fas fa-chevron-right" style="font-size:12px;opacity:.8"></i>' : ''}`;
+          const right = withArrow ? '<i class="fas fa-chevron-right" style="font-size:12px;opacity:.7;margin-left:auto;"></i>' : '';
+          el.innerHTML = `${iconHtml}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span>${right}`;
           el.addEventListener('mouseenter', () => el.classList.add('cm-armed'));
           el.addEventListener('mouseleave', () => el.classList.remove('cm-armed'));
           el.addEventListener('click', async (e) => {
@@ -865,15 +868,28 @@ function playPlaylistById(playlistId) {
           return el;
         };
 
+        // "New playlist" — Spotify-style circle + icon
+        const plusIcon = `<div style="width:28px;height:28px;min-width:28px;border-radius:50%;border:1px solid rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;line-height:1;color:#fff;">+</div>`;
         list.appendChild(mkItem('New playlist', async () => {
           if (typeof window.createNewPlaylist === 'function') window.createNewPlaylist();
-        }));
+        }, false, plusIcon));
 
+        // "New Folder" — folder icon inline with playlists
+        const folderIcon = `<i class="fas fa-folder" style="width:28px;text-align:center;font-size:14px;opacity:.75;"></i>`;
         list.appendChild(mkItem('New Folder', async () => {
           if (typeof window.openAddToFolderSubmenu === 'function') {
             window.openAddToFolderSubmenu({ preventDefault(){}, stopPropagation(){} });
           }
-        }, true));
+        }, true, folderIcon));
+
+        // separator between special items and playlists
+        if (rows.length) {
+          const sep = document.createElement('div');
+          sep.style.height = '1px';
+          sep.style.background = 'rgba(255,255,255,0.08)';
+          sep.style.margin = '4px 0';
+          list.appendChild(sep);
+        }
 
         rows.forEach((r) => {
           list.appendChild(mkItem(r.name, async () => {
