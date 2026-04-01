@@ -1,0 +1,538 @@
+// -----------------------
+// CRATE (Notes-like + checklist + cloud sync)
+// -----------------------
+const CRATE_LS_KEY = "reson_crate_doc_v1";
+const CRATE_API_BASE = "https://music-streamer.jacetbaum.workers.dev/api/crate";
+
+let crateDoc = null;
+
+function defaultCrateDoc() {
+  return {
+    title: "Crate",
+    items: [],
+    updatedAt: Date.now()
+  };
+}
+
+function loadCrateLocal() {
+  try {
+    const raw = localStorage.getItem(CRATE_LS_KEY);
+    if (!raw) return defaultCrateDoc();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return defaultCrateDoc();
+    if (!Array.isArray(parsed.items)) parsed.items = [];
+    if (!parsed.title) parsed.title = "Crate";
+    if (!parsed.updatedAt) parsed.updatedAt = Date.now();
+    return parsed;
+  } catch (e) {
+    return defaultCrateDoc();
+  }
+}
+
+function saveCrateLocal() {
+  try {
+    if (!crateDoc) return;
+    crateDoc.updatedAt = Date.now();
+    localStorage.setItem(CRATE_LS_KEY, JSON.stringify(crateDoc));
+  } catch (e) {}
+}
+
+async function pullCrateFromCloud() {
+  try {
+    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    if (!uid) return;
+
+    const res = await fetch(CRATE_API_BASE + "?userId=" + encodeURIComponent(uid), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const remote = data && (data.doc || data.crate || data.data);
+    if (!remote || typeof remote !== "object") return;
+
+    // Prefer the newer doc
+    const local = crateDoc || loadCrateLocal();
+    const rTime = Number(remote.updatedAt || 0);
+    const lTime = Number(local.updatedAt || 0);
+
+    if (rTime > lTime) {
+      crateDoc = {
+        title: String(remote.title || "Crate"),
+        items: Array.isArray(remote.items) ? remote.items : [],
+        updatedAt: rTime || Date.now()
+      };
+      saveCrateLocal();
+    }
+  } catch (e) {}
+}
+
+async function pushCrateToCloud() {
+  try {
+    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    if (!uid) return;
+    if (!crateDoc) return;
+
+    await fetch(CRATE_API_BASE, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: uid,
+        doc: crateDoc
+      })
+    });
+  } catch (e) {}
+}
+
+function ensureCrateLoaded() {
+  if (!crateDoc) crateDoc = loadCrateLocal();
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderCrate() {
+  ensureCrateLoaded();
+
+  const titleEl = document.getElementById("crate-title");
+  const itemsEl = document.getElementById("crate-items");
+  if (!itemsEl) return;
+
+  if (titleEl) {
+    titleEl.value = String(crateDoc.title || "Crate");
+  }
+
+  const html = (crateDoc.items || []).map((it, idx) => {
+    const checked = !!it.checked;
+    const kind = String(it.kind || "check");
+    const text = String(it.text || "");
+
+    return `
+      <div class="crate-row" data-idx="${idx}">
+        <div class="crate-bubble ${checked ? "checked" : ""}" data-hit="bubble" role="button" aria-label="Toggle"></div>
+        <div class="crate-text ${kind === "text" ? "muted" : ""}" data-hit="text" contenteditable="true" spellcheck="false">${escapeHtml(text)}</div>
+      </div>
+    `;
+  }).join("");
+
+  itemsEl.innerHTML = html || `<div class="crate-row"><div class="crate-text muted">No items yet. Add one below.</div></div>`;
+}
+
+function addCrateItem(text, kind = "check") {
+  ensureCrateLoaded();
+  crateDoc.items.push({
+    kind,
+    checked: false,
+    text: String(text || "").trim()
+  });
+  saveCrateLocal();
+  renderCrate();
+  pushCrateToCloud();
+}
+
+function addArtistToCrate(artistName) {
+  const name = String(artistName || "").trim();
+  if (!name) return;
+  addCrateItem(name, "check");
+}
+
+function goBackFromCrate() {
+  // If back stack exists, use it; otherwise return Home
+  try {
+    if (window.navStack && window.navStack.length) {
+      goBack();
+      return;
+    }
+  } catch (e) {}
+  showView("home");
+}
+
+function openCrateSection(which) {
+  const home = document.getElementById("crate-home");
+  const editor = document.getElementById("crate-editor");
+  const stats = document.getElementById("crate-stats");
+  const features = document.getElementById("crate-features");
+
+  const w = String(which || "home");
+
+  if (home) home.classList.toggle("hidden", w !== "home");
+  if (editor) editor.classList.toggle("hidden", w !== "crate");
+  if (stats) stats.classList.toggle("hidden", w !== "stats");
+  if (features) features.classList.toggle("hidden", w !== "features");
+
+  // If user opens the editor, make sure it renders
+  if (w === "crate") {
+    try { initCrateUIOnce(); } catch (e) {}
+        try { renderCrate(); } catch (e) {}
+  }
+
+  // If user opens stats, render it
+  if (w === "stats") {
+    try { renderCrateStats(); } catch (e) {}
+  }
+
+}
+
+function initCrateUIOnce() {
+
+  if (window.__crateUIBound) return;
+  window.__crateUIBound = true;
+
+  ensureCrateLoaded();
+
+  // Pull from cloud once on first init
+  pullCrateFromCloud().then(() => {
+    try { renderCrate(); } catch (e) {}
+  });
+
+  document.addEventListener("click", (e) => {
+    const openBtn = e.target && e.target.closest ? e.target.closest("#open-crate-btn") : null;
+    if (openBtn) {
+      e.preventDefault();
+      showView("crate");
+      return;
+    }
+
+    const addCheck = e.target && e.target.closest ? e.target.closest("#crate-add-check") : null;
+    if (addCheck) {
+      e.preventDefault();
+      addCrateItem("", "check");
+      // focus the last row
+      setTimeout(() => {
+        const rows = document.querySelectorAll("#crate-items .crate-row");
+        const last = rows[rows.length - 1];
+        const t = last && last.querySelector ? last.querySelector("[data-hit='text']") : null;
+        if (t) t.focus();
+      }, 0);
+      return;
+    }
+
+    const addText = e.target && e.target.closest ? e.target.closest("#crate-add-text") : null;
+    if (addText) {
+      e.preventDefault();
+      addCrateItem("", "text");
+      setTimeout(() => {
+        const rows = document.querySelectorAll("#crate-items .crate-row");
+        const last = rows[rows.length - 1];
+        const t = last && last.querySelector ? last.querySelector("[data-hit='text']") : null;
+        if (t) t.focus();
+      }, 0);
+      return;
+    }
+
+    // bubble toggle
+    const bubble = e.target && e.target.closest ? e.target.closest("#crate-items [data-hit='bubble']") : null;
+    if (bubble) {
+      e.preventDefault();
+      const row = bubble.closest(".crate-row");
+      const idx = row ? Number(row.getAttribute("data-idx")) : -1;
+      if (idx >= 0 && crateDoc && crateDoc.items && crateDoc.items[idx]) {
+        crateDoc.items[idx].checked = !crateDoc.items[idx].checked;
+        saveCrateLocal();
+        renderCrate();
+        pushCrateToCloud();
+      }
+      return;
+    }
+  });
+
+  // typing edits: update crateDoc on input
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t) return;
+
+    if (t.id === "crate-title") {
+      ensureCrateLoaded();
+      crateDoc.title = String(t.value || "Crate");
+      saveCrateLocal();
+      pushCrateToCloud();
+      return;
+    }
+
+    const textEl = t.closest ? t.closest("#crate-items [data-hit='text']") : null;
+    if (!textEl) return;
+
+    const row = textEl.closest(".crate-row");
+    const idx = row ? Number(row.getAttribute("data-idx")) : -1;
+    if (idx >= 0 && crateDoc && crateDoc.items && crateDoc.items[idx]) {
+      crateDoc.items[idx].text = String(textEl.textContent || "");
+      saveCrateLocal();
+      // push less aggressively while typing
+      clearTimeout(window.__cratePushTimer);
+      window.__cratePushTimer = setTimeout(() => { pushCrateToCloud(); }, 450);
+    }
+  });
+}
+
+// expose for menuAction and inline HTML handlers
+window.addArtistToCrate = addArtistToCrate;
+window.goBackFromCrate = goBackFromCrate;
+window.initCrateUIOnce = initCrateUIOnce;
+window.renderCrate = renderCrate;
+window.openCrateSection = openCrateSection;
+
+
+/* -----------------------
+   STATS (reads reson_play_events_v1)
+------------------------ */
+
+const RESON_STATS_KEY = 'reson_play_events_v1';
+const RESON_STATS_UI_RANGE_KEY = 'reson_stats_ui_range_v1';
+const RESON_STATS_UI_GROUP_KEY = 'reson_stats_ui_group_v1';
+
+function getStatsUIRange() {
+  return String(localStorage.getItem(RESON_STATS_UI_RANGE_KEY) || 'week');
+}
+function getStatsUIGroup() {
+  return String(localStorage.getItem(RESON_STATS_UI_GROUP_KEY) || 'artist');
+}
+
+function setStatsRange(range) {
+  try { localStorage.setItem(RESON_STATS_UI_RANGE_KEY, String(range || 'week')); } catch (e) {}
+  renderCrateStats();
+}
+
+function setStatsGroupBy(group) {
+  try { localStorage.setItem(RESON_STATS_UI_GROUP_KEY, String(group || 'artist')); } catch (e) {}
+  renderCrateStats();
+}
+
+function readPlayEvents() {
+  try {
+    const raw = localStorage.getItem(RESON_STATS_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function rangeToSinceMs(range) {
+  const r = String(range || 'week');
+  const day = 24 * 60 * 60 * 1000;
+  if (r === 'week') return Date.now() - 7 * day;
+  if (r === 'month') return Date.now() - 30 * day;
+  if (r === '6mo') return Date.now() - 183 * day;
+  if (r === 'year') return Date.now() - 365 * day;
+  return 0; // all time
+}
+
+function setActiveChip(btn, isActive) {
+  if (!btn) return;
+  if (isActive) {
+    btn.classList.remove('bg-white/10');
+    btn.classList.add('bg-[var(--spotify-green)]', 'text-black');
+  } else {
+    btn.classList.add('bg-white/10', 'text-white');
+    btn.classList.remove('bg-[var(--spotify-green)]', 'text-black');
+  }
+}
+
+function updateStatsChips(range, group) {
+  setActiveChip(document.getElementById('stats-range-week'), range === 'week');
+  setActiveChip(document.getElementById('stats-range-month'), range === 'month');
+  setActiveChip(document.getElementById('stats-range-6mo'), range === '6mo');
+  setActiveChip(document.getElementById('stats-range-year'), range === 'year');
+  setActiveChip(document.getElementById('stats-range-all'), range === 'all');
+
+  setActiveChip(document.getElementById('stats-group-artist'), group === 'artist');
+  setActiveChip(document.getElementById('stats-group-album'), group === 'album');
+  setActiveChip(document.getElementById('stats-group-playlist'), group === 'playlist');
+}
+
+function getGroupKey(ev, group) {
+  const artist = String(ev?.artistName || '').trim();
+  const album = String(ev?.albumName || '').trim();
+  const playlist = String(ev?.playlistName || ev?.contextName || '').trim();
+
+  if (group === 'album') {
+    if (!artist && !album) return '(Unknown album)';
+    if (!artist) return album || '(Unknown album)';
+    if (!album) return artist;
+    return `${artist} — ${album}`;
+  }
+
+  if (group === 'playlist') {
+    return playlist || '(Unknown playlist)';
+  }
+
+  return artist || '(Unknown artist)';
+}
+
+function renderCrateStats() {
+  const box = document.getElementById('stats-results');
+  if (!box) return;
+
+  const range = getStatsUIRange();
+  const group = getStatsUIGroup();
+
+  updateStatsChips(range, group);
+
+  const since = rangeToSinceMs(range);
+  const events = readPlayEvents().filter(ev => Number(ev?.ts || 0) >= since);
+
+  if (!events.length) {
+    box.innerHTML = `
+      <div class="text-sm text-white/60">
+        No play history yet for this range.
+        <div class="mt-1 text-xs text-white/40">Play a few songs, then come back here.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const counts = new Map();
+  for (const ev of events) {
+    const k = getGroupKey(ev, group);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+
+  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 25);
+
+  const totalPlays = events.length;
+  const distinct = sorted.length;
+
+  const rows = top.map(([name, plays], idx) => `
+    <div class="flex items-center justify-between gap-3 py-2 border-b border-white/10">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-7 text-right text-xs text-white/40">${idx + 1}</div>
+        <div class="min-w-0">
+          <div class="text-sm font-extrabold text-white truncate">${escapeHtml(name)}</div>
+        </div>
+      </div>
+      <div class="text-sm font-extrabold text-white/80">${plays}</div>
+    </div>
+  `).join("");
+
+  box.innerHTML = `
+    <div class="mb-3">
+      <div class="text-sm text-white/80">
+        <span class="font-extrabold">${totalPlays}</span> plays •
+        <span class="font-extrabold">${distinct}</span> ${escapeHtml(group)}${distinct === 1 ? '' : 's'}
+      </div>
+      <div class="text-xs text-white/40 mt-1">Top 25</div>
+    </div>
+    <div class="rounded-2xl bg-black/20 border border-white/10 overflow-hidden">
+      <div class="px-3">${rows}</div>
+    </div>
+  `;
+}
+
+// expose for inline HTML handlers
+window.setStatsRange = setStatsRange;
+window.setStatsGroupBy = setStatsGroupBy;
+window.renderCrateStats = renderCrateStats;
+
+
+/* -----------------------
+   FEATURES UI WIRING
+   - Crossfade slider: 0..20 seconds
+   - Keeps existing toggleFeatureFlag/isFeatureOn if you already have them
+------------------------ */
+
+(function initFeaturesWiring(){
+  const CROSSFADE_SECONDS_KEY = 'reson_crossfade_seconds_v1';
+
+  function clamp(n, a, b){ n = Number(n); if (!isFinite(n)) n = 0; return Math.max(a, Math.min(b, n)); }
+
+  function getCrossfadeSeconds(){
+    const raw = localStorage.getItem(CROSSFADE_SECONDS_KEY);
+    return clamp(raw == null ? 0 : raw, 0, 20);
+  }
+
+  function setCrossfadeSeconds(v){
+    const sec = clamp(v, 0, 20);
+    try { localStorage.setItem(CROSSFADE_SECONDS_KEY, String(sec)); } catch (e) {}
+
+    // expose for any playback code that wants it
+    try { window.__crossfadeSeconds = sec; } catch (e) {}
+
+    // update UI
+    const label = document.getElementById('crossfade-seconds');
+    const slider = document.getElementById('crossfade-slider');
+    if (label) label.textContent = sec + 's';
+    if (slider && String(slider.value) !== String(sec)) slider.value = String(sec);
+  }
+
+  // If your app doesn't already have these, provide minimal versions.
+  if (typeof window.isFeatureOn !== 'function') {
+    window.isFeatureOn = function(flag){
+      try {
+        return localStorage.getItem('reson_feature_' + flag) === '1';
+      } catch (e) { return false; }
+    };
+  }
+
+  // UI refresh (button labels + colors)
+  function refreshFeatureUI(){
+    const crossBtn = document.getElementById('feature-toggle-crossfade');
+    const autoBtn = document.getElementById('feature-toggle-autoplay');
+
+    const crossOn = !!window.isFeatureOn('crossfade');
+    const autoOn = !!window.isFeatureOn('autoplay');
+
+    if (crossBtn) crossBtn.textContent = crossOn ? 'On' : 'Off';
+    if (autoBtn) autoBtn.textContent = autoOn ? 'On' : 'Off';
+  }
+
+  // Wrap existing toggleFeatureFlag so UI always updates after toggling.
+  if (typeof window.toggleFeatureFlag === 'function' && !window.__featuresToggleWrapped) {
+    window.__featuresToggleWrapped = true;
+    const original = window.toggleFeatureFlag;
+    window.toggleFeatureFlag = function(flag){
+      const out = original.apply(this, arguments);
+      try { refreshFeatureUI(); } catch (e) {}
+      return out;
+    };
+  }
+
+  // If toggleFeatureFlag doesn't exist, create a minimal one.
+  if (typeof window.toggleFeatureFlag !== 'function') {
+    window.toggleFeatureFlag = function(flag){
+      const key = 'reson_feature_' + String(flag || '');
+      let next = '1';
+      try { next = (localStorage.getItem(key) === '1') ? '0' : '1'; } catch (e) {}
+      try { localStorage.setItem(key, next); } catch (e) {}
+      refreshFeatureUI();
+    };
+  }
+
+  // Hook slider
+  function bindSlider(){
+    const slider = document.getElementById('crossfade-slider');
+    if (!slider || slider.__bound) return;
+    slider.__bound = true;
+
+    slider.addEventListener('input', () => {
+      const sec = clamp(slider.value, 0, 20);
+      setCrossfadeSeconds(sec);
+
+      // ✅ if slider > 0 => turn crossfade ON, if 0 => OFF
+      try {
+        localStorage.setItem('reson_feature_crossfade', sec > 0 ? '1' : '0');
+      } catch (e) {}
+
+      refreshFeatureUI();
+    });
+  }
+
+  // Initial paint (works even if you open Features later)
+  function paint(){
+    setCrossfadeSeconds(getCrossfadeSeconds());
+    refreshFeatureUI();
+    bindSlider();
+  }
+
+  // run now + shortly after (in case the view wasn't in DOM yet)
+  try { paint(); } catch (e) {}
+  setTimeout(() => { try { paint(); } catch (e) {} }, 250);
+})();
