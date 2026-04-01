@@ -322,7 +322,14 @@ button,
 @media (max-width: 768px) {
   #now-playing-overlay {
     display: block;              /* allow it to exist */
-    padding-bottom: env(safe-area-inset-bottom);
+    /* shift ALL content (top bar + sheet) below the status bar / Dynamic Island */
+    padding-top: env(safe-area-inset-top);
+    /* no padding-bottom here — the sheet owns it so h-[calc(100%-64px)] is correct */
+  }
+
+  /* scrollable sheet: absorb home-indicator gap inside the content, not outside */
+  #np-sheet {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
   }
 }
 
@@ -1034,6 +1041,46 @@ body.song-multiselect .track-row:hover{
     background: transparent;
 }
 
+.now-playing-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  color: var(--spotify-green);
+}
+
+.now-playing-bars span {
+  width: 2px;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: nowPlayingBars 900ms ease-in-out infinite;
+}
+
+.now-playing-bars span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.now-playing-bars span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.mobile-now-playing-bars {
+  display: none;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.mobile-now-playing-bars.is-visible {
+  display: inline-flex;
+}
+
+@keyframes nowPlayingBars {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
 /* -----------------------
    SWIPE LEFT (Add to queue) — Spotify-ish
 ------------------------ */
@@ -1176,6 +1223,17 @@ body.song-multiselect .track-row:hover{
   background: #fff;
 }
 
+/* Spotify-like: dock progress bar is visual-only on mobile.
+   Seeking is only available in the full Now Playing screen.
+   This also ensures taps on/near the bar still open Now Playing. */
+@media (max-width: 768px) {
+  #main-dock .progress-bar-container,
+  #main-dock .progress-bar-container::before {
+    pointer-events: none;
+    touch-action: none;
+  }
+}
+
 
 /* Now Playing overlay progress bar: also give it a big hitbox */
 #np-progress-container {
@@ -1313,40 +1371,56 @@ body.song-multiselect .track-row:hover{
 /* ✅ MOBILE: Spotify Recents-like Library grid (3-col, tight, titles visible) */
 @media (max-width: 768px){
 
-  /* Solid black behind the Library grid area */
+  /* Match Spotify Library dark background tone */
   #grid-view{
-    background: #000 !important;
+    background: #121016 !important;
   }
 
-  /* Tighten the grid spacing */
+  /* Keep header spacing consistent with Spotify mobile library */
+  #mobile-library-header,
+  #mobile-library-section-header,
+  #library-controls{
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Match 3-up card density and spacing */
   #album-grid{
-    gap: 8px !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px 12px !important;
+    padding: 0 12px 140px !important;
   }
 
-  /* IMPORTANT: do NOT clip the whole card (this is what hid titles) */
+  /* Keep cards open so title/subtitle can render below covers */
   #album-grid .album-card{
     overflow: visible !important;
     height: auto !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
+    min-width: 0 !important;
   }
 
-  /* Tighten card padding (your tiles are .album-card.p-4) */
+  /* Use full-width tile bodies like Spotify library cards */
   #album-grid .album-card.p-4{
-    padding: 8px !important;
+    padding: 0 !important;
     background: transparent !important;
   }
 
-  /* Make ONLY the cover square */
+  /* Control cover spacing/radius at the wrapper level */
+  #album-grid .album-card > .relative{
+    margin-bottom: 8px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Keep cover art square and edge-to-edge inside each tile */
   #album-grid .album-card img{
     width: 100% !important;
     height: auto !important;
     aspect-ratio: 1 / 1 !important;
     object-fit: cover !important;
     display: block !important;
-    margin-bottom: 6px !important;
-    border-radius: 10px !important;
+    border-radius: 6px !important;
   }
 
   /* Ensure text containers render */
@@ -1358,27 +1432,28 @@ body.song-multiselect .track-row:hover{
     max-height: none !important;
   }
 
-  /* Title: white */
-  #album-grid .album-card h3{
-    display: block !important;
+  /* Title block: 2-line clamp to normalize card heights */
+  #album-grid .album-card > div:nth-child(2){
     color: #fff !important;
     font-size: 13px !important;
-    line-height: 1.15 !important;
+    line-height: 1.2 !important;
     margin: 0 !important;
-    margin-top: 2px !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    text-overflow: clip !important;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    min-height: 2.4em !important;
   }
 
-  /* Artist: gray */
-  #album-grid .album-card p{
-    display: block !important;
-    color: rgba(255,255,255,0.65) !important;
-    font-size: 12px !important;
-    line-height: 1.1 !important;
-    margin: 0 !important;
-    margin-top: 2px !important;
+  /* Subtitle block */
+  #album-grid .album-card > div:nth-child(3){
+    color: rgba(255,255,255,0.72) !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    margin-top: 4px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -2214,15 +2289,19 @@ body.np-open #playlist-submenu{
 /* ===== QUEUE TOAST (mobile) ===== */
 #queue-toast{
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+  left: 10px;
+  right: 10px;
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 96px);
   z-index: 2800;
 
   opacity: 0;
   transform: translateY(18px);
   pointer-events: none;
   transition: opacity 220ms ease, transform 220ms ease;
+}
+
+#queue-toast.qt-hidden{
+  display: none;
 }
 
 #queue-toast.qt-show{
@@ -2232,26 +2311,29 @@ body.np-open #playlist-submenu{
 }
 
 #queue-toast .qt-inner{
-  background: rgba(255,255,255,0.92);
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: rgba(243,243,243,0.98);
+  border-radius: 15px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 16px 28px rgba(0,0,0,0.35);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.28);
 }
 
 #queue-toast .qt-title{
-  font-weight: 900;
-  color: #111;
+  font-weight: 800;
+  color: #101010;
+  font-size: 15px;
+  letter-spacing: -0.01em;
 }
 
 #queue-toast .qt-open{
-  font-weight: 900;
+  font-weight: 800;
+  font-size: 15px;
   color: var(--spotify-green);
   background: transparent;
   border: none;
-  padding: 10px 10px;
+  padding: 6px 4px;
   border-radius: 12px;
 }
 #queue-toast .qt-open:active{ transform: scale(0.98); }
@@ -2703,6 +2785,215 @@ body.np-open #playlist-submenu{
   gap: 14px;
 }
 
+.mobile-playlist-sort-btn {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+  color: rgba(255, 255, 255, 0.96);
+  height: 36px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.mobile-playlist-sort-btn:active {
+  transform: scale(0.97);
+}
+
+.mobile-playlist-sort-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9996;
+  transition: opacity 140ms ease-out;
+}
+
+.mobile-playlist-sort-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-playlist-sort-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 680px;
+  border-radius: 18px 18px 0 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(34, 34, 34, 0.96);
+  box-shadow: 0 -10px 36px rgba(0,0,0,0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transform: translateY(108%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9997;
+  transition: transform 180ms cubic-bezier(.25,.9,.3,1), opacity 140ms ease-out;
+  padding: 8px 12px calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 8px);
+}
+
+.mobile-playlist-sort-sheet.open {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-playlist-sort-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  margin: 2px auto 12px;
+  background: rgba(255,255,255,0.35);
+}
+
+.mobile-playlist-sort-header {
+  color: rgba(255,255,255,0.82);
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 8px 8px;
+}
+
+.mobile-playlist-sort-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  padding: 13px 12px;
+}
+
+.mobile-playlist-sort-item .fa-check {
+  color: #1db954;
+  opacity: 0;
+  transform: translateX(4px) scale(0.95);
+  transition: opacity 140ms ease, transform 180ms ease;
+}
+
+.mobile-playlist-sort-item.active {
+  color: #1db954;
+}
+
+.mobile-playlist-sort-item.active .fa-check {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.mobile-playlist-sort-item:active {
+  background: rgba(255,255,255,0.08);
+}
+
+.library-sort-sheet-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  margin: 8px auto 4px;
+  background: rgba(255,255,255,0.35);
+}
+
+#library-sort-backdrop {
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+
+#library-sort-backdrop.open {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  #library-sort-menu {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    margin: 0 auto !important;
+    width: auto !important;
+    max-width: 680px;
+    border-radius: 18px 18px 0 0 !important;
+    background: rgba(34, 34, 34, 0.96) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 -10px 36px rgba(0,0,0,0.45) !important;
+    transform: translateY(108%);
+    opacity: 0;
+    transition: transform 180ms cubic-bezier(.25,.9,.3,1), opacity 140ms ease-out;
+    z-index: 9997 !important;
+    padding-bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 8px);
+  }
+
+  #library-sort-menu.open {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  #library-sort-menu .lib-sort-item {
+    position: relative;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    border-radius: 12px;
+    padding: 13px 38px 13px 12px;
+  }
+
+  #library-sort-menu .lib-sort-item::after {
+    content: '\\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%) translateX(4px) scale(0.95);
+    color: #1db954;
+    opacity: 0;
+    transition: opacity 140ms ease, transform 180ms ease;
+  }
+
+  #library-sort-menu .lib-sort-item.active {
+    color: #1db954;
+  }
+
+  #library-sort-menu .lib-sort-item.active::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+
+  #library-sort-menu .lib-sort-item:active {
+    background: rgba(255,255,255,0.08);
+  }
+
+  #library-sort-menu .lib-view-btn {
+    min-height: 42px;
+  }
+}
+
+@media (min-width: 769px) {
+  #library-sort-menu {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
 /* --- MEDIA QUERIES --- */
 
 @media (max-width: 768px) {
@@ -2911,6 +3202,10 @@ body.np-open #playlist-submenu{
     margin-top: 2px !important;
     margin-bottom: 6px !important; /* brings tracklist up */
   }
+
+    .mobile-playlist-sort-btn {
+      display: inline-flex;
+    }
 
   #track-list {
     margin-top: 0 !important;
@@ -3842,7 +4137,10 @@ body.qs-lock {
               <i class="fas fa-chevron-down text-xs opacity-80"></i>
             </button>
 
+            <div id="library-sort-backdrop" class="hidden md:hidden fixed inset-0 bg-black/55 z-[9996]"></div>
+
             <div id="library-sort-menu" class="hidden absolute mt-2 w-72 rounded-xl bg-[#232323] border border-white/10 shadow-2xl overflow-hidden z-50">
+              <div class="library-sort-sheet-handle md:hidden" aria-hidden="true"></div>
               <div class="px-4 py-3 text-xs font-black text-zinc-400 uppercase tracking-widest">Sort by</div>
 
               <button class="lib-sort-item w-full text-left px-4 py-3 hover:bg-white/5 text-white" data-sort="Recent" type="button">Recent</button>
@@ -4155,17 +4453,19 @@ body.qs-lock {
 
    <div id="album-controls" class="mb-8">
     <div class="album-controls-left">
-      <!-- plus (non-functional for now) -->
-      <button id="hero-plus-btn"
-              class="text-2xl text-zinc-300 hover:text-white transition"
-              aria-label="Add">
-        <i class="fas fa-plus"></i>
+      <button id="mobile-playlist-sort-btn"
+              class="mobile-playlist-sort-btn md:hidden"
+              type="button"
+              aria-haspopup="dialog"
+              aria-controls="mobile-playlist-sort-sheet"
+              aria-expanded="false">
+        <i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i>
+        <span id="mobile-playlist-sort-label">Recently added</span>
       </button>
 
       <!-- three dots (keep your existing menu behavior) -->
       <button id="hero-more-btn"
               class="text-2xl text-zinc-300 hover:text-white transition"
-              onclick="openPlaylistPinMenuFromHero(event)"
               aria-label="More options">
         <i class="fas fa-ellipsis-h"></i>
       </button>
@@ -4199,6 +4499,32 @@ body.qs-lock {
 
 <div id="track-list" class="space-y-1"></div>
 </div>
+
+<div id="mobile-playlist-sort-backdrop" class="mobile-playlist-sort-backdrop md:hidden" aria-hidden="true"></div>
+<div id="mobile-playlist-sort-sheet"
+     class="mobile-playlist-sort-sheet md:hidden"
+     role="dialog"
+     aria-modal="true"
+     aria-label="Sort by">
+  <div class="mobile-playlist-sort-handle" aria-hidden="true"></div>
+  <div class="mobile-playlist-sort-header">Sort by</div>
+  <button class="mobile-playlist-sort-item" data-sort-mode="custom" type="button">
+    <span>Custom order</span><i class="fas fa-check"></i>
+  </button>
+  <button class="mobile-playlist-sort-item" data-sort-mode="title" type="button">
+    <span>Title</span><i class="fas fa-check"></i>
+  </button>
+  <button class="mobile-playlist-sort-item" data-sort-mode="artist" type="button">
+    <span>Artist</span><i class="fas fa-check"></i>
+  </button>
+  <button class="mobile-playlist-sort-item" data-sort-mode="album" type="button">
+    <span>Album</span><i class="fas fa-check"></i>
+  </button>
+  <button class="mobile-playlist-sort-item" data-sort-mode="recent" type="button">
+    <span>Recently added</span><i class="fas fa-check"></i>
+  </button>
+</div>
+
 <div id="artist-view" class="hidden">
 
   <button onclick="goBack()"
@@ -4703,6 +5029,7 @@ window.libraryDataOriginal = libraryDataOriginal;
 
 let currentSong = null;
 window.currentSong = currentSong;
+window.__pendingTouchSongUrl = window.__pendingTouchSongUrl || '';
 
 let currentQueue = [];
 let currentIndex = -1;
@@ -4788,6 +5115,12 @@ window.navCurrent = navCurrent;
 function setSongSelectEnabled(on){
   window.__songSelect.enabled = !!on;
   document.body.classList.toggle('song-multiselect', window.__songSelect.enabled);
+
+  // Selection mode owns row interactions, so clear touch-to-play preview state.
+  if (window.__songSelect.enabled) {
+    window.__pendingTouchSongUrl = '';
+    try { updateTrackListActiveState(); } catch (e) {}
+  }
 
   if (!window.__songSelect.enabled) {
     window.__songSelect.urls.clear();
@@ -8189,6 +8522,19 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
 
       const longPressState = { longPress: false };
 
+    row.addEventListener('pointerdown', (e) => {
+      if (window.innerWidth > 768) return;
+      if (e.pointerType === 'mouse') return;
+      if (window.__songSelect && window.__songSelect.enabled) return;
+      if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) return;
+
+      const touchUrl = String(row.dataset.url || row.getAttribute('data-song-url') || songUrl || '').trim();
+      if (!touchUrl) return;
+
+      window.__pendingTouchSongUrl = touchUrl;
+      try { updateTrackListActiveState(); } catch (err) {}
+    }, { passive: true });
+
 
     row.onclick = (e) => {
   // ignore the click that ends a long-press
@@ -8312,6 +8658,9 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     (song && typeof song.id === "string" && song.id
       ? (window.WORKER_ORIGIN || location.origin) + "/?id=" + encodeURIComponent(song.id)
       : songUrl);
+
+  try { window.__pendingTouchSongUrl = String(safeUrl || songUrl || ''); } catch (e) {}
+  try { updateTrackListActiveState(); } catch (e) {}
 
   // ✅ Playlist truth: derive album/artist from the path and MUTATE the song once
   try {
@@ -8452,14 +8801,14 @@ const thumbMarkup = (thumbSrc
 row.innerHTML = `
   <span class="select-bubble md:hidden" aria-hidden="true"></span>
   <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
-    ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : i + 1}
+    ${isCurrent ? getNowPlayingBarsMarkup() : i + 1}
   </span>
 
   <div class="flex items-center gap-3 min-w-0">
     ${thumbMarkup}
     <div class="flex flex-col min-w-0">
-      <div data-role="title" data-play-target="1" class="track-title text-white truncate">${String(songTitle || '').replace('.mp3', '')}</div>
-      <div data-role="sub" class="track-artist text-zinc-400 text-sm truncate">${displayArtist || ''}</div>
+      <div data-role="title" data-play-target="1" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${String(songTitle || '').replace('.mp3', '')}</div>
+      <div data-role="sub" class="track-artist ${isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400'} text-sm truncate"><span data-role="mobile-now-playing" class="${isCurrent ? 'mobile-now-playing-bars is-visible' : 'mobile-now-playing-bars'}" aria-hidden="true"><span></span><span></span><span></span></span>${displayArtist || ''}</div>
 
     </div>
   </div>
@@ -8503,6 +8852,12 @@ if (dots) {
   });
 }
 } catch (e) {}
+
+
+  // Needed by updateTrackListActiveState()
+  row.dataset.url = String(songUrl || '');
+  row.dataset.index = String(i + 1);
+  row.dataset.sortIndex = String(i);
 
 
 
@@ -10004,12 +10359,13 @@ try {
                                                // keep album recent
                 history.unshift({ type: 'album', album, artist, cover });
 
-                // also keep artist recent (so Recent Artists works)
+                // Keep album plays from duplicating an artist tile in Recents.
                 if (artist) {
                   history = history.filter(h => !(h && h.type === 'artist' && String(h.artist) === String(artist)));
-                  history.unshift({ type: 'artist', artist, cover });
                 }
 
+                // Do not auto-add artist from album playback.
+                // Artist recents are only added from explicit artist engagement flows.
             }
 
             try {
@@ -11642,6 +11998,96 @@ window.resolveTrackIdsToSongs = function (trackIds) {
 // ===== Playlist column sort =====
 var __plSort = { col: 'date', dir: 'desc' }; // default: date added, newest first
 
+function getPlaylistSortLabel(mode) {
+  if (mode === 'custom') return 'Custom order';
+  if (mode === 'title') return 'Title';
+  if (mode === 'artist') return 'Artist';
+  if (mode === 'album') return 'Album';
+  return 'Recently added';
+}
+
+function updateMobilePlaylistSortUI(mode) {
+  const label = document.getElementById('mobile-playlist-sort-label');
+  if (label) label.textContent = getPlaylistSortLabel(mode);
+
+  const items = document.querySelectorAll('.mobile-playlist-sort-item');
+  items.forEach((item) => {
+    const itemMode = String(item.getAttribute('data-sort-mode') || 'recent');
+    item.classList.toggle('active', itemMode === mode);
+  });
+}
+
+function setPlaylistSortMode(mode) {
+  if (mode === 'custom') {
+    __plSort = { col: 'custom', dir: 'asc' };
+  } else if (mode === 'title') {
+    __plSort = { col: 'title', dir: 'asc' };
+  } else if (mode === 'artist') {
+    __plSort = { col: 'artist', dir: 'asc' };
+  } else if (mode === 'album') {
+    __plSort = { col: 'album', dir: 'asc' };
+  } else {
+    __plSort = { col: 'date', dir: 'desc' };
+    mode = 'recent';
+  }
+
+  updateMobilePlaylistSortUI(mode);
+  _applyPlaylistSort();
+}
+
+function closeMobilePlaylistSortSheet() {
+  const sheet = document.getElementById('mobile-playlist-sort-sheet');
+  const backdrop = document.getElementById('mobile-playlist-sort-backdrop');
+  const btn = document.getElementById('mobile-playlist-sort-btn');
+  if (sheet) sheet.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function openMobilePlaylistSortSheet() {
+  const sheet = document.getElementById('mobile-playlist-sort-sheet');
+  const backdrop = document.getElementById('mobile-playlist-sort-backdrop');
+  const btn = document.getElementById('mobile-playlist-sort-btn');
+  if (sheet) sheet.classList.add('open');
+  if (backdrop) backdrop.classList.add('open');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+}
+
+function initMobilePlaylistSortSheet() {
+  if (window.__mobilePlaylistSortSheetBound) return;
+  window.__mobilePlaylistSortSheetBound = true;
+
+  const btn = document.getElementById('mobile-playlist-sort-btn');
+  const sheet = document.getElementById('mobile-playlist-sort-sheet');
+  const backdrop = document.getElementById('mobile-playlist-sort-backdrop');
+
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+      if (sheet && sheet.classList.contains('open')) closeMobilePlaylistSortSheet();
+      else openMobilePlaylistSortSheet();
+    });
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener('click', closeMobilePlaylistSortSheet);
+  }
+
+  if (sheet) {
+    sheet.addEventListener('click', (e) => {
+      const item = e.target && e.target.closest ? e.target.closest('.mobile-playlist-sort-item') : null;
+      if (!item) return;
+      const mode = String(item.getAttribute('data-sort-mode') || 'recent');
+      setPlaylistSortMode(mode);
+      closeMobilePlaylistSortSheet();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e && e.key === 'Escape') closeMobilePlaylistSortSheet();
+  });
+}
+
 function sortPlaylistBy(col) {
   if (__plSort.col === col) {
     __plSort.dir = __plSort.dir === 'asc' ? 'desc' : 'asc';
@@ -11661,9 +12107,17 @@ function _applyPlaylistSort() {
   if (!rows.length) return;
 
   rows.sort((a, b) => {
-    if (__plSort.col === 'title') {
+    if (__plSort.col === 'custom') {
+      const ia = Number(a.dataset.sortIndex || 0);
+      const ib = Number(b.dataset.sortIndex || 0);
+      return ia - ib;
+    } else if (__plSort.col === 'title') {
       const ta = String(a.querySelector('[data-role="title"]')?.textContent || '').trim().toLowerCase();
       const tb = String(b.querySelector('[data-role="title"]')?.textContent || '').trim().toLowerCase();
+      return __plSort.dir === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+    } else if (__plSort.col === 'artist') {
+      const ta = String(a.dataset.sortArtist || a.querySelector('[data-role="sub"]')?.textContent || '').trim().toLowerCase();
+      const tb = String(b.dataset.sortArtist || b.querySelector('[data-role="sub"]')?.textContent || '').trim().toLowerCase();
       return __plSort.dir === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
     } else if (__plSort.col === 'album') {
       const ta = String(a.querySelector('[data-role="album"]')?.textContent || '').trim().toLowerCase();
@@ -11699,15 +12153,39 @@ function _applyPlaylistSort() {
       arrow.textContent = '';
     }
   });
+
+  if (__plSort.col === 'custom' || __plSort.col === 'artist') {
+    ['title', 'album', 'date'].forEach(c => {
+      const el = document.getElementById('sort-col-' + c);
+      if (!el) return;
+      el.classList.remove('sort-active');
+      const arrow = el.querySelector('.sort-arrow');
+      if (arrow) arrow.textContent = '';
+    });
+  }
+
+  const mode = (__plSort.col === 'custom')
+    ? 'custom'
+    : (__plSort.col === 'artist')
+      ? 'artist'
+      : (__plSort.col === 'title')
+        ? 'title'
+        : (__plSort.col === 'album')
+          ? 'album'
+          : 'recent';
+  updateMobilePlaylistSortUI(mode);
 }
 
 function renderCollection(name, songs, isPlaylist = false) {
+  initMobilePlaylistSortSheet();
+  closeMobilePlaylistSortSheet();
+
   const queue = buildQueueFromSongs(songs, { album: name });
   currentQueue = queue;
   currentIndex = -1;
 
-    const heroPlay = document.getElementById('hero-play-btn');
-    if (heroPlay) {
+  const heroPlay = document.getElementById('hero-play-btn');
+  if (heroPlay) {
     heroPlay.onclick = () => {
       // If something is already loaded, treat the green button like "Next"
       // (nextSong() already respects shuffle/repeat rules)
@@ -11719,6 +12197,79 @@ function renderCollection(name, songs, isPlaylist = false) {
       playContext = { type: (isPlaylist ? 'playlist' : 'album'), label: name };
       playQueue(queue, 0); // shuffle-start handled inside playQueue
     };
+  }
+
+  const heroMore = document.getElementById('hero-more-btn');
+  const openHeroMenu = (e) => {
+    try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
+    try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
+    try { window.__outsideDismissSkipUntil = Date.now() + 700; } catch (_) {}
+    try { suppressContextMenuCloseUntil = Date.now() + 700; } catch (_) {}
+    try { suppressPlaylistMenuCloseUntil = Date.now() + 700; } catch (_) {}
+
+    const btn = (e && e.currentTarget) || heroMore;
+    const r = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : null;
+    const x = r ? (r.left + r.width / 2) : ((e && e.clientX) || 16);
+    const y = r ? (r.bottom + 8) : ((e && e.clientY) || 16);
+
+    const fromNav = (window.navCurrent && window.navCurrent.type === 'playlist' && window.navCurrent.playlistId)
+      ? window.navCurrent.playlistId
+      : null;
+    const fromActive = (typeof activePlaylistId !== 'undefined' && activePlaylistId) ? activePlaylistId : null;
+    const pid = fromActive || fromNav || null;
+
+    if (pid) {
+      try {
+        if (window && typeof window.showPlaylistMenuAt === 'function') {
+          window.showPlaylistMenuAt(Math.round(x), Math.round(y), pid);
+          return;
+        }
+      } catch (_) {}
+
+      try {
+        const list = Array.isArray(playlists) ? playlists : [];
+        const pl = list.find(p => p && String(p.id) === String(pid)) || null;
+        const pseudo = {
+          type: 'playlist',
+          id: pid,
+          playlistId: pid,
+          title: pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
+          name: pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
+          cover: pl ? (pl.cover || pl.autoCover || '') : ''
+        };
+        if (window && typeof window.showContextMenuAt === 'function') {
+          window.showContextMenuAt(Math.round(x), Math.round(y), pseudo, btn || null);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // Use the existing hero menu entrypoint (playlist menu for playlist view).
+    try {
+      if (window && typeof window.openPlaylistPinMenuFromHero === 'function') {
+        window.openPlaylistPinMenuFromHero(e);
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback: directly open playlist menu when current view is a playlist.
+    try {
+      if (isPlaylist && activePlaylistId && typeof showPlaylistMenuAt === 'function') {
+        showPlaylistMenuAt(Math.round(x), Math.round(y), activePlaylistId);
+      }
+    } catch (_) {}
+  };
+
+  if (heroMore) {
+    if (heroMore.__heroMenuOpenHandler) {
+      try { heroMore.removeEventListener('pointerup', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
+      try { heroMore.removeEventListener('touchend', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
+      try { heroMore.removeEventListener('click', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
+    }
+    heroMore.__heroMenuOpenHandler = openHeroMenu;
+    heroMore.addEventListener('pointerup', openHeroMenu, true);
+    heroMore.addEventListener('touchend', openHeroMenu, { passive: false, capture: true });
+    heroMore.addEventListener('click', openHeroMenu, true);
   }
 
 
@@ -11762,21 +12313,9 @@ if (hero && activePlaylistId) {
   const listEl = document.getElementById('track-list');
   listEl.innerHTML = '';
 
-  // Reset sort to default (date desc) on each new collection load
+  // Reset sort to default (recently added) on each new collection load
   __plSort = { col: 'date', dir: 'desc' };
-  try {
-    ['title','album','date'].forEach(c => {
-      const el = document.getElementById('sort-col-' + c);
-      if (el) { el.classList.remove('sort-active'); const a = el.querySelector('.sort-arrow'); if (a) a.textContent = ''; }
-    });
-    const dateBtn = document.getElementById('sort-col-date');
-    if (dateBtn) {
-      dateBtn.classList.add('sort-active');
-      let a = dateBtn.querySelector('.sort-arrow');
-      if (!a) { a = document.createElement('i'); a.className = 'sort-arrow'; dateBtn.appendChild(a); }
-      a.textContent = ' ↓';
-    }
-  } catch(e) {}
+  updateMobilePlaylistSortUI('recent');
 
   queue.forEach((song, i) => {
     const row = document.createElement('div');
@@ -11786,6 +12325,19 @@ if (hero && activePlaylistId) {
     if (isCurrent) row.classList.add('active-track');
 
       const longPressState = { longPress: false };
+
+    row.addEventListener('pointerdown', (e) => {
+      if (window.innerWidth > 768) return;
+      if (e.pointerType === 'mouse') return;
+      if (window.__songSelect && window.__songSelect.enabled) return;
+      if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) return;
+
+      const touchUrl = String(row.dataset.url || row.getAttribute('data-song-url') || song.url || '').trim();
+      if (!touchUrl) return;
+
+      window.__pendingTouchSongUrl = touchUrl;
+      try { updateTrackListActiveState(); } catch (err) {}
+    }, { passive: true });
       
         row.onclick = (e) => {
       if (longPressState.longPress) {
@@ -11804,6 +12356,8 @@ if (hero && activePlaylistId) {
       if (playTarget) {
         if (isDesktop && window.__songSelect && window.__songSelect.enabled) setSongSelectEnabled(false);
         currentIndex = i;
+        try { window.__pendingTouchSongUrl = String(song.url || ''); } catch (err) {}
+        try { updateTrackListActiveState(); } catch (err) {}
         playSpecificSong(song.url, song.title, song.album, song.artist, song.cover);
         return;
       }
@@ -11871,6 +12425,9 @@ if (hero && activePlaylistId) {
             // Do not force "Singles" into paths. Some tracks live in other album folders.
       let finalUrl = playUrl;
 
+      try { window.__pendingTouchSongUrl = String(finalUrl || playUrl || song.url || ''); } catch (err) {}
+      try { updateTrackListActiveState(); } catch (err) {}
+
 
       playSpecificSong(finalUrl, song.title, song.album, song.artist, song.cover);
 
@@ -11888,7 +12445,7 @@ if (hero && activePlaylistId) {
        // ✅ needed by updateTrackListActiveState()
     row.dataset.url = song.url || '';
     row.dataset.index = String(i + 1);
-    row.dataset.sortIndex = String(i);  // for date-added sort
+    row.dataset.sortIndex = String(i);  // for date-added/custom sort
 
     // ✅ Playlist titles often come in as "Artist/Title" — display only "Title"
     const rawTitle = String(song.title || '').replace('.mp3', '');
@@ -11902,6 +12459,7 @@ if (hero && activePlaylistId) {
       (isPlaylist && rawTitle.includes('/') ? rawTitle.split('/')[0] : '') ||
       ''
     ).trim();
+    row.dataset.sortArtist = String(displayArtist || '').toLowerCase();
 
     // ✅ Thumbnail ONLY for playlists
     let thumbMarkup = '';
@@ -11920,7 +12478,7 @@ if (hero && activePlaylistId) {
    row.innerHTML = `
       <span class="select-bubble md:hidden" aria-hidden="true"></span>
       <span data-role="index" class="text-zinc-400 group-hover:text-white text-center">
-        ${isCurrent ? '<i class="fas fa-volume-up text-xs"></i>' : (i + 1)}
+        ${isCurrent ? getNowPlayingBarsMarkup() : (i + 1)}
       </span>
 
 
@@ -11929,7 +12487,7 @@ if (hero && activePlaylistId) {
         <div class="min-w-0">
           <div data-role="title" data-play-target="1" class="track-title ${isCurrent ? 'text-[var(--spotify-green)]' : 'text-white'} truncate">${displayTitle}</div>
 
-          <div data-role="sub" class="md:hidden text-xs text-zinc-400 truncate">${displayArtist}</div>
+          <div data-role="sub" class="md:hidden text-xs ${isCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400'} truncate"><span data-role="mobile-now-playing" class="${isCurrent ? 'mobile-now-playing-bars is-visible' : 'mobile-now-playing-bars'}" aria-hidden="true"><span></span><span></span><span></span></span>${displayArtist}</div>
         </div>
       </div>
 
@@ -11979,16 +12537,24 @@ if (hero && activePlaylistId) {
 
   }); // This closes queue.forEach
 
+  _applyPlaylistSort();
+
   // ensure current track highlight is correct immediately after rendering
   updateTrackListActiveState();
 } // This closes renderCollection
 
+function getNowPlayingBarsMarkup(extraClass) {
+  const cls = extraClass ? ` ${extraClass}` : '';
+  return `<span class="now-playing-bars${cls}" aria-hidden="true"><span></span><span></span><span></span></span>`;
+}
+
 function updateTrackListActiveState() {
   const listEl = document.getElementById('track-list');
   if (!listEl) return;
+  const activeUrl = String(window.__pendingTouchSongUrl || (currentSong && currentSong.url) || '').trim();
   const rows = listEl.querySelectorAll('.track-row');
   rows.forEach((row) => {
-    const isRowCurrent = !!(currentSong && row.dataset.url === currentSong.url);
+    const isRowCurrent = !!(activeUrl && row.dataset.url === activeUrl);
 
     // row background + base green
     row.classList.toggle('active-track', isRowCurrent);
@@ -11998,7 +12564,7 @@ function updateTrackListActiveState() {
     const idx = row.querySelector('[data-role="index"]');
     if (idx) {
       idx.innerHTML = isRowCurrent
-        ? '<i class="fas fa-volume-up text-xs"></i>'
+        ? getNowPlayingBarsMarkup()
         : (row.dataset.index || '');
     }
 
@@ -12014,6 +12580,11 @@ function updateTrackListActiveState() {
     if (subEl) {
       subEl.classList.remove('text-zinc-400', 'text-[var(--spotify-green)]/80');
       subEl.classList.add(isRowCurrent ? 'text-[var(--spotify-green)]/80' : 'text-zinc-400');
+    }
+
+    const mobilePlayingEl = row.querySelector('[data-role="mobile-now-playing"]');
+    if (mobilePlayingEl) {
+      mobilePlayingEl.classList.toggle('is-visible', isRowCurrent);
     }
 
     // album cell
@@ -12540,17 +13111,12 @@ try {
 
           root.style.setProperty('--mobile-nav-bottom-offset', `${delta}px`);
 
-          // Hard pin fallback: place nav/dock by explicit viewport coordinates.
-          // This avoids fixed+safe-area quirks on some mobile browsers.
-          const navH = Math.round(nav.getBoundingClientRect().height || 70);
-          const navTop = Math.round(visibleBottom - navH);
-          nav.style.bottom = 'auto';
-          nav.style.top = `${navTop}px`;
-
+          // Clear any stale inline overrides — let CSS bottom rule take over.
+          nav.style.top = '';
+          nav.style.bottom = '';
           if (dock) {
-            const dockH = Math.round(dock.getBoundingClientRect().height || 74);
-            dock.style.bottom = 'auto';
-            dock.style.top = `${Math.round(navTop - dockH)}px`;
+            dock.style.top = '';
+            dock.style.bottom = '';
           }
         } catch (e) {}
       });

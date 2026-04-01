@@ -740,16 +740,63 @@ function renderQueueSheet() {
 
 // Toast
 var __queueToastTimer = null;
+var __queueToastHideTimer = null;
+
+function getQueueToastBottomOffsetPx() {
+  // Keep toast above bottom tabs + mini player on mobile.
+  const bar = document.querySelector('.player-bar');
+  if (!bar) return 74;
+
+  const cs = window.getComputedStyle(bar);
+  const hidden = cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') === 0;
+  const h = bar.getBoundingClientRect().height;
+  if (hidden || h < 20) return 74;
+
+  return Math.round(Math.max(70, h + 6));
+}
+
+function hideQueueToast(immediate) {
+  const toast = document.getElementById('queue-toast');
+  if (!toast) return;
+
+  if (__queueToastHideTimer) {
+    clearTimeout(__queueToastHideTimer);
+    __queueToastHideTimer = null;
+  }
+
+  if (immediate) {
+    toast.classList.remove('qt-show');
+    toast.classList.add('qt-hidden');
+    return;
+  }
+
+  toast.classList.remove('qt-show');
+  __queueToastHideTimer = setTimeout(() => {
+    toast.classList.add('qt-hidden');
+    __queueToastHideTimer = null;
+  }, 240);
+}
+
 function showQueueToast() {
   const toast = document.getElementById('queue-toast');
   if (!toast) return;
 
+  if (window.innerWidth > 900) return;
+
+  toast.style.bottom = `calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + ${getQueueToastBottomOffsetPx()}px)`;
+
   toast.classList.remove('qt-hidden');
+  toast.classList.remove('qt-show');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toast.classList.add('qt-show');
+    });
+  });
 
   // auto-hide after 2.2s
   if (__queueToastTimer) clearTimeout(__queueToastTimer);
   __queueToastTimer = setTimeout(() => {
-    toast.classList.add('qt-hidden');
+    hideQueueToast(false);
   }, 2200);
 }
 
@@ -758,7 +805,10 @@ function showQueueToast() {
   const btn = document.getElementById('queue-toast-open');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    try { document.getElementById('queue-toast')?.classList.add('qt-hidden'); } catch (e) {}
+    try {
+      if (__queueToastTimer) clearTimeout(__queueToastTimer);
+      hideQueueToast(true);
+    } catch (e) {}
     openQueueSheet();
   }, { passive: true });
 })();

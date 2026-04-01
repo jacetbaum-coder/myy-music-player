@@ -85,6 +85,54 @@ function openNowPlaying() {
   });
 }
 
+// Open Now Playing when tapping the dock on mobile.
+// This was previously inline in index.html and must live here after extraction.
+(function bindDockOpenNowPlaying(){
+  if (window.__dockOpenNowPlayingBound) return;
+  window.__dockOpenNowPlayingBound = true;
+
+  const dock = document.getElementById('main-dock');
+  if (!dock) return;
+
+  const isMobile = () => {
+    try { return window.matchMedia('(max-width: 768px)').matches; } catch (e) { return window.innerWidth <= 768; }
+  };
+
+  const shouldIgnoreTap = (target) => {
+    if (!target || !target.closest) return false;
+    return !!target.closest(
+      '#mobile-play-btn, #mobile-play-icon, #dock-heart, #dock-lyrics-btn, #dock-menu-btn, #dock-play-btn, #volume-container, #btn-shuffle, #btn-repeat, #np-close, #np-more, .fa-step-backward, .fa-step-forward'
+    );
+  };
+
+  let lastPointerUp = 0;
+
+  const openFromDockTap = (e) => {
+    if (!isMobile()) return;
+    if (!currentSong) return;
+    if (shouldIgnoreTap(e.target)) return;
+
+    const np = document.getElementById('now-playing-overlay');
+    if (np && !np.classList.contains('hidden')) return;
+
+    try { e.preventDefault(); } catch (err) {}
+    openNowPlaying();
+  };
+
+  // iOS Safari can be inconsistent with click on transformed/fixed bars.
+  dock.addEventListener('pointerup', (e) => {
+    lastPointerUp = Date.now();
+    openFromDockTap(e);
+  }, true);
+
+  dock.addEventListener('touchend', openFromDockTap, true);
+
+  dock.addEventListener('click', (e) => {
+    if (Date.now() - lastPointerUp < 450) return;
+    openFromDockTap(e);
+  }, true);
+})();
+
 // ✅ Now Playing top 3-dots should open the SAME context menu as tracklist dots
 (function bindNowPlayingDotsMenu(){
   if (window.__npDotsMenuBound) return;
@@ -221,6 +269,7 @@ function hideTrackMissingModal() {
 
 		// ✅ Now Playing: horizontal cover swipe (Spotify-like)
 let __npCoverSwipeReady = false;
+let __npCoverSwipeAnimating = false;
 
 function __npGetCoverSrc(s){
   if (!s) return '';
@@ -235,34 +284,49 @@ function updateNPCoverNeighbors(){
     if (!prevEl || !nextEl) return;
     if (!Array.isArray(currentQueue) || !currentQueue.length) return;
 
-    const prevSong = currentQueue[currentIndex - 1] || null;
+    const prevSongObj = currentQueue[currentIndex - 1] || null;
     const nextSongObj = currentQueue[currentIndex + 1] || null;
 
-    prevEl.src = __npGetCoverSrc(prevSong) || __npGetCoverSrc(currentSong) || '';
+    prevEl.src = __npGetCoverSrc(prevSongObj) || __npGetCoverSrc(currentSong) || '';
     nextEl.src = __npGetCoverSrc(nextSongObj) || __npGetCoverSrc(currentSong) || '';
   } catch (e) {}
 }
 
-function __npResetCoverTransforms(){
+function __npApplyCoverTransforms(dx){
   const wrap = document.getElementById('np-cover-swipe');
   const cur = document.getElementById('np-cover');
   const prev = document.getElementById('np-cover-prev');
   const next = document.getElementById('np-cover-next');
   if (!wrap || !cur || !prev || !next) return;
 
-  prev.style.transition = 'transform 180ms ease';
-  cur.style.transition  = 'transform 180ms ease';
-  next.style.transition = 'transform 180ms ease';
+  const w = Math.max(1, wrap.clientWidth);
+  const gap = w * 1.05;
 
-  prev.style.transform = 'translateX(-105%)';
-  cur.style.transform  = 'translateX(0px)';
-  next.style.transform = 'translateX(105%)';
+  prev.style.transform = `translate3d(${dx - gap}px, 0, 0)`;
+  cur.style.transform  = `translate3d(${dx}px, 0, 0)`;
+  next.style.transform = `translate3d(${dx + gap}px, 0, 0)`;
+}
 
-  setTimeout(() => {
-    prev.style.transition = '';
-    cur.style.transition  = '';
-    next.style.transition = '';
-  }, 200);
+function __npResetCoverTransforms(withAnimation = true){
+  const cur = document.getElementById('np-cover');
+  const prev = document.getElementById('np-cover-prev');
+  const next = document.getElementById('np-cover-next');
+  if (!cur || !prev || !next) return;
+
+  const transition = withAnimation ? 'transform 230ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+  prev.style.transition = transition;
+  cur.style.transition  = transition;
+  next.style.transition = transition;
+
+  __npApplyCoverTransforms(0);
+
+  if (withAnimation) {
+    setTimeout(() => {
+      prev.style.transition = '';
+      cur.style.transition  = '';
+      next.style.transition = '';
+    }, 260);
+  }
 }
 
 function setupNowPlayingCoverSwipeOnce(){
@@ -277,93 +341,173 @@ function setupNowPlayingCoverSwipeOnce(){
 
   __npCoverSwipeReady = true;
 
-  // ensure neighbors correct on first open
+  try {
+    wrap.style.willChange = 'transform';
+    cur.style.willChange = 'transform';
+    prev.style.willChange = 'transform';
+    next.style.willChange = 'transform';
+  } catch (e) {}
+
   updateNPCoverNeighbors();
-  __npResetCoverTransforms();
+  __npResetCoverTransforms(false);
 
   let dragging = false;
+  let isHorizontal = false;
+  let pointerId = null;
   let startX = 0;
   let startY = 0;
   let dx = 0;
+  let lastX = 0;
+  let lastT = 0;
+  let vx = 0;
 
-  function apply(dxNow){
-    const w = Math.max(1, wrap.clientWidth);
-    const gap = w * 1.05;
-
-    prev.style.transform = `translateX(${dxNow - gap}px)`;
-    cur.style.transform  = `translateX(${dxNow}px)`;
-    next.style.transform = `translateX(${dxNow + gap}px)`;
+  function hasPrev(){
+    return Array.isArray(currentQueue) && currentQueue.length > 0 && currentIndex > 0;
   }
 
-  wrap.addEventListener('pointerdown', (e) => {
-    // only if we actually have a queue context
-    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+  function hasNext(){
+    return Array.isArray(currentQueue) && currentQueue.length > 0 && currentIndex < (currentQueue.length - 1);
+  }
 
-    dragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    dx = 0;
+  function applyDrag(dxRaw){
+    const w = Math.max(1, wrap.clientWidth);
+    const max = w * 0.92;
+    let out = Math.max(-max, Math.min(max, dxRaw));
 
-    try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
-
-    prev.style.transition = '';
-    cur.style.transition  = '';
-    next.style.transition = '';
-  });
-
-  wrap.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-
-    const mx = e.clientX - startX;
-    const my = e.clientY - startY;
-
-    // If it becomes a vertical gesture, bail so it doesn't feel janky
-    if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 12) {
-      dragging = false;
-      __npResetCoverTransforms();
-      return;
+    if ((out > 0 && !hasPrev()) || (out < 0 && !hasNext())) {
+      out *= 0.32;
     }
 
-    dx = mx;
-    apply(dx);
-  });
+    dx = out;
+    __npApplyCoverTransforms(dx);
+  }
 
-  function endSwipe(){
-    if (!Array.isArray(currentQueue) || !currentQueue.length) {
-      __npResetCoverTransforms();
-      return;
-    }
+  function animateCommit(direction){
+    if (__npCoverSwipeAnimating) return;
+    __npCoverSwipeAnimating = true;
 
     const w = Math.max(1, wrap.clientWidth);
-    const threshold = w * 0.22;
+    const settleX = direction === 'next' ? -w * 1.05 : w * 1.05;
 
-    // keep background/accent “stuck” during drag; only change after release (song actually changes)
-    if (dx <= -threshold) {
-      // swipe left => NEXT
-      try { nextSong(); } catch (e) {}
-    } else if (dx >= threshold) {
-      // swipe right => PREV
-      try { prevSong(); } catch (e) {}
+    prev.style.transition = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
+    cur.style.transition  = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
+    next.style.transition = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
+    __npApplyCoverTransforms(settleX);
+
+    setTimeout(() => {
+      try {
+        if (direction === 'next') nextSong();
+        else prevSong();
+      } catch (e) {}
+
+      prev.style.transition = 'none';
+      cur.style.transition  = 'none';
+      next.style.transition = 'none';
+      __npApplyCoverTransforms(0);
+
+      requestAnimationFrame(() => {
+        prev.style.transition = '';
+        cur.style.transition  = '';
+        next.style.transition = '';
+        updateNPCoverNeighbors();
+        __npCoverSwipeAnimating = false;
+      });
+    }, 220);
+  }
+
+  function endSwipe(){
+    if (__npCoverSwipeAnimating) return;
+
+    const w = Math.max(1, wrap.clientWidth);
+    const distanceThreshold = w * 0.50; // user-visible rule: >= 50% drag commits
+    const velocityThreshold = 0.62;     // px/ms; fast flick can still commit under 50%
+    const minFlickDistance = Math.max(20, w * 0.08);
+    const projectedDx = dx + (vx * 220); // predict where momentum would naturally settle
+
+    const fastFlickNext = (vx < -velocityThreshold) && (dx <= -minFlickDistance || projectedDx <= -distanceThreshold);
+    const fastFlickPrev = (vx >  velocityThreshold) && (dx >=  minFlickDistance || projectedDx >=  distanceThreshold);
+
+    const goNext = (dx <= -distanceThreshold || fastFlickNext) && hasNext();
+    const goPrev = (dx >=  distanceThreshold || fastFlickPrev) && hasPrev();
+
+    if (goNext) {
+      animateCommit('next');
+      return;
+    }
+    if (goPrev) {
+      animateCommit('prev');
+      return;
     }
 
-    __npResetCoverTransforms();
-
-    // after song changes, refresh neighbor covers
+    __npResetCoverTransforms(true);
     setTimeout(() => {
       updateNPCoverNeighbors();
     }, 80);
   }
 
-  wrap.addEventListener('pointerup', () => {
+  wrap.addEventListener('pointerdown', (e) => {
+    if (__npCoverSwipeAnimating) return;
+    if (!Array.isArray(currentQueue) || !currentQueue.length) return;
+
+    dragging = true;
+    isHorizontal = false;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    dx = 0;
+    lastX = e.clientX;
+    lastT = performance.now();
+    vx = 0;
+
+    try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+
+    prev.style.transition = 'none';
+    cur.style.transition  = 'none';
+    next.style.transition = 'none';
+  });
+
+  wrap.addEventListener('pointermove', (e) => {
     if (!dragging) return;
+    if (pointerId != null && e.pointerId !== pointerId) return;
+
+    const mx = e.clientX - startX;
+    const my = e.clientY - startY;
+
+    if (!isHorizontal) {
+      if (Math.abs(mx) < 4 && Math.abs(my) < 4) return;
+      if (Math.abs(my) > Math.abs(mx)) {
+        dragging = false;
+        pointerId = null;
+        __npResetCoverTransforms(true);
+        return;
+      }
+      isHorizontal = true;
+    }
+
+    const now = performance.now();
+    const dt = Math.max(1, now - lastT);
+    vx = (e.clientX - lastX) / dt;
+    lastX = e.clientX;
+    lastT = now;
+
+    try { e.preventDefault(); } catch (err) {}
+    applyDrag(mx);
+  });
+
+  wrap.addEventListener('pointerup', (e) => {
+    if (!dragging) return;
+    if (pointerId != null && e.pointerId !== pointerId) return;
     dragging = false;
+    pointerId = null;
     endSwipe();
   });
 
-  wrap.addEventListener('pointercancel', () => {
+  wrap.addEventListener('pointercancel', (e) => {
     if (!dragging) return;
+    if (pointerId != null && e.pointerId !== pointerId) return;
     dragging = false;
-    __npResetCoverTransforms();
+    pointerId = null;
+    __npResetCoverTransforms(true);
   });
 }
 
@@ -507,6 +651,12 @@ let npStartY = 0;
 let npStartX = 0;
 let npLastDown = 0;
 let npStartFromControls = false;
+let npLastMoveY = 0;
+let npLastMoveAt = 0;
+let npPrevMoveY = 0;
+let npPrevMoveAt = 0;
+let npCurrentTranslateY = 0;
+let npRafId = 0;
 
 let npDecided = false;
 let npIsVertical = false;
@@ -521,11 +671,28 @@ function npResetDrag() {
   npDragActive = false;
   npDecided = false;
   npIsVertical = false;
-    npLastDown = 0;
+  npLastDown = 0;
+  npLastMoveY = 0;
+  npLastMoveAt = 0;
+  npPrevMoveY = 0;
+  npPrevMoveAt = 0;
+  npCurrentTranslateY = 0;
+  if (npRafId) {
+    try { cancelAnimationFrame(npRafId); } catch (e) {}
+    npRafId = 0;
+  }
   if (npSheet) npSheet.style.overflowY = '';
   nowPlayingOverlay.classList.remove('np-dragging');
-
   nowPlayingOverlay.style.transform = 'translateY(0)';
+}
+
+function npQueueTranslate(nextY) {
+  npCurrentTranslateY = Math.max(0, nextY);
+  if (npRafId) return;
+  npRafId = requestAnimationFrame(() => {
+    npRafId = 0;
+    nowPlayingOverlay.style.transform = `translate3d(0, ${npCurrentTranslateY}px, 0)`;
+  });
 }
 
 function npStartAllowed(e) {
@@ -548,7 +715,11 @@ if (nowPlayingOverlay) {
   npDragActive = true;
   npStartY = y;
   npStartX = x;
-    npLastDown = 0;
+  npLastDown = 0;
+  npLastMoveY = y;
+  npLastMoveAt = performance.now();
+  npPrevMoveY = y;
+  npPrevMoveAt = npLastMoveAt;
   npStartFromControls = !!(e.target && e.target.closest && e.target.closest('#np-controls, #np-sheet'));
 
     npDecided = false;
@@ -578,6 +749,7 @@ if (nowPlayingOverlay) {
 
       if (npIsVertical && dy > 0 && (!npSheet || npSheet.scrollTop <= 0 || startNearTop)) {
         nowPlayingOverlay.classList.add('np-dragging');
+        nowPlayingOverlay.style.transition = 'none';
         try { nowPlayingOverlay.setPointerCapture(e.pointerId); } catch (err) {}
       }
 
@@ -586,30 +758,61 @@ if (nowPlayingOverlay) {
 
                 if (!npIsVertical) return;
 
-        // ✅ Allow normal scrolling unless we've actually entered "drag to close" mode
-        if (!nowPlayingOverlay.classList.contains('np-dragging')) return;
+    // ✅ Allow normal scrolling unless we've actually entered "drag to close" mode
+    if (!nowPlayingOverlay.classList.contains('np-dragging')) return;
 
     if (npSheet) npSheet.style.overflowY = 'hidden';
     try { e.preventDefault(); } catch (err) {}
 
+    npPrevMoveY = npLastMoveY;
+    npPrevMoveAt = npLastMoveAt;
+    npLastMoveY = y;
+    npLastMoveAt = performance.now();
 
 
     // Only drag downward
     const down = Math.max(0, dy);
     npLastDown = down;
-
-    nowPlayingOverlay.style.transform = `translateY(${down}px)`;
+    npQueueTranslate(down);
   });
 
-    nowPlayingOverlay.addEventListener('pointerup', () => {
+  nowPlayingOverlay.addEventListener('pointerup', () => {
     if (!npDragActive) return;
 
-        const threshold = 60;
-    const shouldClose = npLastDown > threshold;
+    const now = performance.now();
+    const dt = Math.max(1, npLastMoveAt > 0 ? (now - npPrevMoveAt) : 1);
+    const dyRecent = npLastMoveY - npPrevMoveY;
+    const v = dyRecent / dt; // px/ms
 
-        if (shouldClose) { if (npSheet) npSheet.style.overflowY = ''; closeNowPlaying(); }
+    const vh = Math.max(window.innerHeight || 0, 1);
+    const distanceThreshold = Math.max(90, vh * 0.18);
+    const velocityThreshold = 0.55;
 
-    else npResetDrag();
+    const shouldClose = (npLastDown > distanceThreshold) || (v > velocityThreshold && npLastDown > 22);
+
+    if (npRafId) {
+      try { cancelAnimationFrame(npRafId); } catch (e) {}
+      npRafId = 0;
+    }
+
+    if (shouldClose) {
+      if (npSheet) npSheet.style.overflowY = '';
+      nowPlayingOverlay.classList.remove('np-dragging');
+      nowPlayingOverlay.style.transition = 'transform 190ms cubic-bezier(0.22, 1, 0.36, 1)';
+      closeNowPlaying();
+      setTimeout(() => {
+        try { nowPlayingOverlay.style.transition = ''; } catch (e) {}
+      }, 260);
+      npDragActive = false;
+      return;
+    }
+
+    nowPlayingOverlay.classList.remove('np-dragging');
+    nowPlayingOverlay.style.transition = 'transform 240ms cubic-bezier(0.22, 1, 0.36, 1)';
+    npResetDrag();
+    setTimeout(() => {
+      try { nowPlayingOverlay.style.transition = ''; } catch (e) {}
+    }, 280);
 
     npDragActive = false;
   });
@@ -1747,6 +1950,7 @@ async function playSpecificSong(url, title, album, artist, cover) {
 
   currentSong = { url, title: titleClean, album: albumFolder, artist, cover: resolvedCover };
   window.currentSong = currentSong;
+  try { window.__pendingTouchSongUrl = String(url || ''); } catch (e) {}
 
   try { player.pause(); } catch (e) {}
   player.src = url;

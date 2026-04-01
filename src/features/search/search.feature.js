@@ -257,6 +257,8 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
       }
       if (action === 'artist') {
         const artist = btn.getAttribute('data-artist') || '';
+        // Mark this as an explicit artist-intent action for recents logic.
+        try { window.__fromArtistView = String(artist || '').trim(); } catch (e) {}
         openArtistByName(artist);
         return;
       }
@@ -448,9 +450,14 @@ function initSearchSwipeDownClose() {
   let startX = 0;
   let startY = 0;
   let lastDy = 0;
+  let lastMoveY = 0;
+  let prevMoveY = 0;
+  let lastMoveAt = 0;
+  let prevMoveAt = 0;
+  let currentTranslateY = 0;
+  let rafId = 0;
 
-  const MOVE_DECIDE_PX = 6;
-  const THRESHOLD_PX = 120;
+  const MOVE_DECIDE_PX = 2;
   const OPACITY_DROP = 0.20;
 
   const getXY = (e) => {
@@ -458,19 +465,40 @@ function initSearchSwipeDownClose() {
     return { x: e.clientX, y: e.clientY };
   };
 
+  function queueTranslate(nextY) {
+    currentTranslateY = Math.max(0, nextY);
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      area.style.transform = `translate3d(0, ${currentTranslateY}px, 0)`;
+      const maxShift = Math.max(180, Math.floor(window.innerHeight * 0.82));
+      const p = Math.min(1, currentTranslateY / maxShift);
+      area.style.opacity = String(1 - (p * OPACITY_DROP));
+    });
+  }
+
   function reset(animated = true) {
+    if (rafId) {
+      try { cancelAnimationFrame(rafId); } catch (e) {}
+      rafId = 0;
+    }
     if (animated) {
-      area.style.transition = 'transform 160ms ease, opacity 160ms ease';
+      area.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease';
     } else {
       area.style.transition = '';
     }
     area.style.transform = 'translateY(0px)';
     area.style.opacity = '1';
     lastDy = 0;
+    lastMoveY = 0;
+    prevMoveY = 0;
+    lastMoveAt = 0;
+    prevMoveAt = 0;
+    currentTranslateY = 0;
 
     setTimeout(() => {
       area.style.transition = '';
-    }, 180);
+    }, 260);
 
     hideSwipeBackUnderlay();
   }
@@ -496,6 +524,10 @@ function initSearchSwipeDownClose() {
     startX = x;
     startY = y;
     lastDy = 0;
+    lastMoveY = y;
+    prevMoveY = y;
+    lastMoveAt = performance.now();
+    prevMoveAt = lastMoveAt;
 
     // Reveal the previous screen behind search while dragging
     showSwipeBackUnderlay();
@@ -526,25 +558,42 @@ function initSearchSwipeDownClose() {
       return;
     }
 
-       // ✅ passive move listener: no preventDefault needed (we're only translating the view)
+    // ✅ passive move listener: no preventDefault needed (we're only translating the view)
 
-    const maxShift = Math.max(140, Math.floor(window.innerHeight * 0.85));
-    if (lastDy > maxShift) lastDy = maxShift;
+    prevMoveY = lastMoveY;
+    prevMoveAt = lastMoveAt;
+    lastMoveY = y;
+    lastMoveAt = performance.now();
 
-    area.style.transform = `translateY(${lastDy}px)`;
-
-    const p = Math.min(1, Math.abs(lastDy) / maxShift);
-    area.style.opacity = String(1 - (p * OPACITY_DROP));
-    }, { passive: true });
-
+    const maxShift = Math.max(180, Math.floor(window.innerHeight * 0.82));
+    const down = Math.max(0, Math.min(dy, maxShift));
+    lastDy = down;
+    queueTranslate(down);
+  }, { passive: true });
 
   searchView.addEventListener('pointerup', () => {
     if (!active) return;
     active = false;
 
-    if (lastDy > THRESHOLD_PX) {
-      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+    const now = performance.now();
+    const dt = Math.max(1, lastMoveAt > 0 ? (now - prevMoveAt) : 1);
+    const dyRecent = lastMoveY - prevMoveY;
+    const velocity = dyRecent / dt; // px/ms
+
+    const vh = Math.max(window.innerHeight || 0, 1);
+    const distanceThreshold = Math.max(90, vh * 0.18);
+    const velocityThreshold = 0.55;
+    const shouldCommit = (lastDy > distanceThreshold) || (velocity > velocityThreshold && lastDy > 20);
+
+    if (rafId) {
+      try { cancelAnimationFrame(rafId); } catch (e) {}
+      rafId = 0;
+    }
+
+    if (shouldCommit) {
+      area.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
       area.style.transform = `translateY(${window.innerHeight}px)`;
+      area.style.opacity = String(1 - OPACITY_DROP);
 
       const done = () => {
         area.removeEventListener('transitionend', done);
@@ -552,7 +601,10 @@ function initSearchSwipeDownClose() {
         goBack();
       };
       area.addEventListener('transitionend', done);
-           return;
+      setTimeout(() => {
+        try { done(); } catch (e) {}
+      }, 260);
+      return;
     }
 
     reset(true);
@@ -1531,6 +1583,8 @@ img.src = cover || '';
   const row = document.createElement('div');
   row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
   row.addEventListener('click', () => {
+    // Mark this as explicit artist engagement (searched/clicked artist row).
+    try { window.__fromArtistView = String(artist.artist || '').trim(); } catch (e) {}
     openArtistByName(artist.artist);
   });
 

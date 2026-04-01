@@ -254,6 +254,34 @@ function initLibraryControls() {
   // Sort dropdown
   const btn = document.getElementById('library-sort-btn');
   const menu = document.getElementById('library-sort-menu');
+  const backdrop = document.getElementById('library-sort-backdrop');
+
+  const openSortMenu = () => {
+    if (!menu) return;
+    menu.classList.remove('hidden');
+    menu.classList.add('open');
+    if (backdrop) {
+      backdrop.classList.remove('hidden');
+      backdrop.classList.add('open');
+    }
+  };
+
+  const closeSortMenu = () => {
+    if (!menu) return;
+    menu.classList.remove('open');
+    menu.classList.add('hidden');
+    if (backdrop) {
+      backdrop.classList.remove('open');
+      backdrop.classList.add('hidden');
+    }
+  };
+
+  const toggleSortMenu = () => {
+    if (!menu) return;
+    const isOpen = menu.classList.contains('open') || !menu.classList.contains('hidden');
+    if (isOpen) closeSortMenu();
+    else openSortMenu();
+  };
 
   // Slider bits
   const colsWrap = document.getElementById('library-grid-cols-wrap');
@@ -287,15 +315,30 @@ function initLibraryControls() {
   }
 
   if (btn && menu) {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      menu.classList.toggle('hidden');
+    if (!btn.__boundLibrarySortToggle) {
+      btn.__boundLibrarySortToggle = true;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSortMenu();
 
-      // When menu opens, make sure slider visibility + value is correct
-      applyLibraryGridCols();
-    });
+        // When menu opens, make sure slider visibility + value is correct
+        applyLibraryGridCols();
+      });
+    }
+
+    if (!menu.__boundLibrarySortInside) {
+      menu.__boundLibrarySortInside = true;
+      menu.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    if (backdrop && !backdrop.__boundLibrarySortClose) {
+      backdrop.__boundLibrarySortClose = true;
+      backdrop.addEventListener('click', closeSortMenu);
+    }
 
     menu.querySelectorAll('.lib-sort-item').forEach(el => {
+      if (el.__boundLibrarySortItem) return;
+      el.__boundLibrarySortItem = true;
       el.addEventListener('click', () => {
         const mode = el.getAttribute('data-sort') || 'Recently added';
         if (navCurrent && navCurrent.type === 'home') {
@@ -304,11 +347,13 @@ function initLibraryControls() {
   setLibrarySortMode(mode);
 }
 
-        menu.classList.add('hidden');
+        closeSortMenu();
       });
     });
 
     menu.querySelectorAll('.lib-view-btn').forEach(el => {
+      if (el.__boundLibraryViewItem) return;
+      el.__boundLibraryViewItem = true;
       el.addEventListener('click', () => {
         const mode = el.getAttribute('data-view') || 'grid';
         if (navCurrent && navCurrent.type === 'home') {
@@ -318,11 +363,22 @@ function initLibraryControls() {
 }
 
         // setLibraryViewMode already calls applyLibraryGridCols()
-        menu.classList.add('hidden');
+        closeSortMenu();
       });
     });
 
-    window.addEventListener('click', () => menu.classList.add('hidden'));
+    if (!window.__librarySortGlobalCloseBound) {
+      window.__librarySortGlobalCloseBound = true;
+      window.addEventListener('click', (e) => {
+        const target = e && e.target ? e.target : null;
+        if (!target) return closeSortMenu();
+        if ((btn && btn.contains(target)) || (menu && menu.contains(target))) return;
+        closeSortMenu();
+      });
+      window.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape') closeSortMenu();
+      });
+    }
   }
 
   // Set initial label
@@ -348,7 +404,11 @@ function updateLibrarySortUIForTopTab() {
 
   // ✅ Never hide sort options anymore (each tab has its own saved mode)
   const sortItems = menu.querySelectorAll('.lib-sort-item');
-  sortItems.forEach(btn => btn.classList.remove('hidden'));
+  sortItems.forEach(btn => {
+    btn.classList.remove('hidden');
+    const itemMode = String(btn.getAttribute('data-sort') || '').trim();
+    btn.classList.toggle('active', itemMode === mode);
+  });
   const headers = menu.querySelectorAll('div.px-4.py-3.text-xs');
   const sortHeader = headers && headers[0] ? headers[0] : null;
   if (sortHeader) sortHeader.classList.remove('hidden');

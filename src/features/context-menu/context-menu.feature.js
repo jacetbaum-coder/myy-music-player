@@ -781,7 +781,13 @@ if (window.innerWidth > 768 && addOpt) {
 
 
   // Mobile: bottom sheet (ignore x/y)
-    if (window.innerWidth <= 768) {
+    // ✅ Strip any stale cm-armed highlight from a previous interaction before opening
+    try {
+      contextMenu.querySelectorAll('.cm-armed').forEach(el => el.classList.remove('cm-armed'));
+    } catch (e) {}
+
+    // Mobile: bottom sheet (ignore x/y)
+      if (window.innerWidth <= 768) {
 
     // ✅ If a previous close animation timer is still pending, cancel it.
     // Otherwise it will fire right after we open and instantly hide the menu again.
@@ -824,6 +830,7 @@ if (window.innerWidth > 768 && addOpt) {
 
    suppressContextMenuCloseUntil = Date.now() + 400;
 window.__outsideDismissSkipUntil = Date.now() + 450;
+window.__cmArmGuardUntil = Date.now() + 300;
 return;
 
   }
@@ -1482,9 +1489,13 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
       // don't hijack the handle drag gesture
       if (e.target && e.target.closest && e.target.closest('.cm-handle')) return;
 
+        // don't arm during the open animation (prevents leakage from the opening tap)
+        if (Date.now() < (window.__cmArmGuardUntil || 0)) return;
+
       tracking = true;
       pickAtTouch(e.touches[0]);
     }, { passive: true });
+
 
     sheet.addEventListener('touchmove', (e) => {
       if (!tracking) return;
