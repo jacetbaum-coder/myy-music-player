@@ -4518,7 +4518,12 @@ body.qs-lock {
 
 
     <script>
-        
+
+// ============================================================
+// SECTION 1: GLOBAL STATE
+// Central app state that all features and the startup sequence share.
+// ============================================================
+
         // GLOBAL APP STATE
 
 // ✅ FIX: define onNavTap so inline onclick handlers do not crash JS
@@ -4605,6 +4610,20 @@ window.__songSelect = window.__songSelect || {
   lastIndex: null,
   enabled: false,
 };
+
+// Navigation stack state (lives in Global State so all utilities and features can access it)
+let navStack = [];
+let navCurrent = { type: 'home' };
+let __isBackNav = false;
+window.__isBackNav = false;
+window.navStack = navStack;
+window.navCurrent = navCurrent;
+
+// ============================================================
+// SECTION 2: SHARED UTILITIES
+// Pure helpers and self-contained subsystems used by multiple
+// features and the startup sequence. Not feature-specific.
+// ============================================================
 
 function setSongSelectEnabled(on){
   window.__songSelect.enabled = !!on;
@@ -5693,6 +5712,12 @@ function initMobileDoubleTapScrollToTop(){
 }
 
 
+// ============================================================
+// SECTION 3: APP INITIALIZATION
+// window.onload: runs once at startup. Sets up identity, loads
+// data from cloud, wires feature entry points, and boots the UI.
+// ============================================================
+
 window.onload = async () => {
   // ✅ Identity (Phase 1): use the SAME numeric userId everywhere
   const userId = localStorage.getItem("app_user_id") || "23";
@@ -5823,6 +5848,12 @@ return data.playlists;
   };
 
     safe(setGreeting);
+
+  // ------------------------------------------------------------------
+  // SECTION 4: FEATURE ENTRY POINTS
+  // Each safe() call initializes one extracted feature module.
+  // If a feature file didn't load, safe() silently skips it.
+  // ------------------------------------------------------------------
 
   // These helpers are optional (they exist in some versions of your file but not all)
   safe(window.syncRepeatUI);
@@ -6282,18 +6313,7 @@ try {
          */
         var activePlaylistId = null;
 // (album/artist view state is declared above in the album override block)
-
-// -----------------------
-let navStack = [];
-let navCurrent = { type: 'home' };
-let __isBackNav = false;
-window.__isBackNav = false;
-
-
-
-// Expose for debugging + global access
-window.navStack = navStack;
-window.navCurrent = navCurrent;
+// navStack, navCurrent, __isBackNav declared in Section 1 (Global State) above.
 
 // HARD SAFETY: never allow __isBackNav to stay true accidentally
 function __withBackNav(fn) {
@@ -6304,8 +6324,6 @@ function __withBackNav(fn) {
     __isBackNav = false;
   }
 }
-
-window.navCurrent = navCurrent;
 
 
 // -----------------------
@@ -9594,41 +9612,7 @@ if (showPickerList) list.style.display = "";
 
 
 // [MOVED TO src/features/context-menu/context-menu.feature.js] handleContextMenu (full)
-
-
-
- function attachSongPressHandlers_OLD(row, song, state) {
-
-  if (!row) return;
-
-  let pressTimer = null;
-
-  row.addEventListener('touchstart', (e) => {
-    if (!e.touches || !e.touches[0]) return;
-    const t = e.touches[0];
-    state.longPress = false;
-    pressTimer = setTimeout(() => {
-      state.longPress = true;
-      showContextMenuAt(t.pageX, t.pageY, song);
-    }, 500);
-  }, { passive: true });
-
-  const cancel = () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-  };
-
-  row.addEventListener('touchend', (e) => {
-    cancel();
-    if (state.longPress) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, { passive: false });
-
-  row.addEventListener('touchmove', cancel, { passive: true });
-  row.addEventListener('touchcancel', cancel, { passive: true });
-}
+// [REMOVED] attachSongPressHandlers_OLD — dead code, superseded by attachSongPressHandlers
 
                               function addToHistory(album, artist, cover) {
 
