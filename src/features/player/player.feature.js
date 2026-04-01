@@ -52,6 +52,8 @@ if (volumeContainer) {
 
         const dock = document.getElementById('main-dock');
         const rightSidebar = document.getElementById('right-sidebar');
+const nowPlayingOverlay = document.getElementById('now-playing-overlay');
+const npCloseBtn = document.getElementById('np-close');
 
 
 function openNowPlaying() {
