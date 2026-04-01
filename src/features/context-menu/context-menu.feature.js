@@ -845,6 +845,17 @@ return;
     contextMenu.style.maxHeight = 'none';
     contextMenu.style.overflow = 'visible';
     contextMenu.style.padding = '4px';
+
+    // Desktop: explicitly hide song header so the menu stays short
+    try {
+      const _hdl = contextMenu.querySelector('.cm-handle');
+      const _sng = contextMenu.querySelector('.cm-song');
+      const _div = contextMenu.querySelector('.cm-divider');
+      if (_hdl) _hdl.style.display = 'none';
+      if (_sng) _sng.style.display = 'none';
+      if (_div) _div.style.display = 'none';
+    } catch (e) {}
+
     contextMenu.style.display = 'block';
     contextMenu.style.visibility = 'hidden';
 
