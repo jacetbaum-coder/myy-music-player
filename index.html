@@ -2467,18 +2467,26 @@ body.np-open #playlist-submenu{
   }
 
   #context-menu{
-    background: rgba(30,30,30,0.96);
-    border-radius: 10px;
+    background: rgba(42,42,42,0.98);
+    border-radius: 8px;
 
-    padding: 4px;              /* ✅ less padding = shorter box */
-    width: 260px;
+    padding: 4px;
+    width: 280px;
 
-    box-shadow: 0 18px 30px rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 14px 38px rgba(0,0,0,0.45);
     transform: none !important;
     animation: fadeIn 0.12s ease-out;
 
-    height: auto;              /* ✅ shrink to content */
-    min-height: 0;             /* ✅ kills the grey slab */
+    /* Cancel mobile stretch properties */
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
 
   /* Hide song header (handle, cover, meta, divider) on desktop — keeps menu compact */
@@ -2494,12 +2502,12 @@ body.np-open #playlist-submenu{
   }
 
   #context-menu .menu-item{
-    padding: 8px 12px;         /* ✅ tighter rows */
-    font-size: 14px;           /* ✅ larger text like Spotify */
-    line-height: 1.2;
-    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 14px;
+    line-height: 1.3;
+    border-radius: 4px;
     white-space: nowrap;
-    min-height: 0;             /* ✅ prevents tall rows */
+    min-height: 0;
   }
 
   #context-menu .menu-item:hover{
@@ -3261,35 +3269,34 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-      <div class="menu-item" onclick="openAddToFolderSubmenu(event)">
-  Add to folder
-  <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+<div class="menu-item" onclick="openAddToFolderSubmenu(event)">
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-folder-plus" style="width:16px;font-size:13px;opacity:0.75;"></i> Add to folder</span>
+  <i class="fas fa-chevron-right text-xs" style="opacity:0.5;"></i>
 </div>
 
 <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
-  Add song to playlist
-  <i class="fas fa-chevron-right text-xs" style="opacity:0.7;"></i>
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-plus" style="width:16px;font-size:13px;opacity:0.75;"></i> Add song to playlist</span>
+  <i class="fas fa-chevron-right text-xs" style="opacity:0.5;"></i>
 </div>
 
-    <div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
-    Remove song from this playlist
+<div class="menu-item text-red-400" onclick="menuAction('remove')" id="menu-remove-opt" style="display:none;">
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-trash" style="width:16px;font-size:13px;opacity:0.75;"></i> Remove song from playlist</span>
+</div>
 
-  </div>
-
-   <div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
-  Add to queue
+<div class="menu-item" id="menu-queue-add-opt" onclick="menuAction('queue_add')">
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-list-ul" style="width:16px;font-size:13px;opacity:0.75;"></i> Add to queue</span>
 </div>
 
 <div class="menu-item" id="menu-crate-add-artist-opt" onclick="menuAction('crate_add_artist')">
-  Add artist to crate
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-inbox" style="width:16px;font-size:13px;opacity:0.75;"></i> Add artist to crate</span>
 </div>
 
 <div class="menu-item" id="menu-go-album-opt" onclick="menuAction('go_album')" style="display:none;">
-  Go to album
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-record-vinyl" style="width:16px;font-size:13px;opacity:0.75;"></i> Go to album</span>
 </div>
 
 <div class="menu-item" id="menu-queue-go-opt" onclick="menuAction('queue_go')">
-  Go to queue
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-arrow-right" style="width:16px;font-size:13px;opacity:0.75;"></i> Go to queue</span>
 </div>
 
 </div>

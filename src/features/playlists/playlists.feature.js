@@ -707,15 +707,13 @@ function playPlaylistById(playlistId) {
       const cm = document.getElementById('context-menu');
       const cmRect = cm ? cm.getBoundingClientRect() : null;
       const flyW = 280;
-      const flyH = 380;
-      const pad = 12;
+      const pad = 8;
 
-      const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
-      // Align submenu to the top of the context menu
+      const baseLeft = cmRect ? (cmRect.right + 4) : (window.innerWidth * 0.55);
       const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.22);
 
-      const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
-      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));
+      let left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
+      let top = Math.max(pad, baseTop);
 
       sub.style.position = 'fixed';
       sub.style.left = `${left}px`;
@@ -724,7 +722,7 @@ function playPlaylistById(playlistId) {
       sub.style.bottom = 'auto';
       sub.style.width = `${flyW}px`;
       sub.style.maxWidth = `min(${flyW}px, calc(100vw - 24px))`;
-      sub.style.height = `${flyH}px`;
+      sub.style.height = 'auto';
       sub.style.maxHeight = 'calc(100vh - 24px)';
       sub.style.overflow = 'hidden';
       sub.style.display = 'block';

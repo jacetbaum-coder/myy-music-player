@@ -763,9 +763,8 @@ if (window.innerWidth > 768 && addOpt) {
 
 
 
-  // ✅ Labels
-  try { if (qAddOpt) qAddOpt.querySelector('.menu-label') ? (qAddOpt.querySelector('.menu-label').textContent = 'Add to queue') : (qAddOpt.textContent = 'Add to queue'); } catch(e){}
-  try { if (qGoOpt)  qGoOpt.querySelector('.menu-label')  ? (qGoOpt.querySelector('.menu-label').textContent  = 'Go to queue')  : (qGoOpt.textContent  = 'Go to queue');  } catch(e){}
+  // ✅ Labels — do not overwrite innerHTML (icons are embedded in the spans)
+  // Labels are already baked into the HTML, no override needed.
 
   // ✅ Order: Add to queue above Go to queue
   try {
@@ -845,6 +844,8 @@ return;
     contextMenu.style.maxHeight = 'none';
     contextMenu.style.overflow = 'visible';
     contextMenu.style.padding = '4px';
+    contextMenu.style.bottom = 'auto';
+    contextMenu.style.margin = '0';
 
     // Desktop: explicitly hide song header so the menu stays short
     try {
@@ -859,14 +860,17 @@ return;
     contextMenu.style.display = 'block';
     contextMenu.style.visibility = 'hidden';
 
-    const mw = contextMenu.offsetWidth || 270;
-    const mh = contextMenu.offsetHeight || 320;
-    const pad = 12;
-    const desiredLeft = x + 10;
-    const desiredTop = y - mh - 10;
+    const mw = contextMenu.offsetWidth || 280;
+    const mh = contextMenu.offsetHeight || 240;
+    const pad = 8;
 
-    const left = Math.max(pad, Math.min(desiredLeft, window.innerWidth - mw - pad));
-    const top = Math.max(pad, Math.min(desiredTop, window.innerHeight - mh - pad));
+    // Default: top-left of menu at cursor (like Spotify); flip if near screen edge
+    let left = x;
+    let top = y;
+    if (left + mw + pad > window.innerWidth)  left = x - mw;
+    if (top  + mh + pad > window.innerHeight) top  = y - mh;
+    left = Math.max(pad, left);
+    top  = Math.max(pad, top);
 
     contextMenu.style.left = left + 'px';
     contextMenu.style.top = top + 'px';
@@ -1016,15 +1020,14 @@ function openAddToFolderSubmenu(event){
     try {
       const cm = document.getElementById('context-menu');
       const cmRect = cm ? cm.getBoundingClientRect() : null;
-      const flyW = 360;
-      const flyH = 420;
-      const pad = 12;
+      const flyW = 280;
+      const pad = 8;
 
-      const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
+      const baseLeft = cmRect ? (cmRect.right + 4) : (window.innerWidth * 0.55);
       const baseTop = cmRect ? cmRect.top : (window.innerHeight * 0.24);
 
       const left = Math.max(pad, Math.min(baseLeft, window.innerWidth - flyW - pad));
-      const top = Math.max(pad, Math.min(baseTop, window.innerHeight - flyH - pad));
+      const top = Math.max(pad, baseTop);
 
       submenu.style.position = 'fixed';
       submenu.style.left = `${left}px`;
@@ -1033,7 +1036,7 @@ function openAddToFolderSubmenu(event){
       submenu.style.bottom = 'auto';
       submenu.style.width = `${flyW}px`;
       submenu.style.maxWidth = `min(${flyW}px, calc(100vw - 24px))`;
-      submenu.style.height = `${flyH}px`;
+      submenu.style.height = 'auto';
       submenu.style.maxHeight = 'calc(100vh - 24px)';
       submenu.style.display = 'block';
       submenu.style.overflow = 'hidden';
