@@ -50,8 +50,7 @@ if (volumeContainer) {
     });
 }
 
-        const dock = document.getElementById('main-dock');
-        const rightSidebar = document.getElementById('right-sidebar');
+// dock and rightSidebar are declared in index.html's inline script (shared global scope)
 const nowPlayingOverlay = document.getElementById('now-playing-overlay');
 const npCloseBtn = document.getElementById('np-close');
 
