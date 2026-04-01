@@ -786,6 +786,7 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
                               .main-view { 
   flex: 1;
   min-height: 0;                 /* ✅ critical in flex layouts so children can size/scroll */
+  min-width: 0;                  /* ✅ prevents flex overflow/collapse when sidebars are present */
   width: 100%;
   overflow-y: auto;              /* ✅ vertical scrolling */
   -webkit-overflow-scrolling: touch;
@@ -3163,8 +3164,6 @@ body.qs-lock {
 
 
 <!-- [MOVED TO src/features/lyrics/lyrics.feature.js] toggleNpLyricsExpanded global handler -->
-
-</style>
 </head>
 
 
@@ -3244,7 +3243,7 @@ body.qs-lock {
 
 
 
-    <div class="flex flex-1 overflow-y-auto">
+    <div class="flex flex-1 overflow-hidden">
 
         
         <aside id="left-sidebar" class="sidebar">
@@ -4149,7 +4148,7 @@ body.qs-lock {
     <!-- Queue (desktop right sidebar) -->
     <section id="right-queue-card" class="lyrics-card hidden">
       <div class="lyrics-header" style="justify-content: space-between;">
-        <div class="lyrics-title">Queue</div
+        <div class="lyrics-title">Queue</div>
         <button id="right-queue-clear"
                 style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.70);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);">
           Clear
