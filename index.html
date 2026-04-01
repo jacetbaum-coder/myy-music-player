@@ -2233,6 +2233,45 @@ body.np-open #playlist-submenu{
 }
 #queue-toast .qt-open:active{ transform: scale(0.98); }
 
+/* ===== PLAYLIST ADDED TOAST ===== */
+#playlist-added-toast{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%) translateY(18px);
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+  z-index: 2800;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+  white-space: nowrap;
+}
+#playlist-added-toast.pat-show{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+#playlist-added-toast .pat-inner{
+  background: rgba(255,255,255,0.92);
+  border-radius: 14px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 16px 28px rgba(0,0,0,0.35);
+}
+#playlist-added-toast .pat-cover{
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #333;
+}
+#playlist-added-toast .pat-label{
+  font-weight: 900;
+  color: #111;
+  font-size: 14px;
+}
+
 
 /* --- MOBILE QUEUE SHEET (Spotify-like) --- */
 
@@ -3269,7 +3308,7 @@ body.qs-lock {
 
   <div class="cm-divider"></div>
 
-<div class="menu-item" onclick="openAddToFolderSubmenu(event)">
+<div class="menu-item" id="menu-folder-opt" onclick="openAddToFolderSubmenu(event)">
   <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-folder-plus" style="width:16px;font-size:13px;opacity:0.75;"></i> Add to folder</span>
   <i class="fas fa-chevron-right text-xs" style="opacity:0.5;"></i>
 </div>
@@ -4554,6 +4593,14 @@ body.qs-lock {
       </div>
     </div>
 
+
+<!-- PLAYLIST ADDED TOAST -->
+<div id="playlist-added-toast" role="status" aria-live="polite">
+  <div class="pat-inner">
+    <img class="pat-cover" id="pat-cover" src="" alt="" />
+    <div class="pat-label" id="pat-label">Added to playlist</div>
+  </div>
+</div>
 
 <!-- QUEUE TOAST (mobile) -->
 <div id="queue-toast" class="qt-hidden" role="status" aria-live="polite">

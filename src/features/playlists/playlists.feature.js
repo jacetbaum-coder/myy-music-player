@@ -532,6 +532,27 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
 
 // ✅ Add playlist item in cloud
 
+// ===== Playlist-added toast =====
+window.__patTimer = null;
+window.showPlaylistAddedToast = function(playlistName, coverUrl) {
+  try {
+    const toast = document.getElementById('playlist-added-toast');
+    const label = document.getElementById('pat-label');
+    const cover = document.getElementById('pat-cover');
+    if (!toast) return;
+    if (label) label.textContent = 'Added to ' + (playlistName || 'playlist');
+    if (cover) {
+      cover.src = coverUrl || '';
+      cover.style.display = coverUrl ? 'block' : 'none';
+    }
+    toast.classList.add('pat-show');
+    clearTimeout(window.__patTimer);
+    window.__patTimer = setTimeout(() => {
+      try { toast.classList.remove('pat-show'); } catch(e) {}
+    }, 2200);
+  } catch(e) {}
+};
+
 window.addTrackToPlaylistInCloud = async function (playlistId, trackId) {
   if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
 
@@ -572,6 +593,16 @@ const body = {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Add item failed");
+
+  // Show toast
+  try {
+    const pls = Array.isArray(window.playlists) ? window.playlists : [];
+    const pl = pls.find(p => String(p?.id || p?.playlistId || p?.playlist_id || '') === String(playlistId));
+    const name = pl ? (pl.name || pl.title || 'playlist') : 'playlist';
+    const cover = pl ? (pl.cover || pl.autoCover || '') : '';
+    if (typeof window.showPlaylistAddedToast === 'function') window.showPlaylistAddedToast(name, cover);
+  } catch(e) {}
+
   return data;
 };
 
@@ -732,7 +763,7 @@ function playPlaylistById(playlistId) {
       sub.style.border = '1px solid rgba(255,255,255,0.10)';
       sub.style.borderRadius = '8px';
       sub.style.boxShadow = '0 14px 38px rgba(0,0,0,0.45)';
-      sub.style.transition = 'opacity 120ms ease';
+      sub.style.transition = 'none';
       sub.style.transform = 'none';
       sub.style.opacity = '1';
       sub.style.zIndex = '200500';
@@ -870,13 +901,7 @@ function playPlaylistById(playlistId) {
           if (typeof window.createNewPlaylist === 'function') window.createNewPlaylist();
         }, false, plusIcon));
 
-        // "New Folder" — folder icon inline with playlists
-        const folderIcon = `<i class="fas fa-folder" style="width:28px;text-align:center;font-size:14px;opacity:.75;"></i>`;
-        list.appendChild(mkItem('New Folder', async () => {
-          if (typeof window.openAddToFolderSubmenu === 'function') {
-            window.openAddToFolderSubmenu({ preventDefault(){}, stopPropagation(){} });
-          }
-        }, true, folderIcon));
+
 
         // separator between special items and playlists
         if (rows.length) {

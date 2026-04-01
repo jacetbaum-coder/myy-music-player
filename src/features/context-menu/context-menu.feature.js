@@ -698,6 +698,12 @@ try { window.menuTargetSong = menuTargetSong; } catch (e) {}
     removeOpt.style.display = activePlaylistId ? 'flex' : 'none';
   }
 
+  // Show "Add to folder" only when the target is a playlist/album, not a single song
+  const folderOpt = document.getElementById('menu-folder-opt');
+  if (folderOpt) {
+    folderOpt.style.display = (song && song.type === 'playlist') ? 'flex' : 'none';
+  }
+
   // Default: show the normal single-song options
 const addOpt = document.getElementById('menu-add-opt');
 const qAddOpt = document.getElementById('menu-queue-add-opt');
