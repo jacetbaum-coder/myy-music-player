@@ -3460,7 +3460,7 @@ body.qs-lock {
         <main class="main-view" id="main-scroll-area">
 
   <!-- MOBILE PULL TO REFRESH (black bg + reload icon) -->
-  <div id="ptr-overlay" aria-hidden="true">
+  <div id="ptr-overlay" aria-hidden="true" data-swipe-back-hide="1">
     <div class="ptr-bg"></div>
     <div class="ptr-inner">
       <i id="ptr-icon" class="fas fa-sync-alt"></i>
@@ -6498,10 +6498,12 @@ function ensureSwipeBackUnderlay() {
   el.style.top = '0';
   el.style.right = '0';
   el.style.bottom = '0';
-  el.style.display = 'none';
+  el.style.display = 'block';    // always in render tree — use opacity to hide
+  el.style.opacity = '0';
   el.style.pointerEvents = 'none';
   el.style.overflow = 'hidden';
-  el.style.background = '#000';
+  // App bg provides a non-black base beneath the clone's transparent areas
+  el.style.background = 'var(--bg-base, #121212)';
   el.style.zIndex = '9998';
 
   const inner = document.createElement('div');
@@ -6544,27 +6546,48 @@ window.captureSwipeBackUnderlay = function captureSwipeBackUnderlay() {
   const clone = area.cloneNode(true);
   __stripIds(clone);
 
-  // Shift clone UP by scrollTop so the visible strip aligns with what the
-  // user actually sees. Setting .scrollTop on a freshly cloned element
-  // has no visual effect (it isn't laid out yet), so translateY is the
-  // only reliable way to show the correct scroll position in the snapshot.
+  // Hide elements that were position:fixed via CSS ID selectors (stripped on the clone).
+  // e.g. #ptr-overlay was position:fixed;height:0 — in the clone it becomes a plain block
+  // div that pushes all library grid content downward, making the snapshot look empty.
+  try {
+    clone.querySelectorAll('[data-swipe-back-hide]').forEach(el => {
+      el.style.display = 'none';
+    });
+  } catch (e) {}
+
+  // Give the clone a solid base background so the app surface colour shows
+  // through transparent/absent children instead of a black void.
+  clone.style.background = 'var(--bg-base, #121212)';
+
+  // Keep clone as a real scroller and restore its scrollTop after insert.
+  // Translating the entire cloned container can clip most content and
+  // produce a mostly-black underlay during swipe-back.
   clone.style.transition = '';
-  clone.style.transform = `translateY(-${scrollTop}px)`;
+  clone.style.transform = '';
   clone.style.opacity = '1';
   clone.style.position = 'absolute';
   clone.style.top = '0';
   clone.style.left = '0';
   clone.style.right = '0';
   clone.style.bottom = '0';
-  clone.style.overflow = 'hidden';
+  clone.style.overflowX = 'hidden';
+  clone.style.overflowY = 'auto';
   clone.style.pointerEvents = 'none';
 
   inner.appendChild(clone);
+
+  // Apply scroll immediately and on next frame once layout is committed.
+  try { clone.scrollTop = scrollTop; } catch (e) {}
+  try {
+    requestAnimationFrame(() => {
+      try { clone.scrollTop = scrollTop; } catch (e) {}
+    });
+  } catch (e) {}
 };
 
 function showSwipeBackUnderlay() {
   const underlay = ensureSwipeBackUnderlay();
-  underlay.style.display = 'block';
+  underlay.style.opacity = '1';  // compositor-only, no repaint frame
 
   // Keep current page above the underlay
   const area = document.getElementById('main-scroll-area');
@@ -6576,7 +6599,7 @@ function showSwipeBackUnderlay() {
 
 function hideSwipeBackUnderlay() {
   const underlay = document.getElementById('swipe-back-underlay');
-  if (underlay) underlay.style.display = 'none';
+  if (underlay) underlay.style.opacity = '0';  // compositor-only, no repaint frame
 
   // ✅ CRITICAL: undo the z-index/position we apply during swipe
   const area = document.getElementById('main-scroll-area');
@@ -6785,6 +6808,10 @@ function initSwipeBack() {
 
   function reset(animated = true) {
     try { hideSwipeBackUnderlay(); } catch (e) {}
+    try {
+      const underlayInner = document.getElementById('swipe-back-underlay-inner');
+      if (underlayInner) { underlayInner.style.transition = ''; underlayInner.style.transform = ''; }
+    } catch (e) {}
 
     area.style.touchAction = 'pan-y';
     area.style.overflowX = 'hidden';
@@ -6803,10 +6830,15 @@ function initSwipeBack() {
 
     if (!animated) return;
 
+    let clearTimer;
     const clear = () => {
+      clearTimeout(clearTimer);
       area.style.transition = '';
+      area.style.transform  = '';  // release identity transform after cancel animation
       area.removeEventListener('transitionend', clear);
     };
+    // Fallback: if transitionend never fires (no drag, start==end), still clean up
+    clearTimer = setTimeout(clear, 260);
     area.addEventListener('transitionend', clear);
   }
 
@@ -6853,8 +6885,29 @@ function initSwipeBack() {
     isHorizontal = false;
     lastDx = 0;
 
-    // Hide underlay until we commit to horizontal gesture
-    try { hideSwipeBackUnderlay(); } catch (err) {}
+    // Pre-apply ALL layout-affecting styles now, before any movement.
+    // Deferring them to first horizontal-move-detect causes a mid-animation
+    // layout flush that the browser renders as a 1-frame black flash.
+    area.style.overflow   = 'hidden';
+    area.style.willChange = 'transform, opacity';
+    // Apply an ACTUAL transform (identity) — not just will-change — so all
+    // position:fixed children (e.g. #album-view z-index:70 background:#000)
+    // are definitively contained inside this element's GPU layer and move
+    // WITH the swipe. Without a real transform, fixed children stay
+    // viewport-fixed and cover the underlay with a black background.
+    area.style.transform  = 'translateX(0px)';
+    area.classList.add('sb-dragging');
+    // Show underlay immediately: snapshot was captured when this view opened,
+    // so it already shows the correct library scroll position.
+    try { showSwipeBackUnderlay(); } catch (err) {}
+    // iOS parallax: start underlay inner at -28vw so it slides in as the user drags
+    try {
+      const underlayInner = document.getElementById('swipe-back-underlay-inner');
+      if (underlayInner) {
+        underlayInner.style.transition = '';
+        underlayInner.style.transform = `translateX(${-Math.round(0.28 * window.innerWidth)}px)`;
+      }
+    } catch (err) {}
 
     area.style.touchAction = 'pan-y';
 
@@ -6874,15 +6927,19 @@ function initSwipeBack() {
       isHorizontal = Math.abs(dx) > Math.abs(dy);
 
       if (isHorizontal) {
-        area.style.overflow = 'hidden';
-        area.style.willChange = 'transform, opacity';
-        area.classList.add('sb-dragging');
-
-        // Now we can show what’s “behind”
-        try { showSwipeBackUnderlay(); } catch (err) {}
-
-        // We need full control now
+        // Layout styles already applied at pointerdown - no layout work here.
         area.style.touchAction = 'none';
+      } else {
+        // Vertical scroll: undo ALL pre-applied lock styles so normal scrolling works.
+        area.style.overflow   = '';
+        area.style.willChange = '';
+        area.style.transform  = '';  // release identity transform so fixed children go back to viewport-fixed
+        area.classList.remove('sb-dragging');
+        try {
+          const underlayInner = document.getElementById('swipe-back-underlay-inner');
+          if (underlayInner) { underlayInner.style.transition = ''; underlayInner.style.transform = ''; }
+        } catch (err) {}
+        try { hideSwipeBackUnderlay(); } catch (err) {}
       }
     }
 
@@ -6912,6 +6969,16 @@ function initSwipeBack() {
     // Fade based on distance
     const p = Math.min(1, Math.abs(lastDx) / maxShift);
     area.style.opacity = String(1 - (p * OPACITY_DROP));
+    // iOS parallax: underlay slides in from -28vw → 0 as current page moves away
+    try {
+      const underlayInner = document.getElementById('swipe-back-underlay-inner');
+      if (underlayInner) {
+        const progress = Math.min(1, Math.abs(lastDx) / window.innerWidth);
+        const parallaxPx = -Math.round((1 - progress) * 0.28 * window.innerWidth);
+        underlayInner.style.transition = '';
+        underlayInner.style.transform = `translateX(${parallaxPx}px)`;
+      }
+    } catch (e) {}
     }, { passive: true });
 
 
@@ -6927,6 +6994,14 @@ function initSwipeBack() {
     if (shouldCommit) {
       area.style.transition = 'transform 180ms ease, opacity 180ms ease';
       area.style.transform = `translateX(${edgeDir * window.innerWidth}px)`;
+      // Animate underlay final slide-in in sync with current page flying off
+      try {
+        const underlayInner = document.getElementById('swipe-back-underlay-inner');
+        if (underlayInner) {
+          underlayInner.style.transition = 'transform 180ms ease';
+          underlayInner.style.transform  = 'translateX(0px)';
+        }
+      } catch (e) {}
 
             let doneCalled = false;
       const done = () => {
@@ -6947,17 +7022,39 @@ function initSwipeBack() {
           }
         } catch (e) {}
 
-        // goBack() renders the destination view and restores scrollTop.
+        // Render destination view (area is still off-screen at translateX(vw)).
         goBack();
 
-        // Immediately hammer the scroll position (goBack restores it, but
-        // late-firing renders can nudge it; we hold it firm for ~300 ms).
+        // Snap area back — intentionally NOT changing overflow here.
+        // Changing overflowY mid-batch forces a synchronous layout flush which
+        // lets the browser paint one intermediate frame: underlay hidden, area
+        // still off-screen → black body. Splitting into two style batches
+        // (snap now, overflow+underlay in next rAF) eliminates that frame.
+        area.style.transition = '';
+        area.style.transform  = 'translateX(0px)';
+        area.style.opacity    = '1';
         if (backTargetTop !== null) {
-          forceRestoreMainScrollTop(backTargetTop, 300);
+          try { area.scrollTop = backTargetTop; } catch (e) {}
         }
 
-        // Reveal destination — underlay is dropped by reset(false) below.
-        reset(false);
+        // Next paint frame: batch overflow cleanup + underlay hide together
+        // so there is no intermediate state the browser can paint.
+        requestAnimationFrame(() => {
+          area.style.touchAction = 'pan-y';
+          area.style.overflowX   = 'hidden';
+          area.style.overflowY   = 'auto';
+          area.style.willChange  = '';
+          area.style.transform = '';   // release identity transform (fixed children back to viewport-fixed)
+          area.classList.remove('sb-dragging');
+          try {
+            const ui = document.getElementById('swipe-back-underlay-inner');
+            if (ui) { ui.style.transition = ''; ui.style.transform = ''; }
+          } catch (e) {}
+          try { hideSwipeBackUnderlay(); } catch (e) {}
+          if (backTargetTop !== null) {
+            forceRestoreMainScrollTop(backTargetTop, 300);
+          }
+        });
       };
             area.addEventListener('transitionend', done);
 
