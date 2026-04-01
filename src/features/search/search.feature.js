@@ -1603,19 +1603,24 @@ img.src = cover || '';
             });
 
             const iconWrap = document.createElement('div');
-iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
+iconWrap.className = 'w-12 h-12 rounded overflow-hidden flex-shrink-0';
 
-const cover = String(playlist.cover || '').trim();
-if (cover) {
-  const img = document.createElement('img');
-  img.src = cover;
-  img.alt = '';
-  img.className = 'w-full h-full object-cover';
-  iconWrap.appendChild(img);
+const fullPl = (Array.isArray(playlists) ? playlists : []).find(p => p.id === playlist.id) || playlist;
+if (typeof getPlaylistCoverMarkup === 'function') {
+  iconWrap.innerHTML = getPlaylistCoverMarkup(fullPl, 'w-full h-full');
 } else {
-  const icon = document.createElement('i');
-  icon.className = 'fas fa-list-ul text-zinc-400';
-  iconWrap.appendChild(icon);
+  const cover = String(playlist.cover || '').trim();
+  if (cover) {
+    const img = document.createElement('img');
+    img.src = cover;
+    img.alt = '';
+    img.className = 'w-full h-full object-cover';
+    iconWrap.appendChild(img);
+  } else {
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-list-ul text-zinc-400 text-lg';
+    iconWrap.appendChild(icon);
+  }
 }
 
 
