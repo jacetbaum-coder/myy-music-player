@@ -683,28 +683,31 @@ function playPlaylistById(playlistId) {
 
 
   // ✅ Prevent “ghost tap” (finger release clicking first playlist item)
-  try {
-    const tmp = document.getElementById('playlist-submenu');
-    if (tmp) {
-      tmp.style.pointerEvents = 'none';
-      setTimeout(() => { try { tmp.style.pointerEvents = 'auto'; } catch(e){} }, 250);
-    }
-  } catch(e){}
+  const isDesktop = window.innerWidth > 768;
+
+  // ✅ Prevent ghost-tap only on mobile (desktop should open instantly)
+  if (!isDesktop) {
+    try {
+      const tmp = document.getElementById('playlist-submenu');
+      if (tmp) {
+        tmp.style.pointerEvents = 'none';
+        setTimeout(() => { try { tmp.style.pointerEvents = 'auto'; } catch(e){} }, 250);
+      }
+    } catch(e){}
+  }
 
   const sub = document.getElementById('playlist-submenu');
 
 
   if (!sub) return;
 
-  const isDesktop = window.innerWidth > 768;
-
   // ✅ Desktop: compact flyout list (like Spotify pic 4)
   if (isDesktop) {
     try {
       const cm = document.getElementById('context-menu');
       const cmRect = cm ? cm.getBoundingClientRect() : null;
-      const flyW = 360;
-      const flyH = 450;
+      const flyW = 260;
+      const flyH = 340;
       const pad = 12;
 
       const baseLeft = cmRect ? (cmRect.right + 6) : (window.innerWidth * 0.55);
@@ -736,6 +739,16 @@ function playPlaylistById(playlistId) {
       sub.style.zIndex = '200500';
       sub.style.pointerEvents = 'auto';
       sub.classList.add('open');
+
+      // Desktop flyout should not show mobile sheet chrome.
+      try {
+        const handleEl = sub.querySelector('.cm-handle');
+        const headerEl = sub.querySelector('.cm-submenu-header');
+        const staticNew = sub.querySelector('.menu-item.border-b.border-zinc-700');
+        if (handleEl) handleEl.style.display = 'none';
+        if (headerEl) headerEl.style.display = 'none';
+        if (staticNew) staticNew.style.display = 'none';
+      } catch (e) {}
 
       let items = document.getElementById('playlist-submenu-items');
       if (!items) {
@@ -803,14 +816,14 @@ function playPlaylistById(playlistId) {
       })).filter(r => r.pid);
 
       items.innerHTML = `
-        <div style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="padding:6px; border-bottom:1px solid rgba(255,255,255,0.08);">
           <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.10);border-radius:6px;padding:8px 10px;">
             <i class="fas fa-search" style="opacity:.75"></i>
             <input id="ps_desktop_search" placeholder="Find a playlist" autocomplete="off"
-                   style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:15px;">
+                   style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:14px;">
           </div>
         </div>
-        <div id="ps_desktop_list" style="max-height:386px;overflow:auto;"></div>
+        <div id="ps_desktop_list" style="max-height:286px;overflow:auto;"></div>
       `;
 
       const list = items.querySelector('#ps_desktop_list');
@@ -836,7 +849,11 @@ function playPlaylistById(playlistId) {
           el.style.alignItems = 'center';
           el.style.justifyContent = 'space-between';
           el.style.padding = '10px 14px';
+          el.style.padding = '8px 12px';
           el.style.cursor = 'pointer';
+          el.style.fontSize = '14px';
+          el.style.lineHeight = '1.2';
+          el.style.borderRadius = '6px';
           el.innerHTML = `<span>${label}</span>${withArrow ? '<i class="fas fa-chevron-right" style="font-size:12px;opacity:.8"></i>' : ''}`;
           el.addEventListener('mouseenter', () => el.classList.add('cm-armed'));
           el.addEventListener('mouseleave', () => el.classList.remove('cm-armed'));
@@ -896,6 +913,15 @@ function playPlaylistById(playlistId) {
       sub.style.backdropFilter = 'blur(14px)';
       sub.style.borderRadius = '0';
       sub.style.boxShadow = 'none';
+      // Mobile sheet should show its default chrome.
+      try {
+        const handleEl = sub.querySelector('.cm-handle');
+        const headerEl = sub.querySelector('.cm-submenu-header');
+        const staticNew = sub.querySelector('.menu-item.border-b.border-zinc-700');
+        if (handleEl) handleEl.style.display = '';
+        if (headerEl) headerEl.style.display = '';
+        if (staticNew) staticNew.style.display = '';
+      } catch (e) {}
       sub.style.transition = 'transform 160ms ease, opacity 160ms ease';
       sub.style.transform = 'translateY(18px)';
       sub.style.opacity = '0';

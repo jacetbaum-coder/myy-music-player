@@ -749,13 +749,11 @@ if (window.innerWidth > 768 && addOpt) {
   addOpt.onmouseenter = (ev) => {
     try { addOpt.classList.add('cm-armed'); } catch (e) {}
     try {
-      if (!window.__cmHoverOpeningPlaylistSubmenu) {
-        window.__cmHoverOpeningPlaylistSubmenu = true;
-        openPlaylistSubmenu(ev);
-        setTimeout(() => { window.__cmHoverOpeningPlaylistSubmenu = false; }, 60);
-      }
+      const ps = document.getElementById('playlist-submenu');
+      if (ps && ps.classList.contains('open')) return;
+      openPlaylistSubmenu(ev);
     } catch (e) {
-      window.__cmHoverOpeningPlaylistSubmenu = false;
+      
     }
   };
   addOpt.onmouseleave = () => {
@@ -841,6 +839,12 @@ return;
     }
   } else {
     contextMenu.style.position = 'fixed';
+    // Desktop: force compact menu sizing each open
+    contextMenu.style.height = 'auto';
+    contextMenu.style.minHeight = '0';
+    contextMenu.style.maxHeight = 'none';
+    contextMenu.style.overflow = 'visible';
+    contextMenu.style.padding = '4px';
     contextMenu.style.display = 'block';
     contextMenu.style.visibility = 'hidden';
 
