@@ -11441,16 +11441,21 @@ if (hero && activePlaylistId) {
           return;
         }
 
-        // ✅ Selection mode: DO NOT single-select (no clearing).
-// The global pointer/touch handlers manage multi-select.
-// Here we ONLY block tap-to-play while in selection mode.
-try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
-try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
-return;
+        // Plain click: only block play if selection mode is actually ON
+        if (window.__songSelect.enabled) {
+          try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
+          try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
+          return;
+        }
+        // Clear any stale selection and fall through to normal play
+        window.__songSelect.urls.clear();
+        window.__songSelect.lastIndex = idx;
+        try { syncRowSelectionFromSet(document); } catch (_) {}
+        try { setSongSelectEnabled(false); } catch (_) {}
 
       }
 
-      // Default: play (mobile tap)
+      // Default: play
       currentIndex = i;
             // Prefer the row's dataset url (it reflects any normalization), else fall back to song.url
       const playUrl = String(row.dataset.url || song.url || '').trim();
