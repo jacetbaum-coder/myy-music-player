@@ -240,7 +240,7 @@ button,
   background: radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%);
 }
 .foryou-cover-night {
-  background: radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, #0d1f6b 100%);
+  background: radial-gradient(ellipse at 50% 35%, #7b9bd6 0%, #4a6fb5 30%, #2d4a8f 55%, #1a2060 100%);
 }
 .foryou-cover-active-ring {
   box-shadow: 0 0 0 2.5px rgba(255,255,255,0.22), 0 6px 20px rgba(0,0,0,0.5);
@@ -3373,19 +3373,8 @@ body.np-open #playlist-submenu{
   transition: background 0.5s ease;
 }
 
-/* Auto-playlist full-bleed backgrounds — driven by data-auto-playlist attribute */
-#album-view[data-auto-playlist="daylist"] {
-  background:
-    linear-gradient(to bottom, transparent 320px, #121212 580px),
-    radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%),
-    linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%) !important;
-}
-#album-view[data-auto-playlist="nightlist"] {
-  background:
-    linear-gradient(to bottom, transparent 320px, #0d1f6b 580px),
-    radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, transparent 100%),
-    #0d1f6b !important;
-}
+/* ── Auto-playlist (Daylist/Nightlist) hero — full-bleed gradient ── */
+/* background is set inline via JS so the gradient fills the full fixed view */
 .album-hero-auto {
   width: 100%;
   margin: 0;
@@ -6114,15 +6103,35 @@ function clamp255(n) {
 
 // Picks a “vibrant-ish” average by weighting pixels with higher saturation
 async function extractAccentFromImage(url) {
+  // Return cached result immediately to avoid CORS cache-taint on re-extraction
+  if (__coverColorCache.has(url)) return __coverColorCache.get(url);
+
+  // Use fetch → blob → objectURL so the canvas is never CORS-tainted,
+  // regardless of what the browser has already cached for this URL as a plain <img>.
+  let objectUrl = null;
+  try {
+    const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    if (!resp.ok) return [0, 0, 0];
+    const blob = await resp.blob();
+    objectUrl = URL.createObjectURL(blob);
+  } catch (e) {
+    return [0, 0, 0];
+  }
+
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous"; // works if your image host sends CORS headers
+
+    const finish = (result) => {
+      URL.revokeObjectURL(objectUrl);
+      __coverColorCache.set(url, result);
+      resolve(result);
+    };
 
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return resolve([0, 0, 0]);
+        if (!ctx) return finish([0, 0, 0]);
 
         // downsample for speed
         const size = 32;
@@ -6156,9 +6165,9 @@ async function extractAccentFromImage(url) {
           wSum += w;
         }
 
-        if (wSum <= 0) return resolve([0, 0, 0]);
+        if (wSum <= 0) return finish([0, 0, 0]);
 
-                let r = rSum / wSum;
+        let r = rSum / wSum;
         let g = gSum / wSum;
         let b = bSum / wSum;
 
@@ -6217,15 +6226,15 @@ async function extractAccentFromImage(url) {
           r = 90; g = 90; b = 90;
         }
 
-        resolve([clamp255(r), clamp255(g), clamp255(b)]);
+        finish([clamp255(r), clamp255(g), clamp255(b)]);
 
       } catch (e) {
-        resolve([0, 0, 0]);
+        finish([0, 0, 0]);
       }
     };
 
-    img.onerror = () => resolve([0, 0, 0]);
-    img.src = url;
+    img.onerror = () => finish([0, 0, 0]);
+    img.src = objectUrl;
   });
 }
 // ===== iOS / Lock Screen / Control Center metadata =====
@@ -6248,6 +6257,12 @@ function updateMediaSessionMetadata() {
 }
 
 let __lastAccentCover = "";
+// Cache extracted colors by URL to avoid re-extracting (and the CORS cache-taint
+// problem that causes the canvas to fail on images already loaded without CORS).
+const __coverColorCache = new Map();
+// Incremented each time a new view is opened so stale async callbacks self-cancel.
+let __bgNonce = 0;
+
 async function updateAccentFromCover(coverUrl, force = false) {
   if (!coverUrl) {
     setAccentRGB(0, 0, 0);
@@ -6260,6 +6275,48 @@ async function updateAccentFromCover(coverUrl, force = false) {
 
   const [r, g, b] = await extractAccentFromImage(coverUrl);
   setAccentRGB(r, g, b);
+}
+
+// Apply a Spotify-style vibrant gradient background to #album-view for regular playlists.
+// Uses the raw extracted color (more saturated than the UI --accent-rgb).
+async function applyPlaylistViewBackground(coverUrl) {
+  const el = document.getElementById('album-view');
+  if (!el) return;
+
+  // Snapshot the nonce at call time; bail if a newer view opened before we finish.
+  const nonce = ++__bgNonce;
+
+  if (!coverUrl) {
+    el.style.backgroundImage = '';
+    el.style.backgroundColor = '';
+    return;
+  }
+  try {
+    const [r, g, b] = await extractAccentFromImage(coverUrl);
+
+    // Another view opened while we were fetching — don't overwrite it.
+    if (nonce !== __bgNonce) return;
+
+    // Boost saturation beyond what setAccentRGB would allow, for a vivid Spotify-like look
+    const avg = (r + g + b) / 3;
+    let vr = avg + (r - avg) * 1.5;
+    let vg = avg + (g - avg) * 1.5;
+    let vb = avg + (b - avg) * 1.5;
+
+    // Ensure minimum visible brightness at the top of the gradient
+    const lum = vr * 0.299 + vg * 0.587 + vb * 0.114;
+    if (lum > 0 && lum < 55) {
+      const boost = 55 / lum;
+      vr *= boost; vg *= boost; vb *= boost;
+    }
+
+    const rr = clamp255(vr), gg = clamp255(vg), bb = clamp255(vb);
+    el.style.backgroundImage = `linear-gradient(180deg, rgb(${rr},${gg},${bb}) 0px, rgba(${rr},${gg},${bb},0.65) 260px, rgba(18,18,18,0.9) 520px, #121212 680px)`;
+    el.style.backgroundColor = '#121212';
+  } catch (e) {
+    el.style.backgroundImage = '';
+    el.style.backgroundColor = '';
+  }
 }
 
 function initHeroCoverParallax() {
@@ -8776,7 +8833,13 @@ try { window.currentView = 'album'; } catch (e) {}
   document.getElementById('search-view')?.classList.add('hidden');
   document.getElementById('artist-view')?.classList.add('hidden');
 
-  document.getElementById('album-view')?.classList.remove('hidden');
+  const _avEl = document.getElementById('album-view');
+  if (_avEl) {
+    _avEl.removeAttribute('data-auto-playlist');
+    _avEl.style.backgroundImage = '';
+    _avEl.style.backgroundColor = '';
+  }
+  _avEl?.classList.remove('hidden');
 
 
   // ---- hero play button: prevent "invisible paint" compositor bug ----
@@ -8844,6 +8907,7 @@ try { window.currentView = 'album'; } catch (e) {}
 
 
   try { updateAccentFromCover(cover, true); } catch (e) {}
+  try { applyPlaylistViewBackground(cover); } catch (e) {}
   const _artistInitial = String(album.artistName || '?').trim()[0].toUpperCase();
   document.getElementById('album-hero').innerHTML = `
     <div id="album-hero-cover"
@@ -12792,6 +12856,9 @@ const _autoPlMatch = isPlaylist && activePlaylistId
 
 if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const isDay = _autoPlMatch.autoType === 'daylist';
+  const gradient = isDay
+    ? 'radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%)'
+    : 'radial-gradient(ellipse at 50% 32%, #7b9bd6 0%, #4a6fb5 30%, #2d4a8f 55%, #1a2060 100%)';
 
   // Next-update time: end of current window
   const now = new Date();
@@ -12809,7 +12876,10 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const userName = window.APP_USER_NAME || (window.APP_USER_ID ? window.APP_USER_ID.split('@')[0] : 'you');
 
   const _albumViewEl = document.getElementById('album-view');
+  __bgNonce++; // cancel any in-flight applyPlaylistViewBackground from the previous view
   _albumViewEl.setAttribute('data-auto-playlist', _autoPlMatch.autoType);
+  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), ${gradient}`;
+  _albumViewEl.style.backgroundColor = '#121212';
 
   document.getElementById('album-hero').innerHTML = `
     <div id="album-hero-auto" class="album-hero-auto">
@@ -12830,6 +12900,8 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
 } else {
   const _albumViewEl2 = document.getElementById('album-view');
   _albumViewEl2.removeAttribute('data-auto-playlist');
+  _albumViewEl2.style.backgroundImage = '';
+  _albumViewEl2.style.backgroundColor = '';
 
   if (isPlaylist && activePlaylistId) {
     const plMatch = playlists.find(p => p.id === activePlaylistId);
@@ -12850,6 +12922,7 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   }
   if (!_accentCoverUrl) _accentCoverUrl = queue[0]?.cover || '';
   if (_accentCoverUrl) { try { updateAccentFromCover(_accentCoverUrl, true); } catch (e) {} }
+  if (_accentCoverUrl) { try { applyPlaylistViewBackground(_accentCoverUrl); } catch (e) {} }
 
   document.getElementById('album-hero').innerHTML = `
     <div id="album-hero-cover" class="w-44 h-44 md:w-48 md:h-48 shadow-2xl rounded-lg overflow-hidden flex-shrink-0">${coverMarkup}</div>
