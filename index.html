@@ -3285,6 +3285,12 @@ body.np-open #playlist-submenu{
   will-change: transform;
 }
 
+/* Wraps all pullable content (back btn + hero + controls + tracklist) */
+#album-view-body {
+  transform-origin: top center;
+  will-change: transform;
+}
+
         /* --- SCROLLBAR --- */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -4503,6 +4509,16 @@ body.qs-lock {
 
 <div id="album-view" class="hidden">
 
+  <!-- Find on this page — hidden above fold, swipe up to reveal -->
+  <div id="album-find-bar" class="pb-2 md:hidden">
+    <div class="flex items-center gap-3 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.12)">
+      <i class="fas fa-search text-white/50 text-sm"></i>
+      <span class="text-white/50 text-sm font-medium">Find on this page</span>
+    </div>
+  </div>
+
+  <div id="album-view-body">
+
   <button onclick="goBack()"
           class="mb-3 text-white/80 hover:text-white text-3xl font-light leading-none active:opacity-60 transition">
     &#8249;
@@ -4557,6 +4573,7 @@ body.qs-lock {
 </div>
 
 <div id="track-list" class="space-y-1"></div>
+  </div><!-- end #album-view-body -->
 </div>
 
 <div id="mobile-playlist-sort-backdrop" class="mobile-playlist-sort-backdrop md:hidden" aria-hidden="true"></div>
@@ -5989,54 +6006,56 @@ function initHeroCoverParallax() {
   area.__heroParallaxBound = true;
 
   let _startY = 0;
-  let _pulling = false;
+  let _startScrollTop = 0;
+  let _active = false;
 
   function _inAlbumView() {
     const av = document.getElementById('album-view');
     return av && !av.classList.contains('hidden');
   }
 
+  const SPRING = 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+
   function _resetParallax() {
-    if (!_pulling) return;
-    _pulling = false;
+    if (!_active) return;
+    _active = false;
+    const body  = document.getElementById('album-view-body');
     const cover = document.getElementById('album-hero-cover');
-    const hero  = document.getElementById('album-hero');
-    if (cover) {
-      cover.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      cover.style.transform  = '';
-    }
-    if (hero) {
-      hero.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      hero.style.transform  = '';
-    }
+    if (body)  { body.style.transition  = SPRING; body.style.transform  = ''; }
+    if (cover) { cover.style.transition = SPRING; cover.style.transform = ''; }
   }
 
   area.addEventListener('touchstart', (e) => {
-    if (!_inAlbumView() || area.scrollTop > 2) return;
-    _startY  = e.touches[0].clientY;
-    _pulling = false;
+    if (!_inAlbumView()) return;
+    _startY = e.touches[0].clientY;
+    _startScrollTop = area.scrollTop;
+    _active = false;
   }, { passive: true });
 
   area.addEventListener('touchmove', (e) => {
-    if (!_inAlbumView() || area.scrollTop > 2) { _resetParallax(); return; }
+    if (!_inAlbumView()) return;
     const dy = e.touches[0].clientY - _startY;
-    if (dy <= 0) { _resetParallax(); return; }
+    // Only engage when finger was at the very top (find bar visible) and pulling down
+    if (_startScrollTop > 2 || dy <= 0) {
+      if (_active) _resetParallax();
+      return;
+    }
+    _active = true;
 
-    _pulling = true;
-    const pull  = Math.min(dy, 220);           // cap drag travel
-    const scale = 1 + pull * 0.0045;           // grows to ~2x at 220px
-    const shift = pull * 0.28;                 // hero drifts down at 28% of drag
+    // Rubber-band: full resistance up to MAX, near-stop beyond
+    const MAX = 180;
+    const raw = Math.min(dy, MAX * 2.5);
+    const damped = raw < MAX
+      ? raw * 0.6
+      : MAX * 0.6 + (raw - MAX) * 0.06;
 
+    // Cover scales up proportionally with the pull distance
+    const scale = 1 + damped * 0.006; // max ~1.65x
+
+    const body  = document.getElementById('album-view-body');
     const cover = document.getElementById('album-hero-cover');
-    const hero  = document.getElementById('album-hero');
-    if (cover) {
-      cover.style.transition = 'none';
-      cover.style.transform  = `scale(${scale})`;
-    }
-    if (hero) {
-      hero.style.transition = 'none';
-      hero.style.transform  = `translateY(${shift}px)`;
-    }
+    if (body)  { body.style.transition  = 'none'; body.style.transform  = `translateY(${damped}px)`; }
+    if (cover) { cover.style.transition = 'none'; cover.style.transform = `scale(${scale})`; }
   }, { passive: true });
 
   area.addEventListener('touchend',    _resetParallax, { passive: true });
@@ -8375,7 +8394,15 @@ setNavCurrent({ type: 'album', albumName: name });
 // ✅ Critical: make the album visible immediately (prevents “album is above library; scroll up to see it”)
 try {
   const area = document.getElementById('main-scroll-area');
-  if (area && !window.__isBackNav) area.scrollTop = 0;
+  if (area && !window.__isBackNav) {
+    area.scrollTop = 0;
+    requestAnimationFrame(() => {
+      try {
+        const bar = document.getElementById('album-find-bar');
+        if (bar) area.scrollTop = bar.offsetTop + bar.offsetHeight;
+      } catch(e) {}
+    });
+  }
 } catch (e) {}
 
 
@@ -12652,6 +12679,19 @@ if (hero && activePlaylistId) {
 
   // ensure current track highlight is correct immediately after rendering
   try { initHeroCoverParallax(); } catch (e) {}
+  // Scroll past find bar so it starts hidden above fold
+  try {
+    const _a = document.getElementById('main-scroll-area');
+    if (_a && !window.__isBackNav) {
+      _a.scrollTop = 0;
+      requestAnimationFrame(() => {
+        try {
+          const _b = document.getElementById('album-find-bar');
+          if (_b) _a.scrollTop = _b.offsetTop + _b.offsetHeight;
+        } catch(e) {}
+      });
+    }
+  } catch(e) {}
   updateTrackListActiveState();
 } // This closes renderCollection
 
