@@ -26,6 +26,19 @@
   const DAY_END = 17;    // 5 pm  (so nightlist = 17–6)
   const TARGET_SIZE = 20;
 
+  // ─── Artist vibes data (loaded from JSON) ─────────────────
+  let artistVibes = null;
+
+  async function loadArtistVibes() {
+    if (artistVibes) return;
+    try {
+      const res = await fetch('/src/data/artist-vibes.json');
+      if (res.ok) artistVibes = await res.json();
+    } catch (e) {
+      console.warn('[ForYou] Could not load artist-vibes.json:', e);
+    }
+  }
+
   // ─── Utility: local YYYY-MM-DD string ─────────────────────
   function todayKey() {
     const d = new Date();
@@ -159,6 +172,57 @@
     return resolved;
   }
 
+  // ─── Time-of-day bucket label ──────────────────────────────
+  function getTimeBucket() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 8)  return 'early morning';
+    if (h >= 8 && h < 12) return 'morning';
+    if (h >= 12 && h < 17) return 'afternoon';
+    if (h >= 17 && h < 20) return 'evening';
+    if (h >= 20 && h < 23) return 'night';
+    return 'late night';
+  }
+
+  // ─── Generate Spotify-style subtitle from playlist songs ───
+  function generateSubtitle(songs) {
+    try {
+      const day = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const bucket = getTimeBucket();
+      const suffix = `${day} ${bucket}`;
+
+      if (!artistVibes || !Array.isArray(songs) || songs.length === 0) {
+        return `your ${suffix}`;
+      }
+
+      // Tally tags across unique artists in the playlist
+      const seenArtists = new Set();
+      const tagCounts = new Map();
+      for (const song of songs) {
+        const artist = String(song.artistName || '').trim();
+        if (!artist || seenArtists.has(artist)) continue;
+        seenArtists.add(artist);
+        const tags = artistVibes[artist];
+        if (!Array.isArray(tags)) continue;
+        for (const tag of tags) {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        }
+      }
+
+      if (tagCounts.size === 0) return `your ${suffix}`;
+
+      const today = todayKey();
+      const sorted = [...tagCounts.entries()].sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1];
+        return seededNoise(a[0], today) - seededNoise(b[0], today);
+      });
+      const topTags = sorted.slice(0, 2).map(e => e[0]);
+      return `${topTags.join(' ')} ${suffix}`;
+    } catch (e) {
+      const day = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      return `your ${day} ${getTimeBucket()}`;
+    }
+  }
+
   // ─── Generate an auto-playlist object ─────────────────────
   function generateAutoPlaylist(type) {
     try {
@@ -177,7 +241,7 @@
       return {
         id: AUTO_IDS[type],
         name: isDay ? 'daylist' : 'nightlist',
-        subtitle: isDay ? 'your day in music' : 'your night in music',
+        subtitle: generateSubtitle(songs),
         isAutoPlaylist: true,
         autoType: type,
         songs,
@@ -392,8 +456,9 @@
   };
 
   // ─── Bootstrap ────────────────────────────────────────────
-  window.initForYou = function (opts) {
+  window.initForYou = async function (opts) {
     try {
+      await loadArtistVibes();
       const force = opts && opts.force;
       const autoPlaylists = generateAndCacheBoth(force);
       window.__autoPlaylists = autoPlaylists;
