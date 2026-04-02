@@ -3373,8 +3373,19 @@ body.np-open #playlist-submenu{
   transition: background 0.5s ease;
 }
 
-/* ── Auto-playlist (Daylist/Nightlist) hero — full-bleed gradient ── */
-/* background is set inline via JS so the gradient fills the full fixed view */
+/* Auto-playlist full-bleed backgrounds — driven by data-auto-playlist attribute */
+#album-view[data-auto-playlist="daylist"] {
+  background:
+    linear-gradient(to bottom, transparent 320px, #121212 580px),
+    radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%),
+    linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%) !important;
+}
+#album-view[data-auto-playlist="nightlist"] {
+  background:
+    linear-gradient(to bottom, transparent 320px, #0d1f6b 580px),
+    radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, transparent 100%),
+    #0d1f6b !important;
+}
 .album-hero-auto {
   width: 100%;
   margin: 0;
@@ -12781,9 +12792,6 @@ const _autoPlMatch = isPlaylist && activePlaylistId
 
 if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const isDay = _autoPlMatch.autoType === 'daylist';
-  const gradient = isDay
-    ? 'radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%)'
-    : 'radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, #0d1f6b 100%)';  
 
   // Next-update time: end of current window
   const now = new Date();
@@ -12802,8 +12810,6 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
 
   const _albumViewEl = document.getElementById('album-view');
   _albumViewEl.setAttribute('data-auto-playlist', _autoPlMatch.autoType);
-  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), ${gradient}`;
-  _albumViewEl.style.backgroundColor = '#121212';
 
   document.getElementById('album-hero').innerHTML = `
     <div id="album-hero-auto" class="album-hero-auto">
@@ -12824,8 +12830,6 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
 } else {
   const _albumViewEl2 = document.getElementById('album-view');
   _albumViewEl2.removeAttribute('data-auto-playlist');
-  _albumViewEl2.style.backgroundImage = '';
-  _albumViewEl2.style.backgroundColor = '';
 
   if (isPlaylist && activePlaylistId) {
     const plMatch = playlists.find(p => p.id === activePlaylistId);
