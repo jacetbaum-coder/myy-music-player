@@ -584,7 +584,7 @@ function renderLibraryPlaylists() {
       <div class="album-card rounded-lg overflow-hidden"
            data-pl="${idOrIdx}">
         <div class="p-4">
-          ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-2xl"></i></div>`}
+          ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-2xl"></i></div>`}
         </div>
         <div class="playlist-card-info">
           <h3>${safeName}</h3>
@@ -786,7 +786,7 @@ if (sortMode === 'Alphabetical') {
       <div class="album-card rounded-lg overflow-hidden"
            data-artist="${safeArtist}">
         <div class="p-4">
-          ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-user text-white/50 text-2xl"></i></div>`}
+          ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-user text-white/50 text-2xl"></i></div>`}
         </div>
         <div class="playlist-card-info">
           <h3>${safeArtist}</h3>
@@ -942,7 +942,7 @@ function renderLibraryAll() {
            data-kind="${it.kind}"
            data-key="${safeKey}">
         <div class="p-4">
-          ${it.cover ? `<img src="${it.cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
+          ${it.cover ? `<img src="${it.cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
         </div>
         <div class="playlist-card-info">
           <h3>${safeTitle}</h3>
