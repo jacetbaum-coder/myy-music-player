@@ -211,7 +211,7 @@ button,
 .home-square-card .cover{
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  border-radius: 0;
   overflow: hidden;
   background: rgba(255,255,255,0.08);
 }
@@ -465,8 +465,10 @@ img {
   contain: layout paint style;
 }
 
-.album-card:hover{
-  background: rgba(255,255,255,0.1);
+@media (hover: hover) {
+  .album-card:hover{
+    background: rgba(255,255,255,0.1);
+  }
 }
 
 .album-card img{
@@ -1425,8 +1427,8 @@ body.song-multiselect .track-row:hover{
   /* Match 3-up card density and spacing */
   #album-grid{
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 12px 12px !important;
-    padding: 0 12px 140px !important;
+    gap: 14px 14px !important;
+    padding: 0 14px 140px !important;
   }
 
   /* Keep cards open so title/subtitle can render below covers */
@@ -1437,6 +1439,7 @@ body.song-multiselect .track-row:hover{
     flex-direction: column !important;
     align-items: stretch !important;
     min-width: 0 !important;
+    border-radius: 0 !important;
   }
 
   /* Use full-width tile bodies like Spotify library cards */
@@ -1446,7 +1449,8 @@ body.song-multiselect .track-row:hover{
   }
 
   /* Keep cover art square and edge-to-edge inside each tile */
-  #album-grid .album-card img{
+  #album-grid .album-card img,
+  #album-grid .album-card > .p-4 > div {
     width: 100% !important;
     height: auto !important;
     aspect-ratio: 1 / 1 !important;
@@ -3051,6 +3055,11 @@ body.np-open #playlist-submenu{
     min-width: 0;
     max-width: none;
     width: 100%;
+  }
+
+  /* Square corners on all cover images in grid/recents on mobile */
+  .recents-row-card > div:first-child {
+    border-radius: 0 !important;
   }
 
 
@@ -8257,7 +8266,7 @@ function renderGrid(data) {
        data-album="${safeName}"
        data-no-swipe-back="1">
     <div class="p-4">
-      ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
+      ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
     </div>
     <div class="playlist-card-info">
       <h3>${album.albumName}</h3>
