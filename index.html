@@ -4250,15 +4250,18 @@ html.mp-auth #mp-login-overlay {
   transition: border-color 0.15s;
 }
 .mp-prof-logout-btn:hover { border-color: rgba(255,255,255,0.3); }
-#mp-change-field-backdrop {
+#mp-change-field-backdrop,
+#mp-chpw-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100000;
   background: rgba(0,0,0,0.6);
   display: none;
 }
-#mp-change-field-backdrop.open { display: block; }
-#mp-change-field-popup {
+#mp-change-field-backdrop.open,
+#mp-chpw-backdrop.open { display: block; }
+#mp-change-field-popup,
+#mp-chpw-popup {
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%) scale(0.95);
@@ -4272,10 +4275,17 @@ html.mp-auth #mp-login-overlay {
   pointer-events: none;
   transition: transform 0.25s, opacity 0.2s;
 }
-#mp-change-field-popup.open {
+#mp-change-field-popup.open,
+#mp-chpw-popup.open {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
   pointer-events: auto;
+}
+#mp-chpw-error {
+  color: #ff6b6b;
+  font-size: 0.78rem;
+  min-height: 16px;
+  margin-bottom: 6px;
 }
 .mp-popup-title { font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0 0 5px 0; }
 .mp-popup-sub { font-size: 0.78rem; color: rgba(255,255,255,0.35); margin: 0 0 14px 0; }
@@ -4412,6 +4422,21 @@ html.mp-auth #mp-login-overlay {
   <input type="text" id="mp-change-field-input" class="mp-popup-input" placeholder="">
   <button class="mp-popup-save" onclick="mpConfirmFieldChange()">Save</button>
   <button class="mp-popup-cancel" onclick="mpCloseChangePopup()">Cancel</button>
+</div>
+
+<!-- Change password popup -->
+<div id="mp-chpw-backdrop" onclick="mpCloseChpwPopup()"></div>
+<div id="mp-chpw-popup" role="dialog" aria-modal="true">
+  <div class="mp-popup-title">Change Passcode</div>
+  <p class="mp-popup-sub">Enter your current passcode, then choose a new one.</p>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+    <input type="password" id="mp-chpw-current" class="mp-popup-input" placeholder="Current passcode">
+    <input type="password" id="mp-chpw-new" class="mp-popup-input" placeholder="New passcode">
+    <input type="password" id="mp-chpw-confirm" class="mp-popup-input" placeholder="Confirm new passcode">
+  </div>
+  <div id="mp-chpw-error"></div>
+  <button class="mp-popup-save" onclick="mpConfirmPasswordChange()">Save Passcode</button>
+  <button class="mp-popup-cancel" onclick="mpCloseChpwPopup()">Cancel</button>
 </div>
 
    <div id="context-menu-backdrop"></div>
@@ -14858,8 +14883,18 @@ try {
 
   window.mpDeleteAccount = function() {
     if (!confirm('Permanently delete your account and all data? This cannot be undone.')) return;
-    localStorage.clear();
-    location.reload();
+    if (!_authHeader) { localStorage.clear(); location.reload(); return; }
+    // Wipe server data then clear local
+    fetch(RESON_API, {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic ' + _authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes_list: [], deleted_notes: [], custom_categories: [], profile: {} })
+    })
+    .catch(function() {})
+    .then(function() {
+      localStorage.clear();
+      location.reload();
+    });
   };
 
   window.mpOpenProfileEditor = function() {
@@ -14961,7 +14996,8 @@ try {
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         var b64 = canvas.toDataURL('image/jpeg', 0.7);
         _mpProfile.pic = b64;
-        _applyProfilePicToButtons(b64);
+        _applyProfileToApp();
+        _uploadProfile();
         try { localStorage.setItem('profilePhoto', b64); } catch (e) {}
       };
     };
@@ -15012,24 +15048,68 @@ try {
       if (g('mp-prof-email-locked-wrap')) g('mp-prof-email-locked-wrap').style.display = 'block';
       if (g('mp-prof-email-edit-wrap'))  g('mp-prof-email-edit-wrap').style.display  = 'none';
     }
+    _applyProfileToApp();
     window.mpCloseChangePopup();
   };
 
   window.mpChangePassword = function() {
+    var errEl = document.getElementById('mp-chpw-error');
+    var curIn = document.getElementById('mp-chpw-current');
+    var newIn = document.getElementById('mp-chpw-new');
+    var confIn = document.getElementById('mp-chpw-confirm');
+    if (errEl) errEl.textContent = '';
+    if (curIn) curIn.value = '';
+    if (newIn) newIn.value = '';
+    if (confIn) confIn.value = '';
+    var backdrop = document.getElementById('mp-chpw-backdrop');
+    var popup = document.getElementById('mp-chpw-popup');
+    if (backdrop) backdrop.classList.add('open');
+    if (popup) popup.classList.add('open');
+    setTimeout(function() { if (curIn) curIn.focus(); }, 80);
+  };
+
+  window.mpCloseChpwPopup = function() {
+    var backdrop = document.getElementById('mp-chpw-backdrop');
+    var popup = document.getElementById('mp-chpw-popup');
+    if (backdrop) backdrop.classList.remove('open');
+    if (popup) popup.classList.remove('open');
+  };
+
+  window.mpConfirmPasswordChange = function() {
     if (!_authHeader) return;
     var currentCreds;
     try { currentCreds = atob(_authHeader).split(':'); } catch (e) { return; }
-    var oldPass = prompt('Enter your CURRENT passcode:');
-    if (!oldPass) return;
-    if (oldPass !== currentCreds[1]) { alert('Incorrect current passcode.'); return; }
-    var newPass = prompt('Enter your NEW passcode:');
-    if (!newPass) return;
-    var confirmPass = prompt('Confirm new passcode:');
-    if (newPass !== confirmPass) { alert('Passcodes do not match.'); return; }
+    var oldPass = (document.getElementById('mp-chpw-current').value || '').trim();
+    var newPass = (document.getElementById('mp-chpw-new').value || '').trim();
+    var confPass = (document.getElementById('mp-chpw-confirm').value || '').trim();
+    var errEl = document.getElementById('mp-chpw-error');
+    function showErr(msg) { if (errEl) errEl.textContent = msg; }
+    if (!oldPass || !newPass || !confPass) { showErr('All fields are required.'); return; }
+    if (oldPass !== currentCreds[1]) { showErr('Current passcode is incorrect.'); return; }
+    if (newPass !== confPass) { showErr('New passcodes do not match.'); return; }
+    var oldAuth = _authHeader;
     var newAuth = btoa(currentCreds[0] + ':' + newPass);
-    localStorage.setItem('reson_auth', newAuth);
-    _authHeader = newAuth;
-    _uploadProfile();
+    // Migrate DB from old creds to new creds
+    fetch(RESON_API + '?t=' + Date.now(), {
+      headers: { 'Authorization': 'Basic ' + oldAuth },
+      cache: 'no-store'
+    })
+    .then(function(r) { return r.ok ? r.json() : {}; })
+    .catch(function() { return {}; })
+    .then(function(db) {
+      db.profile = _mpProfile;
+      return fetch(RESON_API, {
+        method: 'POST',
+        headers: { 'Authorization': 'Basic ' + newAuth, 'Content-Type': 'application/json' },
+        body: JSON.stringify(db)
+      });
+    })
+    .then(function() {
+      localStorage.setItem('reson_auth', newAuth);
+      _authHeader = newAuth;
+      window.mpCloseChpwPopup();
+    })
+    .catch(function() { showErr('Failed to update. Check connection and try again.'); });
   };
 
   // ── Init ─────────────────────────────────────────────────────────
