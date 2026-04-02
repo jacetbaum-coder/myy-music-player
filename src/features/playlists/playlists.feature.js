@@ -509,11 +509,7 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
         try {
           const ids = await window.loadPlaylistItemsFromCloud(pl.id);
           pl.trackIds = Array.isArray(ids) ? ids : [];
-
-          // optional: fill songs so covers resolve immediately from library
-          if ((!Array.isArray(pl.songs) || pl.songs.length === 0) && typeof window.resolveTrackIdsToSongs === "function") {
-            pl.songs = window.resolveTrackIdsToSongs(pl.trackIds);
-          }
+          pl.songCount = pl.trackIds.length;
         } catch (e) {
           // ignore single-playlist failures
         }
@@ -524,7 +520,11 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
     for (let k = 0; k < Math.max(1, concurrency); k++) workers.push(worker());
     await Promise.all(workers);
 
+    // Persist so covers are available on next page load without re-fetching
+    try { if (typeof savePlaylists === "function") savePlaylists(); } catch (e) {}
     try { if (typeof window.renderPlaylists === "function") window.renderPlaylists(); } catch (e) {}
+    try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
+    try { if (typeof renderLibraryPlaylists === "function") renderLibraryPlaylists(); } catch (e) {}
   } finally {
     window.__playlistHydrateInFlight = false;
   }
@@ -2058,7 +2058,6 @@ function getSongCoverFromPlaylistSong(s) {
 
 
 function getPlaylistManualCover(pl) {
-
   return (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
 }
 
@@ -2066,95 +2065,152 @@ function getPlaylistAutoCover(pl) {
   return (pl && pl.autoCover && String(pl.autoCover).trim()) ? String(pl.autoCover).trim() : "";
 }
 
+// Normalize a raw track id string into a clean R2 path like "Artist/Album/Song.mp3".
+// Returns "" if the id doesn't look like a valid music path.
+function _normalizeTrackId(rawId) {
+  let tid = String(rawId || "").trim();
+  if (!tid) return "";
+
+  // Unwrap from full URL or ?id=... encoded form
+  if (tid.includes("?id=")) {
+    try { tid = decodeURIComponent(tid.split("?id=")[1].split("&")[0]); } catch (e) {}
+  } else if (tid.includes("://")) {
+    try {
+      const u = new URL(tid);
+      const qid = u.searchParams.get("id");
+      if (qid) tid = decodeURIComponent(qid);
+      else return ""; // bare URL with no ?id= — not a track path
+    } catch (e) { return ""; }
+  } else {
+    try { tid = decodeURIComponent(tid); } catch (e) {}
+  }
+
+  tid = tid.replace(/^\/+/, "").trim();
+  if (tid.startsWith("My Collection/Artists/")) tid = tid.slice("My Collection/Artists/".length);
+  if (tid.startsWith("My Collection/")) tid = tid.slice("My Collection/".length);
+
+  return tid;
+}
+
+// Derive *distinct* album cover URLs from trackIds using pure string path math.
+// Artist/Album/Song.mp3 → .../Artist/Album/cover.jpg
+// Artist/Song.mp3       → .../Artist/Singles/cover.jpg
+//
+// Deduplicates by album folder so the same album only counts once.
+// Returns up to maxCount *unique* cover URLs.
+function getCoverUrlsFromTrackIds(trackIds, maxCount) {
+  const max = (typeof maxCount === 'number' && maxCount > 0) ? maxCount : 4;
+  const r2Base = "https://music-streamer.jacetbaum.workers.dev/?id=";
+  const covers = [];
+  const seenFolders = new Set();
+
+  for (const rawId of (Array.isArray(trackIds) ? trackIds : [])) {
+    if (covers.length >= max) break;
+
+    const tid = _normalizeTrackId(rawId);
+    if (!tid) continue;
+
+    const parts = tid.split("/").filter(Boolean);
+    if (parts.length < 2) continue; // need at least Artist/Something
+
+    const last = parts[parts.length - 1];
+    const isAudio = /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(last);
+
+    let folderParts;
+    if (isAudio) {
+      folderParts = parts.slice(0, -1); // drop filename → album folder
+      if (folderParts.length === 1) {
+        folderParts = [folderParts[0], "Singles"];
+      }
+    } else {
+      // id is already a folder path (no audio extension)
+      folderParts = parts;
+    }
+
+    if (folderParts.length < 2) continue; // still need Artist/Album minimum
+
+    const folderKey = folderParts.join("/");
+    if (seenFolders.has(folderKey)) continue; // same album already included
+    seenFolders.add(folderKey);
+
+    covers.push(r2Base + encodeURIComponent(folderKey + "/cover.jpg"));
+  }
+
+  return covers;
+}
+
+// Returns a single cover URL for a playlist (used in submenu/bubbles/toasts).
 function getEffectivePlaylistCover(pl) {
   if (!pl) return '';
-  // Manual cover wins
-  if (pl.cover && String(pl.cover).trim()) return String(pl.cover).trim();
-  // Cloud field wins if present
-  if (pl.cover_url && String(pl.cover_url).trim()) return String(pl.cover_url).trim();
-  // Auto cover
-  if (pl.autoCover && String(pl.autoCover).trim()) return String(pl.autoCover).trim();
+  // Manual/cloud cover wins
+  const manual = (pl.cover && String(pl.cover).trim()) || "";
+  if (manual) return manual;
+  const cloud = (pl.cover_url && String(pl.cover_url).trim()) || "";
+  if (cloud) return cloud;
+  // Cached canvas data-URL (still useful if it was built successfully)
+  const auto = (pl.autoCover && String(pl.autoCover).trim()) || "";
+  if (auto) return auto;
+  // Derive first cover directly from trackIds (no library lookup needed)
+  const ids = Array.isArray(pl.trackIds) ? pl.trackIds : [];
+  if (ids.length) {
+    const covers = getCoverUrlsFromTrackIds(ids, 1);
+    if (covers.length) return covers[0];
+  }
+  // Final fallback: first song object if present
+  if (Array.isArray(pl.songs) && pl.songs.length) {
+    const c = String((typeof getSongCoverFromPlaylistSong === 'function'
+      ? getSongCoverFromPlaylistSong(pl.songs[0])
+      : '') || '').trim();
+    if (c) return c;
+  }
   return '';
 }
 
-/**
- * ✅ Returns HTML markup for a playlist cover that matches your rules:
- * - If playlist has a manual/explicit cover => single image
- * - Else if >= 4 songs with covers => 2x2 grid of first 4 covers
- * - Else if >= 1 song with a cover => single image of first song cover
- * - Else => music icon
- *
- * sizeClass should be something like: "w-12 h-12" or "w-16 h-16"
- */
+// Returns HTML markup for a playlist cover:
+//   manual/cloud cover present → single image
+//   4+ trackIds              → 2×2 grid
+//   1–3 trackIds             → single image of first song's cover
+//   0 trackIds               → music-note icon
+// All cover URLs are derived from the trackId path — no library lookup needed,
+// so covers work immediately even before the full library finishes loading.
 function getPlaylistCoverMarkup(pl, sizeClass) {
   const sc = sizeClass || "w-12 h-12";
-
-  // ✅ Only treat MANUAL or CLOUD cover as "explicit".
-  // (Do NOT treat pl.autoCover as explicit, or it blocks the 2x2 grid.)
-  const manual = (pl && pl.cover && String(pl.cover).trim()) ? String(pl.cover).trim() : "";
-  if (manual) {
-    return `
-      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${manual.replace(/'/g, "%27")}')"></div>
-    `;
-  }
-
-  const cloud = (pl && pl.cover_url && String(pl.cover_url).trim()) ? String(pl.cover_url).trim() : "";
-  if (cloud) {
-    return `
-      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${cloud.replace(/'/g, "%27")}')"></div>
-    `;
-  }
-
-  // ✅ Build from song covers (this is what enables the 2x2 grid reliably)
-  const songs = resolveTrackIdsToSongs(
-  Array.isArray(pl?.trackIds) ? pl.trackIds : []
-);
-
-
-    // ✅ Build cover list from songs (NO dedupe — your rule is first 4 songs)
-  const covers = [];
-
-  for (const s of (songs || [])) {
-    const c = (typeof getSongCoverFromPlaylistSong === "function")
-      ? String(getSongCoverFromPlaylistSong(s) || "").trim()
-      : "";
-
-    if (!c) continue;
-
-    covers.push(c);
-
-    // we only need enough for a 2x2
-    if (covers.length >= 4) break;
-  }
-
-
-  // helper: safe for single quotes in URLs
   const safeUrl = (u) => String(u || "").replace(/'/g, "%27");
 
+  // Manual/cloud cover wins
+  const manual = (pl && pl.cover && String(pl.cover).trim()) || "";
+  if (manual) {
+    return `<div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${safeUrl(manual)}')"></div>`;
+  }
+  const cloud = (pl && pl.cover_url && String(pl.cover_url).trim()) || "";
+  if (cloud) {
+    return `<div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${safeUrl(cloud)}')"></div>`;
+  }
+
+  // Derive cover URLs from trackIds (pure string math, always available)
+  const trackIds = Array.isArray(pl?.trackIds) ? pl.trackIds : [];
+  const covers = getCoverUrlsFromTrackIds(trackIds, 4);
+
+  // If no trackIds yet, fall back to song objects (backward compat with older data)
+  if (!covers.length && Array.isArray(pl?.songs) && pl.songs.length) {
+    for (const s of pl.songs) {
+      const c = (typeof getSongCoverFromPlaylistSong === 'function')
+        ? String(getSongCoverFromPlaylistSong(s) || "").trim()
+        : "";
+      if (c) { covers.push(c); if (covers.length >= 4) break; }
+    }
+  }
+
   if (covers.length >= 4) {
-    const c0 = safeUrl(covers[0]), c1 = safeUrl(covers[1]), c2 = safeUrl(covers[2]), c3 = safeUrl(covers[3]);
-    return `
-      <div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden bg-zinc-800">
-        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c0}')"></div>
-        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c1}')"></div>
-        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c2}')"></div>
-        <div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c3}')"></div>
-      </div>
-    `;
+    const [c0, c1, c2, c3] = covers.map(safeUrl);
+    return `<div class="${sc} grid grid-cols-2 grid-rows-2 overflow-hidden bg-zinc-800"><div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c0}')"></div><div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c1}')"></div><div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c2}')"></div><div class="w-full h-full bg-zinc-800 bg-cover bg-center" style="background-image:url('${c3}')"></div></div>`;
   }
 
   if (covers.length >= 1) {
-    const c0 = safeUrl(covers[0]);
-    return `
-      <div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${c0}')"></div>
-    `;
+    return `<div class="${sc} bg-zinc-800 bg-cover bg-center" style="background-image:url('${safeUrl(covers[0])}')"></div>`;
   }
 
-  return `
-    <div class="${sc} flex items-center justify-center bg-zinc-800">
-      <i class="fas fa-music text-zinc-600"></i>
-    </div>
-  `;
+  return `<div class="${sc} flex items-center justify-center bg-zinc-800"><i class="fas fa-music text-zinc-600"></i></div>`;
 }
 
 
@@ -3302,6 +3358,7 @@ window.playPlaylistById = playPlaylistById;
 window.savePlaylists = savePlaylists;
 window.ensurePlaylistIds = ensurePlaylistIds;
 window.getEffectivePlaylistCover = getEffectivePlaylistCover;
+window.getCoverUrlsFromTrackIds = getCoverUrlsFromTrackIds;
 window.getPlaylistCoverMarkup = getPlaylistCoverMarkup;
 window.updatePlaylistAutoCoverById = updatePlaylistAutoCoverById;
 window.hidePlaylistMenu = hidePlaylistMenu;

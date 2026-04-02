@@ -552,21 +552,16 @@ function renderLibraryPlaylists() {
     const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const idOrIdx = (pl && pl.id != null) ? String(pl.id) : String(idx);
 
-    const cover =
-      (typeof getEffectivePlaylistCover === "function")
-        ? String(getEffectivePlaylistCover(pl) || "").trim()
-        : String(pl?.cover || pl?.autoCover || "").trim();
-
-    const coverMarkup = cover
-      ? `<img src="${cover}" class="w-full h-full object-cover">`
-      : `<i class="fas fa-music text-white/50 text-2xl"></i>`;
+    const plCoverMarkup = (typeof getPlaylistCoverMarkup === 'function')
+      ? getPlaylistCoverMarkup(pl, 'w-full h-full')
+      : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center"><i class="fas fa-music text-white/50 text-2xl"></i></div>`;
 
     if (isList) {
       return `
         <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
              data-pl="${idOrIdx}">
-          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
-            ${coverMarkup}
+          <div class="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+            ${plCoverMarkup}
           </div>
           <div class="min-w-0">
             <div class="font-bold text-white truncate text-base">
@@ -584,7 +579,7 @@ function renderLibraryPlaylists() {
       <div class="album-card rounded-lg overflow-hidden"
            data-pl="${idOrIdx}">
         <div class="p-4">
-          ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-2xl"></i></div>`}
+          <div style="aspect-ratio:1/1;overflow:hidden;border-radius:2px;">${plCoverMarkup}</div>
         </div>
         <div class="playlist-card-info">
           <h3>${safeName}</h3>

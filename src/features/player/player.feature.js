@@ -1260,13 +1260,23 @@ function checkDockVisibility() {
   const dock = document.getElementById('main-dock');
   if (!dock) return;
 
-   // ✅ Mobile: dock visible everywhere EXCEPT while Now Playing is open
+   // ✅ Mobile: hide dock when nothing loaded, last played > 1 hour, or Now Playing is open
   if (window.innerWidth <= 768) {
+    if (!currentSong) {
+      dock.classList.add('dock-hidden');
+      document.body.classList.remove('np-open');
+      return;
+    }
+    const mobileLastPlayed = parseInt(localStorage.getItem('lastPlayedTime'), 10);
+    if (isNaN(mobileLastPlayed) || Date.now() - mobileLastPlayed >= 3600000) {
+      dock.classList.add('dock-hidden');
+      document.body.classList.remove('np-open');
+      return;
+    }
     const np = document.getElementById('now-playing-overlay');
     const npOpen = !!(np && !np.classList.contains('hidden'));
     dock.classList.toggle('dock-hidden', npOpen);
-document.body.classList.toggle('np-open', npOpen);
-
+    document.body.classList.toggle('np-open', npOpen);
     return;
   }
 
