@@ -608,6 +608,12 @@ img {
           mask-image: none;
 }
 
+/* Mobile Now Playing: Lyrics base */
+#np-lyrics-body{
+  white-space: pre-line;
+  word-break: break-word;
+}
+
 /* Mobile Now Playing: Lyrics collapsed vs expanded */
 #np-lyrics-body.np-lyrics-collapsed{
   max-height: 132px;
@@ -4889,7 +4895,7 @@ body.qs-lock {
   <div id="np-lyrics-status" class="text-sm text-white/80 mt-2">Loading…</div>
 
   <div id="np-lyrics-body"
-       class="mt-3 text-3xl font-extrabold leading-tight np-lyrics-collapsed"></div>
+       class="mt-3 text-2xl font-extrabold leading-snug np-lyrics-collapsed"></div>
 
   <a id="np-lyrics-source"
      class="mt-3 inline-block text-sm text-white/80 underline hidden"
