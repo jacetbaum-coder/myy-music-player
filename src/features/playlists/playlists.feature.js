@@ -947,7 +947,7 @@ function playPlaylistById(playlistId) {
       sub.style.overflow = 'hidden';
       sub.style.display = 'flex';
       sub.style.flexDirection = 'column';
-      sub.style.background = 'rgba(18,18,18,0.96)';
+      sub.style.background = '#141215';
       sub.style.backdropFilter = 'blur(14px)';
       sub.style.borderRadius = '0';
       sub.style.boxShadow = 'none';
@@ -1046,19 +1046,19 @@ try {
     header.style.position = 'sticky';
     header.style.top = '0';
     header.style.zIndex = '10';
-    header.style.background = '#000';
+    header.style.background = '#141215';
     header.style.padding = '14px 12px';
-    header.style.borderBottom = '1px solid rgba(255,255,255,.12)';
+    header.style.borderBottom = 'none';
 
     header.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:16px;background:transparent;border:none;">Cancel</button>
+        <button id="ps_cancel" type="button" style="color:#fff;opacity:1;font-size:14px;font-weight:700;background:transparent;border:none;">Cancel</button>
         <div style="color:#fff;font-weight:900;font-size:17px;">Add to playlist</div>
         <div style="width:56px;"></div>
       </div>
 
       <button id="ps_new" type="button"
-        style="margin:12px auto 0 auto;width:68%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:8px 14px;border:none;display:block;">
+        style="margin:12px auto 0 auto;width:auto;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:8px 32px;border:none;display:block;">
         New playlist
 
       </button>
