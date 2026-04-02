@@ -3056,7 +3056,7 @@ body.np-open #playlist-submenu{
 
     .track-row {
     grid-template-columns: 1fr 36px;
-    padding: 18px 4px;
+    padding: 7px 4px;
   }
 
   /* Mobile select mode: smaller gutter so text isn't pushed way right */
@@ -3073,16 +3073,16 @@ body.np-open #playlist-submenu{
 
 
   .track-row .track-title {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   .track-row .track-artist {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: #b3b3b3;
-    margin-top: 8px;
+    margin-top: 2px;
   }
 
 
@@ -3191,15 +3191,21 @@ body.np-open #playlist-submenu{
     #album-hero {
   flex-direction: column !important;
   align-items: center !important;
-  gap: 10px !important;          /* was 16px */
+  gap: 6px !important;
 
-    margin-bottom: 10px !important; /* kills the big empty space before controls */
+    margin-bottom: 8px !important;
   }
 
-  /* bigger cover, but centered like Spotify */
-    #album-hero-cover {
-    width: 280px !important;
-    height: 280px !important;
+  /* Pull album-view edge-to-edge so gradient covers parent padding area */
+  #album-view {
+    margin: -6px -6px 0 !important;
+    padding: 10px 10px 0 !important;
+  }
+
+  /* Cover size — smaller to match Spotify proportions */
+  #album-hero-cover {
+    width: 200px !important;
+    height: 200px !important;
     align-self: center !important;
   }
 
@@ -3213,7 +3219,8 @@ body.np-open #playlist-submenu{
   }
 
     #album-hero .album-hero-title {
-    margin-bottom: 4px !important; /* was 10px */
+    margin-bottom: 4px !important;
+    font-size: 1.6rem !important;
   }
 
 
@@ -3234,7 +3241,7 @@ body.np-open #playlist-submenu{
   /* Album controls (MOBILE): match Spotify row feel */
     #album-controls {
     margin-top: 2px !important;
-    margin-bottom: 6px !important; /* brings tracklist up */
+    margin-bottom: 2px !important;
   }
 
     .mobile-playlist-sort-btn {
