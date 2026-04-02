@@ -176,8 +176,8 @@
 
       return {
         id: AUTO_IDS[type],
-        name: isDay ? 'Daylist' : 'Nightlist',
-        subtitle: isDay ? 'Your day in music' : 'Your night in music',
+        name: isDay ? 'daylist' : 'nightlist',
+        subtitle: isDay ? 'your day in music' : 'your night in music',
         isAutoPlaylist: true,
         autoType: type,
         songs,
@@ -252,13 +252,12 @@
   function buildCardHTML(pl, isActive) {
     if (!pl) return '';
 
-    const id = pl.id;
     const isDay = (pl.autoType === 'daylist');
     const songCount = Array.isArray(pl.songs) ? pl.songs.length : 0;
     const hasData = songCount > 0;
 
     const coverClass = isDay ? 'foryou-cover-day' : 'foryou-cover-night';
-    const activeClass = isActive ? ' foryou-card-active' : '';
+    const activeClass = isActive ? ' foryou-cover-active-ring' : '';
 
     const icon = isDay
       ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="foryou-icon">
@@ -268,20 +267,21 @@
            <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.7-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" clip-rule="evenodd"/>
          </svg>`;
 
-    const emptyMsg = hasData
-      ? `<span class="foryou-song-count">${songCount} song${songCount !== 1 ? 's' : ''}</span>`
-      : `<span class="foryou-song-count foryou-empty">Not enough data yet</span>`;
+    const countLine = hasData
+      ? `<div class="foryou-song-count">${songCount} song${songCount !== 1 ? 's' : ''}</div>`
+      : `<div class="foryou-song-count foryou-empty">not enough data yet</div>`;
 
     return `
-<div class="foryou-card${activeClass}" data-auto-type="${pl.autoType}" onclick="window.openAutoPlaylist('${pl.autoType}')" role="button" tabindex="0" aria-label="Open ${pl.name}">
-  <div class="foryou-cover ${coverClass}">
+<div class="foryou-card" data-auto-type="${pl.autoType}" onclick="window.openAutoPlaylist('${pl.autoType}')" role="button" tabindex="0" aria-label="Open ${pl.name}">
+  <div class="foryou-cover ${coverClass}${activeClass}">
     ${icon}
+    <div class="foryou-text-overlay">
+      <div class="foryou-name">${pl.name}</div>
+    </div>
   </div>
-  <div class="foryou-card-body">
-    <div class="foryou-pill">Auto</div>
-    <div class="foryou-name">${pl.name}</div>
+  <div class="foryou-below">
     <div class="foryou-subtitle">${pl.subtitle}</div>
-    ${emptyMsg}
+    ${countLine}
   </div>
 </div>`.trim();
   }

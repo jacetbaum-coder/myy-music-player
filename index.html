@@ -218,84 +218,78 @@ button,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  background: rgba(255,255,255,0.06);
-  border-radius: 16px;
-  overflow: hidden;
+  gap: 6px;
+  background: transparent;
   cursor: pointer;
-  transition: transform 120ms, background 120ms, box-shadow 120ms;
+  transition: transform 120ms;
   outline: none;
+  border-radius: 0;
 }
 .foryou-card:active { transform: scale(0.97); }
-.foryou-card-active {
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.18), 0 8px 24px rgba(0,0,0,0.4);
-}
 .foryou-cover {
   width: 100%;
   aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
 }
 .foryou-cover-day {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  background: radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%);
 }
 .foryou-cover-night {
-  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  background: radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, #0d1f6b 100%);
+}
+.foryou-cover-active-ring {
+  box-shadow: 0 0 0 2.5px rgba(255,255,255,0.22), 0 6px 20px rgba(0,0,0,0.5);
 }
 .foryou-icon {
-  width: 44%;
-  height: 44%;
-  color: rgba(255,255,255,0.9);
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+  width: 38%;
+  height: 38%;
+  color: rgba(255,255,255,0.88);
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.35));
 }
-.foryou-card-body {
-  padding: 10px 10px 12px;
+.foryou-text-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 28px 12px 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-.foryou-pill {
-  display: inline-flex;
-  align-items: center;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #1db954;
-  margin-bottom: 2px;
+  gap: 1px;
 }
 .foryou-name {
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 800;
   color: #fff;
-  line-height: 1.2;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.foryou-below {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 1px;
 }
 .foryou-subtitle {
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-  margin-top: 1px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
 }
 .foryou-song-count {
   font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  margin-top: 3px;
+  color: rgba(255,255,255,0.35);
 }
 .foryou-song-count.foryou-empty {
   font-style: italic;
 }
-
-/* Desktop: wider cards, side by side with more breathing room */
 @media (min-width: 769px) {
-  .foryou-cards-row {
-    gap: 16px;
-  }
-  .foryou-card {
-    max-width: 260px;
-  }
+  .foryou-cards-row { gap: 16px; }
+  .foryou-card { max-width: 240px; }
   .foryou-name { font-size: 17px; }
-  .foryou-subtitle { font-size: 12px; }
 }
 
 .home-square-card .cover{
@@ -3379,6 +3373,93 @@ body.np-open #playlist-submenu{
   transition: background 0.5s ease;
 }
 
+/* ── Auto-playlist (Daylist/Nightlist) hero — full-bleed gradient ── */
+/* background is set inline via JS so the gradient fills the full fixed view */
+.album-hero-auto {
+  width: 100%;
+  margin: 0;
+  aspect-ratio: 1 / 0.72;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  overflow: hidden;
+}
+.album-hero-auto-overlay {
+  padding: 24px 18px 22px;
+  background: linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 60%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.album-hero-auto-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.72);
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+}
+.album-hero-auto-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  white-space: pre-line;
+  letter-spacing: -0.02em;
+}
+.album-hero-auto-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+.album-hero-auto-madeby {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+.album-hero-auto-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #000;
+  flex-shrink: 0;
+}
+.album-hero-auto-info {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  padding-left: 30px;
+}
+
+/* On mobile, full-bleed goes wider */
+@media (max-width: 768px) {
+  .album-hero-auto {
+    width: 100% !important;
+    margin: 0 !important;
+    min-height: 260px;
+  }
+  .album-hero-auto-title {
+    font-size: 28px;
+  }
+}
+
+/* When auto-playlist is open, album-hero should be block not flex-row */
+#album-view[data-auto-playlist] #album-hero {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  margin-bottom: 6px !important;
+}
+
 /* Album hero cover: parallax zoom support */
 #album-hero-cover {
   transform-origin: center center;
@@ -3773,6 +3854,53 @@ body.qs-lock {
   clear: both !important;
 }
 
+/* ✅ Nav transition: 3-dot bounce loading overlay */
+#nav-transition-loader {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  z-index: 9980;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+#nav-transition-loader.ntl-active {
+  animation: ntlReveal 0ms 10ms forwards;
+}
+#nav-transition-loader.ntl-out {
+  opacity: 0 !important;
+  transition: opacity 200ms ease !important;
+}
+@keyframes ntlReveal { to { opacity: 1; } }
+.ntl-dot {
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  margin: 0 6px;
+  transform: scale(0.55);
+  animation: ntlBounce 0.9s ease-in-out infinite;
+}
+.ntl-dot:nth-child(1) { animation-delay: 0s;   }
+.ntl-dot:nth-child(2) { animation-delay: 0.2s; }
+.ntl-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ntlBounce {
+  0%, 70%, 100% { transform: scale(0.55); }
+  35%           { transform: scale(1);    }
+}
+
+/* ─── iOS push-slide transition (deep navigation: playlist/album/artist/etc.) ─── */
+.push-outgoing-clone {
+  position: fixed !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 9960;
+  will-change: transform;
+  background: #0a0a0a;
+}
+
 </style>
 
 
@@ -4041,7 +4169,6 @@ body.qs-lock {
         Show all
       </button>
     </div>
-    <div id="home-recents-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
     <div id="home-recents-row" class="home-recents-grid"></div>
     <div id="home-all-history-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
   </div>
@@ -8058,7 +8185,7 @@ pl.trackIds = __merged;
 
 // ✅ If we're currently viewing this playlist, re-render now that cloud items arrived
 try {
-  if (typeof activePlaylistId !== "undefined" && activePlaylistId === pl.id) {
+  if (!pl.isAutoPlaylist && typeof activePlaylistId !== "undefined" && activePlaylistId === pl.id) {
     const idx = (Array.isArray(playlists) ? playlists.findIndex(p => p && p.id === pl.id) : -1);
     const playlistSongs2 = resolveTrackIdsToSongs(pl.trackIds);
 
@@ -8078,10 +8205,20 @@ try {
 
 
 // ✅ Resolve IDs → songs ONLY for rendering (do not store on playlist)
-const playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+// For auto-playlists (Daylist/Nightlist), songs are already full objects — use them directly.
+let playlistSongs;
+if (pl.isAutoPlaylist && Array.isArray(pl.songs) && pl.songs.length) {
+  playlistSongs = pl.songs;
+  // Also populate trackIds so the async cloud path doesn't clobber the list
+  if (!Array.isArray(pl.trackIds) || !pl.trackIds.length) {
+    pl.trackIds = pl.songs.map(s => String(s.id || s.r2Path || s.url || '')).filter(Boolean);
+  }
+} else {
+  playlistSongs = resolveTrackIdsToSongs(pl.trackIds);
+}
 
 // covers & render
-try { updatePlaylistAutoCoverById(pl.id); } catch (e) {}
+try { if (!pl.isAutoPlaylist) updatePlaylistAutoCoverById(pl.id); } catch (e) {}
 try { renderPlaylists(); } catch (e) {}
 renderCollection(pl.name, playlistSongs, true, playlistIndex);
 
@@ -12637,10 +12774,62 @@ const heroSizeClass = "w-full h-full";
 let coverMarkup = '';
 let _accentCoverUrl = '';
 
+// ── Auto-playlist (Daylist / Nightlist): full-bleed gradient hero ──
+const _autoPlMatch = isPlaylist && activePlaylistId
+  ? (Array.isArray(playlists) ? playlists.find(p => p && p.id === activePlaylistId) : null)
+  : null;
+
+if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
+  const isDay = _autoPlMatch.autoType === 'daylist';
+  const gradient = isDay
+    ? 'radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%)'
+    : 'radial-gradient(ellipse 58% 54% at 50% 45%, #ffffff 0%, #dce8ff 14%, #9ab4e8 34%, #3a63c8 56%, #1a3494 76%, #0d1f6b 100%)';  
+
+  // Next-update time: end of current window
+  const now = new Date();
+  const nextHour = isDay ? 17 : 6; // daylist ends at 5pm, nightlist ends at 6am
+  const nextUpdate = new Date(now);
+  nextUpdate.setHours(nextHour, 0, 0, 0);
+  if (nextUpdate <= now) nextUpdate.setDate(nextUpdate.getDate() + 1);
+  const nextStr = nextUpdate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+  // Duration estimate: ~20 songs × ~3.5 min
+  const totalMins = queue.length * 3.5;
+  const hrs = Math.floor(totalMins / 60);
+  const mins = Math.round(totalMins % 60);
+  const durStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  const userName = window.APP_USER_NAME || (window.APP_USER_ID ? window.APP_USER_ID.split('@')[0] : 'you');
+
+  const _albumViewEl = document.getElementById('album-view');
+  _albumViewEl.setAttribute('data-auto-playlist', _autoPlMatch.autoType);
+  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), ${gradient}`;
+  _albumViewEl.style.backgroundColor = '#121212';
+
+  document.getElementById('album-hero').innerHTML = `
+    <div id="album-hero-auto" class="album-hero-auto">
+      <div class="album-hero-auto-overlay">
+        <div class="album-hero-auto-label">${_autoPlMatch.name}</div>
+        <div class="album-hero-auto-title">${isDay ? 'your soundtrack\nfor the day' : 'your soundtrack\nfor the night'}</div>
+      </div>
+    </div>
+    <div class="album-hero-auto-meta">
+      <div class="album-hero-auto-madeby">
+        <span class="album-hero-auto-dot" style="background:rgba(var(--accent-rgb),1)">J</span>
+        <span>Made for <strong>${userName}</strong></span>
+      </div>
+      <div class="album-hero-auto-info">${durStr} &bull; Next update at ${nextStr}</div>
+    </div>
+  `;
+
+} else {
+  const _albumViewEl2 = document.getElementById('album-view');
+  _albumViewEl2.removeAttribute('data-auto-playlist');
+  _albumViewEl2.style.backgroundImage = '';
+  _albumViewEl2.style.backgroundColor = '';
+
   if (isPlaylist && activePlaylistId) {
     const plMatch = playlists.find(p => p.id === activePlaylistId);
     if (plMatch && typeof getPlaylistCoverMarkup === 'function') {
-      // Uses 2×2 grid for 4+ songs, single cover for 1–3, music icon for 0
       coverMarkup = getPlaylistCoverMarkup(plMatch, heroSizeClass);
     }
     if (typeof getEffectivePlaylistCover === 'function') {
@@ -12650,7 +12839,6 @@ let _accentCoverUrl = '';
   }
 
   if (!coverMarkup) {
-    // Album view or playlist with no cover yet
     const _cv = queue[0]?.cover || '';
     coverMarkup = _cv
       ? `<img src="${_cv}" class="w-full h-full object-cover">`
@@ -12673,6 +12861,7 @@ let _accentCoverUrl = '';
       </div>
     </div>
   `;
+}
 
 const hero = document.getElementById('album-hero');
 if (hero && activePlaylistId) {
@@ -13673,6 +13862,129 @@ try {
       };
       reader.readAsDataURL(file);
     });
+  }
+})();
+</script>
+
+<!-- NAV TRANSITION LOADER (3-dot bounce, shows if render > 10ms) -->
+<div id="nav-transition-loader" aria-hidden="true">
+  <div class="ntl-dot"></div>
+  <div class="ntl-dot"></div>
+  <div class="ntl-dot"></div>
+</div>
+
+<script>
+// ✅ Dual nav transitions:
+//   Root tab switches (home/library/search/crate) → 3-dot bounce (always brief)
+//   Playlist/Liked → iOS push-slide on #album-view (position:fixed overlay)
+//   Artist/other deep views → fade-in
+(function() {
+  var ROOT_TABS = { home: 1, library: 1, search: 1, crate: 1, settings: 1 };
+  var ALBUM_OVERLAY_VIEWS = { playlist: 1, liked: 1 };
+  var DUR = '320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+  function wrapShowViewWithLoader() {
+    var _orig = window.showView;
+    if (typeof _orig !== 'function' || _orig.__ntlWrapped) return;
+
+    window.showView = function(viewType) {
+      var isBack = !!window.__isBackNav;
+
+      // ── Back navigation: no transition (swipe-back handles it) ─────────
+      if (isBack) return _orig.apply(this, arguments);
+
+      // ── Root tab switch → 3-dot bounce (always shows briefly) ──────────
+      if (ROOT_TABS[viewType]) {
+        var loader = document.getElementById('nav-transition-loader');
+        if (loader) {
+          loader.classList.remove('ntl-active', 'ntl-out');
+          void loader.offsetWidth;
+          loader.classList.add('ntl-active');
+        }
+        _orig.apply(this, arguments);
+        if (loader) {
+          setTimeout(function() {
+            loader.classList.add('ntl-out');
+            loader.classList.remove('ntl-active');
+            setTimeout(function() { loader.classList.remove('ntl-out'); }, 220);
+          }, 160);
+        }
+        return;
+      }
+
+      // ── Playlist / Liked → slide #album-view in from the right ─────────
+      // #album-view is position:fixed so it's NOT clipped by overflow:hidden parents
+      if (ALBUM_OVERLAY_VIEWS[viewType]) {
+        _orig.apply(this, arguments);
+
+        var av = document.getElementById('album-view');
+        if (!av || av.classList.contains('hidden')) return;
+
+        // Still in the same JS frame — browser hasn't painted yet.
+        // Park it off-screen, then animate in on next frame.
+        av.style.transition = 'none';
+        av.style.transform  = 'translateX(100%)';
+        void av.offsetWidth;
+
+        requestAnimationFrame(function() {
+          av.style.transition = 'transform ' + DUR;
+          av.style.transform  = 'translateX(0)';
+          setTimeout(function() {
+            av.style.transition = '';
+            av.style.transform  = '';
+          }, 340);
+        });
+
+        // Subtle push-back on content behind
+        var scrollArea = document.getElementById('main-scroll-area');
+        if (scrollArea) {
+          scrollArea.style.transition = 'none';
+          scrollArea.style.transform  = 'scale(1)';
+          scrollArea.style.opacity    = '1';
+          void scrollArea.offsetWidth;
+          requestAnimationFrame(function() {
+            scrollArea.style.transition = 'transform ' + DUR + ', opacity ' + DUR;
+            scrollArea.style.transform  = 'scale(0.94)';
+            scrollArea.style.opacity    = '0.5';
+            setTimeout(function() {
+              scrollArea.style.transition = '';
+              scrollArea.style.transform  = '';
+              scrollArea.style.opacity    = '';
+            }, 340);
+          });
+        }
+        return;
+      }
+
+      // ── Artist / other deep views → fade in ────────────────────────────
+      _orig.apply(this, arguments);
+      var targetId = viewType === 'artist'           ? 'artist-view'
+                   : viewType === 'recently-deleted' ? 'recently-deleted-view'
+                   : null;
+      if (targetId) {
+        var el = document.getElementById(targetId);
+        if (el && !el.classList.contains('hidden')) {
+          el.style.opacity    = '0';
+          el.style.transition = 'none';
+          void el.offsetWidth;
+          requestAnimationFrame(function() {
+            el.style.transition = 'opacity 220ms ease';
+            el.style.opacity    = '1';
+            setTimeout(function() {
+              el.style.transition = '';
+              el.style.opacity    = '';
+            }, 240);
+          });
+        }
+      }
+    };
+    window.showView.__ntlWrapped = true;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wrapShowViewWithLoader);
+  } else {
+    wrapShowViewWithLoader();
   }
 })();
 </script>
