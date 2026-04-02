@@ -937,11 +937,12 @@ function playPlaylistById(playlistId) {
 
       sub.style.position = 'fixed';
       sub.style.left = '0';
-      sub.style.top  = '0';
+      sub.style.top  = '13%';
       sub.style.right = '0';
-      sub.style.bottom = '12px';
+      sub.style.bottom = '0';
 
       sub.style.width = '100vw';
+      sub.style.height = '87dvh';
       sub.style.maxHeight = 'none';
       sub.style.overflow = 'hidden';
       sub.style.display = 'flex';
@@ -1057,12 +1058,12 @@ try {
       </div>
 
       <button id="ps_new" type="button"
-        style="margin:12px auto 0 auto;width:68%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:12px 14px;border:none;display:block;">
+        style="margin:12px auto 0 auto;width:68%;background:#fff;color:#000;font-weight:900;border-radius:999px;padding:8px 14px;border:none;display:block;">
         New playlist
 
       </button>
 
-      <div style="margin-top:10px;background:#1a1a1a;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+      <div style="margin:10px 8px 0 8px;background:#2b2b2b;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
        xmlns="http://www.w3.org/2000/svg"
        style="opacity:.7;flex-shrink:0">
@@ -1072,7 +1073,7 @@ try {
   </svg>
 
   <input id="ps_search" placeholder="Find playlist" autocomplete="off"
-    style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;">
+    style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:17px;">
 </div>
 
     `;
@@ -1089,7 +1090,7 @@ try {
     doneBtn.style.position = 'absolute';
     doneBtn.style.left = '50%';
     doneBtn.style.transform = 'translateX(-50%)';
-    doneBtn.style.bottom = '14px';
+    doneBtn.style.bottom = 'calc(env(safe-area-inset-bottom, 0px) + 8px)';
         doneBtn.style.width = '38%';
     doneBtn.style.maxWidth = '260px';
 
@@ -1102,6 +1103,23 @@ try {
     doneBtn.style.zIndex = '20';
     sub.appendChild(doneBtn);
   }
+
+  // Bottom fade overlay (hides list edge + home indicator area)
+  let fadeEl = sub.querySelector('#ps_bottom_fade');
+  if (!fadeEl) {
+    fadeEl = document.createElement('div');
+    fadeEl.id = 'ps_bottom_fade';
+    fadeEl.style.position = 'absolute';
+    fadeEl.style.bottom = '0';
+    fadeEl.style.left = '0';
+    fadeEl.style.right = '0';
+    fadeEl.style.height = '110px';
+    fadeEl.style.background = 'linear-gradient(to bottom, transparent, rgba(18,18,18,0.98) 70%)';
+    fadeEl.style.pointerEvents = 'none';
+    fadeEl.style.zIndex = '5';
+    sub.appendChild(fadeEl);
+  }
+  fadeEl.style.display = '';
 
   // Mobile path: ensure controls are visible (desktop branch may have hidden them earlier)
   header.style.display = '';
@@ -1116,9 +1134,10 @@ try {
   const headerH = header.getBoundingClientRect().height || 140;
   const maxH = isDesktop
     ? Math.min(window.innerHeight - 24, 560)
-    : Math.min(window.innerHeight * 0.85, window.innerHeight - 80);
-  sub.style.maxHeight = `${maxH}px`;
-  items.style.maxHeight = `${Math.max(200, maxH - headerH)}px`;
+    : window.innerHeight;
+  sub.style.maxHeight = isDesktop ? `${maxH}px` : 'none';
+  sub.style.height = isDesktop ? 'auto' : '87dvh';
+  items.style.maxHeight = isDesktop ? `${Math.max(200, maxH - headerH)}px` : 'none';
 
   // Selection state: playlist ids
   sub.__selectedPlaylistIds = sub.__selectedPlaylistIds || new Set();
@@ -1197,7 +1216,7 @@ try {
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
    row.style.gap = '14px';
-  row.style.padding = '12px 14px';
+  row.style.padding = '15px 14px';
 
   row.style.color = '#fff';
   row.style.cursor = 'pointer';
@@ -1311,7 +1330,7 @@ try {
   bubble.style.width = '26px';
   bubble.style.height = '26px';
   bubble.style.borderRadius = '50%';
-  bubble.style.border = '2px solid rgba(255,255,255,.4)';
+  bubble.style.border = '2px solid rgba(255,255,255,0.70)';
   bubble.style.setProperty('display', 'grid', 'important');
 bubble.style.setProperty('visibility', 'visible', 'important');
 bubble.style.setProperty('opacity', '1', 'important');
@@ -1334,7 +1353,7 @@ bubble.style.setProperty('opacity', '1', 'important');
           bubble.innerHTML = '<span style="color:#000;font-weight:950;">✓</span>';
         } else {
           bubble.style.background = 'transparent';
-          bubble.style.borderColor = 'rgba(255,255,255,.4)';
+          bubble.style.borderColor = 'rgba(255,255,255,0.70)';
           bubble.innerHTML = '';
         }
       }
@@ -3150,10 +3169,8 @@ function renderPlaylists() {
       <div class="cm-handle"></div>
 
       <div class="cm-submenu-header">
-        <div class="cm-back" onclick="closePlaylistSubmenu(event)">
-          <i class="fas fa-arrow-left"></i>
-        </div>
-        <div class="cm-submenu-title">Add song to playlist</div>
+        <i class="fas fa-sort cm-sort-icon"></i>
+        <div class="cm-submenu-title">Recently updated</div>
       </div>
 
       <div class="menu-item border-b border-zinc-700" onclick="createNewPlaylist()"><b>+ New Playlist</b></div>

@@ -1901,8 +1901,8 @@ body.np-open #context-menu{
   right: 0;
 
   /* ✅ Approved sheet geometry */
-  top: 210px;
-    height: calc(100vh - 136px);
+  top: 13%;
+  height: 87dvh;
 
 
   width: 100vw;
@@ -1947,6 +1947,12 @@ body.np-open #playlist-submenu{
   z-index: 10000000 !important;
 }
 
+/* Hide dock + nav tabs while the add-to-playlist sheet is open */
+body:has(#playlist-submenu.open) .player-bar,
+body:has(#playlist-submenu.open) .mobile-nav {
+  display: none !important;
+}
+
 
 /* ✅ submenu items scroll (not the whole sheet) */
   .ps_pl_icon{
@@ -1983,26 +1989,21 @@ body.np-open #playlist-submenu{
 #playlist-submenu .cm-submenu-header{
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 4px 12px;
+  gap: 7px;
+  padding: 4px 4px 10px;
 }
 
-#playlist-submenu .cm-back{
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: rgba(255,255,255,0.10);
-  user-select: none;
+#playlist-submenu .cm-sort-icon{
+  font-size: 15px;
+  color: rgba(255,255,255,0.78);
+  flex-shrink: 0;
 }
 
 #playlist-submenu .cm-submenu-title{
-  font-size: 16px;
-  font-weight: 800;
-  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.78);
+  letter-spacing: 0.01em;
 }
 
 /* =========================
@@ -4162,7 +4163,25 @@ body.qs-lock {
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-3xl font-black">For You</h2>
     </div>
-    <div id="for-you-section-mobile" class="mb-5"></div>
+    <div id="for-you-section-mobile" class="mb-5">
+      <!-- static placeholders — JS replaces innerHTML when playlists are ready -->
+      <div class="foryou-cards-row">
+        <div class="foryou-card" data-auto-type="daylist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('daylist')" role="button" tabindex="0" aria-label="Open daylist">
+          <div class="foryou-cover foryou-cover-day"></div>
+          <div class="foryou-below">
+            <div class="foryou-subtitle"></div>
+            <div class="foryou-song-count"></div>
+          </div>
+        </div>
+        <div class="foryou-card" data-auto-type="nightlist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('nightlist')" role="button" tabindex="0" aria-label="Open nightlist">
+          <div class="foryou-cover foryou-cover-night"></div>
+          <div class="foryou-below">
+            <div class="foryou-subtitle"></div>
+            <div class="foryou-song-count"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Recently played (all types mixed) -->
@@ -4285,7 +4304,25 @@ body.qs-lock {
 
     <!-- For You: Daylist & Nightlist (desktop) -->
     <h2 class="text-3xl font-black mb-4">For You</h2>
-    <div id="for-you-section-desktop" class="mb-6"></div>
+    <div id="for-you-section-desktop" class="mb-6">
+      <!-- static placeholders — JS replaces innerHTML when playlists are ready -->
+      <div class="foryou-cards-row">
+        <div class="foryou-card" data-auto-type="daylist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('daylist')" role="button" tabindex="0" aria-label="Open daylist">
+          <div class="foryou-cover foryou-cover-day"></div>
+          <div class="foryou-below">
+            <div class="foryou-subtitle"></div>
+            <div class="foryou-song-count"></div>
+          </div>
+        </div>
+        <div class="foryou-card" data-auto-type="nightlist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('nightlist')" role="button" tabindex="0" aria-label="Open nightlist">
+          <div class="foryou-cover foryou-cover-night"></div>
+          <div class="foryou-below">
+            <div class="foryou-subtitle"></div>
+            <div class="foryou-song-count"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Recently played -->
     <h2 class="text-3xl font-black mb-4">Recently played</h2>
