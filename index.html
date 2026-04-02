@@ -2754,6 +2754,7 @@ body.np-open #playlist-submenu{
   gap: 8px;
   overflow-x: hidden;
   padding-bottom: 0;
+  padding: 0 10px;
 }
 
 /* Desktop: show more squares across */
@@ -3933,7 +3934,7 @@ body.qs-lock {
   <!-- Recents -->
   <div class="mt-2">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-3xl font-black">Recents</h2>
+      <h2 class="text-3xl font-black">Recently listened</h2>
       <button id="home-recents-showall" class="text-xs font-extrabold text-zinc-400 hover:text-white md:hidden" type="button">
         Show all
       </button>
@@ -3945,9 +3946,15 @@ body.qs-lock {
 
   </div>
 
-</div>
+  <!-- Recently played (all types mixed) -->
+  <div class="mt-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-3xl font-black">Recently played</h2>
+    </div>
+    <div id="home-all-history-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
+  </div>
 
-<!-- SETTINGS VIEW -->
+</div>
 
 <div id="settings-view" class="hidden pb-30 md:pb-0">
   <div class="flex items-center gap-3 mb-5">
@@ -4054,8 +4061,14 @@ body.qs-lock {
     <div id="desktop-recent-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
 
 
-     <h2 class="text-3xl font-black mb-4">Recents</h2>
+     <h2 class="text-3xl font-black mb-4">Recently listened</h2>
     <div id="desktop-recents-row" class="flex gap-5 overflow-x-auto pb-3"></div>
+
+    <!-- Recently played (all types mixed) -->
+    <div class="mt-6">
+      <h2 class="text-3xl font-black mb-4">Recently played</h2>
+      <div id="desktop-all-history-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
+    </div>
 
   </div>
 
@@ -10748,6 +10761,107 @@ for (let i = 0; i < slotCount; i++) {
   });
 }
 
+// Renders a "Recently played" grid showing ALL history types (no tab filter)
+function renderHomeAllHistory(containerId) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+
+  try { grid.classList.add('square-grid'); } catch (e) {}
+
+  const isMobile = (window.innerWidth <= 768);
+  const slotCount = isMobile ? 4 : 8;
+
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { history = []; }
+  if (!Array.isArray(history)) history = [];
+
+  const items = history.slice(0, slotCount).map(h => {
+    const type = String(h?.type || '').trim().toLowerCase();
+    if (type === 'playlist') return { type: 'playlist', id: h.id, name: h.name, cover: h.cover };
+    if (type === 'artist')   return { type: 'artist', artist: h.artist, cover: h.cover };
+    return { type: 'album', album: h.album, artist: h.artist, cover: h.cover };
+  });
+
+  const tiles = [];
+  for (let i = 0; i < slotCount; i++) {
+    const h = items[i];
+    if (!h) {
+      tiles.push(`
+        <div class="home-square-card opacity-35 pointer-events-none" data-type="" data-id="" data-album="">
+          <div class="cover"></div>
+          <div class="title">&nbsp;</div>
+          <div class="sub">&nbsp;</div>
+        </div>
+      `);
+      continue;
+    }
+
+    const type = String(h.type || '');
+    const title =
+      (type === 'playlist') ? (h.name   || 'Playlist') :
+      (type === 'artist')   ? (h.artist || 'Artist')   :
+                              (h.album  || 'Album');
+    const sub =
+      (type === 'playlist') ? 'Playlist' :
+      (type === 'artist')   ? 'Artist'   :
+                              (h.artist || '');
+
+    const safeId    = String(h.id    || '').replace(/"/g, '&quot;');
+    const safeAlbum = String(h.album || '').replace(/"/g, '&quot;');
+
+    let cover = '';
+    if (type === 'playlist') {
+      const pl = Array.isArray(window.playlists) ? window.playlists.find(p => String(p.id) === String(h.id)) : null;
+      cover = pl ? getEffectivePlaylistCover(pl) : String(h.cover || '').trim();
+    } else if (type === 'album') {
+      cover = getAlbumCover(String(h.artist || '').trim(), String(h.album || '').trim(), '');
+    } else if (type === 'artist') {
+      cover = String(h.cover || '').trim();
+    }
+
+    tiles.push(`
+      <div class="home-square-card cursor-pointer"
+           data-type="${type}"
+           data-id="${safeId}"
+           data-album="${safeAlbum}"
+           data-artist="${String(h.artist || '').replace(/"/g, '&quot;')}">
+        <div class="cover">
+          ${cover
+            ? `<img src="${cover}" alt="">`
+            : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center">
+                 <i class="fas fa-music text-3xl text-zinc-500"></i>
+               </div>`
+          }
+        </div>
+        <div class="title">${title}</div>
+        <div class="sub">${sub}</div>
+      </div>
+    `);
+  }
+
+  grid.innerHTML = tiles.join('');
+
+  [...grid.querySelectorAll('.home-square-card')].forEach(card => {
+    card.addEventListener('click', () => {
+      const type  = card.getAttribute('data-type');
+      if (!type) return;
+      if (type === 'playlist') {
+        const id  = card.getAttribute('data-id');
+        const idx = Array.isArray(window.playlists) ? window.playlists.findIndex(pl => String(pl.id) === String(id)) : -1;
+        if (idx !== -1) { try { showView('playlist', idx); } catch (e) {} }
+        return;
+      }
+      if (type === 'artist') {
+        const artist = card.getAttribute('data-artist') || card.getAttribute('data-id');
+        try { showArtistView(artist); } catch (e) {}
+        return;
+      }
+      const album = card.getAttribute('data-album');
+      if (album) { try { openAlbumByName(album); } catch (e) {} }
+    });
+  });
+}
+
                 let mobileRecentsExpanded = false;
         try { mobileRecentsExpanded = (localStorage.getItem('homeRecentsExpanded') === '1'); } catch (e) {}
 
@@ -11387,18 +11501,13 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
   (function updateRecentsHeader() {
     const tab = String(window.homeTopTab || 'all');
 
-    const label =
-      (tab === 'playlists') ? 'Recent playlists' :
-      (tab === 'albums')    ? 'Recent albums' :
-      (tab === 'artists')   ? 'Recent artists' :
-      (tab === 'folders')   ? 'Folders' :
-'Recents';
+    const label = 'Recently listened';
 
     // update any h2 inside Home that currently says "Recents" (mobile + desktop)
     try {
       document.querySelectorAll('#home-view h2').forEach(h => {
         const txt = String(h.textContent || '').trim();
-        if (txt === 'Recents' || txt.startsWith('Recent ') || txt === 'Liked songs') {
+        if (txt === 'Recents' || txt.startsWith('Recent ') || txt === 'Liked songs' || txt === 'Recently listened' || txt === 'Folders') {
           h.textContent = label;
         }
       });
@@ -11427,6 +11536,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
       // ✅ in grid mode, do NOT show the list row
     }
 
+    renderHomeAllHistory('home-all-history-grid');
+
     return;
   }
 
@@ -11446,6 +11557,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
     if (rowEl)  rowEl.style.display  = 'none';
     renderHomeRecents('desktop-recent-grid');
   }
+
+  renderHomeAllHistory('desktop-all-history-grid');
 
 }
 
