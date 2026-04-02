@@ -274,10 +274,6 @@
     return `
 <div class="foryou-card" data-auto-type="${pl.autoType}" onclick="window.openAutoPlaylist('${pl.autoType}')" role="button" tabindex="0" aria-label="Open ${pl.name}">
   <div class="foryou-cover ${coverClass}${activeClass}">
-    ${icon}
-    <div class="foryou-text-overlay">
-      <div class="foryou-name">${pl.name}</div>
-    </div>
   </div>
   <div class="foryou-below">
     <div class="foryou-subtitle">${pl.subtitle}</div>

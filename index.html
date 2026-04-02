@@ -3392,7 +3392,7 @@ body.np-open #playlist-submenu{
 }
 .album-hero-auto-overlay {
   padding: 24px 18px 22px;
-  background: linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 60%);
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 50%, transparent 100%);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -12880,7 +12880,7 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const _albumViewEl = document.getElementById('album-view');
   __bgNonce++; // cancel any in-flight applyPlaylistViewBackground from the previous view
   _albumViewEl.setAttribute('data-auto-playlist', _autoPlMatch.autoType);
-  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), url('${coverImg}')`;
+  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.45) 280px, #121212 560px), url('${coverImg}')`;
   _albumViewEl.style.backgroundSize = 'cover';
   _albumViewEl.style.backgroundPosition = 'center top';
   _albumViewEl.style.backgroundColor = '#121212';
