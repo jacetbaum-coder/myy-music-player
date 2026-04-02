@@ -504,4 +504,27 @@
     }
   };
 
+  // ─── Instant self-init on script load ─────────────────────
+  // applyLibraryAndRender calls initForYou only after the network fetch
+  // completes (~4 s). By the time this script tag executes the DOM is ready,
+  // so we can render cached playlists immediately — no need to wait for the
+  // library or artist-vibes.json.
+  (function selfInitFromCache() {
+    try {
+      const cached = {
+        daylist:   loadFromCache('daylist'),
+        nightlist: loadFromCache('nightlist'),
+      };
+      if (cached.daylist && cached.nightlist) {
+        window.__autoPlaylists = cached;
+        // injectIntoWindowPlaylists needs window.playlists — ensure it exists
+        if (!Array.isArray(window.playlists)) window.playlists = [];
+        injectIntoWindowPlaylists(cached);
+        window.renderForYouSection();
+      }
+    } catch (e) {
+      // non-fatal — initForYou will render on the next library load
+    }
+  })();
+
 })();
