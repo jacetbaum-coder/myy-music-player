@@ -937,12 +937,12 @@ function playPlaylistById(playlistId) {
 
       sub.style.position = 'fixed';
       sub.style.left = '0';
-      sub.style.top  = '13%';
+      sub.style.top  = '0';
       sub.style.right = '0';
       sub.style.bottom = '0';
 
       sub.style.width = '100vw';
-      sub.style.height = '87dvh';
+      sub.style.height = 'auto';
       sub.style.maxHeight = 'none';
       sub.style.overflow = 'hidden';
       sub.style.display = 'flex';
@@ -1036,7 +1036,6 @@ try {
   // Ensure submenu is scroll-safe on mobile (list scrolls, header stays)
   sub.style.overflow = 'hidden';
   sub.style.webkitOverflowScrolling = 'touch';
-  sub.style.position = 'relative';
 
   // Build / reuse header
   let header = sub.querySelector('#ps_header');
@@ -1113,8 +1112,8 @@ try {
     fadeEl.style.bottom = '0';
     fadeEl.style.left = '0';
     fadeEl.style.right = '0';
-    fadeEl.style.height = '110px';
-    fadeEl.style.background = 'linear-gradient(to bottom, transparent, rgba(18,18,18,0.98) 70%)';
+    fadeEl.style.height = '80px';
+    fadeEl.style.background = 'linear-gradient(to bottom, transparent, rgba(20,18,21,0.55) 100%)';
     fadeEl.style.pointerEvents = 'none';
     fadeEl.style.zIndex = '5';
     sub.appendChild(fadeEl);
@@ -1128,7 +1127,9 @@ try {
   // Make the playlist list area scrollable and leave room for Done
   items.style.overflowY = 'auto';
   items.style.webkitOverflowScrolling = 'touch';
-  items.style.padding = '8px 0 90px 0';
+  items.style.padding = '8px 0 70px 0';
+  items.style.flex = '1 1 0';
+  items.style.minHeight = '0';
 
   // Size the submenu so it fits on mobile and keeps Done visible
   const headerH = header.getBoundingClientRect().height || 140;
@@ -1136,7 +1137,7 @@ try {
     ? Math.min(window.innerHeight - 24, 560)
     : window.innerHeight;
   sub.style.maxHeight = isDesktop ? `${maxH}px` : 'none';
-  sub.style.height = isDesktop ? 'auto' : '87dvh';
+  sub.style.height = isDesktop ? 'auto' : 'auto';
   items.style.maxHeight = isDesktop ? `${Math.max(200, maxH - headerH)}px` : 'none';
 
   // Selection state: playlist ids
@@ -1524,7 +1525,7 @@ try { if (typeof window.closeContextMenu === 'function') window.closeContextMenu
 
 
   // ✅ closeContextMenu() may have hidden this sheet with inline styles — undo that
- sub.style.display = 'block';
+ sub.style.display = 'flex';
 
 /* ✅ MUST be above #context-menu-backdrop (yours is ~199999) */
 sub.style.zIndex = '200500';

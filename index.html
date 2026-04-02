@@ -1900,9 +1900,10 @@ body.np-open #context-menu{
   left: 0;
   right: 0;
 
-  /* ✅ Approved sheet geometry */
-  top: 13%;
-  height: 87dvh;
+  /* ✅ Full-screen sheet geometry (JS overrides for desktop flyout) */
+  top: 0;
+  bottom: 0;
+  height: auto;
 
 
   width: 100vw;
@@ -1917,10 +1918,9 @@ body.np-open #context-menu{
   overflow-x: hidden;
   overflow-y: hidden;
 
-  /* Keep your existing rounding/shadow feel */
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 18px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 
   /* Default closed state */
   display: none;
@@ -1933,7 +1933,8 @@ body.np-open #context-menu{
 
 
 #playlist-submenu.open {
-  display: block;
+  display: flex;
+  flex-direction: column;
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -13752,9 +13753,9 @@ try {
 </script>
 
 <script src="src/features/sync/sync.feature.js"></script>
-<script src="src/features/context-menu/context-menu.feature.js"></script>
+<script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
 <script src="src/features/player/player.feature.js"></script>
-<script src="src/features/playlists/playlists.feature.js"></script>
+<script src="src/features/playlists/playlists.feature.js?v=2"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
 <script src="src/features/library/library.feature.js"></script>
