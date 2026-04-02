@@ -2750,7 +2750,7 @@ body.np-open #playlist-submenu{
 .home-recents-grid.square-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 8px;
   overflow-x: hidden;
   padding-bottom: 0;
 }
@@ -3046,7 +3046,7 @@ body.np-open #playlist-submenu{
 
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    gap: 8px;
     overflow: visible;
     padding-bottom: 0;
   }
@@ -11306,7 +11306,7 @@ if (type === 'folder') {
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = pillId;
-      wrap.className = 'grid grid-cols-2 gap-3 mt-3 mb-4';
+      wrap.className = 'grid grid-cols-2 gap-2 mt-2 mb-3';
       wrap.style.maxWidth = '100%';
 
       // ✅ INSERT INTO DOM (mobile was missing this)
