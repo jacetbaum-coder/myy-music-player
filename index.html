@@ -3969,10 +3969,450 @@ body.qs-lock {
 
 
 <!-- [MOVED TO src/features/lyrics/lyrics.feature.js] toggleNpLyricsExpanded global handler -->
+<script>/* auth gate: hide app before first paint if already signed in */
+if(localStorage.getItem('reson_auth')){document.documentElement.classList.add('mp-auth');}
+</script>
+<style>
+/* ===== MUSIC PLAYER AUTH & PROFILE ===== */
+#mp-login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #121212;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#mp-login-overlay.hidden,
+html.mp-auth #mp-login-overlay {
+  display: none !important;
+}
+.mp-login-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mp-login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.mp-login-logo img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.mp-login-logo span {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.04em;
+}
+.mp-login-subtitle {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+  margin-bottom: 2px;
+}
+.mp-login-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.mp-login-input::placeholder { color: rgba(255,255,255,0.28); }
+.mp-login-input:focus { border-color: #1db954; }
+.mp-login-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 50px;
+  border: none;
+  background: #1db954;
+  color: #000;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.1s;
+}
+.mp-login-btn:active { transform: scale(0.98); background: #17a347; }
+.mp-login-btn.loading { opacity: 0.55; pointer-events: none; }
+.mp-login-toggle {
+  text-align: center;
+  color: rgba(255,255,255,0.38);
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-top: 2px;
+}
+.mp-login-toggle span { color: #fff; font-weight: 700; }
+.mp-login-error {
+  color: #ff6b6b;
+  font-size: 0.78rem;
+  text-align: center;
+  min-height: 18px;
+}
+/* ===== PROFILE EDITOR OVERLAY ===== */
+#mp-profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: #121212;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: none;
+}
+#mp-profile-overlay.open { transform: translateX(0); }
+.mp-prof-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  position: sticky;
+  top: 0;
+  background: #121212;
+  z-index: 2;
+}
+.mp-prof-back {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mp-prof-back:active { background: rgba(255,255,255,0.15); }
+.mp-prof-title { font-size: 1.1rem; font-weight: 900; color: #fff; }
+.mp-prof-body {
+  padding: 20px 20px 48px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.mp-prof-pic-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.mp-prof-pic {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #2a2a2a;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mp-prof-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mp-prof-pic-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.25);
+  font-size: 2rem;
+}
+.mp-prof-pic-badge {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  width: 26px; height: 26px;
+  background: #1db954;
+  border-radius: 50%;
+  border: 2px solid #121212;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-prof-pic-label { font-size: 0.73rem; color: rgba(255,255,255,0.3); }
+.mp-prof-section-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 18px 0 6px;
+}
+.mp-prof-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.mp-prof-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.mp-prof-field-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mp-prof-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mp-prof-input:focus { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.1); }
+.mp-prof-input-locked {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.7);
+  font-size: 0.9rem;
+  font-family: inherit;
+  word-break: break-all;
+}
+.mp-prof-change-link {
+  font-size: 0.72rem;
+  color: #1db954;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 0 0 0;
+  text-align: left;
+  font-family: inherit;
+  display: block;
+}
+.mp-prof-change-link:hover { text-decoration: underline; }
+.mp-prof-action-row {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  margin-bottom: 8px;
+}
+.mp-prof-action-row:active { background: rgba(255,255,255,0.1); }
+.mp-prof-save-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 50px;
+  border: none;
+  background: #1db954;
+  color: #000;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+  margin-top: 24px;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.1s;
+}
+.mp-prof-save-btn:active { transform: scale(0.98); background: #17a347; }
+.mp-prof-logout-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 50px;
+  border: 1.5px solid rgba(255,255,255,0.14);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.mp-prof-logout-btn:hover { border-color: rgba(255,255,255,0.3); }
+#mp-change-field-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0,0,0,0.6);
+  display: none;
+}
+#mp-change-field-backdrop.open { display: block; }
+#mp-change-field-popup {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 88%; max-width: 360px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 24px;
+  z-index: 100001;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s, opacity 0.2s;
+}
+#mp-change-field-popup.open {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+.mp-popup-title { font-size: 0.95rem; font-weight: 800; color: #fff; margin: 0 0 5px 0; }
+.mp-popup-sub { font-size: 0.78rem; color: rgba(255,255,255,0.35); margin: 0 0 14px 0; }
+.mp-popup-input {
+  width: 100%; padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.07);
+  color: #fff; font-size: 0.9rem;
+  outline: none; font-family: inherit;
+  box-sizing: border-box;
+}
+.mp-popup-input:focus { border-color: #1db954; }
+.mp-popup-save {
+  width: 100%; margin-top: 12px; padding: 12px;
+  border-radius: 50px; border: none; background: #1db954;
+  color: #000; font-weight: 900; cursor: pointer; font-family: inherit;
+}
+.mp-popup-cancel {
+  width: 100%; background: none; border: none;
+  color: rgba(255,255,255,0.28); margin-top: 8px;
+  cursor: pointer; font-size: 0.82rem; font-family: inherit; padding: 4px;
+}
+</style>
 </head>
 
 
 <body>
+
+<!-- ===== MUSIC PLAYER LOGIN OVERLAY ===== -->
+<div id="mp-login-overlay">
+  <div class="mp-login-card">
+    <div class="mp-login-logo">
+      <img src="https://i.ibb.co/RkQRMBQP/icon-512-png-removebg-preview.png" alt="Reson">
+      <span>Reson</span>
+    </div>
+    <div class="mp-login-subtitle" id="mp-login-subtitle">Sign in to your account</div>
+    <div id="mp-login-error" class="mp-login-error" role="alert"></div>
+    <input type="text" id="mp-login-user" class="mp-login-input" placeholder="Username"
+      autocomplete="username" autocapitalize="none" spellcheck="false">
+    <input type="password" id="mp-login-pass" class="mp-login-input" placeholder="Passcode"
+      autocomplete="current-password">
+    <button id="mp-login-btn" class="mp-login-btn" onclick="mpHandleAuth()">Sign In</button>
+    <div class="mp-login-toggle" id="mp-login-toggle" onclick="mpToggleAuthMode()">
+      No account? <span>Create one</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PROFILE EDITOR OVERLAY ===== -->
+<div id="mp-profile-overlay">
+  <div class="mp-prof-topbar">
+    <button class="mp-prof-back" onclick="mpCloseProfileEditor()" aria-label="Back">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div class="mp-prof-title">Profile</div>
+  </div>
+  <div class="mp-prof-body">
+    <div class="mp-prof-pic-wrap">
+      <div class="mp-prof-pic" onclick="document.getElementById('mp-pic-input').click()" title="Change photo">
+        <div class="mp-prof-pic-placeholder" id="mp-prof-pic-placeholder"><i class="fas fa-user"></i></div>
+        <img id="mp-profile-pic-img" src="" alt="" style="display:none">
+        <div class="mp-prof-pic-badge">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="mp-prof-pic-label">Tap to change photo</div>
+    </div>
+    <input type="file" id="mp-pic-input" accept="image/*" style="display:none" onchange="mpUpdateProfilePic(this)">
+
+    <div class="mp-prof-section-label">Name</div>
+    <div class="mp-prof-row">
+      <div class="mp-prof-field">
+        <div class="mp-prof-field-label">First</div>
+        <input type="text" id="mp-prof-fn" class="mp-prof-input" placeholder="First name">
+      </div>
+      <div class="mp-prof-field">
+        <div class="mp-prof-field-label">Last</div>
+        <input type="text" id="mp-prof-ln" class="mp-prof-input" placeholder="Last name">
+      </div>
+    </div>
+
+    <div class="mp-prof-section-label">Username</div>
+    <div id="mp-prof-handle-locked-wrap" style="display:none">
+      <div class="mp-prof-input-locked" id="mp-prof-handle-display"></div>
+      <button class="mp-prof-change-link" onclick="mpOpenChangePopup('username')">Change username</button>
+    </div>
+    <div id="mp-prof-handle-edit-wrap">
+      <input type="text" id="mp-prof-handle" class="mp-prof-input"
+        placeholder="Choose a username" autocapitalize="none" spellcheck="false">
+    </div>
+
+    <div class="mp-prof-section-label">Email</div>
+    <div id="mp-prof-email-locked-wrap" style="display:none">
+      <div class="mp-prof-input-locked" id="mp-prof-email-display"></div>
+      <button class="mp-prof-change-link" onclick="mpOpenChangePopup('email')">Change email</button>
+    </div>
+    <div id="mp-prof-email-edit-wrap">
+      <input type="text" id="mp-prof-email" class="mp-prof-input"
+        placeholder="email@example.com" autocapitalize="none" spellcheck="false">
+    </div>
+
+    <div class="mp-prof-section-label">Birthday</div>
+    <div id="mp-prof-bday-locked-wrap" style="display:none">
+      <div class="mp-prof-input-locked" id="mp-prof-bday-display"></div>
+    </div>
+    <div id="mp-prof-bday-edit-wrap">
+      <input type="date" id="mp-prof-bday" class="mp-prof-input">
+    </div>
+
+    <div class="mp-prof-section-label" style="margin-top:24px">Account</div>
+    <button class="mp-prof-action-row" onclick="mpChangePassword()">Change Password</button>
+
+    <button class="mp-prof-save-btn" onclick="mpSaveProfile()">Save Changes</button>
+    <button class="mp-prof-logout-btn" onclick="mpLogout()">Log out</button>
+    <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+      <button onclick="mpDeleteAccount()"
+        style="background:none;border:none;color:rgba(255,100,100,0.45);font-size:0.78rem;cursor:pointer;font-family:inherit;">
+        Delete account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Change username / email popup -->
+<div id="mp-change-field-backdrop" onclick="mpCloseChangePopup()"></div>
+<div id="mp-change-field-popup" role="dialog" aria-modal="true">
+  <div class="mp-popup-title" id="mp-change-field-title">Change Username</div>
+  <p class="mp-popup-sub" id="mp-change-field-sub">Pick a new username.</p>
+  <input type="text" id="mp-change-field-input" class="mp-popup-input" placeholder="">
+  <button class="mp-popup-save" onclick="mpConfirmFieldChange()">Save</button>
+  <button class="mp-popup-cancel" onclick="mpCloseChangePopup()">Cancel</button>
+</div>
 
    <div id="context-menu-backdrop"></div>
 
@@ -5932,7 +6372,7 @@ if (profileBtn) profileBtn.addEventListener('click', (e) => {
   e.stopImmediatePropagation();
 
   try { close(); } catch (e) {}
-  try { alert('Profile (coming soon)'); } catch (e) {}
+  /* profile editor opened by delegated listener in initMusicPlayerAuth */
 }, true);
 
 })();
@@ -14172,6 +14612,404 @@ try {
   } else {
     wrapShowViewWithLoader();
   }
+})();
+</script>
+
+<script>
+// ==================================================================
+// MUSIC PLAYER AUTH + PROFILE — reson-api.jacetbaum.workers.dev
+// ==================================================================
+(function initMusicPlayerAuth() {
+  'use strict';
+  var RESON_API = 'https://reson-api.jacetbaum.workers.dev';
+  var _authHeader = localStorage.getItem('reson_auth') || null;
+  var _isRegistering = false;
+  var _mpProfile = {};
+  var _changingField = null;
+
+  // ── helpers ──────────────────────────────────────────────────────
+  function _showLoginError(msg) {
+    var el = document.getElementById('mp-login-error');
+    if (el) el.textContent = msg || '';
+  }
+
+  function _setLoginLoading(on) {
+    var btn = document.getElementById('mp-login-btn');
+    if (!btn) return;
+    btn.classList.toggle('loading', on);
+    btn.textContent = on ? 'Please wait\u2026' : (_isRegistering ? 'Create Account' : 'Sign In');
+  }
+
+  function _applyProfilePicToButtons(src) {
+    ['library-profile-btn', 'profile-menu-btn'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (src) {
+        el.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = src;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
+        el.appendChild(img);
+      }
+    });
+    var preview = document.getElementById('mp-profile-pic-img');
+    var placeholder = document.getElementById('mp-prof-pic-placeholder');
+    if (preview) {
+      if (src) {
+        preview.src = src;
+        preview.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+      } else {
+        preview.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+      }
+    }
+  }
+
+  function _applyProfileToApp() {
+    if (!_mpProfile) return;
+    var displayName =
+      _mpProfile.handle ||
+      (_mpProfile.realName ? _mpProfile.realName.split(' ')[0] : '') ||
+      _mpProfile.username || '';
+    if (displayName) window.APP_USER_NAME = displayName;
+    if (_mpProfile.pic) {
+      _applyProfilePicToButtons(_mpProfile.pic);
+      try { localStorage.setItem('profilePhoto', _mpProfile.pic); } catch (e) {}
+    }
+  }
+
+  function _uploadProfile() {
+    if (!_authHeader) return Promise.resolve();
+    return fetch(RESON_API + '?t=' + Date.now(), {
+      headers: { 'Authorization': 'Basic ' + _authHeader },
+      cache: 'no-store'
+    })
+    .then(function(r) { return r.ok ? r.json() : {}; })
+    .catch(function() { return {}; })
+    .then(function(currentDb) {
+      currentDb.profile = _mpProfile;
+      return fetch(RESON_API, {
+        method: 'POST',
+        headers: { 'Authorization': 'Basic ' + _authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentDb)
+      });
+    })
+    .catch(function(e) { console.warn('Profile upload failed', e); });
+  }
+
+  function _loadProfileFromCloud() {
+    if (!_authHeader) return;
+    fetch(RESON_API + '?t=' + Date.now(), {
+      headers: { 'Authorization': 'Basic ' + _authHeader },
+      cache: 'no-store'
+    })
+    .then(function(res) {
+      if (res.status === 401) {
+        localStorage.removeItem('reson_auth');
+        _authHeader = null;
+        var ol = document.getElementById('mp-login-overlay');
+        if (ol) ol.classList.remove('hidden');
+        document.documentElement.classList.remove('mp-auth');
+        return null;
+      }
+      return res.ok ? res.json() : null;
+    })
+    .then(function(data) {
+      if (data && data.profile) {
+        _mpProfile = data.profile;
+        _applyProfileToApp();
+      }
+    })
+    .catch(function() {});
+  }
+
+  // ── Public API ───────────────────────────────────────────────────
+  window.mpToggleAuthMode = function() {
+    _isRegistering = !_isRegistering;
+    var sub = document.getElementById('mp-login-subtitle');
+    var btn = document.getElementById('mp-login-btn');
+    var tgl = document.getElementById('mp-login-toggle');
+    if (sub) sub.textContent = _isRegistering ? 'Create a new account' : 'Sign in to your account';
+    if (btn) btn.textContent = _isRegistering ? 'Create Account' : 'Sign In';
+    if (tgl) tgl.innerHTML = _isRegistering
+      ? 'Already have an account? <span>Sign In</span>'
+      : 'No account? <span>Create one</span>';
+    _showLoginError('');
+  };
+
+  window.mpHandleAuth = function() {
+    var user = (document.getElementById('mp-login-user').value || '').trim().toLowerCase();
+    var pass = (document.getElementById('mp-login-pass').value || '').trim();
+    if (!user || !pass) return _showLoginError('Enter your username and passcode');
+    _showLoginError('');
+    _setLoginLoading(true);
+    var auth = btoa(user + ':' + pass);
+
+    var doAuth;
+    if (_isRegistering) {
+      var initDb = {
+        notes_list: [], deleted_notes: [], custom_categories: [],
+        sub_categories: {}, keyword_rules: {},
+        profile: { username: user, handle: user, pic: '', realName: '' }
+      };
+      doAuth = fetch(RESON_API, {
+        method: 'POST',
+        headers: { 'Authorization': 'Basic ' + auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify(initDb)
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('register_fail');
+        return initDb.profile;
+      });
+    } else {
+      doAuth = fetch(RESON_API + '?t=' + Date.now(), {
+        headers: { 'Authorization': 'Basic ' + auth },
+        cache: 'no-store'
+      })
+      .then(function(res) {
+        if (res.status === 401) throw new Error('wrong_creds');
+        if (!res.ok) throw new Error('connect_fail');
+        return res.json();
+      })
+      .then(function(data) {
+        return (data && data.profile) ? data.profile : { username: user, handle: user };
+      });
+    }
+
+    doAuth
+    .then(function(profile) {
+      _mpProfile = profile;
+      localStorage.setItem('reson_auth', auth);
+      _authHeader = auth;
+      document.documentElement.classList.add('mp-auth');
+      var ol = document.getElementById('mp-login-overlay');
+      if (ol) ol.classList.add('hidden');
+      _setLoginLoading(false);
+      _applyProfileToApp();
+    })
+    .catch(function(err) {
+      _setLoginLoading(false);
+      if (err && err.message === 'wrong_creds') _showLoginError('Wrong username or passcode');
+      else if (err && err.message === 'register_fail') _showLoginError('Could not create account. Try again.');
+      else _showLoginError('Connection error. Check internet and try again.');
+    });
+  };
+
+  window.mpLogout = function() {
+    if (!confirm('Log out?')) return;
+    localStorage.removeItem('reson_auth');
+    location.reload();
+  };
+
+  window.mpDeleteAccount = function() {
+    if (!confirm('Permanently delete your account and all data? This cannot be undone.')) return;
+    localStorage.clear();
+    location.reload();
+  };
+
+  window.mpOpenProfileEditor = function() {
+    var g = function(id) { return document.getElementById(id); };
+    var fn = (_mpProfile.realName || _mpProfile.handle || '').split(' ')[0] || '';
+    var ln = (_mpProfile.realName || '').split(' ').slice(1).join(' ') || '';
+    if (g('mp-prof-fn')) g('mp-prof-fn').value = fn;
+    if (g('mp-prof-ln')) g('mp-prof-ln').value = ln;
+
+    // Username — lock once set
+    var handle = _mpProfile.handle || '';
+    if (handle) {
+      if (g('mp-prof-handle-display')) g('mp-prof-handle-display').textContent = handle;
+      if (g('mp-prof-handle-locked-wrap')) g('mp-prof-handle-locked-wrap').style.display = 'block';
+      if (g('mp-prof-handle-edit-wrap')) g('mp-prof-handle-edit-wrap').style.display = 'none';
+    } else {
+      if (g('mp-prof-handle-locked-wrap')) g('mp-prof-handle-locked-wrap').style.display = 'none';
+      if (g('mp-prof-handle-edit-wrap')) g('mp-prof-handle-edit-wrap').style.display = 'block';
+      if (g('mp-prof-handle')) g('mp-prof-handle').value = '';
+    }
+
+    // Email — lock once set
+    var email = _mpProfile.email || '';
+    if (email) {
+      if (g('mp-prof-email-display')) g('mp-prof-email-display').textContent = email;
+      if (g('mp-prof-email-locked-wrap')) g('mp-prof-email-locked-wrap').style.display = 'block';
+      if (g('mp-prof-email-edit-wrap')) g('mp-prof-email-edit-wrap').style.display = 'none';
+    } else {
+      if (g('mp-prof-email-locked-wrap')) g('mp-prof-email-locked-wrap').style.display = 'none';
+      if (g('mp-prof-email-edit-wrap')) g('mp-prof-email-edit-wrap').style.display = 'block';
+      if (g('mp-prof-email')) g('mp-prof-email').value = '';
+    }
+
+    // Birthday — lock once set
+    var bday = _mpProfile.birthday || '';
+    if (bday) {
+      var parts = bday.split('-');
+      var bdDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      var bdStr = bdDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      if (g('mp-prof-bday-display')) g('mp-prof-bday-display').textContent = bdStr;
+      if (g('mp-prof-bday-locked-wrap')) g('mp-prof-bday-locked-wrap').style.display = 'block';
+      if (g('mp-prof-bday-edit-wrap')) g('mp-prof-bday-edit-wrap').style.display = 'none';
+    } else {
+      if (g('mp-prof-bday-locked-wrap')) g('mp-prof-bday-locked-wrap').style.display = 'none';
+      if (g('mp-prof-bday-edit-wrap')) g('mp-prof-bday-edit-wrap').style.display = 'block';
+      if (g('mp-prof-bday')) g('mp-prof-bday').value = '';
+    }
+
+    _applyProfilePicToButtons(_mpProfile.pic || '');
+
+    var overlay = document.getElementById('mp-profile-overlay');
+    if (overlay) {
+      overlay.style.display = 'block';
+      void overlay.offsetWidth;
+      overlay.classList.add('open');
+    }
+  };
+
+  window.mpCloseProfileEditor = function() {
+    var overlay = document.getElementById('mp-profile-overlay');
+    if (overlay) {
+      overlay.classList.remove('open');
+      setTimeout(function() { overlay.style.display = 'none'; }, 360);
+    }
+  };
+
+  window.mpSaveProfile = function() {
+    var g = function(id) { return document.getElementById(id); };
+    var fn = g('mp-prof-fn') ? g('mp-prof-fn').value.trim() : '';
+    var ln = g('mp-prof-ln') ? g('mp-prof-ln').value.trim() : '';
+    if (!fn) { alert('First name is required'); return; }
+    _mpProfile.realName = (fn + ' ' + ln).trim();
+    if (!_mpProfile.handle && g('mp-prof-handle')) {
+      var h = g('mp-prof-handle').value.trim();
+      if (h) { _mpProfile.handle = h; _mpProfile.username = h; }
+    }
+    if (!_mpProfile.email && g('mp-prof-email')) {
+      _mpProfile.email = g('mp-prof-email').value.trim();
+    }
+    if (!_mpProfile.birthday && g('mp-prof-bday')) {
+      _mpProfile.birthday = g('mp-prof-bday').value || '';
+    }
+    _uploadProfile();
+    _applyProfileToApp();
+    window.mpCloseProfileEditor();
+  };
+
+  window.mpUpdateProfilePic = function(input) {
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.src = ev.target.result;
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var MAX = 200, scale = MAX / img.width;
+        canvas.width = MAX;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        var b64 = canvas.toDataURL('image/jpeg', 0.7);
+        _mpProfile.pic = b64;
+        _applyProfilePicToButtons(b64);
+        try { localStorage.setItem('profilePhoto', b64); } catch (e) {}
+      };
+    };
+    reader.readAsDataURL(input.files[0]);
+  };
+
+  window.mpOpenChangePopup = function(field) {
+    _changingField = field;
+    var titleEl = document.getElementById('mp-change-field-title');
+    var subEl   = document.getElementById('mp-change-field-sub');
+    var inputEl = document.getElementById('mp-change-field-input');
+    if (field === 'username') {
+      if (titleEl) titleEl.textContent = 'Change Username';
+      if (subEl)   subEl.textContent = 'Pick a new username.';
+      if (inputEl) { inputEl.placeholder = 'New username\u2026'; inputEl.type = 'text'; inputEl.value = _mpProfile.handle || ''; }
+    } else {
+      if (titleEl) titleEl.textContent = 'Change Email';
+      if (subEl)   subEl.textContent = 'Enter your new email address.';
+      if (inputEl) { inputEl.placeholder = 'new@email.com'; inputEl.type = 'email'; inputEl.value = _mpProfile.email || ''; }
+    }
+    var backdrop = document.getElementById('mp-change-field-backdrop');
+    var popup    = document.getElementById('mp-change-field-popup');
+    if (backdrop) backdrop.classList.add('open');
+    if (popup)    popup.classList.add('open');
+    if (inputEl) setTimeout(function() { inputEl.focus(); }, 80);
+  };
+
+  window.mpCloseChangePopup = function() {
+    var backdrop = document.getElementById('mp-change-field-backdrop');
+    var popup    = document.getElementById('mp-change-field-popup');
+    if (backdrop) backdrop.classList.remove('open');
+    if (popup)    popup.classList.remove('open');
+    _changingField = null;
+  };
+
+  window.mpConfirmFieldChange = function() {
+    var val = (document.getElementById('mp-change-field-input').value || '').trim();
+    if (!val) return;
+    var g = function(id) { return document.getElementById(id); };
+    if (_changingField === 'username') {
+      _mpProfile.handle = val; _mpProfile.username = val;
+      if (g('mp-prof-handle-display')) g('mp-prof-handle-display').textContent = val;
+      if (g('mp-prof-handle-locked-wrap')) g('mp-prof-handle-locked-wrap').style.display = 'block';
+      if (g('mp-prof-handle-edit-wrap'))  g('mp-prof-handle-edit-wrap').style.display  = 'none';
+    } else {
+      _mpProfile.email = val;
+      if (g('mp-prof-email-display')) g('mp-prof-email-display').textContent = val;
+      if (g('mp-prof-email-locked-wrap')) g('mp-prof-email-locked-wrap').style.display = 'block';
+      if (g('mp-prof-email-edit-wrap'))  g('mp-prof-email-edit-wrap').style.display  = 'none';
+    }
+    window.mpCloseChangePopup();
+  };
+
+  window.mpChangePassword = function() {
+    if (!_authHeader) return;
+    var currentCreds;
+    try { currentCreds = atob(_authHeader).split(':'); } catch (e) { return; }
+    var oldPass = prompt('Enter your CURRENT passcode:');
+    if (!oldPass) return;
+    if (oldPass !== currentCreds[1]) { alert('Incorrect current passcode.'); return; }
+    var newPass = prompt('Enter your NEW passcode:');
+    if (!newPass) return;
+    var confirmPass = prompt('Confirm new passcode:');
+    if (newPass !== confirmPass) { alert('Passcodes do not match.'); return; }
+    var newAuth = btoa(currentCreds[0] + ':' + newPass);
+    localStorage.setItem('reson_auth', newAuth);
+    _authHeader = newAuth;
+    _uploadProfile();
+  };
+
+  // ── Init ─────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!_authHeader) {
+      var ol = document.getElementById('mp-login-overlay');
+      if (ol) ol.classList.remove('hidden');
+      document.documentElement.classList.remove('mp-auth');
+    } else {
+      _loadProfileFromCloud();
+    }
+
+    // Enter key flow on login inputs
+    var passInput = document.getElementById('mp-login-pass');
+    if (passInput) passInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') window.mpHandleAuth();
+    });
+    var userInput = document.getElementById('mp-login-user');
+    if (userInput) userInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { var p = document.getElementById('mp-login-pass'); if (p) p.focus(); }
+    });
+
+    // Delegated click: #profile-menu-profile → open profile editor
+    document.addEventListener('click', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('#profile-menu-profile') : null;
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      try { var pm = document.getElementById('profile-menu-modal'); if (pm) pm.classList.add('hidden'); } catch (ex) {}
+      window.mpOpenProfileEditor();
+    }, true);
+  });
+
 })();
 </script>
 
