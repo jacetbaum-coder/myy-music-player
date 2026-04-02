@@ -18,8 +18,8 @@
   // ─── Constants ────────────────────────────────────────────
   const AUTO_IDS = { daylist: '__daylist__', nightlist: '__nightlist__' };
   const CACHE_KEYS = {
-    daylist: '__auto_daylist_cache_v2',
-    nightlist: '__auto_nightlist_cache_v2',
+    daylist: '__auto_daylist_cache_v3',
+    nightlist: '__auto_nightlist_cache_v3',
   };
   const EVENTS_KEY = 'reson_play_events_v1';
   const DAY_START = 6;   // 6 am
@@ -172,9 +172,9 @@
     return resolved;
   }
 
-  // ─── Time-of-day bucket label ──────────────────────────────
-  function getTimeBucket() {
-    const h = new Date().getHours();
+  // ─── Time-of-day bucket label (accepts an explicit hour, or uses now) ───
+  function getTimeBucket(h) {
+    if (h === undefined) h = new Date().getHours();
     if (h >= 5 && h < 8)  return 'early morning';
     if (h >= 8 && h < 12) return 'morning';
     if (h >= 12 && h < 17) return 'afternoon';
@@ -183,11 +183,27 @@
     return 'late night';
   }
 
-  // ─── Generate Spotify-style subtitle from playlist songs ───
-  function generateSubtitle(songs) {
+  // ─── Generate Spotify-style subtitle from playlist songs + source events ──
+  // windowEvents: the filtered play events that built this playlist.
+  // Day + time bucket are derived from the most recent event so the subtitle
+  // reads "nocturnal introspective wednesday late night" — i.e. it reflects
+  // *when you actually listened*, not what time it is right now.
+  function generateSubtitle(songs, windowEvents) {
     try {
-      const day = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const bucket = getTimeBucket();
+      // Derive day + time from the most recent event in this window
+      let day, bucket;
+      const latestEvent = Array.isArray(windowEvents) && windowEvents.length
+        ? windowEvents.reduce((best, ev) => (!best || ev.ts > best.ts ? ev : best), null)
+        : null;
+      if (latestEvent) {
+        const d = new Date(latestEvent.ts);
+        day = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        bucket = getTimeBucket(d.getHours());
+      } else {
+        // No events at all — fall back to current time
+        day = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        bucket = getTimeBucket();
+      }
       const suffix = `${day} ${bucket}`;
 
       if (!artistVibes || !Array.isArray(songs) || songs.length === 0) {
@@ -241,7 +257,7 @@
       return {
         id: AUTO_IDS[type],
         name: isDay ? 'daylist' : 'nightlist',
-        subtitle: generateSubtitle(songs),
+        subtitle: generateSubtitle(songs, windowEvents),
         isAutoPlaylist: true,
         autoType: type,
         songs,
@@ -458,8 +474,26 @@
   // ─── Bootstrap ────────────────────────────────────────────
   window.initForYou = async function (opts) {
     try {
-      await loadArtistVibes();
       const force = opts && opts.force;
+
+      // Fast path: if today's cache is valid for both playlists, render
+      // immediately without any network request.
+      if (!force) {
+        const cached = {
+          daylist:   loadFromCache('daylist'),
+          nightlist: loadFromCache('nightlist'),
+        };
+        if (cached.daylist && cached.nightlist) {
+          window.__autoPlaylists = cached;
+          injectIntoWindowPlaylists(cached);
+          window.renderForYouSection();
+          return;
+        }
+      }
+
+      // Slow path: cache is missing/stale — fetch artist vibes first, then
+      // regenerate and cache both playlists.
+      await loadArtistVibes();
       const autoPlaylists = generateAndCacheBoth(force);
       window.__autoPlaylists = autoPlaylists;
 
