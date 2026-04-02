@@ -8569,19 +8569,21 @@ try { window.currentView = 'album'; } catch (e) {}
 
 
   try { updateAccentFromCover(cover, true); } catch (e) {}
+  const _artistInitial = String(album.artistName || '?').trim()[0].toUpperCase();
   document.getElementById('album-hero').innerHTML = `
-    <img id="album-hero-cover"
-         src="${cover}"
-         class="w-48 h-48 sm:w-60 sm:h-60 shadow-2xl rounded-lg object-cover"
+    <div id="album-hero-cover"
+         class="w-44 h-44 md:w-48 md:h-48 shadow-2xl rounded-lg overflow-hidden flex-shrink-0"
          data-artist="${album.artistName.replace(/"/g, '&quot;')}"
          data-album="${album.albumName.replace(/"/g, '&quot;')}">
+      <img src="${cover}" class="w-full h-full object-cover">
+    </div>
 
     <div class="flex-1 album-hero-info">
-      <h1 class="album-hero-title text-4xl md:text-7xl font-black mb-3 tracking-tighter">${album.albumName}</h1>
-      <div class="album-hero-artist flex items-center gap-2 text-base font-semibold">
-        <img src="${cover}" alt="${album.artistName}" class="w-7 h-7 rounded-full object-cover">
-        <span class="hover:underline cursor-pointer font-semibold"
-              onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">  
+      <h1 class="album-hero-title text-3xl md:text-5xl font-black mb-2 tracking-tighter">${album.albumName}</h1>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-black overflow-hidden flex-shrink-0" style="background:rgba(var(--accent-rgb),0.9)">${_artistInitial}</div>
+        <span class="text-sm font-semibold text-white cursor-pointer hover:underline"
+              onclick="openArtistByName('${album.artistName.replace(/'/g, "\\'")}')">
           ${album.artistName}
         </span>
       </div>
