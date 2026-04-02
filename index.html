@@ -2734,8 +2734,9 @@ body.np-open #playlist-submenu{
 #home-pinned-pills-mobile .mobile-recent-card,
 #home-pinned-pills-desktop .mobile-recent-card{
   background: #2a2a2a;
-  border-radius: 14px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 6px;
+  min-height: 44px;
 }
 
 
@@ -3603,6 +3604,12 @@ body.qs-lock {
 /* ✅ HOME: ensure Recents grid has real height on mobile */
 #home-recent-grid > * {
   position: relative !important;
+}
+
+/* ✅ HOME: tighter gap on recents grids */
+#home-recents-grid,
+#home-recent-grid {
+  gap: 8px !important;
 }
 
 /* ✅ Search row controls (dots + X) — no bubble */
@@ -11306,8 +11313,6 @@ if (type === 'folder') {
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = pillId;
-      wrap.className = 'grid grid-cols-2 gap-2 mt-2 mb-3';
-      wrap.style.maxWidth = '100%';
 
       // ✅ INSERT INTO DOM (mobile was missing this)
       const titleRow = t.parentElement;
@@ -11319,6 +11324,9 @@ if (type === 'folder') {
         else titleRow.insertBefore(wrap, t.nextSibling);
       } catch (e) {}
     }
+    // ✅ Always update classes so gap/margin changes apply even when wrap already exists
+    wrap.className = 'grid grid-cols-2 gap-1\.5 mt-1 mb-2';
+    wrap.style.maxWidth = '100%';
 
 	// pull pinned ids (your existing helpers)
 
@@ -11357,8 +11365,8 @@ wrap.innerHTML = slots.map((idOrNull, idx) => {
   // Look up full playlist object (has trackIds) for cover markup
   const fullPl = pid ? (Array.isArray(window.playlists) ? window.playlists.find(p => String(p?.id) === String(pid)) : null) : null;
   const coverMarkup = (fullPl && typeof getPlaylistCoverMarkup === 'function')
-    ? `<div class="w-[44px] h-[44px] rounded-[6px] overflow-hidden flex-shrink-0">${getPlaylistCoverMarkup(fullPl, 'w-full h-full')}</div>`
-    : `<div class="w-[44px] h-[44px] rounded-[6px] bg-white/10 flex-shrink-0"></div>`;
+    ? `<div class="w-[36px] h-[36px] rounded-[5px] overflow-hidden flex-shrink-0">${getPlaylistCoverMarkup(fullPl, 'w-full h-full')}</div>`
+    : `<div class="w-[36px] h-[36px] rounded-[5px] bg-white/10 flex-shrink-0"></div>`;
 
   const cls = pl ? cardCls : emptyCardCls;
 
