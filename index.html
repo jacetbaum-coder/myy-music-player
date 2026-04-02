@@ -237,10 +237,14 @@ button,
   justify-content: center;
 }
 .foryou-cover-day {
-  background: radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%);
+  background-image: url('/daylist.png');
+  background-size: cover;
+  background-position: center;
 }
 .foryou-cover-night {
-  background: radial-gradient(ellipse at 50% 35%, #7b9bd6 0%, #4a6fb5 30%, #2d4a8f 55%, #1a2060 100%);
+  background-image: url('/nightlist.png');
+  background-size: cover;
+  background-position: center;
 }
 .foryou-cover-active-ring {
   box-shadow: 0 0 0 2.5px rgba(255,255,255,0.22), 0 6px 20px rgba(0,0,0,0.5);
@@ -12856,9 +12860,7 @@ const _autoPlMatch = isPlaylist && activePlaylistId
 
 if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const isDay = _autoPlMatch.autoType === 'daylist';
-  const gradient = isDay
-    ? 'radial-gradient(ellipse 65% 52% at 50% 30%, #fef9c3 0%, #fde047 18%, #f59e0b 36%, #ea8010 52%, transparent 70%), linear-gradient(175deg, #5b8bd4 0%, #3a6bc0 30%, #2451a8 55%, #172880 80%, #0f1f6b 100%)'
-    : 'radial-gradient(ellipse at 50% 32%, #7b9bd6 0%, #4a6fb5 30%, #2d4a8f 55%, #1a2060 100%)';
+  const coverImg = isDay ? '/daylist.png' : '/nightlist.png';
 
   // Next-update time: end of current window
   const now = new Date();
@@ -12878,7 +12880,9 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   const _albumViewEl = document.getElementById('album-view');
   __bgNonce++; // cancel any in-flight applyPlaylistViewBackground from the previous view
   _albumViewEl.setAttribute('data-auto-playlist', _autoPlMatch.autoType);
-  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), ${gradient}`;
+  _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, transparent 320px, #121212 580px), url('${coverImg}')`;
+  _albumViewEl.style.backgroundSize = 'cover';
+  _albumViewEl.style.backgroundPosition = 'center top';
   _albumViewEl.style.backgroundColor = '#121212';
 
   document.getElementById('album-hero').innerHTML = `
