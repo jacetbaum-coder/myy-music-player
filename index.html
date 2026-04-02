@@ -1881,19 +1881,12 @@ body.np-open #context-menu{
   background: rgba(255,255,255,0.06);
 }
 
-/* ✅ iOS slide-to-select highlight (used by touch handlers) */
-#context-menu .menu-item.cm-armed{
-  background: rgba(255,255,255,0.10);
-}
-
 @media (min-width: 769px) {
-  #context-menu .menu-item:hover,
-  #context-menu .menu-item.cm-armed {
+  #context-menu .menu-item:hover {
     background: rgba(255,255,255,0.14) !important;
   }
 
-  #playlist-submenu .menu-item:hover,
-  #playlist-submenu .menu-item.cm-armed {
+  #playlist-submenu .menu-item:hover {
     background: rgba(255,255,255,0.14) !important;
   }
 }
@@ -1991,7 +1984,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
 #playlist-submenu .menu-item:active{ transform: scale(0.99); }
 #playlist-submenu .menu-item:hover{ background: transparent; }
 
-#playlist-submenu .menu-item.cm-armed{ background: rgba(255,255,255,0.10); }
+
 
 /* header row injected by JS */
 #playlist-submenu .cm-handle{
@@ -2480,6 +2473,55 @@ body:has(#playlist-submenu.open) .mobile-nav {
   border-radius: 12px;
 }
 #queue-toast .qt-open:active{ transform: scale(0.98); }
+
+/* ===== REMOVED FROM PLAYLIST TOAST ===== */
+#remove-toast{
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 10px);
+  z-index: 2800;
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+#remove-toast.rt-show{
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#remove-toast .rt-inner{
+  background: rgba(243,243,243,0.98);
+  border-radius: 15px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.28);
+}
+#remove-toast .rt-label{
+  font-weight: 800;
+  color: #101010;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#remove-toast .rt-undo{
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--spotify-green, #1db954);
+  background: transparent;
+  border: none;
+  padding: 6px 4px 6px 14px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+#remove-toast .rt-undo:active{ transform: scale(0.97); }
 
 /* ===== PLAYLIST ADDED TOAST ===== */
 #playlist-added-toast{
@@ -3389,8 +3431,9 @@ body:has(#playlist-submenu.open) .mobile-nav {
     180deg,
     rgb(var(--accent-rgb)) 0px,
     rgba(var(--accent-rgb), 0.55) 350px,
-    #121212 600px
+    #141215 600px
   );
+  background-attachment: local;
   transition: background 0.5s ease;
 }
 
@@ -5339,6 +5382,14 @@ body.qs-lock {
   <div class="qt-inner">
     <div class="qt-title">Added to Queue</div>
     <button id="queue-toast-open" class="qt-open">Open</button>
+  </div>
+</div>
+
+<!-- REMOVED FROM PLAYLIST TOAST -->
+<div id="remove-toast" role="status" aria-live="polite">
+  <div class="rt-inner">
+    <div class="rt-label" id="rt-label">Removed</div>
+    <button class="rt-undo" id="rt-undo-btn">Undo</button>
   </div>
 </div>
 

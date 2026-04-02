@@ -776,8 +776,8 @@ if (window.innerWidth > 768 && addOpt) {
 
     contextMenu.style.display = 'block';
     contextMenu.style.height = '';
-    contextMenu.style.maxHeight = '';
-    contextMenu.style.overflowY = '';
+    contextMenu.style.maxHeight = '55vh';
+    contextMenu.style.overflowY = 'auto';
     contextMenu.__cmSnapState = 'half';
     contextMenu.style.transition = 'none';
     contextMenu.style.transform = 'translateY(100%)';
@@ -1552,6 +1552,41 @@ function handleContextMenu(e, song){
 
 }
 
+// ---- Remove toast ----
+(function initRemoveToast(){
+  let _timer = null;
+  let _undoFn = null;
+
+  window.showRemoveToast = function(label, undoFn) {
+    const toast = document.getElementById('remove-toast');
+    const lbl   = document.getElementById('rt-label');
+    const btn   = document.getElementById('rt-undo-btn');
+    if (!toast) return;
+
+    if (_timer) { clearTimeout(_timer); _timer = null; }
+
+    if (lbl) lbl.textContent = label;
+    _undoFn = undoFn || null;
+    if (btn) btn.style.display = _undoFn ? '' : 'none';
+
+    toast.classList.add('rt-show');
+
+    _timer = setTimeout(() => {
+      toast.classList.remove('rt-show');
+      _undoFn = null;
+    }, 4000);
+
+    if (btn) {
+      btn.onclick = () => {
+        if (_timer) { clearTimeout(_timer); _timer = null; }
+        toast.classList.remove('rt-show');
+        if (_undoFn) { try { _undoFn(); } catch(e){} }
+        _undoFn = null;
+      };
+    }
+  };
+})();
+
 // ---- menuAction ----
 async function menuAction(type) {
 
@@ -1673,32 +1708,47 @@ try{
     const __before = Array.isArray(__plBeforeIds) ? __plBeforeIds.slice() : null;
     const __removed = Array.isArray(__idsToRemoveCloud) ? __idsToRemoveCloud.slice() : [trackId];
 
+    const __undoFn = async () => {
+        try{
+          // restore local list immediately (preserving original position)
+          try{
+            const pls = Array.isArray(window.playlists) ? window.playlists : [];
+            const p = pls.find(x => String(x?.id || x?.playlistId || x?.playlist_id || "") === String(__plId));
+            if (p && __before) {
+              p.trackIds = __before.slice();
+              try{ p.songs = typeof resolveTrackIdsToSongs === "function" ? resolveTrackIdsToSongs(__before) : p.songs; }catch(e){}
+            }
+            try{ if (typeof window.savePlaylists === "function") window.savePlaylists(); }catch(e){}
+          }catch(e){}
+
+          // restore in cloud (fire-and-forget — do NOT await loadPlaylistsFromCloud after,
+          // because that would overwrite our locally-restored order with the cloud's appended order)
+          if (typeof window.addTrackToPlaylistInCloud === "function") {
+            for (const tid of __removed) {
+              try{ window.addTrackToPlaylistInCloud(__plId, tid); }catch(e){}
+            }
+          }
+
+          // re-render the open playlist view from local state (correct order)
+          try{
+            const pls = Array.isArray(window.playlists) ? window.playlists : [];
+            const p = pls.find(x => String(x?.id || x?.playlistId || x?.playlist_id || "") === String(__plId));
+            if (p && typeof renderCollection === "function") {
+              renderCollection(p.name || "Playlist", p.songs, true, activePlaylistIndex);
+            }
+          }catch(e){}
+
+          try{ renderPlaylists(); }catch(e){}
+          try{ if (typeof renderHome === "function") renderHome(); }catch(e){}
+        }catch(e){}
+    };
+
+    window.__lastUndoFn = __undoFn;
     window.__pushUndo({
       type: "playlist:removeTrack",
       playlistId: __plId,
       trackIds: __removed,
-      undo: async () => {
-        try{
-          // restore local list immediately
-          try{
-            const pls = Array.isArray(window.playlists) ? window.playlists : [];
-            const p = pls.find(x => String(x?.id || x?.playlistId || x?.playlist_id || "") === String(__plId));
-            if (p && __before) p.trackIds = __before.slice();
-            try{ if (typeof window.savePlaylists === "function") window.savePlaylists(); }catch(e){}
-          }catch(e){}
-
-          // restore in cloud
-          if (typeof window.addTrackToPlaylistInCloud === "function") {
-            for (const tid of __removed) {
-              try{ await window.addTrackToPlaylistInCloud(__plId, tid); }catch(e){}
-            }
-          }
-
-          try{ await window.loadPlaylistsFromCloud(); }catch(e){}
-          try{ renderPlaylists(); }catch(e){}
-          try{ if (typeof renderHome === "function") renderHome(); }catch(e){}
-        }catch(e){}
-      }
+      undo: __undoFn,
     });
   }
 }catch(e){}
@@ -1739,6 +1789,16 @@ try {
 try { if (typeof window.forceCloudPlaylistPull === "function") window.forceCloudPlaylistPull(); } catch (e) {}
 
 closeContextMenu();
+
+// Show removed toast with undo
+try {
+  const _removedSong = Array.isArray(menuTargetSong) ? menuTargetSong[0] : menuTargetSong;
+  const _songName = _removedSong?.title || _removedSong?.name || 'Song';
+  const _undoRef = (typeof window.__pushUndo !== 'undefined') ? null : null; // undo already registered via __pushUndo
+  // Trigger undo via the last pushed undo entry
+  window.showRemoveToast('Removed ' + _songName, typeof window.__lastUndoFn === 'function' ? window.__lastUndoFn : null);
+} catch(e) {}
+
 return;
 
   }
