@@ -494,6 +494,9 @@ function closeContextMenu(e) {
     contextMenuCloseTimer = setTimeout(() => {
       contextMenu.style.display = 'none';
       contextMenu.style.right = '';
+      contextMenu.style.height = '';
+      contextMenu.style.maxHeight = '';
+      contextMenu.style.overflowY = '';
       contextMenuAnchor = null;
 
       if (sub) {
@@ -552,6 +555,7 @@ function closeContextMenu(e) {
     if (!handle) return;
 
     let startY = 0;
+    let startHeight = 0;
     let dragging = false;
 
     handle.addEventListener('pointerdown', (e) => {
@@ -560,6 +564,7 @@ function closeContextMenu(e) {
 
       dragging = true;
       startY = e.clientY;
+      startHeight = sheet.offsetHeight;
 
       try { sheet.style.transition = 'none'; } catch (err) {}
       try { e.preventDefault(); } catch (err) {}
@@ -570,14 +575,26 @@ function closeContextMenu(e) {
       if (!isMobile()) return;
       if (e.pointerType === 'mouse') return;
 
-      const dy = Math.max(0, e.clientY - startY);
-      sheet.style.transform = `translateY(${dy}px)`;
+      const dy = e.clientY - startY; // positive = dragging down
 
-      // fade backdrop a bit while dragging the main sheet
-      const bd = document.getElementById('context-menu-backdrop');
-      if (bd && sheetId === 'context-menu') {
-        const t = Math.min(1, dy / 160);
-        bd.style.opacity = String(1 - (t * 0.6));
+      if (dy >= 0) {
+        // Dragging down: slide the whole sheet toward close
+        sheet.style.height = startHeight + 'px';
+        sheet.style.maxHeight = startHeight + 'px';
+        sheet.style.transform = `translateY(${dy}px)`;
+
+        const bd = document.getElementById('context-menu-backdrop');
+        if (bd && sheetId === 'context-menu') {
+          const t = Math.min(1, dy / 160);
+          bd.style.opacity = String(1 - (t * 0.6));
+        }
+      } else {
+        // Dragging up: expand the sheet to reveal more content
+        const newH = Math.min(window.innerHeight * 0.92, startHeight + Math.abs(dy));
+        sheet.style.height = newH + 'px';
+        sheet.style.maxHeight = newH + 'px';
+        sheet.style.transform = 'translateY(0)';
+        sheet.style.overflowY = 'auto';
       }
     }, { passive: true });
 
@@ -585,16 +602,15 @@ function closeContextMenu(e) {
       if (!dragging) return;
       dragging = false;
 
-      const dy = Math.max(0, e.clientY - startY);
+      const dy = e.clientY - startY;
 
-      // restore transition
       sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
 
       if (dy > 80) {
-        // close everything
+        // Swiped down far enough — close with animation
         try { closeContextMenu(); } catch (err) {}
       } else {
-        // snap back open
+        // Snap transform back, keep whatever height the user dragged to
         sheet.style.transform = 'translateY(0)';
         const bd = document.getElementById('context-menu-backdrop');
         if (bd) bd.style.opacity = '1';
@@ -822,6 +838,9 @@ if (window.innerWidth > 768 && addOpt) {
     }
 
     contextMenu.style.display = 'block';
+    contextMenu.style.height = '';
+    contextMenu.style.maxHeight = '';
+    contextMenu.style.overflowY = '';
     contextMenu.style.transition = 'none';
     contextMenu.style.transform = 'translateY(100%)';
 

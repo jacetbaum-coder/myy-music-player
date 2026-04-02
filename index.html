@@ -1788,9 +1788,11 @@ body.song-multiselect .track-row:hover{
 
   z-index: 10000; /* ✅ ABOVE mobile-nav */
 
-  max-height: calc(100vh - 88px);
-  overflow-y: auto;
+  max-height: 55vh;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
   display: none;
   transform: translateY(100%);
@@ -1802,6 +1804,8 @@ body.np-open #context-menu{
     bottom: calc(env(safe-area-inset-bottom) - 96px);
 }
 
+
+#context-menu::-webkit-scrollbar { display: none; }
 
 #context-menu .cm-handle{
   width: 44px;
