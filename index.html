@@ -3199,7 +3199,7 @@ body.np-open #playlist-submenu{
   /* Pull album-view edge-to-edge so gradient covers parent padding area */
   #album-view {
     margin: -6px -6px 0 !important;
-    padding: 10px 10px 0 18px !important;
+    padding: 10px 10px calc(var(--nav-height, 70px) + env(safe-area-inset-bottom, 0px) + 140px) 18px !important;
   }
 
   /* Cover size — smaller to match Spotify proportions */
