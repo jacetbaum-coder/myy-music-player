@@ -704,6 +704,14 @@ try { window.menuTargetSong = menuTargetSong; } catch (e) {}
     folderOpt.style.display = (song && song.type === 'playlist') ? 'flex' : 'none';
   }
 
+  // Show "Save to Library" only for auto-playlists (Daylist / Nightlist)
+  const saveAutoOpt = document.getElementById('menu-save-autoplaylist-opt');
+  if (saveAutoOpt) {
+    const isAutoPlaylist = song && song.type === 'playlist' &&
+      (song.id === '__daylist__' || song.id === '__nightlist__');
+    saveAutoOpt.style.display = isAutoPlaylist ? 'flex' : 'none';
+  }
+
   // Default: show the normal single-song options
 const addOpt = document.getElementById('menu-add-opt');
 const qAddOpt = document.getElementById('menu-queue-add-opt');
@@ -2007,6 +2015,16 @@ return;
     } else {
       try { closeContextMenu(); } catch (e) {}
     }
+    return;
+  }
+
+  if (type === 'save_autoplaylist') {
+    const id = String((menuTargetSong && menuTargetSong.id) || '');
+    const autoType = id === '__daylist__' ? 'daylist' : id === '__nightlist__' ? 'nightlist' : null;
+    if (autoType && typeof window.saveAutoPlaylistSnapshot === 'function') {
+      window.saveAutoPlaylistSnapshot(autoType);
+    }
+    try { closeContextMenu(); } catch (e) {}
     return;
   }
 }

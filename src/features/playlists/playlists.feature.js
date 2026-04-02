@@ -1916,7 +1916,9 @@ function ensurePlaylistIds() {
   if (changed) savePlaylists();
 }
 function savePlaylists() {
-  localStorage.setItem('playlists', JSON.stringify(playlists));
+  // ✅ Never persist auto-playlists (Daylist / Nightlist) to storage
+  const toSave = playlists.filter(p => !p || !p.isAutoPlaylist);
+  localStorage.setItem('playlists', JSON.stringify(toSave));
 }
 
 /* -----------------------
@@ -2443,6 +2445,10 @@ function showPlaylistMenuAt(x, y, playlistId) {
 
   <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
 
+  <div class="menu-item" id="pm-save-auto" style="display:none;">Save to Library</div>
+
+  <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+
   <div class="menu-item" id="pm-cover-url">Change cover (paste image link)</div>
   <div class="menu-item" id="pm-cover-upload">Change cover (upload file)</div>
   <div class="menu-item" id="pm-cover-clear">Remove custom cover</div>
@@ -2487,6 +2493,13 @@ function showPlaylistMenuAt(x, y, playlistId) {
   if (pinBtn)   pinBtn.classList.toggle('hidden', pinned);
   if (unpinBtn) unpinBtn.classList.toggle('hidden', !pinned);
 
+  // Show "Save to Library" only for auto-playlists
+  const saveAutoBtn = document.getElementById('pm-save-auto');
+  if (saveAutoBtn) {
+    const isAuto = (playlistId === '__daylist__' || playlistId === '__nightlist__');
+    saveAutoBtn.style.display = isAuto ? 'block' : 'none';
+  }
+
   if (!m.__playlistMenuBound) {
 
     m.__playlistMenuBound = true;
@@ -2516,7 +2529,17 @@ function showPlaylistMenuAt(x, y, playlistId) {
       });
     }
 
-    const coverUrl = document.getElementById('pm-cover-url');
+    const saveAutoEl = document.getElementById('pm-save-auto');
+    if (saveAutoEl) {
+      saveAutoEl.addEventListener('click', () => {
+        const id = playlistMenuTargetId;
+        const autoType = id === '__daylist__' ? 'daylist' : id === '__nightlist__' ? 'nightlist' : null;
+        if (autoType && typeof window.saveAutoPlaylistSnapshot === 'function') {
+          window.saveAutoPlaylistSnapshot(autoType);
+        }
+        safeClose();
+      });
+    }
     if (coverUrl) {
       coverUrl.addEventListener('click', async () => {
         if (!playlistMenuTargetId) return;

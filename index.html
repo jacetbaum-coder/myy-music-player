@@ -208,6 +208,96 @@ button,
 
 .home-square-card:active { transform: scale(0.98); }
 
+/* ── For You: Daylist / Nightlist cards ── */
+.foryou-cards-row {
+  display: flex;
+  gap: 12px;
+}
+.foryou-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(255,255,255,0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 120ms, background 120ms, box-shadow 120ms;
+  outline: none;
+}
+.foryou-card:active { transform: scale(0.97); }
+.foryou-card-active {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18), 0 8px 24px rgba(0,0,0,0.4);
+}
+.foryou-cover {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.foryou-cover-day {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+}
+.foryou-cover-night {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+}
+.foryou-icon {
+  width: 44%;
+  height: 44%;
+  color: rgba(255,255,255,0.9);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+}
+.foryou-card-body {
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.foryou-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1db954;
+  margin-bottom: 2px;
+}
+.foryou-name {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.2;
+}
+.foryou-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 1px;
+}
+.foryou-song-count {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 3px;
+}
+.foryou-song-count.foryou-empty {
+  font-style: italic;
+}
+
+/* Desktop: wider cards, side by side with more breathing room */
+@media (min-width: 769px) {
+  .foryou-cards-row {
+    gap: 16px;
+  }
+  .foryou-card {
+    max-width: 260px;
+  }
+  .foryou-name { font-size: 17px; }
+  .foryou-subtitle { font-size: 12px; }
+}
+
 .home-square-card .cover{
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -3713,6 +3803,10 @@ body.qs-lock {
   <i class="fas fa-chevron-right text-xs" style="opacity:0.5;"></i>
 </div>
 
+<div class="menu-item" id="menu-save-autoplaylist-opt" style="display:none;" onclick="menuAction('save_autoplaylist')">
+  <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-bookmark" style="width:16px;font-size:13px;opacity:0.75;"></i> Save to Library</span>
+</div>
+
 <div class="menu-item" id="menu-add-opt" onclick="openPlaylistSubmenu(event)">
   <span style="display:flex;align-items:center;gap:10px;"><i class="fas fa-plus" style="width:16px;font-size:13px;opacity:0.75;"></i> Add song to playlist</span>
   <i class="fas fa-chevron-right text-xs" style="opacity:0.5;"></i>
@@ -3931,26 +4025,24 @@ body.qs-lock {
 
 
 
-  <!-- Recents -->
+    <!-- For You: Daylist & Nightlist -->
   <div class="mt-2">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-3xl font-black">Recently listened</h2>
-      <button id="home-recents-showall" class="text-xs font-extrabold text-zinc-400 hover:text-white md:hidden" type="button">
-        Show all
-      </button>
-        </div>
-
-    <div id="home-recents-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
-
-      <div id="home-recents-row" class="home-recents-grid"></div>
-
+      <h2 class="text-3xl font-black">For You</h2>
+    </div>
+    <div id="for-you-section-mobile" class="mb-5"></div>
   </div>
 
   <!-- Recently played (all types mixed) -->
   <div class="mt-6">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-3xl font-black">Recently played</h2>
+      <button id="home-recents-showall" class="text-xs font-extrabold text-zinc-400 hover:text-white md:hidden" type="button">
+        Show all
+      </button>
     </div>
+    <div id="home-recents-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
+    <div id="home-recents-row" class="home-recents-grid"></div>
     <div id="home-all-history-grid" class="grid grid-cols-2 gap-2 mb-5 md:hidden"></div>
   </div>
 
@@ -4060,13 +4152,16 @@ body.qs-lock {
 
     <div id="desktop-recent-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
 
+    <!-- For You: Daylist & Nightlist (desktop) -->
+    <h2 class="text-3xl font-black mb-4">For You</h2>
+    <div id="for-you-section-desktop" class="mb-6"></div>
 
-     <h2 class="text-3xl font-black mb-4">Recently listened</h2>
+    <!-- Recently played -->
+    <h2 class="text-3xl font-black mb-4">Recently played</h2>
     <div id="desktop-recents-row" class="flex gap-5 overflow-x-auto pb-3"></div>
 
     <!-- Recently played (all types mixed) -->
     <div class="mt-6">
-      <h2 class="text-3xl font-black mb-4">Recently played</h2>
       <div id="desktop-all-history-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
     </div>
 
@@ -6759,6 +6854,9 @@ try {
 
     // Re-render home bits safely (this updates recents/playlists etc without changing tabs)
     safe(window.renderHome);
+
+    // ✅ For You: (re)generate Daylist + Nightlist auto-playlists
+    try { if (typeof window.initForYou === 'function') window.initForYou(); } catch (e) {}
   }
 
   // 1) Try cache first (instant paint)
@@ -10503,6 +10601,7 @@ try {
     try { renderHome(); } catch (e) {}
     try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
     try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+    try { if (typeof window.renderForYouSection === 'function') window.renderForYouSection(); } catch (e) {}
     return; // ✅ do NOT also log album/playlist for this play
   }
 } catch (e) {}
@@ -10563,6 +10662,7 @@ try {
             try { renderHome(); } catch (e) {}
 try { if (typeof renderMobileRecents === 'function') renderMobileRecents(); } catch (e) {}
 try { if (typeof renderHomeRecentsRow === 'function') renderHomeRecentsRow('home-recents-row'); } catch (e) {}
+try { if (typeof window.renderForYouSection === 'function') window.renderForYouSection(); } catch (e) {}
 
         }
 
@@ -13345,6 +13445,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
+<script src="src/features/for-you/for-you.feature.js"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.
