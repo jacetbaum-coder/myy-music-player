@@ -12889,7 +12889,7 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
     <div id="album-hero-auto" class="album-hero-auto">
       <div class="album-hero-auto-overlay">
         <div class="album-hero-auto-label">${_autoPlMatch.name}</div>
-        <div class="album-hero-auto-title">${isDay ? 'your soundtrack\nfor the day' : 'your soundtrack\nfor the night'}</div>
+        <div class="album-hero-auto-title">${_autoPlMatch.subtitle || (isDay ? 'your soundtrack\nfor the day' : 'your soundtrack\nfor the night')}</div>
       </div>
     </div>
     <div class="album-hero-auto-meta">

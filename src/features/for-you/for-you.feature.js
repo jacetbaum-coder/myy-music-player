@@ -18,8 +18,8 @@
   // ─── Constants ────────────────────────────────────────────
   const AUTO_IDS = { daylist: '__daylist__', nightlist: '__nightlist__' };
   const CACHE_KEYS = {
-    daylist: '__auto_daylist_cache',
-    nightlist: '__auto_nightlist_cache',
+    daylist: '__auto_daylist_cache_v2',
+    nightlist: '__auto_nightlist_cache_v2',
   };
   const EVENTS_KEY = 'reson_play_events_v1';
   const DAY_START = 6;   // 6 am
