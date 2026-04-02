@@ -1047,7 +1047,7 @@ try {
     header.style.top = '0';
     header.style.zIndex = '10';
     header.style.background = '#141215';
-    header.style.padding = '14px 12px';
+    header.style.padding = '14px 12px 6px';
     header.style.borderBottom = 'none';
 
     header.innerHTML = `
@@ -1215,8 +1215,8 @@ try {
 
   row.style.alignItems = 'center';
   row.style.justifyContent = 'flex-start';
-   row.style.gap = '14px';
-  row.style.padding = '15px 14px';
+   row.style.gap = '12px';
+  row.style.padding = '9px 14px';
 
   row.style.color = '#fff';
   row.style.cursor = 'pointer';
@@ -1243,9 +1243,9 @@ try {
   const cover = document.createElement('img');
   cover.alt = '';
   cover.draggable = false;
-    cover.style.width = '56px';
-  cover.style.height = '56px';
-  cover.style.borderRadius = '10px';
+    cover.style.width = '48px';
+  cover.style.height = '48px';
+  cover.style.borderRadius = '8px';
 
   cover.style.objectFit = 'cover';
   cover.style.flex = '0 0 auto';
@@ -1272,8 +1272,8 @@ try {
 
   const titleEl = document.createElement('div');
   titleEl.textContent = name;
-  titleEl.style.fontWeight = '900';
-  titleEl.style.fontSize = '18px';
+  titleEl.style.fontWeight = '700';
+  titleEl.style.fontSize = '16px';
   titleEl.style.color = '#fff';
   titleEl.style.whiteSpace = 'nowrap';
   titleEl.style.overflow = 'hidden';

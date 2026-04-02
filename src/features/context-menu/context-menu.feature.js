@@ -28,7 +28,7 @@ window.openAddToPlaylistSubmenu = function (e) {
           sub.style.position = 'relative';
 
           sub.innerHTML = `
-            <div id="ps_header" style="position:sticky;top:0;z-index:10;background:#000;padding:18px 16px 14px 16px;border-bottom:1px solid rgba(255,255,255,.12)">
+            <div id="ps_header" style="position:sticky;top:0;z-index:10;background:#000;padding:18px 16px 14px 16px;border-bottom:1px solid rgba(255,255,255,.12);border-radius:18px 18px 0 0">
               <div style="display:flex;align-items:center;justify-content:space-between">
                 <button id="ps_cancel" type="button" style="color:#fff;opacity:.85;font-size:18px;background:transparent;border:none;">Cancel</button>
                 <div style="color:#fff;font-weight:900;font-size:18px;">Add to playlist</div>
