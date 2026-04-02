@@ -471,7 +471,7 @@ function closeContextMenu(e) {
     const sheet = document.getElementById(sheetId);
     if (!sheet) return;
 
-    // Use the whole upper zone (handle + song + divider) as the drag target
+    // Listen on the whole upper drag zone for expand/collapse gestures
     const handle = sheet.querySelector('.cm-drag-zone') || sheet.querySelector('.cm-handle');
     if (!handle) return;
 
@@ -495,7 +495,7 @@ function closeContextMenu(e) {
       sheet.style.transition = 'max-height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       sheet.style.transform = 'translateY(0)';
       sheet.style.maxHeight = '55vh';
-      sheet.style.overflowY = 'hidden';
+      sheet.style.overflowY = 'auto';
       const bd = document.getElementById('context-menu-backdrop');
       if (bd) bd.style.opacity = '1';
     }
@@ -518,7 +518,6 @@ function closeContextMenu(e) {
 
       const dy = e.clientY - startY;
       if (dy > 0) {
-        // Dragging down — slide sheet with finger
         sheet.style.transform = `translateY(${dy}px)`;
         const bd = document.getElementById('context-menu-backdrop');
         if (bd && sheetId === 'context-menu') {
@@ -526,7 +525,6 @@ function closeContextMenu(e) {
           bd.style.opacity = String(1 - t * 0.7);
         }
       }
-      // Dragging up — no live feedback, snap on release
     }, { passive: true });
 
     window.addEventListener('pointerup', (e) => {
@@ -1431,6 +1429,9 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
 
     let armedEl = null;
     let tracking = false;
+    let startTouchY = 0;
+    let startTouchX = 0;
+    let didScroll = false;
 
     function clearArmed(){
       if (armedEl) armedEl.classList.remove('cm-armed');
@@ -1460,6 +1461,9 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
         if (Date.now() < (window.__cmArmGuardUntil || 0)) return;
 
       tracking = true;
+      didScroll = false;
+      startTouchY = e.touches[0].clientY;
+      startTouchX = e.touches[0].clientX;
       pickAtTouch(e.touches[0]);
     }, { passive: true });
 
@@ -1467,7 +1471,15 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
     sheet.addEventListener('touchmove', (e) => {
       if (!tracking) return;
       if (!e.touches || !e.touches[0]) return;
-      pickAtTouch(e.touches[0]);
+
+      const dy = Math.abs(e.touches[0].clientY - startTouchY);
+      const dx = Math.abs(e.touches[0].clientX - startTouchX);
+
+      // If finger moved more than 8px vertically, treat as a scroll — don't fire
+      if (dy > 8 || dx > 8) {
+        didScroll = true;
+        clearArmed();
+      }
     }, { passive: true });
 
     sheet.addEventListener('touchend', (e) => {
@@ -1477,14 +1489,15 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
       const fire = armedEl;
       clearArmed();
 
-      // fire on lift
-      if (fire) {
+      // Only fire if this was a tap (no scroll movement)
+      if (fire && !didScroll) {
         try { fire.click(); } catch(err){}
       }
     }, { passive: true });
 
     sheet.addEventListener('touchcancel', () => {
       tracking = false;
+      didScroll = false;
       clearArmed();
     }, { passive: true });
   }
