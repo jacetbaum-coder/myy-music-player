@@ -1268,31 +1268,37 @@ try {
   subEl.style.overflow = 'hidden';
   subEl.style.textOverflow = 'ellipsis';
 
-  // subtitle: "[folder] • N songs" (best-effort)
+  // subtitle: auto-playlist label, "[folder] • N songs", or song count (best-effort)
   let subtitle = '';
   try {
     const pl = pObj;
-    let n =
-      (Array.isArray(pl?.trackIds) ? pl.trackIds.length : null) ??
-      (Array.isArray(pl?.tracks) ? pl.tracks.length : null) ??
-      (typeof pl?.trackCount === 'number' ? pl.trackCount : null) ??
-      (typeof pl?.count === 'number' ? pl.count : null);
 
-    const folderId = (pl?.folderId || pl?.folder_id || pl?.folder || '');
-    let folderName = '';
-    if (folderId) {
-      try {
-        const folders = JSON.parse(localStorage.getItem('folders') || '[]');
-        if (Array.isArray(folders)) {
-          const f = folders.find(x => String(x?.id || '') === String(folderId));
-          folderName = String(f?.name || '');
-        }
-      } catch (e) {}
+    // Auto-playlists (daylist / nightlist) carry their own generated subtitle
+    if (pl?.subtitle) {
+      subtitle = pl.subtitle;
+    } else {
+      let n =
+        (Array.isArray(pl?.trackIds) ? pl.trackIds.length : null) ??
+        (Array.isArray(pl?.tracks) ? pl.tracks.length : null) ??
+        (typeof pl?.trackCount === 'number' ? pl.trackCount : null) ??
+        (typeof pl?.count === 'number' ? pl.count : null);
+
+      const folderId = (pl?.folderId || pl?.folder_id || pl?.folder || '');
+      let folderName = '';
+      if (folderId) {
+        try {
+          const folders = JSON.parse(localStorage.getItem('folders') || '[]');
+          if (Array.isArray(folders)) {
+            const f = folders.find(x => String(x?.id || '') === String(folderId));
+            folderName = String(f?.name || '');
+          }
+        } catch (e) {}
+      }
+
+      if (folderName && typeof n === 'number' && isFinite(n)) subtitle = `📁 ${folderName} • ${n} songs`;
+      else if (folderName) subtitle = `📁 ${folderName}`;
+      else if (typeof n === 'number' && isFinite(n)) subtitle = `${n} songs`;
     }
-
-    if (folderName && typeof n === 'number' && isFinite(n)) subtitle = `📁 ${folderName} • ${n} songs`;
-    else if (folderName) subtitle = `📁 ${folderName}`;
-    else if (typeof n === 'number' && isFinite(n)) subtitle = `${n} songs`;
   } catch (e) {}
 
   subEl.textContent = subtitle;
