@@ -340,87 +340,7 @@ window.openAddToPlaylistSubmenu = function (e) {
 var suppressContextMenuCloseUntil = 0;
 var suppressPlaylistMenuCloseUntil = 0;
 
-// ---- iOS-style drag-down-to-close (pointer events, guards duplicate) ----
-(function initContextMenuDragToClose(){
-  if (window.__cmDragInit) return;
-  window.__cmDragInit = true;
-
-  function isMobile(){ return window.innerWidth <= 768; }
-  function getMenu(){ return document.getElementById('context-menu'); }
-  function getBackdrop(){ return document.getElementById('context-menu-backdrop'); }
-
-  function closeSheet(){
-    try { closeContextMenu(); } catch (e) {
-      // fallback close if closeContextMenu isn't in scope for any reason
-      const m = getMenu(), b = getBackdrop();
-      if (b) b.style.opacity = '0';
-      if (m) {
-        m.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-        m.style.transform = 'translateY(100%)';
-        setTimeout(() => { try { m.style.display = 'none'; } catch(_){} }, 210);
-      }
-      setTimeout(() => { try { if (b) b.style.display = 'none'; } catch(_){} }, 210);
-    }
-  }
-
-  document.addEventListener('pointerdown', (e) => {
-    if (!isMobile()) return;
-
-    const menu = getMenu();
-    if (!menu || menu.style.display !== 'block') return;
-
-    const handle = e.target && e.target.closest ? e.target.closest('#context-menu .cm-handle') : null;
-    if (!handle) return;
-
-    let startY = e.clientY;
-    let dy = 0;
-
-    const backdrop = getBackdrop();
-
-    menu.classList.add('cm-dragging');
-    menu.style.transition = 'none';
-
-    try { menu.setPointerCapture(e.pointerId); } catch (_) {}
-
-    function onMove(ev){
-      dy = Math.max(0, ev.clientY - startY);
-      // follow finger
-      menu.style.transform = `translateY(${dy}px)`;
-      // fade backdrop a bit as you pull down
-      if (backdrop) {
-        const t = Math.min(1, dy / 220);
-        backdrop.style.opacity = String(1 - (t * 0.55));
-      }
-      ev.preventDefault();
-    }
-
-    function onUp(ev){
-      try { menu.releasePointerCapture(e.pointerId); } catch (_) {}
-
-      menu.classList.remove('cm-dragging');
-
-      // if pulled far enough -> close
-      if (dy > 90) {
-        closeSheet();
-      } else {
-        // snap back open
-        menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-        menu.style.transform = 'translateY(0)';
-        if (backdrop) backdrop.style.opacity = '1';
-      }
-
-      menu.removeEventListener('pointermove', onMove);
-      menu.removeEventListener('pointerup', onUp);
-      menu.removeEventListener('pointercancel', onUp);
-      menu.removeEventListener('pointerleave', onUp);
-    }
-
-    menu.addEventListener('pointermove', onMove, { passive: false });
-    menu.addEventListener('pointerup', onUp, { passive: true });
-    menu.addEventListener('pointercancel', onUp, { passive: true });
-    menu.addEventListener('pointerleave', onUp, { passive: true });
-  }, { passive: false });
-})();
+// (old drag-to-close removed — replaced by 3-state handler below)
 
 // ---- Context menu DOM references (also kept in inline script for initGlobalKeys) ----
 // var so these land on window and are accessible from other scripts (e.g. initGlobalKeys in index.html)
@@ -540,10 +460,10 @@ function closeContextMenu(e) {
   }
 }
 
-// ---- Drag-to-close via handle (both sheets, touch-based) ----
+// ---- 3-state snap drag handle (half → full → close) ----
 (function initContextMenuDragToClose(){
-  if (window.__cmDragInit) return;
-  window.__cmDragInit = true;
+  if (window.__cmDrag3Init) return;
+  window.__cmDrag3Init = true;
 
   function isMobile(){ return window.innerWidth <= 768; }
 
@@ -551,12 +471,34 @@ function closeContextMenu(e) {
     const sheet = document.getElementById(sheetId);
     if (!sheet) return;
 
-    const handle = sheet.querySelector('.cm-handle');
+    // Use the whole upper zone (handle + song + divider) as the drag target
+    const handle = sheet.querySelector('.cm-drag-zone') || sheet.querySelector('.cm-handle');
     if (!handle) return;
 
     let startY = 0;
-    let startHeight = 0;
     let dragging = false;
+    // 3-state: 'half' (default) | 'full' (expanded)
+    sheet.__cmSnapState = 'half';
+
+    function snapToFull() {
+      sheet.__cmSnapState = 'full';
+      sheet.style.transition = 'max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transform = 'translateY(0)';
+      sheet.style.maxHeight = '92vh';
+      sheet.style.overflowY = 'auto';
+      const bd = document.getElementById('context-menu-backdrop');
+      if (bd) bd.style.opacity = '1';
+    }
+
+    function snapToHalf() {
+      sheet.__cmSnapState = 'half';
+      sheet.style.transition = 'max-height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transform = 'translateY(0)';
+      sheet.style.maxHeight = '55vh';
+      sheet.style.overflowY = 'hidden';
+      const bd = document.getElementById('context-menu-backdrop');
+      if (bd) bd.style.opacity = '1';
+    }
 
     handle.addEventListener('pointerdown', (e) => {
       if (!isMobile()) return;
@@ -564,7 +506,6 @@ function closeContextMenu(e) {
 
       dragging = true;
       startY = e.clientY;
-      startHeight = sheet.offsetHeight;
 
       try { sheet.style.transition = 'none'; } catch (err) {}
       try { e.preventDefault(); } catch (err) {}
@@ -575,27 +516,17 @@ function closeContextMenu(e) {
       if (!isMobile()) return;
       if (e.pointerType === 'mouse') return;
 
-      const dy = e.clientY - startY; // positive = dragging down
-
-      if (dy >= 0) {
-        // Dragging down: slide the whole sheet toward close
-        sheet.style.height = startHeight + 'px';
-        sheet.style.maxHeight = startHeight + 'px';
+      const dy = e.clientY - startY;
+      if (dy > 0) {
+        // Dragging down — slide sheet with finger
         sheet.style.transform = `translateY(${dy}px)`;
-
         const bd = document.getElementById('context-menu-backdrop');
         if (bd && sheetId === 'context-menu') {
-          const t = Math.min(1, dy / 160);
-          bd.style.opacity = String(1 - (t * 0.6));
+          const t = Math.min(1, dy / 200);
+          bd.style.opacity = String(1 - t * 0.7);
         }
-      } else {
-        // Dragging up: expand the sheet to reveal more content
-        const newH = Math.min(window.innerHeight * 0.92, startHeight + Math.abs(dy));
-        sheet.style.height = newH + 'px';
-        sheet.style.maxHeight = newH + 'px';
-        sheet.style.transform = 'translateY(0)';
-        sheet.style.overflowY = 'auto';
       }
+      // Dragging up — no live feedback, snap on release
     }, { passive: true });
 
     window.addEventListener('pointerup', (e) => {
@@ -604,13 +535,21 @@ function closeContextMenu(e) {
 
       const dy = e.clientY - startY;
 
-      sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-
-      if (dy > 80) {
-        // Swiped down far enough — close with animation
-        try { closeContextMenu(); } catch (err) {}
+      if (dy < -50) {
+        // Swiped UP → expand to full
+        snapToFull();
+      } else if (dy > 50) {
+        // Swiped DOWN
+        if (sheet.__cmSnapState === 'full') {
+          // full → half
+          snapToHalf();
+        } else {
+          // half → close
+          try { closeContextMenu(); } catch (err) {}
+        }
       } else {
-        // Snap transform back, keep whatever height the user dragged to
+        // Short movement — snap back to current state
+        sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
         sheet.style.transform = 'translateY(0)';
         const bd = document.getElementById('context-menu-backdrop');
         if (bd) bd.style.opacity = '1';
@@ -841,6 +780,7 @@ if (window.innerWidth > 768 && addOpt) {
     contextMenu.style.height = '';
     contextMenu.style.maxHeight = '';
     contextMenu.style.overflowY = '';
+    contextMenu.__cmSnapState = 'half';
     contextMenu.style.transition = 'none';
     contextMenu.style.transform = 'translateY(100%)';
 
@@ -1553,63 +1493,7 @@ try { renderFolderTiles(); } catch (e) { console.warn("renderFolderTiles missing
   bindOne('playlist-submenu');
 })();
 
-/* ✅ Mobile: swipe down on the handle to dismiss (works for BOTH sheets) */
-(function bindContextMenuSwipeDismiss(){
-  if (window.__cmSwipeDismissBound) return;
-  window.__cmSwipeDismissBound = true;
-
-  function bindOne(sheetId){
-    const menu = document.getElementById(sheetId);
-    if (!menu) return;
-
-    let startY = 0;
-    let dragging = false;
-    let dy = 0;
-
-    function onStart(e){
-      if (window.innerWidth > 768) return;
-
-      // only start if touch begins on the handle
-      if (!e.target || !e.target.closest || !e.target.closest('.cm-handle')) return;
-
-      dragging = true;
-      dy = 0;
-      startY = (e.touches && e.touches[0]) ? e.touches[0].clientY : 0;
-
-      try { menu.style.transition = 'none'; } catch (err) {}
-    }
-
-    function onMove(e){
-      if (!dragging) return;
-      const y = (e.touches && e.touches[0]) ? e.touches[0].clientY : startY;
-      dy = Math.max(0, y - startY);
-
-      menu.style.transform = `translateY(${dy}px)`;
-      try { e.preventDefault(); } catch (err) {}
-    }
-
-    function onEnd(){
-      if (!dragging) return;
-      dragging = false;
-
-      if (dy > 80) {
-        closeContextMenu(); // closes everything
-        return;
-      }
-
-      menu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
-      menu.style.transform = 'translateY(0)';
-    }
-
-    menu.addEventListener('touchstart', onStart, { passive: true });
-    menu.addEventListener('touchmove', onMove, { passive: false });
-    menu.addEventListener('touchend', onEnd, { passive: true });
-    menu.addEventListener('touchcancel', onEnd, { passive: true });
-  }
-
-  bindOne('context-menu');
-  bindOne('playlist-submenu');
-})();
+// (swipe dismiss via legacy touch events removed — handled by 3-state pointer handler above)
 
 // ---- handleContextMenu (full version, handles multi-select) ----
 function handleContextMenu(e, song){
