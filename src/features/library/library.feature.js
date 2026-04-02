@@ -581,18 +581,14 @@ function renderLibraryPlaylists() {
     }
 
     return `
-      <div class="album-card p-4"
+      <div class="album-card rounded-lg overflow-hidden"
            data-pl="${idOrIdx}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          ${coverMarkup}
+        <div class="p-4">
+          ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-2xl"></i></div>`}
         </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${safeName}
-        </div>
-
-        <div class="text-sm text-zinc-400 truncate">
-          Playlist
+        <div class="playlist-card-info">
+          <h3>${safeName}</h3>
+          <p>Playlist</p>
         </div>
       </div>
     `;
@@ -787,18 +783,14 @@ if (sortMode === 'Alphabetical') {
     }
 
     return `
-      <div class="album-card p-4"
+      <div class="album-card rounded-lg overflow-hidden"
            data-artist="${safeArtist}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          ${coverHtml}
+        <div class="p-4">
+          ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-user text-white/50 text-2xl"></i></div>`}
         </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${safeArtist}
-        </div>
-
-        <div class="text-sm text-zinc-400 truncate">
-          Artist
+        <div class="playlist-card-info">
+          <h3>${safeArtist}</h3>
+          <p>Artist</p>
         </div>
       </div>
     `;
@@ -946,19 +938,15 @@ function renderLibraryAll() {
     }
 
     return `
-      <div class="album-card p-4"
+      <div class="album-card rounded-lg overflow-hidden"
            data-kind="${it.kind}"
            data-key="${safeKey}">
-        <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-          ${coverHtml}
+        <div class="p-4">
+          ${it.cover ? `<img src="${it.cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
         </div>
-
-        <div class="font-bold text-white truncate text-base mb-1">
-          ${safeTitle}
-        </div>
-
-        <div class="text-sm text-zinc-400 truncate">
-          ${safeSub}
+        <div class="playlist-card-info">
+          <h3>${safeTitle}</h3>
+          <p>${safeSub}</p>
         </div>
       </div>
     `;

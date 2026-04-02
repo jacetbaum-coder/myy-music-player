@@ -456,17 +456,52 @@ img {
 
 /* ✅ Scroll performance: isolate album tiles so offscreen ones don’t cost layout/paint */
 .album-card{
-  /* ✅ Remove grey background behind album cards */
-  background: transparent !important;
-
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
   content-visibility: auto;
   contain-intrinsic-size: 220px 300px;
   contain: layout paint style;
 }
 
+.album-card:hover{
+  background: rgba(255,255,255,0.1);
+}
+
 .album-card img{
   backface-visibility: hidden;
   transform: translateZ(0);
+}
+
+/* ✅ Spotify-style card grid: auto-fill columns */
+.playlist-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+/* ✅ Card info section (title + description below image) */
+.playlist-card-info{
+  padding: 0 12px 12px;
+}
+
+.playlist-card-info h3{
+  font-size: medium;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 0 4px;
+}
+
+.playlist-card-info p{
+  font-size: 0.8125rem;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
 }
 
 
@@ -1402,15 +1437,9 @@ body.song-multiselect .track-row:hover{
   }
 
   /* Use full-width tile bodies like Spotify library cards */
-  #album-grid .album-card.p-4{
+  #album-grid .album-card > .p-4{
     padding: 0 !important;
-    background: transparent !important;
-  }
-
-  /* Control cover spacing/radius at the wrapper level */
-  #album-grid .album-card > .relative{
     margin-bottom: 8px !important;
-    border-radius: 6px !important;
   }
 
   /* Keep cover art square and edge-to-edge inside each tile */
@@ -1433,7 +1462,7 @@ body.song-multiselect .track-row:hover{
   }
 
   /* Title block: 2-line clamp to normalize card heights */
-  #album-grid .album-card > div:nth-child(2){
+  #album-grid .playlist-card-info h3{
     color: #fff !important;
     font-size: 13px !important;
     line-height: 1.2 !important;
@@ -1449,7 +1478,7 @@ body.song-multiselect .track-row:hover{
   }
 
   /* Subtitle block */
-  #album-grid .album-card > div:nth-child(3){
+  #album-grid .playlist-card-info p{
     color: rgba(255,255,255,0.72) !important;
     font-size: 11px !important;
     line-height: 1.15 !important;
@@ -4225,7 +4254,7 @@ body.qs-lock {
   </div>
 </div>
 
-    <div id="album-grid" class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1"></div>
+    <div id="album-grid" class="playlist-grid"></div>
 
 
 
@@ -8111,21 +8140,15 @@ function renderGrid(data) {
     }
 
     return `
-  <div class="album-card p-4"
+  <div class="album-card rounded-lg overflow-hidden"
        data-album="${safeName}"
        data-no-swipe-back="1">
-
-   
-    <div class="relative mb-4 rounded-md overflow-hidden aspect-square bg-white/10 flex items-center justify-center">
-      ${cover ? `<img src="${cover}" class="w-full h-full object-cover">` : `<i class="fas fa-music text-white/50 text-3xl"></i>`}
+    <div class="p-4">
+      ${cover ? `<img src="${cover}" style="border-radius:5px;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 rounded-md flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
     </div>
-
-    <div class="font-bold text-white truncate text-base mb-1">
-      ${album.albumName}
-    </div>
-
-    <div class="text-sm text-zinc-400 truncate">
-      ${album.artistName}
+    <div class="playlist-card-info">
+      <h3>${album.albumName}</h3>
+      <p>${album.artistName}</p>
     </div>
   </div>
     `;
