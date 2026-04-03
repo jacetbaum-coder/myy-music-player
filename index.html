@@ -8582,8 +8582,15 @@ try { renderHome(); } catch (e) {}
 
   if (viewType === 'crate') {
   document.getElementById('crate-view')?.classList.remove('hidden');
-  try { openCrateSection('home'); } catch (e) {}
   try { initCrateUIOnce(); } catch (e) {}
+  try {
+    const targetSection = (typeof window.hasMeaningfulCrateContent === 'function' && window.hasMeaningfulCrateContent())
+      ? 'crate'
+      : 'home';
+    openCrateSection(targetSection);
+  } catch (e) {
+    try { openCrateSection('home'); } catch (_) {}
+  }
   try { renderCrate(); } catch (e) {}
   // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
 }
@@ -14813,6 +14820,14 @@ try {
     // Show logout button in profile menu
     var logoutRow = document.getElementById('auth-logout-row');
     if (logoutRow) logoutRow.classList.remove('hidden');
+
+    try {
+      if (typeof window.seedAccountCrateFromGuestSnapshot === 'function') {
+        window.seedAccountCrateFromGuestSnapshot(guestCrateDoc);
+      }
+    } catch (e) {
+      console.warn('Guest crate local handoff failed:', e);
+    }
 
     try {
       if (typeof window.migrateGuestDataToAccount === 'function') {

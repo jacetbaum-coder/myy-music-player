@@ -247,6 +247,15 @@ function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
 }
 
+window.hasMeaningfulCrateContent = function () {
+  try {
+    const current = crateDoc || loadCrateLocal();
+    return crateDocHasMeaningfulContent(current);
+  } catch (e) {
+    return false;
+  }
+};
+
 window.resetCrateForIdentityChange = async function () {
   crateDoc = loadCrateLocal();
   try { renderCrate(); } catch (e) {}
@@ -263,6 +272,24 @@ window.resetCrateForIdentityChange = async function () {
 
 window.getGuestCrateSnapshot = function () {
   return cloneCrateDoc(loadCrateDocFromKey(CRATE_LS_KEY));
+};
+
+window.seedAccountCrateFromGuestSnapshot = function (guestDocOverride) {
+  const uid = getCrateCloudUserId();
+  const guestDoc = cloneCrateDoc(guestDocOverride || loadCrateDocFromKey(CRATE_LS_KEY));
+  if (!uid || !crateDocHasMeaningfulContent(guestDoc)) {
+    return { seeded: false };
+  }
+
+  try {
+    const accountDoc = loadCrateLocal();
+    crateDoc = mergeCrateDocs(accountDoc, guestDoc);
+    saveCrateLocal({ strict: true });
+    savePendingCrateMigrationDoc(uid, guestDoc);
+    return { seeded: true, itemCount: Array.isArray(crateDoc.items) ? crateDoc.items.length : 0 };
+  } catch (e) {
+    return { seeded: false, error: e };
+  }
 };
 
 window.migrateGuestCrateToAccount = async function (guestDocOverride) {
