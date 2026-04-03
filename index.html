@@ -4391,67 +4391,73 @@ html.mp-auth #mp-login-overlay {
     <div id="mp-login-success" class="mp-login-success" style="display:none;color:#1db954;font-weight:600;text-align:center;margin-top:8px"></div>
   </div>
 </div>
-// --- Magic Link Auth Logic ---
-document.addEventListener('DOMContentLoaded', function() {
-  // If ?token= is present, exchange for session
-  const url = new URL(window.location.href);
-  const token = url.searchParams.get('token');
-  if (token) {
-    document.getElementById('mp-login-overlay').classList.remove('hidden');
-    document.getElementById('mp-login-subtitle').textContent = 'Signing you in...';
-    fetch('/auth/verify?token=' + encodeURIComponent(token), { credentials: 'include' })
-      .then(r => {
-        if (r.redirected) {
-          window.location.href = r.url.split('?')[0];
-          return;
-        }
-        return r.json();
-      })
-      .then(() => {
-        // Remove token from URL
-        url.searchParams.delete('token');
-        window.history.replaceState({}, '', url.pathname + url.search);
-        window.location.reload();
-      });
-    return;
-  }
-  // Magic link button handler
-  const btn = document.getElementById('mp-login-btn');
-  btn.onclick = async function() {
-    const email = document.getElementById('mp-login-email').value.trim();
-    const errorDiv = document.getElementById('mp-login-error');
-    const successDiv = document.getElementById('mp-login-success');
-    errorDiv.textContent = '';
-    successDiv.style.display = 'none';
-    if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
-      errorDiv.textContent = 'Please enter a valid email address.';
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = 'Sending...';
-    try {
-      const r = await fetch('/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await r.json();
-      if (!data.ok) throw new Error(data.error || 'Failed to send magic link');
-      successDiv.textContent = 'Check your email for a magic sign-in link!';
-      successDiv.style.display = 'block';
-      btn.style.display = 'none';
-      document.getElementById('mp-login-email').disabled = true;
-    } catch (e) {
-      errorDiv.textContent = e.message;
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Send Magic Link';
-    }
-  };
-});
+<!-- Magic Link Auth Logic is now in a <script> tag at the end of the body. -->
 
 <!-- ===== PROFILE EDITOR OVERLAY ===== -->
 <div id="mp-profile-overlay">
+  <!-- ...existing code... -->
+  <!-- ...existing code... -->
+  </body>
+  <script>
+  // --- Magic Link Auth Logic ---
+  document.addEventListener('DOMContentLoaded', function() {
+    // If ?token= is present, exchange for session
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('token');
+    if (token) {
+      document.getElementById('mp-login-overlay').classList.remove('hidden');
+      document.getElementById('mp-login-subtitle').textContent = 'Signing you in...';
+      fetch('/auth/verify?token=' + encodeURIComponent(token), { credentials: 'include' })
+        .then(r => {
+          if (r.redirected) {
+            window.location.href = r.url.split('?')[0];
+            return;
+          }
+          return r.json();
+        })
+        .then(() => {
+          // Remove token from URL
+          url.searchParams.delete('token');
+          window.history.replaceState({}, '', url.pathname + url.search);
+          window.location.reload();
+        });
+      return;
+    }
+    // Magic link button handler
+    const btn = document.getElementById('mp-login-btn');
+    btn.onclick = async function() {
+      const email = document.getElementById('mp-login-email').value.trim();
+      const errorDiv = document.getElementById('mp-login-error');
+      const successDiv = document.getElementById('mp-login-success');
+      errorDiv.textContent = '';
+      successDiv.style.display = 'none';
+      if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const r = await fetch('/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await r.json();
+        if (!data.ok) throw new Error(data.error || 'Failed to send magic link');
+        successDiv.textContent = 'Check your email for a magic sign-in link!';
+        successDiv.style.display = 'block';
+        btn.style.display = 'none';
+        document.getElementById('mp-login-email').disabled = true;
+      } catch (e) {
+        errorDiv.textContent = e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Magic Link';
+      }
+    };
+  });
+  </script>
   <div class="mp-prof-topbar">
     <button class="mp-prof-back" onclick="mpCloseProfileEditor()" aria-label="Back">
       <i class="fas fa-arrow-left"></i>
