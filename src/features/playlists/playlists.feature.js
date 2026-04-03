@@ -12,7 +12,7 @@
 
 window.cloudPlaylists = [];
 
-function personalDataApiUrl(path, params) {
+function playlistApiUrl(path, params) {
   if (typeof window.personalDataApiUrl === "function") {
     return window.personalDataApiUrl(path, params);
   }
@@ -281,7 +281,7 @@ window.loadPlaylistsFromCloud = async function () {
     return Array.isArray(window.playlists) ? window.playlists : [];
   }
 
-  const res = await fetch(personalDataApiUrl("/api/playlists", { userId: uid }));
+  const res = await fetch(playlistApiUrl("/api/playlists", { userId: uid }));
 
   const data = await res.json().catch(() => ({}));
 
@@ -337,7 +337,7 @@ try {
     try {
       if (uid) {
         const rd = await fetch(
-          personalDataApiUrl("/api/recently-deleted", { userId: uid, type: "playlist" })
+          playlistApiUrl("/api/recently-deleted", { userId: uid, type: "playlist" })
         ).then(r => r.json()).catch(() => null);
 
         if (rd && rd.ok && Array.isArray(rd.items)) {
@@ -571,7 +571,7 @@ const audioUrl = r2Base + encodeURIComponent(audioKey);
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (!playlistId) return [];
 
-  const res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId }));
+  const res = await fetch(playlistApiUrl("/api/playlist-items", { playlistId }));
 
   const data = await res.json().catch(() => ({}));
 
@@ -830,7 +830,7 @@ const body = {
   };
 
   // Try POST with JSON body
-  let res = await fetch(personalDataApiUrl("/api/playlist-items"), {
+  let res = await fetch(playlistApiUrl("/api/playlist-items"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -838,7 +838,7 @@ const body = {
 
   // Fallback: some APIs expect query params
   if (!res.ok) {
-    res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "POST" });
+    res = await fetch(playlistApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "POST" });
   }
 
   const data = await res.json().catch(() => ({}));
@@ -883,7 +883,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
   };
 
   // Try DELETE with JSON body
-  let res = await fetch(personalDataApiUrl("/api/playlist-items"), {
+  let res = await fetch(playlistApiUrl("/api/playlist-items"), {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -891,7 +891,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 
   // Fallback: some APIs expect query params
   if (!res.ok) {
-    res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "DELETE" });
+    res = await fetch(playlistApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "DELETE" });
   }
 
   const data = await res.json().catch(() => ({}));
@@ -910,7 +910,7 @@ window.createPlaylistInCloud = async function (name) {
     return { ok: true, localOnly: true, playlist };
   }
 
-  const res = await fetch(personalDataApiUrl("/api/playlists"), {
+  const res = await fetch(playlistApiUrl("/api/playlists"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: uid, name: String(name || "Playlist") })
@@ -934,7 +934,7 @@ window.deletePlaylistFromCloud = async function (playlistId) {
     return { ok: true, localOnly: true };
   }
 
-  const res = await fetch(personalDataApiUrl("/api/playlists", { playlistId, userId: uid }), { method: "DELETE" });
+  const res = await fetch(playlistApiUrl("/api/playlists", { playlistId, userId: uid }), { method: "DELETE" });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");

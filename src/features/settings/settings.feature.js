@@ -2,7 +2,7 @@
    SETTINGS + RECENTLY DELETED UI
 ------------------------ */
 
-function personalDataApiUrl(path, params) {
+function settingsApiUrl(path, params) {
   if (typeof window.personalDataApiUrl === "function") {
     return window.personalDataApiUrl(path, params);
   }
@@ -56,7 +56,7 @@ async function __fetchRecentlyDeleted(type) {
   if (!uid) return [];
   const t = (type === "album") ? "album" : "playlist";
 
-  const url = personalDataApiUrl("/api/recently-deleted", { userId: uid, type: t });
+  const url = settingsApiUrl("/api/recently-deleted", { userId: uid, type: t });
 
   const res = await fetch(url);
   const data = await res.json().catch(() => ({}));
@@ -84,12 +84,12 @@ async function __restoreRecentlyDeletedItem(item) {
   // Worker route name can vary; try a couple safe options.
   const tryUrls = [
     {
-      url: personalDataApiUrl("/api/recently-deleted/restore", { userId: uid, type, id }),
+      url: settingsApiUrl("/api/recently-deleted/restore", { userId: uid, type, id }),
       method: "POST",
       body: null
     },
     {
-      url: personalDataApiUrl("/api/recently-deleted/restore"),
+      url: settingsApiUrl("/api/recently-deleted/restore"),
       method: "POST",
       body: JSON.stringify({ userId: uid, type, id })
     }
@@ -123,7 +123,7 @@ async function __deleteRecentlyDeletedForever(item) {
 
   // Your console error proved this endpoint wants userId present.
   // We include it in querystring AND body to be extra safe.
-  const url = personalDataApiUrl("/api/recently-deleted/forever", { userId: uid, type, id });
+  const url = settingsApiUrl("/api/recently-deleted/forever", { userId: uid, type, id });
 
   const res = await fetch(url, {
     method: "DELETE",
