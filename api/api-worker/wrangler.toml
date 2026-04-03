@@ -9,11 +9,12 @@ preview_bucket_name = "local-music-bucket"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "local_sessions"
+id = "7edd986a3c1f4cc69eb1f6678a045b19"
 
 [[kv_namespaces]]
 binding = "REQUESTS"
-id = "local_requests"
+id = "eadbb0029b20428594a7dd82df5a73d7"
+
 [vars]
 RESEND_API_KEY = "e_au7cbMUs_JQkF9m7XxBcjmv2oU6V9Bru6"
 OWNER_EMAIL = "jacetbaum@gmail.com"
