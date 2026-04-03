@@ -1,0 +1,5 @@
+name = "reson-api-worker"        # name for this Worker in Cloudflare
+main = "src/index.js"            # points to your Worker code
+type = "javascript"              # use "javascript" since your code is JS
+compatibility_date = "2026-04-02"  # today's date, Cloudflare uses this for versioning# Routes example (only needed if you want this Worker on your domain)
+# routes = ["https://api.resonmusic.us/*"]
