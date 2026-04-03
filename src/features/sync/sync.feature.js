@@ -183,6 +183,7 @@ window.setAccountIdentity = function (userId) {
 
 window.clearAccountIdentity = function () {
   setStoredAccountUserId("");
+  window.APP_USER_EMAIL = null;
   window.__PLAYLIST_STORAGE_KEY__ = window.getPlaylistStorageKey();
   try { window.refreshAccountOnlyUi(); } catch (e) {}
 };

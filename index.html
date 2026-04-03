@@ -14616,6 +14616,12 @@ try {
     <!-- Feedback message -->
     <div id="auth-feedback" class="mt-3 text-sm text-center rounded-xl px-3 py-2 hidden"></div>
 
+    <div class="mt-5 text-center">
+      <button id="auth-continue-guest" type="button" class="text-white/65 text-sm font-semibold hover:text-white transition-colors">
+        Continue as guest
+      </button>
+    </div>
+
   </div>
 </div>
 
@@ -14626,6 +14632,7 @@ try {
   const feedback   = document.getElementById('auth-feedback');
   const subtitle   = document.getElementById('auth-subtitle');
   const contextNote = document.getElementById('auth-context-note');
+  const continueGuestBtn = document.getElementById('auth-continue-guest');
   let currentPane  = 'magic';
 
   const paneConfig = {
@@ -14777,6 +14784,18 @@ try {
     try { if (typeof renderLibraryPlaylists === 'function') renderLibraryPlaylists(); } catch (e) {}
   }
 
+  async function continueAsGuest() {
+    if (typeof window.clearAccountIdentity === 'function') {
+      window.clearAccountIdentity();
+    }
+    if (typeof window.mpGuestModeActivated === 'function') {
+      try { window.mpGuestModeActivated(); } catch (e) {}
+    }
+    await refreshIdentityScopedState();
+    if (modal) modal.classList.add('hidden');
+    clearFeedback();
+  }
+
   function showPane(mode) {
     ['magic', 'signin', 'register'].forEach(function(m) {
       var el = document.getElementById('auth-' + m + '-pane');
@@ -14860,6 +14879,9 @@ try {
   document.getElementById('auth-to-register') ?.addEventListener('click', function() { showPane('register'); });
   document.getElementById('auth-to-register2')?.addEventListener('click', function() { showPane('register'); });
   document.getElementById('auth-to-signin2')  ?.addEventListener('click', function() { showPane('signin'); });
+  continueGuestBtn?.addEventListener('click', function() {
+    continueAsGuest();
+  });
 
   getEmailInputs().forEach(function(input) {
     input.addEventListener('input', function() {
@@ -14951,6 +14973,7 @@ try {
       localStorage.removeItem('reson_account_user_id');
       localStorage.removeItem('app_user_id');
       window.APP_USER_ID = null;
+      window.APP_USER_EMAIL = null;
     }
     // Hide logout button
     var logoutRow = document.getElementById('auth-logout-row');
@@ -14966,6 +14989,8 @@ try {
     }
     await refreshIdentityScopedState();
   };
+
+  window.continueAsGuest = continueAsGuest;
 
   showPane('magic');
 
