@@ -22,7 +22,7 @@ function crateApiUrl(params) {
   return url.toString();
 }
 
-function getCrateStorageKey() {
+function resolveCrateStorageKey() {
   if (typeof window.getCrateStorageKey === "function") {
     return window.getCrateStorageKey();
   }
@@ -177,9 +177,9 @@ function defaultCrateDoc() {
 
 function loadCrateLocal() {
   try {
-    const raw = localStorage.getItem(getCrateStorageKey());
+    const raw = localStorage.getItem(resolveCrateStorageKey());
     if (!raw) {
-      if (getCrateStorageKey() === CRATE_LS_KEY) {
+      if (resolveCrateStorageKey() === CRATE_LS_KEY) {
         return loadGuestCrateBackupCookie();
       }
       return defaultCrateDoc();
@@ -200,8 +200,8 @@ function saveCrateLocal(options) {
   try {
     if (!crateDoc) return false;
     crateDoc.updatedAt = Date.now();
-    localStorage.setItem(getCrateStorageKey(), JSON.stringify(crateDoc));
-    if (getCrateStorageKey() === CRATE_LS_KEY) {
+    localStorage.setItem(resolveCrateStorageKey(), JSON.stringify(crateDoc));
+    if (resolveCrateStorageKey() === CRATE_LS_KEY) {
       syncGuestCrateBackupCookie(crateDoc);
     }
     return true;
@@ -368,7 +368,7 @@ window.migrateGuestCrateToAccount = async function (guestDocOverride) {
     return { migrated: false };
   }
 
-  if (!uid || getCrateStorageKey() === CRATE_LS_KEY) {
+  if (!uid || resolveCrateStorageKey() === CRATE_LS_KEY) {
     return { migrated: false, error: new Error("Missing account crate storage key") };
   }
 
