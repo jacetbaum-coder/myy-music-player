@@ -4391,7 +4391,7 @@ html.mp-auth #mp-login-overlay {
     <button id="mp-login-signin-btn" class="mp-login-btn" style="display:none; margin-top:8px;">Sign In</button>
     <button id="mp-login-register-btn" class="mp-login-btn" style="display:none; margin-top:8px;">Create Account</button>
     <div class="mp-login-toggle" id="mp-login-toggle" style="margin-top:12px;">
-      <span id="mp-toggle-magic" style="cursor:pointer; color:#1db954;">Use Magic Link</span> |
+      <span id="mp-toggle-magic" style="cursor:pointer;">Use Magic Link</span> |
       <span id="mp-toggle-signin" style="cursor:pointer;">Sign In</span> |
       <span id="mp-toggle-register" style="cursor:pointer;">Create Account</span>
     </div>
@@ -4430,6 +4430,16 @@ html.mp-auth #mp-login-overlay {
       return;
     }
 
+    // Check if already logged in via cookie session
+    fetch('/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.ok) {
+          document.documentElement.classList.add('mp-auth');
+        }
+      })
+      .catch(() => {});
+
     // UI elements
     const emailInput = document.getElementById('mp-login-email');
     const pwInput = document.getElementById('mp-login-password');
@@ -4456,6 +4466,9 @@ html.mp-auth #mp-login-overlay {
       registerBtn.style.display = mode === 'register' ? '' : 'none';
       pwInput.style.display = (mode === 'signin' || mode === 'register') ? '' : 'none';
       subtitle.textContent = mode === 'magic' ? 'Sign in or create an account' : (mode === 'signin' ? 'Sign in with password' : 'Create a new account');
+      toggleMagic.style.color = mode === 'magic' ? '#1db954' : '';
+      toggleSignin.style.color = mode === 'signin' ? '#1db954' : '';
+      toggleRegister.style.color = mode === 'register' ? '#1db954' : '';
     }
     // Default to magic link
     showMode('magic');
