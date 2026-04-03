@@ -270,6 +270,31 @@ function extractCrateDocFromResponse(data) {
   return null;
 }
 
+function countMeaningfulCrateItems(doc) {
+  const items = Array.isArray(doc?.items) ? doc.items : [];
+  return items.filter((item) => String(item?.text || "").trim()).length;
+}
+
+function crateDocContainsExpectedContent(remoteDoc, expectedDoc) {
+  if (!remoteDoc || !expectedDoc) return false;
+
+  const expectedItems = Array.isArray(expectedDoc.items) ? expectedDoc.items : [];
+  const remoteItems = Array.isArray(remoteDoc.items) ? remoteDoc.items : [];
+
+  const remoteKeys = new Set(remoteItems.map((item) => {
+    const kind = String(item?.kind || "check").trim();
+    const text = String(item?.text || "").trim().toLowerCase();
+    return `${kind}|${text}`;
+  }));
+
+  return expectedItems.every((item) => {
+    const text = String(item?.text || "").trim().toLowerCase();
+    if (!text) return true;
+    const kind = String(item?.kind || "check").trim();
+    return remoteKeys.has(`${kind}|${text}`);
+  });
+}
+
 function buildCrateWritePayloads(userId, doc) {
   const safeDoc = cloneCrateDoc(doc);
   return [
@@ -339,7 +364,7 @@ async function pullCrateFromCloud() {
     }
 
     if (!remote) {
-      const result = { ok: false, status: lastStatus, reason: "missing-remote-doc", remote: null };
+      const result = { ok: false, status: lastStatus, reason: "missing-remote-doc", remote: null, remoteItemCount: 0 };
       window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
       return result;
     }
@@ -357,7 +382,7 @@ async function pullCrateFromCloud() {
       saveCrateLocal();
     }
 
-    const result = { ok: true, remote: cloneCrateDoc(remote) };
+    const result = { ok: true, remote: cloneCrateDoc(remote), remoteItemCount: countMeaningfulCrateItems(remote) };
     window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
     return result;
   } catch (e) {
@@ -366,6 +391,20 @@ async function pullCrateFromCloud() {
     window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
     return result;
   }
+}
+
+async function verifyCrateCloudWrite(expectedDoc) {
+  const snapshot = cloneCrateDoc(expectedDoc);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const pullResult = await pullCrateFromCloud();
+    if (pullResult?.ok && crateDocContainsExpectedContent(pullResult.remote, snapshot)) {
+      return { ok: true, pullResult };
+    }
+    if (attempt === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+  return { ok: false, pullResult: window.__crateLastCloudPull || null };
 }
 
 async function pushCrateToCloud(options) {
@@ -378,6 +417,7 @@ async function pushCrateToCloud(options) {
     const attempts = buildCrateWritePayloads(uid, crateDoc);
     let lastError = null;
     let lastStatus = null;
+    const expectedDoc = cloneCrateDoc(crateDoc);
 
     for (const attempt of attempts) {
       const res = await fetch(attempt.url, {
@@ -392,11 +432,18 @@ async function pushCrateToCloud(options) {
         continue;
       }
 
+      const verification = await verifyCrateCloudWrite(expectedDoc);
+      if (!verification.ok) {
+        lastError = new Error(`Crate cloud sync verification failed via ${attempt.method}`);
+        continue;
+      }
+
       window.__crateLastCloudSync = {
         ok: true,
         method: attempt.method,
         status: res.status,
         url: attempt.url,
+        verified: true,
         syncedAt: Date.now()
       };
       return { ok: true, status: res.status, method: attempt.method };
@@ -449,6 +496,7 @@ function renderCrateSyncStatus() {
   const storageKey = resolveCrateStorageKey();
   const pullState = formatCrateSyncState(window.__crateLastCloudPull);
   const pushState = formatCrateSyncState(window.__crateLastCloudSync);
+  const remoteItems = Number(window.__crateLastCloudPull?.remoteItemCount || 0);
 
   const markup = `
     <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 leading-5">
@@ -456,6 +504,7 @@ function renderCrateSyncStatus() {
       <div>Account: ${escapeHtml(email)} (${escapeHtml(accountId)})</div>
       <div>Storage: ${escapeHtml(storageKey)}</div>
       <div>Local items: ${localItems}</div>
+      <div>Remote items: ${remoteItems}</div>
       <div>Last pull: ${escapeHtml(pullState)}</div>
       <div>Last push: ${escapeHtml(pushState)}</div>
     </div>
