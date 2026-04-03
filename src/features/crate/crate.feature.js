@@ -3,6 +3,7 @@
 // -----------------------
 const CRATE_LS_KEY = "reson_guest_crate_doc_v1";
 const CRATE_API_PATH = "/api/crate";
+const CRATE_PENDING_MIGRATION_PREFIX = "reson_pending_guest_crate_v1:";
 
 let crateDoc = null;
 
@@ -135,7 +136,7 @@ function loadCrateLocal() {
 function saveCrateLocal(options) {
   const strict = !!(options && options.strict);
   try {
-    if (!crateDoc) return;
+    if (!crateDoc) return false;
     crateDoc.updatedAt = Date.now();
     localStorage.setItem(getCrateStorageKey(), JSON.stringify(crateDoc));
     return true;
@@ -146,21 +147,86 @@ function saveCrateLocal(options) {
   }
 }
 
+function getPendingCrateMigrationKey(userId) {
+  const uid = String(userId || "").trim();
+  return uid ? `${CRATE_PENDING_MIGRATION_PREFIX}${uid}` : "";
+}
+
+function loadPendingCrateMigrationDoc(userId) {
+  const storageKey = getPendingCrateMigrationKey(userId);
+  if (!storageKey) return defaultCrateDoc();
+  return loadCrateDocFromKey(storageKey);
+}
+
+function savePendingCrateMigrationDoc(userId, doc) {
+  const storageKey = getPendingCrateMigrationKey(userId);
+  if (!storageKey) return false;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(cloneCrateDoc(doc)));
+    return true;
+  } catch (e) {
+    try { console.warn("Failed to save pending crate migration doc:", e); } catch (_) {}
+    return false;
+  }
+}
+
+function clearPendingCrateMigrationDoc(userId) {
+  const storageKey = getPendingCrateMigrationKey(userId);
+  if (!storageKey) return;
+  try { localStorage.removeItem(storageKey); } catch (e) {}
+}
+
+async function pullCrateFromCloud() {
+  try {
+    const uid = getCrateCloudUserId();
+    if (!uid) return { ok: false, reason: "missing-user-id" };
+
+    const res = await fetch(crateApiUrl({ userId: uid }), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+
+    if (!res.ok) return { ok: false, status: res.status };
+
+    const data = await res.json();
+    const remote = data && (data.doc || data.crate || data.data);
+    if (!remote || typeof remote !== "object") return { ok: false, reason: "missing-remote-doc" };
+
+    const local = crateDoc || loadCrateLocal();
+    const remoteTime = Number(remote.updatedAt || 0);
+    const localTime = Number(local.updatedAt || 0);
+
+    if (remoteTime > localTime) {
+      crateDoc = cloneCrateDoc({
+        title: remote.title,
+        items: remote.items,
+        updatedAt: remoteTime || Date.now()
+      });
+      saveCrateLocal();
+    }
+
+    return { ok: true, remote: cloneCrateDoc(remote) };
+  } catch (e) {
+    try { console.warn("Failed to pull crate from cloud:", e); } catch (_) {}
+    return { ok: false, error: e };
+  }
+}
+
 async function pushCrateToCloud(options) {
   const strict = !!(options && options.strict);
   try {
     const uid = getCrateCloudUserId();
     if (!uid) return { ok: false, reason: "missing-user-id" };
     if (!crateDoc) return { ok: false, reason: "missing-crate-doc" };
-    const res = await fetch(crateApiUrl({ userId: uid }), {
+
     const res = await fetch(crateApiUrl(), {
-      headers: { "Accept": "application/json" }
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: uid,
+        doc: crateDoc
+      })
     });
-
-    if (!res.ok) return;
-
-    const data = await res.json();
-    const remote = data && (data.doc || data.crate || data.data);
 
     if (!res.ok) {
       const error = new Error(`Crate cloud sync failed with status ${res.status}`);
@@ -170,42 +236,11 @@ async function pushCrateToCloud(options) {
     }
 
     return { ok: true, status: res.status };
-    if (!remote || typeof remote !== "object") return;
+  } catch (e) {
     if (strict) throw e;
     try { console.warn("Failed to sync crate to cloud:", e); } catch (_) {}
     return { ok: false, error: e };
-
-    // Prefer the newer doc
-    const local = crateDoc || loadCrateLocal();
-    const rTime = Number(remote.updatedAt || 0);
-    const lTime = Number(local.updatedAt || 0);
-
-    if (rTime > lTime) {
-      crateDoc = {
-        title: String(remote.title || "Crate"),
-        items: Array.isArray(remote.items) ? remote.items : [],
-        updatedAt: rTime || Date.now()
-      };
-      saveCrateLocal();
-    }
-  } catch (e) {}
-}
-
-async function pushCrateToCloud() {
-  try {
-    const uid = getCrateCloudUserId();
-    if (!uid) return;
-    if (!crateDoc) return;
-
-    await fetch(crateApiUrl(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: uid,
-        doc: crateDoc
-      })
-    });
-  } catch (e) {}
+  }
 }
 
 function ensureCrateLoaded() {
@@ -216,6 +251,13 @@ window.resetCrateForIdentityChange = async function () {
   crateDoc = loadCrateLocal();
   try { renderCrate(); } catch (e) {}
   try { await pullCrateFromCloud(); } catch (e) {}
+  try {
+    const uid = getCrateCloudUserId();
+    const pendingDoc = uid ? loadPendingCrateMigrationDoc(uid) : defaultCrateDoc();
+    if (uid && crateDocHasMeaningfulContent(pendingDoc)) {
+      await window.migrateGuestCrateToAccount(pendingDoc);
+    }
+  } catch (e) {}
   try { renderCrate(); } catch (e) {}
 };
 
@@ -224,16 +266,20 @@ window.getGuestCrateSnapshot = function () {
 };
 
 window.migrateGuestCrateToAccount = async function (guestDocOverride) {
-  const guestDoc = cloneCrateDoc(guestDocOverride || loadCrateDocFromKey(CRATE_LS_KEY));
+  const uid = getCrateCloudUserId();
+  const guestDoc = cloneCrateDoc(
+    guestDocOverride || loadPendingCrateMigrationDoc(uid) || loadCrateDocFromKey(CRATE_LS_KEY)
+  );
   if (!crateDocHasMeaningfulContent(guestDoc)) {
     return { migrated: false };
   }
 
-  if (getCrateStorageKey() === CRATE_LS_KEY) {
+  if (!uid || getCrateStorageKey() === CRATE_LS_KEY) {
     return { migrated: false, error: new Error("Missing account crate storage key") };
   }
 
   try {
+    savePendingCrateMigrationDoc(uid, guestDoc);
     crateDoc = loadCrateLocal();
     await pullCrateFromCloud();
 
@@ -241,6 +287,7 @@ window.migrateGuestCrateToAccount = async function (guestDocOverride) {
     crateDoc = merged;
     saveCrateLocal({ strict: true });
     await pushCrateToCloud({ strict: true });
+    clearPendingCrateMigrationDoc(uid);
     try { localStorage.removeItem(CRATE_LS_KEY); } catch (e) {}
     return { migrated: true, itemCount: merged.items.length };
   } catch (e) {
