@@ -4,6 +4,7 @@
 const CRATE_LS_KEY = "reson_guest_crate_doc_v1";
 const CRATE_API_PATH = "/api/crate";
 const CRATE_PENDING_MIGRATION_PREFIX = "reson_pending_guest_crate_v1:";
+const CRATE_COOKIE_BACKUP_KEY = "reson_guest_crate_backup";
 
 let crateDoc = null;
 
@@ -66,6 +67,62 @@ function cloneCrateDoc(doc) {
   };
 }
 
+function getCookieValue(name) {
+  try {
+    const cookie = String(document.cookie || "");
+    const parts = cookie.split(/;\s*/);
+    for (const part of parts) {
+      if (!part) continue;
+      const eq = part.indexOf("=");
+      const key = eq >= 0 ? part.slice(0, eq) : part;
+      if (key === name) {
+        return eq >= 0 ? decodeURIComponent(part.slice(eq + 1)) : "";
+      }
+    }
+  } catch (e) {}
+  return "";
+}
+
+function setCookieValue(name, value, maxAgeSeconds) {
+  try {
+    const safeValue = encodeURIComponent(String(value || ""));
+    const maxAge = Number(maxAgeSeconds || 0);
+    document.cookie = `${name}=${safeValue}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearCookieValue(name) {
+  try {
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+  } catch (e) {}
+}
+
+function loadGuestCrateBackupCookie() {
+  try {
+    const raw = getCookieValue(CRATE_COOKIE_BACKUP_KEY);
+    if (!raw) return defaultCrateDoc();
+    return cloneCrateDoc(JSON.parse(raw));
+  } catch (e) {
+    return defaultCrateDoc();
+  }
+}
+
+function syncGuestCrateBackupCookie(doc) {
+  const next = cloneCrateDoc(doc);
+  if (!crateDocHasMeaningfulContent(next)) {
+    clearCookieValue(CRATE_COOKIE_BACKUP_KEY);
+    return false;
+  }
+  return setCookieValue(CRATE_COOKIE_BACKUP_KEY, JSON.stringify(next), 7 * 24 * 60 * 60);
+}
+
+function clearGuestCrateBackupCookie() {
+  clearCookieValue(CRATE_COOKIE_BACKUP_KEY);
+}
+
 function crateDocHasMeaningfulContent(doc) {
   if (!doc || typeof doc !== "object") return false;
   const title = String(doc.title || "").trim();
@@ -121,7 +178,12 @@ function defaultCrateDoc() {
 function loadCrateLocal() {
   try {
     const raw = localStorage.getItem(getCrateStorageKey());
-    if (!raw) return defaultCrateDoc();
+    if (!raw) {
+      if (getCrateStorageKey() === CRATE_LS_KEY) {
+        return loadGuestCrateBackupCookie();
+      }
+      return defaultCrateDoc();
+    }
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return defaultCrateDoc();
     if (!Array.isArray(parsed.items)) parsed.items = [];
@@ -139,6 +201,9 @@ function saveCrateLocal(options) {
     if (!crateDoc) return false;
     crateDoc.updatedAt = Date.now();
     localStorage.setItem(getCrateStorageKey(), JSON.stringify(crateDoc));
+    if (getCrateStorageKey() === CRATE_LS_KEY) {
+      syncGuestCrateBackupCookie(crateDoc);
+    }
     return true;
   } catch (e) {
     if (strict) throw e;
@@ -271,7 +336,9 @@ window.resetCrateForIdentityChange = async function () {
 };
 
 window.getGuestCrateSnapshot = function () {
-  return cloneCrateDoc(loadCrateDocFromKey(CRATE_LS_KEY));
+  const guestDoc = cloneCrateDoc(loadCrateDocFromKey(CRATE_LS_KEY));
+  if (crateDocHasMeaningfulContent(guestDoc)) return guestDoc;
+  return loadGuestCrateBackupCookie();
 };
 
 window.seedAccountCrateFromGuestSnapshot = function (guestDocOverride) {
@@ -316,6 +383,7 @@ window.migrateGuestCrateToAccount = async function (guestDocOverride) {
     await pushCrateToCloud({ strict: true });
     clearPendingCrateMigrationDoc(uid);
     try { localStorage.removeItem(CRATE_LS_KEY); } catch (e) {}
+    clearGuestCrateBackupCookie();
     return { migrated: true, itemCount: merged.items.length };
   } catch (e) {
     return { migrated: false, error: e };
