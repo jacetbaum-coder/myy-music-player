@@ -4656,6 +4656,34 @@ html.mp-auth #mp-login-overlay {
   </div>
 </div>
 
+<script>
+window.mpOpenProfileEditor = function() {
+  const overlay = document.getElementById('mp-profile-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'block';
+  overlay.getBoundingClientRect(); // force reflow so transition fires
+  overlay.classList.add('open');
+};
+window.mpCloseProfileEditor = function() {
+  const overlay = document.getElementById('mp-profile-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  overlay.addEventListener('transitionend', function h() {
+    overlay.style.display = 'none';
+    overlay.removeEventListener('transitionend', h);
+  });
+};
+window.mpLogout = function() {
+  if (!confirm('Log out?')) return;
+  fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+    .catch(() => {})
+    .finally(() => {
+      localStorage.removeItem('reson_auth');
+      location.reload();
+    });
+};
+</script>
+
 <!-- Change username / email popup -->
 <div id="mp-change-field-backdrop" onclick="mpCloseChangePopup()"></div>
 <div id="mp-change-field-popup" role="dialog" aria-modal="true">
@@ -7123,7 +7151,7 @@ if (profileBtn) profileBtn.addEventListener('click', (e) => {
   e.stopImmediatePropagation();
 
   try { close(); } catch (e) {}
-  /* profile editor opened by delegated listener in initMusicPlayerAuth */
+  try { mpOpenProfileEditor(); } catch (e) {}
 }, true);
 
 })();
