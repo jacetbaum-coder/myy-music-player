@@ -4386,8 +4386,15 @@ html.mp-auth #mp-login-overlay {
     <div class="mp-login-subtitle" id="mp-login-subtitle">Sign in or create an account</div>
     <div id="mp-login-error" class="mp-login-error" role="alert"></div>
     <input type="email" id="mp-login-email" class="mp-login-input" placeholder="Email address" autocomplete="email" autocapitalize="none" spellcheck="false">
+    <input type="password" id="mp-login-password" class="mp-login-input" placeholder="Password" autocomplete="current-password" style="display:none; margin-top:8px;">
     <button id="mp-login-btn" class="mp-login-btn">Send Magic Link</button>
-    <div class="mp-login-toggle" id="mp-login-toggle" style="display:none"></div>
+    <button id="mp-login-signin-btn" class="mp-login-btn" style="display:none; margin-top:8px;">Sign In</button>
+    <button id="mp-login-register-btn" class="mp-login-btn" style="display:none; margin-top:8px;">Create Account</button>
+    <div class="mp-login-toggle" id="mp-login-toggle" style="margin-top:12px;">
+      <span id="mp-toggle-magic" style="cursor:pointer; color:#1db954;">Use Magic Link</span> |
+      <span id="mp-toggle-signin" style="cursor:pointer;">Sign In</span> |
+      <span id="mp-toggle-register" style="cursor:pointer;">Create Account</span>
+    </div>
     <div id="mp-login-success" class="mp-login-success" style="display:none;color:#1db954;font-weight:600;text-align:center;margin-top:8px"></div>
   </div>
 </div>
@@ -4399,7 +4406,7 @@ html.mp-auth #mp-login-overlay {
   <!-- ...existing code... -->
   </body>
   <script>
-  // --- Magic Link Auth Logic ---
+  // --- Auth Logic: Magic Link, Password Login, Registration ---
   document.addEventListener('DOMContentLoaded', function() {
     // If ?token= is present, exchange for session
     const url = new URL(window.location.href);
@@ -4416,45 +4423,145 @@ html.mp-auth #mp-login-overlay {
           return r.json();
         })
         .then(() => {
-          // Remove token from URL
           url.searchParams.delete('token');
           window.history.replaceState({}, '', url.pathname + url.search);
           window.location.reload();
         });
       return;
     }
-    // Magic link button handler
-    const btn = document.getElementById('mp-login-btn');
-    btn.onclick = async function() {
-      const email = document.getElementById('mp-login-email').value.trim();
-      const errorDiv = document.getElementById('mp-login-error');
-      const successDiv = document.getElementById('mp-login-success');
+
+    // UI elements
+    const emailInput = document.getElementById('mp-login-email');
+    const pwInput = document.getElementById('mp-login-password');
+    const magicBtn = document.getElementById('mp-login-btn');
+    const signinBtn = document.getElementById('mp-login-signin-btn');
+    const registerBtn = document.getElementById('mp-login-register-btn');
+    const errorDiv = document.getElementById('mp-login-error');
+    const successDiv = document.getElementById('mp-login-success');
+    const subtitle = document.getElementById('mp-login-subtitle');
+    const toggleMagic = document.getElementById('mp-toggle-magic');
+    const toggleSignin = document.getElementById('mp-toggle-signin');
+    const toggleRegister = document.getElementById('mp-toggle-register');
+
+    function showMode(mode) {
+      // mode: 'magic', 'signin', 'register'
       errorDiv.textContent = '';
       successDiv.style.display = 'none';
-      // More permissive email validation
+      emailInput.value = '';
+      pwInput.value = '';
+      emailInput.disabled = false;
+      pwInput.disabled = false;
+      magicBtn.style.display = mode === 'magic' ? '' : 'none';
+      signinBtn.style.display = mode === 'signin' ? '' : 'none';
+      registerBtn.style.display = mode === 'register' ? '' : 'none';
+      pwInput.style.display = (mode === 'signin' || mode === 'register') ? '' : 'none';
+      subtitle.textContent = mode === 'magic' ? 'Sign in or create an account' : (mode === 'signin' ? 'Sign in with password' : 'Create a new account');
+    }
+    // Default to magic link
+    showMode('magic');
+    toggleMagic.onclick = () => showMode('magic');
+    toggleSignin.onclick = () => showMode('signin');
+    toggleRegister.onclick = () => showMode('register');
+
+    // Magic link button handler
+    magicBtn.onclick = async function() {
+      const email = emailInput.value.trim();
+      errorDiv.textContent = '';
+      successDiv.style.display = 'none';
       if (!email.includes('@') || !email.includes('.')) {
         errorDiv.textContent = 'Please enter a valid email address.';
         return;
       }
-      btn.disabled = true;
-      btn.textContent = 'Sending...';
+      magicBtn.disabled = true;
+      magicBtn.textContent = 'Sending...';
       try {
         const r = await fetch('/auth/magic-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
         });
-        const data = await r.json();
+        let data;
+        try { data = await r.json(); } catch { throw new Error('Server error.'); }
         if (!data.ok) throw new Error(data.error || 'Failed to send magic link');
         successDiv.textContent = 'Check your email for a magic sign-in link!';
         successDiv.style.display = 'block';
-        btn.style.display = 'none';
-        document.getElementById('mp-login-email').disabled = true;
+        magicBtn.style.display = 'none';
+        emailInput.disabled = true;
       } catch (e) {
         errorDiv.textContent = e.message;
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Send Magic Link';
+        magicBtn.disabled = false;
+        magicBtn.textContent = 'Send Magic Link';
+      }
+    };
+
+    // Sign in with password
+    signinBtn.onclick = async function() {
+      const email = emailInput.value.trim();
+      const password = pwInput.value;
+      errorDiv.textContent = '';
+      successDiv.style.display = 'none';
+      if (!email.includes('@') || !email.includes('.')) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        return;
+      }
+      if (!password) {
+        errorDiv.textContent = 'Please enter your password.';
+        return;
+      }
+      signinBtn.disabled = true;
+      signinBtn.textContent = 'Signing in...';
+      try {
+        const r = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        let data;
+        try { data = await r.json(); } catch { throw new Error('Server error.'); }
+        if (!data.ok) throw new Error(data.error || 'Failed to sign in');
+        window.location.reload();
+      } catch (e) {
+        errorDiv.textContent = e.message;
+      } finally {
+        signinBtn.disabled = false;
+        signinBtn.textContent = 'Sign In';
+      }
+    };
+
+    // Register new account
+    registerBtn.onclick = async function() {
+      const email = emailInput.value.trim();
+      const password = pwInput.value;
+      errorDiv.textContent = '';
+      successDiv.style.display = 'none';
+      if (!email.includes('@') || !email.includes('.')) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        return;
+      }
+      if (!password || password.length < 6) {
+        errorDiv.textContent = 'Password must be at least 6 characters.';
+        return;
+      }
+      registerBtn.disabled = true;
+      registerBtn.textContent = 'Creating...';
+      try {
+        const r = await fetch('/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        let data;
+        try { data = await r.json(); } catch { throw new Error('Server error.'); }
+        if (!data.ok) throw new Error(data.error || 'Failed to create account');
+        successDiv.textContent = 'Account created! You can now sign in.';
+        successDiv.style.display = 'block';
+        showMode('signin');
+      } catch (e) {
+        errorDiv.textContent = e.message;
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = 'Create Account';
       }
     };
   });

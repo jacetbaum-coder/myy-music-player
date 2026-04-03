@@ -3,6 +3,37 @@
 // Bindings: MUSIC_BUCKET (R2), SESSIONS (KV), REQUESTS (KV), RESEND_API_KEY (env), OWNER_EMAIL (env)
 
 export default {
+      // --- Password-based registration ---
+      if (url.pathname === '/auth/register' && request.method === 'POST') {
+        const { email, password } = await getBody();
+        if (!email || !password || password.length < 6) return errJson(400, 'Email and password (min 6 chars) required');
+        const userId = await hashEmail(email);
+        const userKey = `user:${userId}`;
+        const existing = await env.SESSIONS.get(userKey);
+        if (existing) return errJson(400, 'User already exists');
+        // Hash password (simple SHA-256 for demo; use bcrypt/argon2 in production)
+        const pwHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+        await env.SESSIONS.put(userKey, JSON.stringify({ email, pwHash }), { expirationTtl: 365*24*60*60 });
+        return json({ ok: true });
+      }
+
+      // --- Password-based login ---
+      if (url.pathname === '/auth/login' && request.method === 'POST') {
+        const { email, password } = await getBody();
+        if (!email || !password) return errJson(400, 'Email and password required');
+        const userId = await hashEmail(email);
+        const userKey = `user:${userId}`;
+        const userRaw = await env.SESSIONS.get(userKey);
+        if (!userRaw) return errJson(400, 'User not found');
+        const user = JSON.parse(userRaw);
+        const pwHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
+        if (user.pwHash !== pwHash) return errJson(401, 'Incorrect password');
+        // Issue session
+        const { sessionId } = await makeSession(email);
+        const res = json({ ok: true });
+        res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
+        return res;
+      }
   async fetch(request, env, ctx) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
