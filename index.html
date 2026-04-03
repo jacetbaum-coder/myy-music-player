@@ -4431,7 +4431,8 @@ html.mp-auth #mp-login-overlay {
       const successDiv = document.getElementById('mp-login-success');
       errorDiv.textContent = '';
       successDiv.style.display = 'none';
-      if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
+      // More permissive email validation
+      if (!email.includes('@') || !email.includes('.')) {
         errorDiv.textContent = 'Please enter a valid email address.';
         return;
       }
