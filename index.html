@@ -4309,6 +4309,67 @@ html.mp-auth #mp-login-overlay {
   color: rgba(255,255,255,0.28); margin-top: 8px;
   cursor: pointer; font-size: 0.82rem; font-family: inherit; padding: 4px;
 }
+
+/* ── Import / Add Music view ─────────────────────────────── */
+.import-server-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block;
+}
+.import-dot-checking { background: rgba(255,255,255,0.35); }
+.import-dot-ok       { background: #1db954; box-shadow: 0 0 6px #1db95480; }
+.import-dot-error    { background: #e74c3c; box-shadow: 0 0 6px #e74c3c80; }
+
+.import-step {
+  cursor: pointer; transition: background 150ms, color 150ms;
+}
+.import-step-active   { background: #1db954; color: #000; }
+.import-step-done     { background: rgba(29,185,84,0.25); color: rgba(255,255,255,0.7); }
+.import-step-inactive { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.5); }
+
+.import-file-row {
+  background: rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 14px;
+}
+.import-row-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.import-checkbox-wrap { display: flex; align-items: center; flex-shrink: 0; }
+.import-checkbox-wrap input[type="checkbox"] {
+  width: 18px; height: 18px; accent-color: #1db954; cursor: pointer;
+}
+.import-filename {
+  flex: 1; font-size: 13px; font-weight: 700; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.import-file-size {
+  font-size: 11px; color: rgba(255,255,255,0.4); flex-shrink: 0;
+}
+.import-row-tags {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+@media (max-width: 500px) {
+  .import-row-tags { grid-template-columns: 1fr; }
+}
+.import-tag-group { display: flex; flex-direction: column; gap: 3px; }
+.import-tag-label { font-size: 10px; color: rgba(255,255,255,0.45); font-weight: 700; }
+.import-tag-input {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #fff;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 120ms;
+}
+.import-tag-input:focus { border-color: #1db954; }
+.import-r2-key {
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  word-break: break-all;
+}
 </style>
 </head>
 
@@ -4780,6 +4841,12 @@ html.mp-auth #mp-login-overlay {
       <div class="text-lg font-extrabold">Recently Deleted</div>
       <div class="text-sm text-white/60">Restore or delete forever</div>
     </button>
+
+    <button id="settings-open-import" type="button"
+      class="w-full px-4 py-4 rounded-2xl bg-white/10 text-left">
+      <div class="text-lg font-extrabold">Add Music</div>
+      <div class="text-sm text-white/60">Download from Spotify or YouTube, then upload to your library</div>
+    </button>
   </div>
 </div>
 
@@ -4828,6 +4895,180 @@ html.mp-auth #mp-login-overlay {
     </div>
   </div>
 </div>
+
+<!-- IMPORT / ADD MUSIC VIEW -->
+<div id="import-view" class="hidden pb-30 md:pb-0">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-5">
+    <button id="import-back" type="button"
+      class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+      aria-label="Back">
+      <i class="fas fa-arrow-left text-white/70"></i>
+    </button>
+    <div class="text-2xl font-black">Add Music</div>
+  </div>
+
+  <!-- Step indicators -->
+  <div class="flex items-center gap-2 mb-6">
+    <button id="import-step-setup" type="button" class="import-step import-step-active px-3 py-1 rounded-full text-xs font-extrabold">1 Setup</button>
+    <div class="flex-1 h-px bg-white/20"></div>
+    <button id="import-step-download" type="button" class="import-step import-step-inactive px-3 py-1 rounded-full text-xs font-extrabold">2 Download</button>
+    <div class="flex-1 h-px bg-white/20"></div>
+    <button id="import-step-review" type="button" class="import-step import-step-inactive px-3 py-1 rounded-full text-xs font-extrabold">3 Review &amp; Upload</button>
+  </div>
+
+  <!-- ───────────────── PANEL 1: SETUP ───────────────── -->
+  <div id="import-panel-setup">
+
+    <!-- Server status -->
+    <div class="w-full rounded-2xl bg-white/10 px-5 py-4 mb-4">
+      <div class="flex items-center gap-3 mb-1">
+        <span id="import-server-dot" class="import-server-dot import-dot-checking"></span>
+        <span class="text-sm font-extrabold text-white">Local Server</span>
+      </div>
+      <p id="import-server-label" class="text-xs text-white/60 mb-3">Checking…</p>
+      <div class="flex gap-2">
+        <input id="import-server-url" type="url" placeholder="http://localhost:8765"
+          class="flex-1 bg-white/10 text-white text-sm rounded-full px-4 py-2 outline-none border border-white/10 focus:border-[#1db954]">
+        <button id="import-test-server" type="button"
+          class="px-4 py-2 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">
+          Test
+        </button>
+      </div>
+      <p class="text-xs text-white/40 mt-2">Start with: <code class="text-white/60">bash downloader/start.sh</code></p>
+    </div>
+
+    <!-- Spotify credentials -->
+    <div class="w-full rounded-2xl bg-white/10 px-5 py-4 mb-4">
+      <div class="text-base font-extrabold mb-3">Spotify Credentials <span class="text-xs text-white/40 font-normal">(optional — avoids rate limits)</span></div>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Client ID</label>
+          <input id="import-spotify-client" type="text" placeholder="Your Spotify Client ID"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Client Secret</label>
+          <input id="import-spotify-secret" type="password" placeholder="Your Spotify Client Secret"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+      </div>
+      <p class="text-xs text-white/40 mt-2">Get these at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" class="underline text-white/60">developer.spotify.com</a></p>
+    </div>
+
+    <!-- Cloudflare R2 credentials -->
+    <div class="w-full rounded-2xl bg-white/10 px-5 py-4 mb-5">
+      <div class="text-base font-extrabold mb-3">Cloudflare R2</div>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Account ID</label>
+          <input id="import-r2-account" type="text" placeholder="Cloudflare Account ID"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Access Key ID</label>
+          <input id="import-r2-access-key" type="text" placeholder="R2 Access Key ID"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Secret Access Key</label>
+          <input id="import-r2-secret" type="password" placeholder="R2 Secret Access Key"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+        <div>
+          <label class="text-xs text-white/60 block mb-1">Bucket Name</label>
+          <input id="import-r2-bucket" type="text" placeholder="my-music-bucket"
+            class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <button id="import-save-settings" type="button"
+        class="flex-1 py-3 rounded-full bg-white/10 text-white font-extrabold text-sm active:scale-95">
+        Save Settings
+      </button>
+      <button id="import-goto-download" type="button"
+        class="flex-1 py-3 rounded-full font-extrabold text-sm active:scale-95"
+        style="background:#1db954;color:#000;">
+        Next: Download
+      </button>
+    </div>
+  </div>
+  <!-- END PANEL 1 -->
+
+  <!-- ───────────────── PANEL 2: DOWNLOAD ───────────────── -->
+  <div id="import-panel-download" class="hidden">
+
+    <div class="w-full rounded-2xl bg-white/10 px-5 py-4 mb-4">
+      <label class="text-xs text-white/60 block mb-2">Spotify or YouTube URL</label>
+      <input id="import-url" type="url" placeholder="https://open.spotify.com/playlist/… or https://youtube.com/watch?v=…"
+        class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954] mb-3">
+      <button id="import-download-btn" type="button"
+        class="w-full py-3 rounded-full font-extrabold text-sm active:scale-95"
+        style="background:#1db954;color:#000;">
+        Download
+      </button>
+    </div>
+
+    <div id="import-download-status" class="text-sm text-white/70 px-1 mb-3"></div>
+
+    <div class="w-full rounded-2xl bg-black/30 px-4 py-3 mb-4" style="min-height:160px">
+      <pre id="import-logs"
+        style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:rgba(255,255,255,.65);max-height:320px;overflow-y:auto;margin:0;"></pre>
+    </div>
+
+    <button id="import-goto-review" type="button"
+      class="hidden w-full py-3 rounded-full font-extrabold text-sm active:scale-95"
+      style="background:#1db954;color:#000;">
+      Review Files &rarr;
+    </button>
+  </div>
+  <!-- END PANEL 2 -->
+
+  <!-- ───────────────── PANEL 3: REVIEW & UPLOAD ───────────────── -->
+  <div id="import-panel-review" class="hidden">
+
+    <div class="flex items-center justify-between mb-3">
+      <div id="import-review-status" class="text-sm text-white/70">Loading…</div>
+      <div class="flex gap-2">
+        <button id="import-select-all" type="button"
+          class="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">
+          All
+        </button>
+        <button id="import-deselect-all" type="button"
+          class="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">
+          None
+        </button>
+        <button id="import-clear-all" type="button"
+          class="px-3 py-1.5 rounded-full bg-white/10 text-red-400 text-xs font-extrabold active:scale-95">
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div id="import-file-list" class="flex flex-col gap-3 mb-5"></div>
+
+    <div id="import-upload-progress"
+      style="white-space:pre-wrap;font-size:13px;color:rgba(255,255,255,.6);margin-bottom:12px;min-height:20px;"></div>
+
+    <div class="flex gap-3">
+      <button id="import-upload-btn" type="button"
+        class="flex-1 py-3 rounded-full font-extrabold text-sm active:scale-95"
+        style="background:#1db954;color:#000;">
+        Upload Selected
+      </button>
+      <button id="import-upload-done" type="button"
+        class="hidden flex-1 py-3 rounded-full bg-white/10 text-white font-extrabold text-sm active:scale-95">
+        Done &amp; Refresh Library
+      </button>
+    </div>
+  </div>
+  <!-- END PANEL 3 -->
+
+</div>
+<!-- END IMPORT VIEW -->
 
 
 <div id="grid-view" class="hidden">
@@ -8522,7 +8763,7 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-       ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'recently-deleted-view'].forEach(id => {
+       ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'recently-deleted-view', 'import-view'].forEach(id => {
   document.getElementById(id)?.classList.add('hidden');
 });
 
@@ -8616,7 +8857,7 @@ const scrollArea = document.getElementById('main-scroll-area');
 // ✅ SAFETY: if any view container is outside #main-scroll-area (HTML nesting glitch),
 // move it in so it can be scrolled / shown (fixes Search tab appearing "hidden").
 try {
-  const viewIds = ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','recently-deleted-view'];
+  const viewIds = ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','recently-deleted-view','import-view'];
   if (scrollArea) {
     viewIds.forEach(id => {
       const el = document.getElementById(id);
@@ -8760,6 +9001,11 @@ if (viewType === 'recently-deleted') {
   // default to playlists tab
   try { if (typeof window.setRecentlyDeletedTab === 'function') window.setRecentlyDeletedTab('album'); } catch (e) {}
   try { if (typeof window.renderRecentlyDeleted === 'function') window.renderRecentlyDeleted(); } catch (e) {}
+}
+
+if (viewType === 'import') {
+  document.getElementById('import-view')?.classList.remove('hidden');
+  try { if (typeof initImportView === 'function') initImportView(); } catch (e) {}
 }
 
 
@@ -14322,6 +14568,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
+<script src="src/features/import/import.feature.js"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.

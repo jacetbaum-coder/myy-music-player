@@ -273,6 +273,12 @@ async function __renderRecentlyDeleted() {
     try { if (typeof window.__renderRecentlyDeleted === "function") window.__renderRecentlyDeleted(); } catch (e) {}
   });
 
+  // Settings -> Add Music
+  const openImport = document.getElementById("settings-open-import");
+  if (openImport) openImport.addEventListener("click", () => {
+    try { showView("import"); } catch (e) {}
+  });
+
   if (rdBack) rdBack.addEventListener("click", () => {
     try { showView("settings"); } catch (e) {}
   });
