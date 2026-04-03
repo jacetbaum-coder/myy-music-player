@@ -8,6 +8,7 @@ const CRATE_COOKIE_BACKUP_KEY = "reson_guest_crate_backup";
 
 let crateDoc = null;
 window.__crateLastCloudSync = { ok: false, reason: "not-started" };
+window.__crateLastCloudPull = { ok: false, reason: "not-started" };
 
 function crateApiUrl(params) {
   if (typeof window.personalDataApiUrl === "function") {
@@ -315,7 +316,11 @@ function buildCrateWritePayloads(userId, doc) {
 async function pullCrateFromCloud() {
   try {
     const uid = getCrateCloudUserId();
-    if (!uid) return { ok: false, reason: "missing-user-id" };
+    if (!uid) {
+      const result = { ok: false, reason: "missing-user-id" };
+      window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
+      return result;
+    }
 
     const attempts = [
       { url: crateApiUrl({ userId: uid }), init: { method: "GET", headers: { "Accept": "application/json" } } },
@@ -334,7 +339,9 @@ async function pullCrateFromCloud() {
     }
 
     if (!remote) {
-      return { ok: false, status: lastStatus, reason: "missing-remote-doc", remote: null };
+      const result = { ok: false, status: lastStatus, reason: "missing-remote-doc", remote: null };
+      window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
+      return result;
     }
 
     const local = crateDoc || loadCrateLocal();
@@ -350,10 +357,14 @@ async function pullCrateFromCloud() {
       saveCrateLocal();
     }
 
-    return { ok: true, remote: cloneCrateDoc(remote) };
+    const result = { ok: true, remote: cloneCrateDoc(remote) };
+    window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
+    return result;
   } catch (e) {
     try { console.warn("Failed to pull crate from cloud:", e); } catch (_) {}
-    return { ok: false, error: e };
+    const result = { ok: false, error: e, reason: String(e && e.message || e) };
+    window.__crateLastCloudPull = { ...result, pulledAt: Date.now() };
+    return result;
   }
 }
 
@@ -417,6 +428,44 @@ function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
 }
 
+function formatCrateSyncState(state) {
+  if (!state || typeof state !== "object") return "not-started";
+  if (state.ok) {
+    const method = state.method ? ` ${state.method}` : "";
+    const status = state.status ? ` ${state.status}` : "";
+    return `ok${method}${status}`.trim();
+  }
+  return String(state.reason || state.error || state.status || "failed");
+}
+
+function renderCrateSyncStatus() {
+  const slots = Array.from(document.querySelectorAll(".crate-sync-status-slot"));
+  if (!slots.length) return;
+
+  const localDoc = crateDoc || loadCrateLocal();
+  const localItems = Array.isArray(localDoc?.items) ? localDoc.items.filter((item) => String(item?.text || "").trim()).length : 0;
+  const accountId = getCrateCloudUserId() || "guest";
+  const email = String(window.APP_USER_EMAIL || "").trim() || "guest";
+  const storageKey = resolveCrateStorageKey();
+  const pullState = formatCrateSyncState(window.__crateLastCloudPull);
+  const pushState = formatCrateSyncState(window.__crateLastCloudSync);
+
+  const markup = `
+    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 leading-5">
+      <div><strong class="text-white/90">Crate Sync</strong></div>
+      <div>Account: ${escapeHtml(email)} (${escapeHtml(accountId)})</div>
+      <div>Storage: ${escapeHtml(storageKey)}</div>
+      <div>Local items: ${localItems}</div>
+      <div>Last pull: ${escapeHtml(pullState)}</div>
+      <div>Last push: ${escapeHtml(pushState)}</div>
+    </div>
+  `;
+
+  slots.forEach((slot) => {
+    slot.innerHTML = markup;
+  });
+}
+
 async function ensureAccountCrateSyncedToCloud(pullResult) {
   const uid = getCrateCloudUserId();
   if (!uid) return { ok: false, reason: "missing-user-id" };
@@ -460,6 +509,7 @@ function revealCrateEditorIfNeeded() {
 window.resetCrateForIdentityChange = async function () {
   crateDoc = loadCrateLocal();
   try { renderCrate(); } catch (e) {}
+  try { renderCrateSyncStatus(); } catch (e) {}
   let pullResult = { ok: false, reason: "not-run" };
   try { pullResult = await pullCrateFromCloud(); } catch (e) {}
   try {
@@ -473,6 +523,7 @@ window.resetCrateForIdentityChange = async function () {
     await ensureAccountCrateSyncedToCloud(pullResult);
   } catch (e) {}
   try { renderCrate(); } catch (e) {}
+  try { renderCrateSyncStatus(); } catch (e) {}
   try { revealCrateEditorIfNeeded(); } catch (e) {}
 };
 
@@ -565,6 +616,7 @@ function renderCrate() {
   }).join("");
 
   itemsEl.innerHTML = html || `<div class="crate-row"><div class="crate-text muted">No items yet. Add one below.</div></div>`;
+  try { renderCrateSyncStatus(); } catch (e) {}
 }
 
 function addCrateItem(text, kind = "check") {
@@ -651,6 +703,7 @@ function initCrateUIOnce() {
   // Pull from cloud once on first init
   pullCrateFromCloud().then(() => {
     try { renderCrate(); } catch (e) {}
+    try { renderCrateSyncStatus(); } catch (e) {}
     try { revealCrateEditorIfNeeded(); } catch (e) {}
   });
 
