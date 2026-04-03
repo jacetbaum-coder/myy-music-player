@@ -225,7 +225,7 @@ window.refreshAccountOnlyUi = function () {
   ].forEach((controlId) => toggleGuestOnlyControl(controlId, !enabled));
 };
 
-window.migrateGuestDataToAccount = async function (userId) {
+window.migrateGuestDataToAccount = async function (userId, options) {
   const uid = normalizeUserId(userId || window.getCloudUserId());
   if (!uid) return { ok: false, migrated: false, reason: 'missing-user-id' };
 
@@ -253,7 +253,7 @@ window.migrateGuestDataToAccount = async function (userId) {
       }
 
       if (typeof window.migrateGuestCrateToAccount === 'function') {
-        const crateResult = await window.migrateGuestCrateToAccount(uid);
+        const crateResult = await window.migrateGuestCrateToAccount(options && options.guestCrateDoc);
         summary.crateMigrated = !!crateResult?.migrated;
         summary.migrated = summary.migrated || summary.crateMigrated;
         if (crateResult?.error) summary.errors.push(crateResult.error);

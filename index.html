@@ -14794,6 +14794,13 @@ try {
   };
 
   async function onAuthSuccess(userId, email) {
+    var guestCrateDoc = null;
+    try {
+      if (typeof window.getGuestCrateSnapshot === 'function') {
+        guestCrateDoc = window.getGuestCrateSnapshot();
+      }
+    } catch (e) {}
+
     if (typeof window.setAccountIdentity === 'function') {
       window.setAccountIdentity(userId);
     } else {
@@ -14809,7 +14816,7 @@ try {
 
     try {
       if (typeof window.migrateGuestDataToAccount === 'function') {
-        await window.migrateGuestDataToAccount(userId);
+        await window.migrateGuestDataToAccount(userId, { guestCrateDoc: guestCrateDoc });
       }
     } catch (e) {
       console.warn('Guest data migration failed:', e);

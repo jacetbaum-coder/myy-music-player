@@ -50,6 +50,21 @@ function loadCrateDocFromKey(storageKey) {
   }
 }
 
+function cloneCrateDoc(doc) {
+  const parsed = doc && typeof doc === "object" ? doc : defaultCrateDoc();
+  return {
+    title: String(parsed.title || "Crate"),
+    items: Array.isArray(parsed.items)
+      ? parsed.items.map((item) => ({
+          kind: String(item?.kind || "check").trim() || "check",
+          checked: !!item?.checked,
+          text: String(item?.text || "")
+        }))
+      : [],
+    updatedAt: Number(parsed.updatedAt || Date.now()) || Date.now()
+  };
+}
+
 function crateDocHasMeaningfulContent(doc) {
   if (!doc || typeof doc !== "object") return false;
   const title = String(doc.title || "").trim();
@@ -117,21 +132,28 @@ function loadCrateLocal() {
   }
 }
 
-function saveCrateLocal() {
+function saveCrateLocal(options) {
+  const strict = !!(options && options.strict);
   try {
     if (!crateDoc) return;
     crateDoc.updatedAt = Date.now();
     localStorage.setItem(getCrateStorageKey(), JSON.stringify(crateDoc));
-  } catch (e) {}
+    return true;
+  } catch (e) {
+    if (strict) throw e;
+    try { console.warn("Failed to save crate locally:", e); } catch (_) {}
+    return false;
+  }
 }
 
-async function pullCrateFromCloud() {
+async function pushCrateToCloud(options) {
+  const strict = !!(options && options.strict);
   try {
     const uid = getCrateCloudUserId();
-    if (!uid) return;
-
+    if (!uid) return { ok: false, reason: "missing-user-id" };
+    if (!crateDoc) return { ok: false, reason: "missing-crate-doc" };
     const res = await fetch(crateApiUrl({ userId: uid }), {
-      method: "GET",
+    const res = await fetch(crateApiUrl(), {
       headers: { "Accept": "application/json" }
     });
 
@@ -139,7 +161,19 @@ async function pullCrateFromCloud() {
 
     const data = await res.json();
     const remote = data && (data.doc || data.crate || data.data);
+
+    if (!res.ok) {
+      const error = new Error(`Crate cloud sync failed with status ${res.status}`);
+      if (strict) throw error;
+      try { console.warn(error.message); } catch (_) {}
+      return { ok: false, status: res.status };
+    }
+
+    return { ok: true, status: res.status };
     if (!remote || typeof remote !== "object") return;
+    if (strict) throw e;
+    try { console.warn("Failed to sync crate to cloud:", e); } catch (_) {}
+    return { ok: false, error: e };
 
     // Prefer the newer doc
     const local = crateDoc || loadCrateLocal();
@@ -185,8 +219,12 @@ window.resetCrateForIdentityChange = async function () {
   try { renderCrate(); } catch (e) {}
 };
 
-window.migrateGuestCrateToAccount = async function () {
-  const guestDoc = loadCrateDocFromKey(CRATE_LS_KEY);
+window.getGuestCrateSnapshot = function () {
+  return cloneCrateDoc(loadCrateDocFromKey(CRATE_LS_KEY));
+};
+
+window.migrateGuestCrateToAccount = async function (guestDocOverride) {
+  const guestDoc = cloneCrateDoc(guestDocOverride || loadCrateDocFromKey(CRATE_LS_KEY));
   if (!crateDocHasMeaningfulContent(guestDoc)) {
     return { migrated: false };
   }
@@ -201,8 +239,8 @@ window.migrateGuestCrateToAccount = async function () {
 
     const merged = mergeCrateDocs(crateDoc || loadCrateLocal(), guestDoc);
     crateDoc = merged;
-    saveCrateLocal();
-    await pushCrateToCloud();
+    saveCrateLocal({ strict: true });
+    await pushCrateToCloud({ strict: true });
     try { localStorage.removeItem(CRATE_LS_KEY); } catch (e) {}
     return { migrated: true, itemCount: merged.items.length };
   } catch (e) {
