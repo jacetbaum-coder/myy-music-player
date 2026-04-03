@@ -333,7 +333,9 @@ async function pullCrateFromCloud() {
       if (remote) break;
     }
 
-    if (!remote) return { ok: false, status: lastStatus, reason: "missing-remote-doc" };
+    if (!remote) {
+      return { ok: false, status: lastStatus, reason: "missing-remote-doc", remote: null };
+    }
 
     const local = crateDoc || loadCrateLocal();
     const remoteTime = Number(remote.updatedAt || 0);
@@ -415,6 +417,28 @@ function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
 }
 
+async function ensureAccountCrateSyncedToCloud(pullResult) {
+  const uid = getCrateCloudUserId();
+  if (!uid) return { ok: false, reason: "missing-user-id" };
+
+  const localDoc = crateDoc || loadCrateLocal();
+  if (!crateDocHasMeaningfulContent(localDoc)) {
+    return { ok: false, reason: "missing-local-doc" };
+  }
+
+  const remoteDoc = pullResult && pullResult.remote ? cloneCrateDoc(pullResult.remote) : null;
+  const remoteTime = Number(remoteDoc?.updatedAt || 0);
+  const localTime = Number(localDoc?.updatedAt || 0);
+  const shouldPush = !pullResult?.ok || !remoteDoc || localTime >= remoteTime;
+
+  if (!shouldPush) {
+    return { ok: true, reason: "remote-newer" };
+  }
+
+  crateDoc = cloneCrateDoc(localDoc);
+  return pushCrateToCloud();
+}
+
 window.hasMeaningfulCrateContent = function () {
   try {
     const current = crateDoc || loadCrateLocal();
@@ -427,13 +451,17 @@ window.hasMeaningfulCrateContent = function () {
 window.resetCrateForIdentityChange = async function () {
   crateDoc = loadCrateLocal();
   try { renderCrate(); } catch (e) {}
-  try { await pullCrateFromCloud(); } catch (e) {}
+  let pullResult = { ok: false, reason: "not-run" };
+  try { pullResult = await pullCrateFromCloud(); } catch (e) {}
   try {
     const uid = getCrateCloudUserId();
     const pendingDoc = uid ? loadPendingCrateMigrationDoc(uid) : defaultCrateDoc();
     if (uid && crateDocHasMeaningfulContent(pendingDoc)) {
       await window.migrateGuestCrateToAccount(pendingDoc);
     }
+  } catch (e) {}
+  try {
+    await ensureAccountCrateSyncedToCloud(pullResult);
   } catch (e) {}
   try { renderCrate(); } catch (e) {}
 };
