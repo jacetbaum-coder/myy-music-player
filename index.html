@@ -14504,7 +14504,7 @@ try {
 
     <div class="text-center mb-6">
       <h1 class="text-white text-2xl font-extrabold tracking-tight">Reson</h1>
-      <p class="text-[#b3b3b3] text-sm mt-1">Sign in to continue</p>
+      <p id="auth-subtitle" class="text-[#b3b3b3] text-sm mt-1">Sign in to continue</p>
     </div>
 
     <!-- Magic link pane (default) -->
@@ -14532,9 +14532,12 @@ try {
         class="w-full bg-white text-black font-bold py-3 rounded-xl text-sm mb-4 hover:bg-white/90 active:scale-[0.98] transition-transform">
         Sign in
       </button>
-      <div class="flex justify-between">
-        <button id="auth-to-magic" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Use magic link</button>
-        <button id="auth-to-register" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Create account</button>
+      <div class="flex items-center justify-center gap-2 text-sm">
+        <button id="auth-to-magic" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Use Magic Link</button>
+        <span class="text-white/35">|</span>
+        <button id="auth-to-signin-tab" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Sign In</button>
+        <span class="text-white/35">|</span>
+        <button id="auth-to-register" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Create Account</button>
       </div>
     </div>
 
@@ -14549,9 +14552,13 @@ try {
         Create Account
       </button>
       <div class="text-center">
-        <button id="auth-to-signin2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">
-          Already have an account? Sign in
-        </button>
+        <div class="flex items-center justify-center gap-2 text-sm">
+          <button id="auth-to-magic2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Use Magic Link</button>
+          <span class="text-white/35">|</span>
+          <button id="auth-to-signin2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Sign In</button>
+          <span class="text-white/35">|</span>
+          <button id="auth-to-register2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Create Account</button>
+        </div>
       </div>
     </div>
 
@@ -14566,6 +14573,64 @@ try {
   // All /auth/* calls are rewritten by vercel.json to the Cloudflare Worker
   const modal      = document.getElementById('auth-modal');
   const feedback   = document.getElementById('auth-feedback');
+  const subtitle   = document.getElementById('auth-subtitle');
+  let currentPane  = 'magic';
+
+  const paneConfig = {
+    magic: {
+      subtitle: 'Use a magic link to sign in',
+      activeIds: ['auth-to-magic']
+    },
+    signin: {
+      subtitle: 'Sign in with password',
+      activeIds: ['auth-to-signin', 'auth-to-signin-tab', 'auth-to-signin2']
+    },
+    register: {
+      subtitle: 'Create a new account',
+      activeIds: ['auth-to-register', 'auth-to-register2']
+    }
+  };
+
+  function setNavButtonActive(el, isActive) {
+    if (!el) return;
+    el.classList.toggle('text-[#1ed760]', !!isActive);
+    el.classList.toggle('font-semibold', !!isActive);
+    el.classList.toggle('text-[#b3b3b3]', !isActive);
+  }
+
+  function updatePaneUi(mode) {
+    currentPane = mode;
+    var cfg = paneConfig[mode] || paneConfig.magic;
+    if (subtitle) subtitle.textContent = cfg.subtitle;
+
+    ['auth-to-signin', 'auth-to-magic', 'auth-to-magic2', 'auth-to-register', 'auth-to-register2', 'auth-to-signin-tab', 'auth-to-signin2'].forEach(function(id) {
+      setNavButtonActive(document.getElementById(id), cfg.activeIds.indexOf(id) !== -1);
+    });
+  }
+
+  function getEmailInputs() {
+    return [
+      document.getElementById('auth-magic-email'),
+      document.getElementById('auth-signin-email'),
+      document.getElementById('auth-register-email')
+    ].filter(Boolean);
+  }
+
+  function syncAuthEmail(value, source) {
+    getEmailInputs().forEach(function(input) {
+      if (input !== source) input.value = value;
+    });
+  }
+
+  function getAuthEmailValue() {
+    var preferred = document.getElementById('auth-' + currentPane + '-email');
+    if (preferred && String(preferred.value || '').trim()) return String(preferred.value || '').trim();
+
+    var filled = getEmailInputs().find(function(input) {
+      return String(input.value || '').trim();
+    });
+    return filled ? String(filled.value || '').trim() : '';
+  }
 
   function showFeedback(msg, isError) {
     if (!feedback) return;
@@ -14584,6 +14649,7 @@ try {
       var el = document.getElementById('auth-' + m + '-pane');
       if (el) el.classList.toggle('hidden', m !== mode);
     });
+    updatePaneUi(mode);
     clearFeedback();
   }
 
@@ -14619,13 +14685,22 @@ try {
 
   // Pane toggles
   document.getElementById('auth-to-signin')   ?.addEventListener('click', function() { showPane('signin'); });
+  document.getElementById('auth-to-signin-tab')?.addEventListener('click', function() { showPane('signin'); });
   document.getElementById('auth-to-magic')    ?.addEventListener('click', function() { showPane('magic'); });
+  document.getElementById('auth-to-magic2')   ?.addEventListener('click', function() { showPane('magic'); });
   document.getElementById('auth-to-register') ?.addEventListener('click', function() { showPane('register'); });
+  document.getElementById('auth-to-register2')?.addEventListener('click', function() { showPane('register'); });
   document.getElementById('auth-to-signin2')  ?.addEventListener('click', function() { showPane('signin'); });
+
+  getEmailInputs().forEach(function(input) {
+    input.addEventListener('input', function() {
+      syncAuthEmail(String(input.value || ''), input);
+    });
+  });
 
   // Magic link
   document.getElementById('auth-magic-btn')?.addEventListener('click', async function() {
-    var email = (document.getElementById('auth-magic-email')?.value || '').trim();
+    var email = getAuthEmailValue();
     if (!email) return showFeedback('Enter your email address.', true);
     showFeedback('Sending…', false);
     try {
@@ -14638,7 +14713,7 @@ try {
 
   // Password sign-in
   document.getElementById('auth-signin-btn')?.addEventListener('click', async function() {
-    var email    = (document.getElementById('auth-signin-email')?.value    || '').trim();
+    var email    = getAuthEmailValue();
     var password =  document.getElementById('auth-signin-password')?.value || '';
     if (!email || !password) return showFeedback('Enter your email and password.', true);
     showFeedback('Signing in…', false);
@@ -14657,7 +14732,7 @@ try {
 
   // Registration
   document.getElementById('auth-register-btn')?.addEventListener('click', async function() {
-    var email    = (document.getElementById('auth-register-email')?.value    || '').trim();
+    var email    = getAuthEmailValue();
     var password =  document.getElementById('auth-register-password')?.value || '';
     if (!email || !password) return showFeedback('Enter your email and password.', true);
     showFeedback('Creating account…', false);
@@ -14682,11 +14757,17 @@ try {
   });
 
   // Allow Enter key on password fields to submit
+  document.getElementById('auth-signin-email')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('auth-signin-btn')?.click();
+  });
   document.getElementById('auth-signin-password')?.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('auth-signin-btn')?.click();
   });
   document.getElementById('auth-magic-email')?.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('auth-magic-btn')?.click();
+  });
+  document.getElementById('auth-register-email')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('auth-register-btn')?.click();
   });
   document.getElementById('auth-register-password')?.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('auth-register-btn')?.click();
@@ -14709,6 +14790,8 @@ try {
       showPane('magic');
     }
   };
+
+  showPane('magic');
 
   // Wire logout button (delegated, in case it's rendered later)
   document.addEventListener('click', function(e) {
