@@ -237,7 +237,7 @@ Required verification:
 * Removed the dead frontend `link/start` and `link/redeem` helper block from `index.html` so the app no longer points at non-existent manual link endpoints.
 * Restored a guest-to-auth entry point from the profile icon by adding guest-visible `Sign In` and `Create Account` actions in the profile menu and wiring them into the auth modal.
 * Added an explicit `Continue as guest` path in the auth modal so signing out or landing unauthenticated no longer traps the user in auth before they can use guest storage again.
-* Hardened guest crate migration so auth success captures an explicit guest crate snapshot before the identity switch, seeds the signed-in local crate immediately from that snapshot, persists both a pending signed-in recovery backup and a cookie-backed guest backup across auth round-trips, retries that merge on identity refresh, and only clears the guest crate after the account crate save plus cloud sync succeeds.
+* Hardened guest crate migration so auth success captures an explicit guest crate snapshot before the identity switch, seeds the signed-in local crate immediately from that snapshot, persists both a pending signed-in recovery backup and a cookie-backed guest backup across auth round-trips, retries that merge on identity refresh, verifies cloud writes by reading them back, and lets a non-empty remote crate replace an empty local shell on pull.
 
 ### Next
 

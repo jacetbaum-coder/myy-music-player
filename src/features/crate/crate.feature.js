@@ -372,8 +372,10 @@ async function pullCrateFromCloud() {
     const local = crateDoc || loadCrateLocal();
     const remoteTime = Number(remote.updatedAt || 0);
     const localTime = Number(local.updatedAt || 0);
+    const remoteHasContent = crateDocHasMeaningfulContent(remote);
+    const localHasContent = crateDocHasMeaningfulContent(local);
 
-    if (remoteTime > localTime) {
+    if ((remoteHasContent && !localHasContent) || remoteTime > localTime) {
       crateDoc = cloneCrateDoc({
         title: remote.title,
         items: remote.items,
