@@ -14555,6 +14555,7 @@ try {
     <div class="text-center mb-6">
       <h1 class="text-white text-2xl font-extrabold tracking-tight">Reson</h1>
       <p id="auth-subtitle" class="text-[#b3b3b3] text-sm mt-1">Sign in to continue</p>
+      <p id="auth-context-note" class="hidden text-white/55 text-xs leading-5 mt-3 px-2"></p>
     </div>
 
     <!-- Magic link pane (default) -->
@@ -14624,6 +14625,7 @@ try {
   const modal      = document.getElementById('auth-modal');
   const feedback   = document.getElementById('auth-feedback');
   const subtitle   = document.getElementById('auth-subtitle');
+  const contextNote = document.getElementById('auth-context-note');
   let currentPane  = 'magic';
 
   const paneConfig = {
@@ -14694,6 +14696,46 @@ try {
     if (feedback) feedback.classList.add('hidden');
   }
 
+  function hasGuestPlaylistData() {
+    try {
+      var raw = localStorage.getItem('reson_guest_playlists_v1') || '[]';
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hasGuestCrateData() {
+    try {
+      var raw = localStorage.getItem('reson_guest_crate_doc_v1');
+      if (!raw) return false;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return false;
+      var title = String(parsed.title || '').trim();
+      var items = Array.isArray(parsed.items) ? parsed.items : [];
+      return (!!title && title !== 'Crate') || items.some(function(item) {
+        return String(item && item.text || '').trim().length > 0;
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function updateAuthContextNote() {
+    if (!contextNote) return;
+
+    var hasGuestDrafts = hasGuestPlaylistData() || hasGuestCrateData();
+    if (!hasGuestDrafts) {
+      contextNote.textContent = 'Magic link and password are just two ways to sign into the account for that email.';
+      contextNote.classList.remove('hidden');
+      return;
+    }
+
+    contextNote.textContent = 'Guest playlists and crate items move into the first account you sign into on this device. They do not carry over if you later switch to a different email account.';
+    contextNote.classList.remove('hidden');
+  }
+
   function loadScopedPlaylistsIntoMemory() {
     try {
       if (typeof window.readStoredPlaylists === 'function') {
@@ -14741,6 +14783,7 @@ try {
       if (el) el.classList.toggle('hidden', m !== mode);
     });
     updatePaneUi(mode);
+    updateAuthContextNote();
     clearFeedback();
   }
 
