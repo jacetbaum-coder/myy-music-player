@@ -4927,7 +4927,21 @@ html.mp-auth #mp-login-overlay {
             }
             // ...existing code...
           }
-
+          errorDiv.textContent = '';
+          successDiv.style.display = 'none';
+          emailInput.value = '';
+          pwInput.value = '';
+          emailInput.disabled = false;
+          pwInput.disabled = false;
+          magicBtn.style.display = mode === 'magic' ? '' : 'none';
+          signinBtn.style.display = mode === 'signin' ? '' : 'none';
+          registerBtn.style.display = mode === 'register' ? '' : 'none';
+          pwInput.style.display = (mode === 'signin' || mode === 'register') ? '' : 'none';
+          subtitle.textContent = mode === 'magic' ? 'Sign in or create an account' : (mode === 'signin' ? 'Sign in with password' : 'Create a new account');
+          toggleMagic.style.color = mode === 'magic' ? '#1db954' : '';
+          toggleSignin.style.color = mode === 'signin' ? '#1db954' : '';
+          toggleRegister.style.color = mode === 'register' ? '#1db954' : '';
+        }
           document.getElementById('admin-requests-back')?.addEventListener('click', () => {
             showView('home');
           });
