@@ -233,18 +233,18 @@ Required verification:
 * Updated the `music-streamer` worker copy to derive ownership from session-backed identity for artist crop, delete-album, now-playing, recently deleted, playlists, playlist items, crate, import-playlist, and history-log, and removed duplicate playlist handlers in that copy.
 * Verified live anonymous enforcement for deployed `now-playing`, `playlists`, `crate`, `history-log`, and `artist-crop` routes: each now returns `401 Not signed in` through the site origin instead of trusting raw user ids.
 * Fixed the frontend `personalDataApiUrl` recursion bug in playlist and settings feature wrappers so signed-in `history-log`, `now-playing`, `artist-crop`, and related personal-data calls can be tested again after redeploy.
+* Verified signed-in reads for `recently-deleted`, `playlists`, `history-log`, `now-playing`, and `artist-crop` against the deployed session-backed contract after the rewrite and helper fixes were deployed.
+* Removed the dead frontend `link/start` and `link/redeem` helper block from `index.html` so the app no longer points at non-existent manual link endpoints.
 
 ### Next
 
-* Bring the personal-data worker source for playlists, crate, history, now-playing, recently deleted, artist crop, and link endpoints into this repo, or repoint the app to a checked-in backend that can enforce session-backed ownership.
-* Sub-step for Phase 1A: redeploy the frontend helper fix plus the exact `/api/recently-deleted` rewrite so signed-in personal-data calls use the corrected helper and the bare recently-deleted route reaches `music-streamer`.
-* After that deployment step, verify the hardened personal-data routes against signed-in flows and then add or wire a repeatable verification harness for guest upgrade migration, guest-mode gating, merged library behavior, and history or now-playing sync.
+* Finish the remaining Phase 1A verification pass against the deployed session-backed contract: guest-to-account migration, guest-mode gating, merged library behavior, and history or now-playing write flows.
+* Bring the personal-data worker source for playlists, crate, history, now-playing, recently deleted, artist crop, and any still-active account routes into this repo, or repoint the app to a checked-in backend that can enforce and evolve the same contract locally.
+* After that verification pass, add or wire a repeatable verification harness for the account-upgrade and personal-data flows that are currently being checked manually.
 
 ### Blocked
 
-* The personal-data endpoints used by the frontend still point at `music-streamer.jacetbaum.workers.dev`, but that worker code is not present in this workspace, so backend ownership enforcement cannot be completed from this checkout.
-* The bare `/api/recently-deleted` route still needs the new exact Vercel rewrite deployed; without it, that path falls through the generic `/api/*` rule instead of reaching `music-streamer`.
-* `link/start` and `link/redeem` are still referenced in the frontend and live site but are not present in the provided worker copies or deployed rewrites, so that flow remains unresolved until it is either implemented or removed.
+* The durable source for the deployed personal-data worker still is not checked into this repo, so future backend ownership changes and repeatable local verification depend on keeping the external worker copy in sync.
 * No automated E2E test harness is present in the repo, and verification of the live personal-data backend still requires a deployed worker plus a valid signed-in test session.
 
 ### Changes From Original Assumption
@@ -266,4 +266,4 @@ Keep the roadmap detailed enough for handoff and keep repo memory short enough t
 
 At the end of the roadmap, always include a sentence stating the last completed step (using the exact roadmap step name) and the next actual roadmap step (using the exact step name). If a prerequisite or sub-step is needed before the next step, include it explicitly as a sub-step and tell me in your report. After completing a full phase, report that the phase is complete and tell me to start a new chat to begin the next phase. If there is something I must do on my end, please walk me through explicitly how to do it. Please advise me when to push changes to github/vercel. 
 
-Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: redeploy the frontend helper fix plus the exact `/api/recently-deleted` rewrite, then confirm the already-deployed session-backed worker enforcement against signed-in flows before finishing the broader verification pass.
+Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: run the remaining signed-in verification for guest upgrade migration, guest-mode gating, merged library behavior, and history or now-playing write flows against the already-deployed session-backed routes.

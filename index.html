@@ -13781,61 +13781,6 @@ function playAlbumByName(name) {
 
 
 // [MOVED TO src/features/player/player.feature.js] Player global exports for dock and now-playing controls
-
-
-      // ✅ Link flow (Phase 1): share the same userId across devices
-  async function startLink() {
-    const fallbackBase = 'https://music-streamer.jacetbaum.workers.dev';
-    const url = (typeof window.personalDataApiUrl === 'function')
-      ? window.personalDataApiUrl('/api/link/start')
-      : new URL('/api/link/start', fallbackBase).toString();
-    const res = await fetch(url, {
-      method: "POST"
-    });
-    const data = await res.json();
-    if (!res.ok || !data || !data.ok) {
-      throw new Error((data && (data.error || data.message)) || "Link start failed");
-    }
-
-    // Save the shared userId for this browser
-    if (typeof window.setAccountIdentity === 'function') {
-      window.setAccountIdentity(data.userId);
-    } else {
-      localStorage.setItem("reson_account_user_id", data.userId);
-      localStorage.setItem("app_user_id", data.userId);
-      window.APP_USER_ID = data.userId;
-    }
-
-    return data; // { ok, userId, code, expiresAt }
-  }
-
-  async function redeemLink(code) {
-    const fallbackBase = 'https://music-streamer.jacetbaum.workers.dev';
-    const url = (typeof window.personalDataApiUrl === 'function')
-      ? window.personalDataApiUrl('/api/link/redeem')
-      : new URL('/api/link/redeem', fallbackBase).toString();
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: String(code || "").trim().toUpperCase() })
-    });
-    const data = await res.json();
-    if (!res.ok || !data || !data.ok) {
-      throw new Error((data && (data.error || data.message)) || "Link redeem failed");
-    }
-
-    // Save the shared userId for this browser
-    if (typeof window.setAccountIdentity === 'function') {
-      window.setAccountIdentity(data.userId);
-    } else {
-      localStorage.setItem("reson_account_user_id", data.userId);
-      localStorage.setItem("app_user_id", data.userId);
-      window.APP_USER_ID = data.userId;
-    }
-
-    return data; // { ok, userId }
-  }
-
   // Mobile Library: tap magnifying glass to open/close the existing search input
   ;(function bindLibrarySearchIcon() {
 
