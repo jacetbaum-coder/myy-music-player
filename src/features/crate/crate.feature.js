@@ -448,6 +448,15 @@ window.hasMeaningfulCrateContent = function () {
   }
 };
 
+function revealCrateEditorIfNeeded() {
+  try {
+    const crateView = document.getElementById("crate-view");
+    if (!crateView || crateView.classList.contains("hidden")) return;
+    if (!window.hasMeaningfulCrateContent || !window.hasMeaningfulCrateContent()) return;
+    openCrateSection("crate");
+  } catch (e) {}
+}
+
 window.resetCrateForIdentityChange = async function () {
   crateDoc = loadCrateLocal();
   try { renderCrate(); } catch (e) {}
@@ -464,6 +473,7 @@ window.resetCrateForIdentityChange = async function () {
     await ensureAccountCrateSyncedToCloud(pullResult);
   } catch (e) {}
   try { renderCrate(); } catch (e) {}
+  try { revealCrateEditorIfNeeded(); } catch (e) {}
 };
 
 window.getGuestCrateSnapshot = function () {
@@ -641,6 +651,7 @@ function initCrateUIOnce() {
   // Pull from cloud once on first init
   pullCrateFromCloud().then(() => {
     try { renderCrate(); } catch (e) {}
+    try { revealCrateEditorIfNeeded(); } catch (e) {}
   });
 
   document.addEventListener("click", (e) => {
