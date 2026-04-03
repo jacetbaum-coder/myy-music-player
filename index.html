@@ -8536,6 +8536,7 @@ try { renderHome(); } catch (e) {}
 
   if (viewType === 'crate') {
   document.getElementById('crate-view')?.classList.remove('hidden');
+  try { openCrateSection('home'); } catch (e) {}
   try { initCrateUIOnce(); } catch (e) {}
   try { renderCrate(); } catch (e) {}
   // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
