@@ -185,6 +185,16 @@ function openCrateSection(which) {
   if (w === "import") {
     try { initImportView(); } catch (e) {}
   }
+
+  try {
+    const scrollArea = document.getElementById("main-scroll-area");
+    if (scrollArea) scrollArea.scrollTop = 0;
+  } catch (e) {}
+}
+
+function openCrateImportView() {
+  try { showView("crate"); } catch (e) {}
+  openCrateSection("import");
 }
 
 function initCrateUIOnce() {
@@ -284,6 +294,7 @@ window.goBackFromCrate = goBackFromCrate;
 window.initCrateUIOnce = initCrateUIOnce;
 window.renderCrate = renderCrate;
 window.openCrateSection = openCrateSection;
+window.openCrateImportView = openCrateImportView;
 
 
 /* -----------------------

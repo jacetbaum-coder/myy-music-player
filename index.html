@@ -3641,6 +3641,16 @@ body.qs-lock {
   min-height: 100%;
 }
 
+.crate-section{
+  padding-bottom: calc(var(--player-height) + var(--nav-height) + 24px);
+}
+
+@media (min-width: 769px){
+  .crate-section{
+    padding-bottom: 0;
+  }
+}
+
 .crate-shell{
   max-width: 820px;
   margin: 0 auto;
@@ -4821,7 +4831,7 @@ body.qs-lock {
 <div id="crate-view" class="hidden">
 
   <!-- CRATE HOME (2x2 grid) -->
-  <div id="crate-home" class="pb-30 md:pb-0">
+  <div id="crate-home" class="crate-section">
     <div class="flex items-center gap-3 mb-5">
       <button type="button"
         class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
@@ -4851,7 +4861,7 @@ body.qs-lock {
         <div class="crate-tile-sub">Playback options</div>
       </button>
 
-      <button type="button" class="crate-tile" onclick="openCrateSection('import')">
+      <button type="button" id="crate-open-import" class="crate-tile" onclick="openCrateImportView()">
         <div class="crate-tile-icon"><i class="fas fa-cloud-arrow-up"></i></div>
         <div class="crate-tile-title">Add Music</div>
         <div class="crate-tile-sub">Download &amp; upload</div>
@@ -4901,7 +4911,7 @@ body.qs-lock {
   </div>
 
     <!-- SUBVIEW: STATS (working) -->
-  <div id="crate-stats" class="hidden pb-30 md:pb-0">
+  <div id="crate-stats" class="hidden crate-section">
     <div class="flex items-center gap-3 mb-5">
       <button type="button"
         class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
@@ -4957,7 +4967,7 @@ body.qs-lock {
 
   <!-- SUBVIEW: FEATURES (placeholder UI for now) -->
 
-  <div id="crate-features" class="hidden pb-30 md:pb-0">
+  <div id="crate-features" class="hidden crate-section">
     <div class="flex items-center gap-3 mb-5">
       <button type="button"
         class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
@@ -5011,7 +5021,7 @@ body.qs-lock {
   </div>
 
   <!-- SUBVIEW: ADD MUSIC (import workflow) -->
-  <div id="crate-import" class="hidden pb-30 md:pb-0">
+  <div id="crate-import" class="hidden crate-section">
 
     <!-- Header -->
     <div class="flex items-center gap-3 mb-5">
@@ -8541,6 +8551,14 @@ try { renderHome(); } catch (e) {}
   try { renderCrate(); } catch (e) {}
   // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
 }
+
+  if (viewType === 'import') {
+    document.getElementById('crate-view')?.classList.remove('hidden');
+    try { initCrateUIOnce(); } catch (e) {}
+    try { openCrateImportView(); } catch (e) {
+      try { openCrateSection('import'); } catch (_) {}
+    }
+  }
 
 if (viewType === 'settings') {
   document.getElementById('settings-view')?.classList.remove('hidden');
