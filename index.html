@@ -6242,8 +6242,46 @@ if (profileBtn) profileBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   e.stopImmediatePropagation();
 
+  if (typeof window.isGuestMode === 'function' && window.isGuestMode()) {
+    try { close(); } catch (e) {}
+    try {
+      if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal('signin');
+      }
+    } catch (e) {}
+    return;
+  }
+
   try { close(); } catch (e) {}
   try { alert('Profile (coming soon)'); } catch (e) {}
+}, true);
+
+const signInBtn = document.getElementById('profile-menu-signin');
+if (signInBtn) signInBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  try { close(); } catch (e) {}
+  try {
+    if (typeof window.openAuthModal === 'function') {
+      window.openAuthModal('signin');
+    }
+  } catch (e) {}
+}, true);
+
+const registerBtn = document.getElementById('profile-menu-register');
+if (registerBtn) registerBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  try { close(); } catch (e) {}
+  try {
+    if (typeof window.openAuthModal === 'function') {
+      window.openAuthModal('register');
+    }
+  } catch (e) {}
 }, true);
 
 })();
@@ -14298,6 +14336,18 @@ try {
         Upload Photo
       </button>
 
+      <div class="h-px bg-white/10 hidden" aria-hidden="true"></div>
+
+      <button id="profile-menu-signin" class="hidden w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5" aria-hidden="true">
+        Sign In
+      </button>
+
+      <div class="h-px bg-white/10 hidden" aria-hidden="true"></div>
+
+      <button id="profile-menu-register" class="hidden w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5" aria-hidden="true">
+        Create Account
+      </button>
+
       <div id="auth-logout-row" class="hidden">
         <div class="h-px bg-white/10"></div>
         <button id="profile-menu-logout" class="w-full text-left px-5 py-4 font-extrabold text-red-400 hover:bg-white/5">
@@ -14688,6 +14738,18 @@ try {
     clearFeedback();
   }
 
+  window.openAuthModal = function(mode) {
+    if (modal) modal.classList.remove('hidden');
+    showPane(mode || 'magic');
+    var focusTarget = document.getElementById('auth-' + (mode || 'magic') + '-email')
+      || document.getElementById('auth-magic-email');
+    if (focusTarget && typeof focusTarget.focus === 'function') {
+      setTimeout(function() {
+        try { focusTarget.focus(); } catch (e) {}
+      }, 0);
+    }
+  };
+
   async function onAuthSuccess(userId, email) {
     if (typeof window.setAccountIdentity === 'function') {
       window.setAccountIdentity(userId);
@@ -14733,7 +14795,11 @@ try {
         window.clearAccountIdentity();
       }
       await refreshIdentityScopedState();
-      if (modal) modal.classList.remove('hidden');
+      if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal('magic');
+      } else if (modal) {
+        modal.classList.remove('hidden');
+      }
     }
   })();
 
@@ -14844,7 +14910,8 @@ try {
     var profileMenu = document.getElementById('profile-menu-modal');
     if (profileMenu) profileMenu.classList.add('hidden');
     // Show auth modal
-    if (modal) {
+    if (typeof window.openAuthModal === 'function') window.openAuthModal('magic');
+    else if (modal) {
       modal.classList.remove('hidden');
       showPane('magic');
     }

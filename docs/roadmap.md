@@ -235,6 +235,7 @@ Required verification:
 * Fixed the frontend `personalDataApiUrl` recursion bug in playlist and settings feature wrappers so signed-in `history-log`, `now-playing`, `artist-crop`, and related personal-data calls can be tested again after redeploy.
 * Verified signed-in reads for `recently-deleted`, `playlists`, `history-log`, `now-playing`, and `artist-crop` against the deployed session-backed contract after the rewrite and helper fixes were deployed.
 * Removed the dead frontend `link/start` and `link/redeem` helper block from `index.html` so the app no longer points at non-existent manual link endpoints.
+* Restored a guest-to-auth entry point from the profile icon by adding guest-visible `Sign In` and `Create Account` actions in the profile menu and wiring them into the auth modal.
 
 ### Next
 

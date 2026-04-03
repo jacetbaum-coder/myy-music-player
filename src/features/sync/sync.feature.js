@@ -120,6 +120,21 @@ function toggleAccountOnlyControl(controlId, enabled) {
   }
 }
 
+function toggleGuestOnlyControl(controlId, enabled) {
+  const el = document.getElementById(controlId);
+  if (!el) return;
+
+  el.classList.toggle('hidden', !enabled);
+  el.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+  if ('disabled' in el) el.disabled = !enabled;
+
+  const next = el.nextElementSibling;
+  if (next && next.classList && next.classList.contains('h-px')) {
+    next.classList.toggle('hidden', !enabled);
+    next.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+  }
+}
+
 window.getCloudUserId = function () {
   return normalizeUserId(window.APP_ACCOUNT_USER_ID || window.APP_USER_ID || getStoredAccountUserId());
 };
@@ -176,8 +191,12 @@ window.requireAccount = function (message) {
   if (!window.isGuestMode()) return true;
 
   try {
-    const modal = document.getElementById('auth-modal');
-    if (modal) modal.classList.remove('hidden');
+    if (typeof window.openAuthModal === 'function') {
+      window.openAuthModal('signin');
+    } else {
+      const modal = document.getElementById('auth-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
   } catch (e) {}
 
   if (message) {
@@ -194,9 +213,15 @@ window.refreshAccountOnlyUi = function () {
     'settings-open-recently-deleted',
     'profile-menu-sync',
     'profile-menu-recently-deleted',
+    'profile-menu-profile',
     'crate-open-import',
     'profile-menu-upload-photo'
   ].forEach((controlId) => toggleAccountOnlyControl(controlId, enabled));
+
+  [
+    'profile-menu-signin',
+    'profile-menu-register'
+  ].forEach((controlId) => toggleGuestOnlyControl(controlId, !enabled));
 };
 
 window.migrateGuestDataToAccount = async function (userId) {
