@@ -42,6 +42,15 @@ function getAppUserId() {
 // store to R2 forever, and then serve the cached version forever.
 async function getArtistHeroImageUrl(artistName){
   try {
+    if (typeof window.fetchArtistPortrait === 'function') {
+      const portrait = await window.fetchArtistPortrait(artistName);
+      if (portrait && portrait.ok && portrait.image) {
+        return portrait.image;
+      }
+    }
+  } catch (e) {}
+
+  try {
     const r = await fetch(
       '/api/artist-image?name=' + encodeURIComponent(artistName)
     );

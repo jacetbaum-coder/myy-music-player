@@ -759,23 +759,25 @@ if (sortMode === 'Alphabetical') {
     const isList = (libraryViewMode === 'list');
 
   grid.innerHTML = artists.map((artistName) => {
-    const a = firstAlbumByArtist.get(artistName);
-    const cover = a ? getAlbumCover(a.artistName, a.albumName, a.coverArt) : "";
-
     const safeArtist = String(artistName)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+    const safeArtistAttr = String(artistName)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
 
-    const coverHtml = cover
-      ? `<img src="${cover}" class="w-full h-full object-cover">`
-      : `<i class="fas fa-user text-white/50 text-2xl"></i>`;
+    const coverHtml = (typeof window.getArtistAvatarMarkup === 'function')
+      ? window.getArtistAvatarMarkup(artistName, 'w-full h-full rounded-full overflow-hidden bg-white/10')
+      : `<div class="w-full h-full rounded-full overflow-hidden bg-white/10 flex items-center justify-center"><i class="fas fa-user text-white/45 text-2xl"></i></div>`;
 
     if (isList) {
       return `
         <div class="album-card p-3 flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl"
-             data-artist="${safeArtist}">
-          <div class="w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+             data-artist="${safeArtistAttr}">
+          <div class="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
             ${coverHtml}
           </div>
           <div class="min-w-0">
@@ -792,9 +794,11 @@ if (sortMode === 'Alphabetical') {
 
     return `
       <div class="album-card rounded-lg overflow-hidden"
-           data-artist="${safeArtist}">
-        <div class="p-4">
-          ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-user text-white/50 text-2xl"></i></div>`}
+           data-artist="${safeArtistAttr}">
+        <div class="p-4 pb-3">
+          <div class="w-full aspect-square rounded-full overflow-hidden">
+            ${coverHtml}
+          </div>
         </div>
         <div class="playlist-card-info">
           <h3>${safeArtist}</h3>
@@ -812,6 +816,10 @@ if (sortMode === 'Alphabetical') {
       openArtistByName(artist);
     });
   });
+
+  if (typeof window.hydrateArtistPortraits === 'function') {
+    window.hydrateArtistPortraits(grid);
+  }
 }
 
 function renderLibraryAll() {

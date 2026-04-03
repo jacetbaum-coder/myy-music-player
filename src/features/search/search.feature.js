@@ -196,15 +196,24 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
   if (byType.artist.length) {
     html += section('Artists');
     byType.artist.forEach(x => {
+      const artistName = String(x.artist || '');
+      const safeArtistAttr = artistName
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      const avatarHtml = (typeof window.getArtistAvatarMarkup === 'function')
+        ? window.getArtistAvatarMarkup(artistName, 'w-10 h-10 rounded-full overflow-hidden flex-shrink-0')
+        : '<div class="w-10 h-10 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0"><i class="fas fa-user text-zinc-400"></i></div>';
       html += `
         <button class="w-full text-left px-4 py-3 hover:bg-white/10 flex items-center gap-3"
                 type="button"
                 data-action="artist"
-                data-artist="${String(x.artist).replace(/"/g,'&quot;')}"
+                data-artist="${safeArtistAttr}"
                 data-query="${q.replace(/"/g,'&quot;')}">
-          <i class="fas fa-user text-zinc-400"></i>
+          ${avatarHtml}
           <div class="min-w-0">
-            <div class="text-white text-sm font-bold truncate">${x.artist}</div>
+            <div class="text-white text-sm font-bold truncate">${artistName.replace(/</g,'&lt;')}</div>
             <div class="text-zinc-400 text-xs truncate">${x.count} album${x.count === 1 ? '' : 's'}</div>
           </div>
         </button>
@@ -270,6 +279,10 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
       }
     });
   });
+
+  if (typeof window.hydrateArtistPortraits === 'function') {
+    window.hydrateArtistPortraits(box);
+  }
 }
 
 function handleLibrarySearch(query, boxId = 'library-search-results') {
@@ -1589,30 +1602,11 @@ img.src = cover || '';
   });
 
   const iconWrap = document.createElement('div');
-  iconWrap.className = 'w-12 h-12 rounded bg-zinc-800 flex items-center justify-center overflow-hidden';
-
-  // Try to use an existing album cover as the artist picture (no API needed)
-  let artistPic = '';
-  try {
-    const name = String(artist.artist || '').trim();
-    if (name && Array.isArray(window.libraryData)) {
-      const hit = window.libraryData.find(a =>
-        String(a?.artistName || '').trim() === name && String(a?.coverArt || '').trim()
-      );
-      artistPic = hit ? String(hit.coverArt || '').trim() : '';
-    }
-  } catch (e) {}
-
-  if (artistPic) {
-    const img = document.createElement('img');
-    img.src = artistPic;
-    img.alt = '';
-    img.className = 'w-full h-full object-cover';
-    iconWrap.appendChild(img);
+  iconWrap.className = 'w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0';
+  if (typeof window.hydrateArtistPortraitElement === 'function') {
+    window.hydrateArtistPortraitElement(iconWrap, artist.artist);
   } else {
-    const icon = document.createElement('i');
-    icon.className = 'fas fa-user text-zinc-400';
-    iconWrap.appendChild(icon);
+    iconWrap.innerHTML = '<span class="w-full h-full rounded-full bg-white/10 flex items-center justify-center"><i class="fas fa-user text-zinc-400"></i></span>';
   }
 
 
