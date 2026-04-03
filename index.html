@@ -4445,6 +4445,58 @@ body.qs-lock {
   </div>
 </div>
 
+<div id="profile-view" class="hidden pb-30 md:pb-0">
+  <div class="flex items-center gap-3 mb-5">
+    <button id="profile-back" type="button"
+      class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+      aria-label="Back">
+      <i class="fas fa-arrow-left text-white/70"></i>
+    </button>
+    <div class="text-2xl font-black">Profile</div>
+  </div>
+
+  <div class="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 mb-4">
+    <div class="flex items-center gap-4">
+      <div id="profile-avatar-shell" class="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-white/10 flex items-center justify-center">
+        <div id="profile-avatar-fallback" class="text-2xl font-black text-white/80">?</div>
+        <span id="profile-avatar-admin-badge" class="hidden absolute right-0 bottom-0 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#141414] bg-[#2a7fff] text-xs font-black text-white shadow-[0_4px_10px_rgba(0,0,0,0.35)]">✓</span>
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <div id="profile-email-heading" class="text-xl font-black truncate">Your account</div>
+        <div id="profile-email-subtitle" class="mt-1 text-sm text-white/60">Signed in account</div>
+        <div id="profile-admin-pill" class="hidden mt-3 inline-flex items-center gap-2 rounded-full border border-[#2a7fff]/50 bg-[#0f2138] px-3 py-1 text-xs font-bold text-[#8ec5ff]">
+          <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2a7fff] text-[10px] font-black text-white">✓</span>
+          Verified admin
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 mb-4">
+    <div class="text-lg font-extrabold">Edit Profile</div>
+    <div class="mt-1 text-sm text-white/60">Update your account photo from here.</div>
+    <button id="profile-edit-photo-btn" type="button"
+      class="mt-4 inline-flex items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-extrabold text-black active:scale-95">
+      Upload Photo
+    </button>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <button id="profile-open-settings" type="button"
+      class="w-full rounded-2xl bg-white/10 px-4 py-4 text-left">
+      <div class="text-lg font-extrabold">Settings</div>
+      <div class="text-sm text-white/60">Manage sync and recovery tools</div>
+    </button>
+
+    <button id="profile-signout-btn" type="button"
+      class="w-full rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-4 text-left text-red-300">
+      <div class="text-lg font-extrabold">Sign out</div>
+      <div class="text-sm text-red-200/70">Leave this account on this device</div>
+    </button>
+  </div>
+</div>
+
 <!-- RECENTLY DELETED VIEW -->
 <div id="recently-deleted-view" class="hidden pt-6 pb-30 md:pt-4 md:pb-0 px-4">
 
@@ -6193,7 +6245,7 @@ lpTriggered = false;
 
   document.addEventListener('click', (e) => {
     const actionEl = e.target && e.target.closest
-      ? e.target.closest('#profile-menu-settings, #profile-menu-sync, #profile-menu-recently-deleted, #profile-menu-profile, #profile-menu-signin, #profile-menu-register')
+      ? e.target.closest('#profile-menu-settings, #profile-menu-profile, #profile-menu-signin, #profile-menu-register')
       : null;
     if (!actionEl) return;
 
@@ -6205,33 +6257,6 @@ lpTriggered = false;
     if (actionId === 'profile-menu-settings') {
       try { close(); } catch (e) {}
       try { showView('settings'); } catch (e) {}
-      return;
-    }
-
-    if (actionId === 'profile-menu-sync') {
-      if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to sync devices.')) {
-        try { close(); } catch (e) {}
-        return;
-      }
-
-      try { close(); } catch (e) {}
-      try { showView('settings'); } catch (e) {}
-
-      setTimeout(() => {
-        const btn = document.getElementById('settings-open-sync');
-        try { btn && btn.click(); } catch (e) {}
-      }, 60);
-      return;
-    }
-
-    if (actionId === 'profile-menu-recently-deleted') {
-      if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to use Recently Deleted.')) {
-        try { close(); } catch (e) {}
-        return;
-      }
-
-      try { close(); } catch (e) {}
-      try { showView('recently-deleted'); } catch (e) {}
       return;
     }
 
@@ -6248,7 +6273,7 @@ lpTriggered = false;
         return;
       }
 
-      try { alert('Profile (coming soon)'); } catch (e) {}
+      try { showView('profile'); } catch (e) {}
       return;
     }
 
@@ -8362,7 +8387,7 @@ function showView(viewType, playlistIndex = null) {
   try { hidePlaylistMenu(); } catch (e) {}
   try { closeContextMenu(); } catch (e) {}
 
-       ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'recently-deleted-view'].forEach(id => {
+       ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'profile-view', 'recently-deleted-view'].forEach(id => {
   document.getElementById(id)?.classList.add('hidden');
 });
 
@@ -8456,7 +8481,7 @@ const scrollArea = document.getElementById('main-scroll-area');
 // ✅ SAFETY: if any view container is outside #main-scroll-area (HTML nesting glitch),
 // move it in so it can be scrolled / shown (fixes Search tab appearing "hidden").
 try {
-  const viewIds = ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','recently-deleted-view'];
+  const viewIds = ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','profile-view','recently-deleted-view'];
   if (scrollArea) {
     viewIds.forEach(id => {
       const el = document.getElementById(id);
@@ -8609,6 +8634,11 @@ try { renderHome(); } catch (e) {}
 if (viewType === 'settings') {
   document.getElementById('settings-view')?.classList.remove('hidden');
   try { if (typeof renderSettingsScreen === 'function') renderSettingsScreen(); } catch (e) {}
+}
+
+if (viewType === 'profile') {
+  document.getElementById('profile-view')?.classList.remove('hidden');
+  try { if (typeof window.renderProfileScreen === 'function') window.renderProfileScreen(); } catch (e) {}
 }
 
 if (viewType === 'recently-deleted') {
@@ -14306,26 +14336,8 @@ try {
 
       <div class="h-px bg-white/10"></div>
 
-      <button id="profile-menu-sync" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-               Sync devices
-      </button>
-
-      <div class="h-px bg-white/10"></div>
-
-      <button id="profile-menu-recently-deleted" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-        Recently Deleted
-      </button>
-
-      <div class="h-px bg-white/10"></div>
-
       <button id="profile-menu-profile" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Profile
-      </button>
-
-      <div class="h-px bg-white/10"></div>
-
-      <button id="profile-menu-upload-photo" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
-        Upload Photo
       </button>
 
       <div class="h-px bg-white/10 hidden" aria-hidden="true"></div>
@@ -14340,13 +14352,6 @@ try {
         Create Account
       </button>
 
-      <div id="auth-logout-row" class="hidden">
-        <div class="h-px bg-white/10"></div>
-        <button id="profile-menu-logout" class="w-full text-left px-5 py-4 font-extrabold text-red-400 hover:bg-white/5">
-          Sign out
-        </button>
-      </div>
-
     </div>
   </div>
 
@@ -14359,7 +14364,9 @@ try {
 <script>
 (function initProfilePhotoUpload() {
   const photoInput = document.getElementById('library-profile-photo-input');
-  const uploadBtn  = document.getElementById('profile-menu-upload-photo');
+  const uploadBtns = [
+    document.getElementById('profile-edit-photo-btn')
+  ].filter(Boolean);
   const profileBtns = [
     document.getElementById('profile-menu-btn'),
     document.getElementById('library-profile-btn'),
@@ -14381,6 +14388,11 @@ try {
           window.updateAdminVerificationUi();
         }
       } catch (e) {}
+      try {
+        if (typeof window.renderProfileScreen === 'function') {
+          window.renderProfileScreen();
+        }
+      } catch (e) {}
   }
 
   // Restore saved photo on load
@@ -14389,8 +14401,8 @@ try {
     if (saved) applyProfilePhoto(saved);
   } catch (e) {}
 
-  // "Upload Photo" menu item → trigger file picker + close modal
-  if (uploadBtn && photoInput) {
+  uploadBtns.forEach(function(uploadBtn) {
+    if (!photoInput) return;
     uploadBtn.addEventListener('click', function () {
       if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to save a profile photo.')) {
         return;
@@ -14401,7 +14413,7 @@ try {
       photoInput.value = '';
       photoInput.click();
     });
-  }
+  });
 
   if (photoInput) {
     photoInput.addEventListener('change', function () {
@@ -14828,6 +14840,12 @@ try {
 
     var row = document.getElementById('profile-menu-admin-badge-row');
     if (row) row.classList.toggle('hidden', !isAdmin);
+
+    var pill = document.getElementById('profile-admin-pill');
+    if (pill) pill.classList.toggle('hidden', !isAdmin);
+
+    var avatarBadge = document.getElementById('profile-avatar-admin-badge');
+    if (avatarBadge) avatarBadge.classList.toggle('hidden', !isAdmin);
   }
 
   window.updateAdminVerificationUi = updateAdminVerificationUi;
@@ -14862,9 +14880,6 @@ try {
     window.APP_USER_EMAIL = email;
     window.APP_IS_ADMIN = !!isAdmin;
     if (modal) modal.classList.add('hidden');
-    // Show logout button in profile menu
-    var logoutRow = document.getElementById('auth-logout-row');
-    if (logoutRow) logoutRow.classList.remove('hidden');
 
     try {
       if (typeof window.seedAccountCrateFromGuestSnapshot === 'function') {
@@ -14883,6 +14898,7 @@ try {
     }
 
     try { updateAdminVerificationUi(); } catch (e) {}
+    try { if (typeof window.renderProfileScreen === 'function') window.renderProfileScreen(); } catch (e) {}
     await refreshIdentityScopedState();
   }
 
@@ -14907,6 +14923,7 @@ try {
       }
       window.APP_IS_ADMIN = false;
       try { updateAdminVerificationUi(); } catch (e) {}
+      try { if (typeof window.renderProfileScreen === 'function') window.renderProfileScreen(); } catch (e) {}
       await refreshIdentityScopedState();
       if (typeof window.openAuthModal === 'function') {
         window.openAuthModal('magic');
@@ -15022,9 +15039,7 @@ try {
       window.APP_IS_ADMIN = false;
     }
     try { if (typeof window.updateAdminVerificationUi === 'function') window.updateAdminVerificationUi(); } catch (e) {}
-    // Hide logout button
-    var logoutRow = document.getElementById('auth-logout-row');
-    if (logoutRow) logoutRow.classList.add('hidden');
+    try { if (typeof window.renderProfileScreen === 'function') window.renderProfileScreen(); } catch (e) {}
     // Close profile menu
     var profileMenu = document.getElementById('profile-menu-modal');
     if (profileMenu) profileMenu.classList.add('hidden');
@@ -15041,15 +15056,6 @@ try {
 
   showPane('magic');
   try { updateAdminVerificationUi(); } catch (e) {}
-
-  // Wire logout button (delegated, in case it's rendered later)
-  document.addEventListener('click', function(e) {
-    if (e.target && e.target.closest && e.target.closest('#profile-menu-logout')) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.mpLogout();
-    }
-  }, true);
 
 })();
 </script>

@@ -242,10 +242,62 @@ async function __renderRecentlyDeleted() {
   });
 }
 
+function __renderProfileScreen() {
+  const email = String(window.APP_USER_EMAIL || "").trim();
+  const heading = document.getElementById("profile-email-heading");
+  const subtitle = document.getElementById("profile-email-subtitle");
+  const fallback = document.getElementById("profile-avatar-fallback");
+  const avatarShell = document.getElementById("profile-avatar-shell");
+  const adminPill = document.getElementById("profile-admin-pill");
+  const adminAvatarBadge = document.getElementById("profile-avatar-admin-badge");
+  const signoutBtn = document.getElementById("profile-signout-btn");
+  const photoBtn = document.getElementById("profile-edit-photo-btn");
+
+  if (heading) heading.textContent = email || "Your account";
+  if (subtitle) subtitle.textContent = email ? "Signed in on this device" : "Sign in to access your profile";
+
+  let photo = "";
+  try {
+    photo = String(localStorage.getItem("profilePhoto") || "").trim();
+  } catch (e) {}
+
+  if (avatarShell) {
+    let img = avatarShell.querySelector('img[data-profile-avatar="1"]');
+    if (photo) {
+      if (!img) {
+        img = document.createElement("img");
+        img.setAttribute("data-profile-avatar", "1");
+        img.alt = "Profile photo";
+        img.className = "h-full w-full object-cover";
+        avatarShell.insertBefore(img, avatarShell.firstChild);
+      }
+      img.src = photo;
+      if (fallback) fallback.classList.add("hidden");
+    } else {
+      if (img) img.remove();
+      if (fallback) {
+        fallback.textContent = (email || "?").charAt(0).toUpperCase() || "?";
+        fallback.classList.remove("hidden");
+      }
+    }
+  }
+
+  const isAdmin = !!window.APP_IS_ADMIN;
+  if (adminPill) adminPill.classList.toggle("hidden", !isAdmin);
+  if (adminAvatarBadge) adminAvatarBadge.classList.toggle("hidden", !isAdmin);
+
+  const guestMode = typeof window.isGuestMode === "function" ? window.isGuestMode() : !email;
+  if (signoutBtn) signoutBtn.classList.toggle("hidden", guestMode);
+  if (photoBtn) photoBtn.classList.toggle("hidden", guestMode);
+}
+
 (function bindSettingsAndRDViews() {
   const backSettings = document.getElementById("settings-back");
   const openSync = document.getElementById("settings-open-sync");
   const openRD = document.getElementById("settings-open-recently-deleted");
+  const backProfile = document.getElementById("profile-back");
+  const openProfileSettings = document.getElementById("profile-open-settings");
+  const profileSignout = document.getElementById("profile-signout-btn");
 
   const rdBack = document.getElementById("rd-back");
 
@@ -258,6 +310,24 @@ async function __renderRecentlyDeleted() {
 
   if (backSettings) backSettings.addEventListener("click", () => {
     try { showView("home"); } catch (e) {}
+  });
+
+  if (backProfile) backProfile.addEventListener("click", () => {
+    try { showView("home"); } catch (e) {}
+  });
+
+  if (openProfileSettings) openProfileSettings.addEventListener("click", () => {
+    try { showView("settings"); } catch (e) {}
+  });
+
+  if (profileSignout) profileSignout.addEventListener("click", () => {
+    try {
+      if (typeof window.mpLogout === "function") {
+        window.mpLogout();
+      }
+    } catch (e) {
+      console.warn(e);
+    }
   });
 
   if (openSync) openSync.addEventListener("click", async () => {
@@ -318,4 +388,5 @@ async function __renderRecentlyDeleted() {
   // expose for console debugging
   window.renderRecentlyDeleted = __renderRecentlyDeleted;
   window.setRecentlyDeletedTab = __setRdTab;
+  window.renderProfileScreen = __renderProfileScreen;
 })();

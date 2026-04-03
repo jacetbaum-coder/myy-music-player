@@ -240,6 +240,7 @@ Required verification:
 * Hardened guest crate migration so auth success captures an explicit guest crate snapshot before the identity switch, seeds the signed-in local crate immediately from that snapshot, persists both a pending signed-in recovery backup and a cookie-backed guest backup across auth round-trips, retries that merge on identity refresh, verifies cloud writes by reading them back, and lets a non-empty remote crate replace an empty local shell on pull.
 * Verified end-to-end guest-to-account crate migration across desktop and phone: guest crate items now migrate into the signed-in account, persist to cloud, and pull back correctly on a second device.
 * Wired admin identity from `/auth/me` into the frontend session state and added a visible blue verified badge on the profile controls plus profile menu for admin accounts.
+* Replaced the placeholder profile alert with a dedicated profile view, moved photo upload and sign-out into that profile screen, and kept Sync Devices plus Recently Deleted inside Settings so the top-level profile menu only routes to real destinations.
 
 ### Next
 

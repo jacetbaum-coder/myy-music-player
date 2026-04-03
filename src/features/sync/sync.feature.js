@@ -213,11 +213,10 @@ window.refreshAccountOnlyUi = function () {
   [
     'settings-open-sync',
     'settings-open-recently-deleted',
-    'profile-menu-sync',
-    'profile-menu-recently-deleted',
     'profile-menu-profile',
     'crate-open-import',
-    'profile-menu-upload-photo'
+    'profile-edit-photo-btn',
+    'profile-signout-btn'
   ].forEach((controlId) => toggleAccountOnlyControl(controlId, enabled));
 
   [
@@ -364,32 +363,6 @@ try { console.log("SYNC CODE (share across devices):", window.getSyncCode()); } 
   }
 })();
 
-// -----------------------
-// SYNC BUTTON — Profile menu (opens Settings → sync modal)
-// -----------------------
-(function bindSyncProfileMenuButton() {
-  const syncBtn = document.getElementById('profile-menu-sync');
-  if (!syncBtn) return;
-
-  syncBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-
-    // Close the profile menu
-    try {
-      const m = document.getElementById('profile-menu-modal');
-      if (m) m.classList.add('hidden');
-    } catch (e) {}
-
-    try { showView('settings'); } catch (e) {}
-
-    setTimeout(() => {
-      const btn = document.getElementById('settings-open-sync');
-      try { btn && btn.click(); } catch (e) {}
-    }, 60);
-  }, true);
-})();
 
 // -----------------------
 // CLOUD OPERATIONS
