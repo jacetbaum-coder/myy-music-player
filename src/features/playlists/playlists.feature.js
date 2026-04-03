@@ -571,6 +571,26 @@ const audioUrl = r2Base + encodeURIComponent(audioKey);
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (!playlistId) return [];
 
+  const normalizedId = String(playlistId || '').trim();
+  const localPlaylist = (Array.isArray(window.playlists) ? window.playlists : [])
+    .find((p) => String(p?.id || p?.playlistId || p?.playlist_id || '').trim() === normalizedId);
+
+  if (localPlaylist?.isAutoPlaylist || normalizedId === '__daylist__' || normalizedId === '__nightlist__') {
+    if (Array.isArray(localPlaylist?.trackIds) && localPlaylist.trackIds.length) {
+      return localPlaylist.trackIds
+        .map((id) => String(id || '').trim())
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(localPlaylist?.songs) && localPlaylist.songs.length) {
+      return localPlaylist.songs
+        .map((song) => String(song?.id || song?.r2Path || song?.track_id || song?.trackId || song?.key || song?.url || '').trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  }
+
   const res = await fetch(playlistApiUrl("/api/playlist-items", { playlistId }));
 
   const data = await res.json().catch(() => ({}));
@@ -740,7 +760,7 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
   try {
     const list = Array.isArray(playlists) ? playlists : [];
     const targets = list
-      .filter(p => p && p.id && (!Array.isArray(p.trackIds) || p.trackIds.length === 0))
+      .filter(p => p && p.id && !p.isAutoPlaylist && p.id !== '__daylist__' && p.id !== '__nightlist__' && (!Array.isArray(p.trackIds) || p.trackIds.length === 0))
       .slice(0, max);
 
     if (!targets.length) return;
