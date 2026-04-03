@@ -1,6 +1,8 @@
 {
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/auth/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/auth/:match*" },
+    { "source": "/requests/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/requests/:match*" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
