@@ -4700,6 +4700,7 @@ body.qs-lock {
         </div>
       </div>
     </div>
+  </div>
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
   <!-- (Removed on mobile Library) -->
 
@@ -5916,6 +5917,26 @@ window.__pendingTouchSongUrl = window.__pendingTouchSongUrl || '';
 
 let currentQueue = [];
 let currentIndex = -1;
+
+function resetTransientUiModes() {
+  try {
+    if (typeof setCenterLyricsOpen === 'function') {
+      setCenterLyricsOpen(false);
+    }
+  } catch (e) {}
+
+  try { document.body.classList.remove('lyrics-mode', 'queue-mode', 'song-multiselect'); } catch (e) {}
+  try { document.getElementById('lyrics-center-overlay')?.classList.add('hidden'); } catch (e) {}
+  try { document.getElementById('lyrics-center-view')?.classList.add('hidden'); } catch (e) {}
+  try { document.getElementById('playlist-submenu')?.classList.remove('open'); } catch (e) {}
+}
+
+window.resetTransientUiModes = resetTransientUiModes;
+
+try {
+  document.addEventListener('DOMContentLoaded', resetTransientUiModes, { once: true });
+  window.addEventListener('pageshow', resetTransientUiModes, { passive: true });
+} catch (e) {}
 
 // -----------------------
 // PLAYBACK / SHUFFLE STATE (must be defined early to avoid TDZ crashes)
@@ -7522,6 +7543,7 @@ safe(window.renderHistory);
 
   // ✅ Show the shell immediately (so cold starts don’t feel like 20 seconds of nothing)
   try {
+    if (typeof window.resetTransientUiModes === 'function') window.resetTransientUiModes();
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
     safe(window.renderHome);
@@ -8463,6 +8485,19 @@ function initSwipeBack() {
 // [MOVED TO src/features/search/search.feature.js] initSearchSwipeDownClose
 function showView(viewType, playlistIndex = null) {
 
+  try {
+    const isRootTabSwitch = (viewType === 'home' || viewType === 'library' || viewType === 'search' || viewType === 'crate' || viewType === 'settings');
+    if (isRootTabSwitch) {
+      if (typeof setCenterLyricsOpen === 'function') {
+        setCenterLyricsOpen(false);
+      } else {
+        document.body.classList.remove('lyrics-mode');
+        document.getElementById('lyrics-center-overlay')?.classList.add('hidden');
+        document.getElementById('lyrics-center-view')?.classList.add('hidden');
+      }
+    }
+  } catch (e) {}
+
     // Capture what's currently on screen so swipe-back shows it behind
   // Skip during back navigation — the underlay already holds the correct previous-view snapshot
   // Also skip for root tab switches (home/library/search/crate) — they're navigated via bottom
@@ -8624,6 +8659,7 @@ if (scrollArea) {
         if (viewType === 'home') {
     // MOBILE: show the real Home screen
     if (window.innerWidth <= 768) {
+      document.getElementById('grid-view')?.classList.add('hidden');
       document.getElementById('home-view')?.classList.remove('hidden');
 try { initMobileHomeTabsOnce(); } catch (e) {}
 try { renderHome(); } catch (e) {}
@@ -8642,6 +8678,7 @@ try { renderHome(); } catch (e) {}
   }
 
       if (viewType === 'library') {
+      document.getElementById('home-view')?.classList.add('hidden');
      document.getElementById('grid-view').classList.remove('hidden');
 
      // ✅ Ensure Library top tabs are wired and UI matches the current libraryTopTab

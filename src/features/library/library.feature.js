@@ -490,8 +490,21 @@ showView = function(viewType, playlistIndex = null) {
   }
 };
 
-function renderLibraryPlaylists() {
+function prepareLibraryGridContainer() {
   const grid = document.getElementById('album-grid');
+  if (!grid) return null;
+
+  if (libraryViewMode === 'list') {
+    grid.className = 'space-y-2 library-list';
+  } else {
+    grid.className = 'playlist-grid';
+  }
+
+  return grid;
+}
+
+function renderLibraryPlaylists() {
+  const grid = prepareLibraryGridContainer();
   if (!grid) return;
 
   const sortMode = normalizeLibrarySortMode(
@@ -689,7 +702,7 @@ function initMobileLibraryTabsOnce() {
 }
 
 function renderLibraryArtists() {
-  const grid = document.getElementById('album-grid');
+  const grid = prepareLibraryGridContainer();
   if (!grid) return;
 
   const albums = Array.isArray(libraryData) ? libraryData : [];
@@ -802,7 +815,7 @@ if (sortMode === 'Alphabetical') {
 }
 
 function renderLibraryAll() {
-  const grid = document.getElementById('album-grid');
+  const grid = prepareLibraryGridContainer();
   if (!grid) return;
 
   const items = [];
@@ -1004,9 +1017,9 @@ window.__librarySortModeOverride = null;
     renderGrid(getLibraryGridData());
   }
 
-  renderHistory();
+  try { renderHistory(); } catch (e) {}
 
   if (window.innerWidth <= 768) {
-    renderMobileRecents();
+    try { renderMobileRecents(); } catch (e) {}
   }
 }
