@@ -238,10 +238,12 @@ Required verification:
 * Restored a guest-to-auth entry point from the profile icon by adding guest-visible `Sign In` and `Create Account` actions in the profile menu and wiring them into the auth modal.
 * Added an explicit `Continue as guest` path in the auth modal so signing out or landing unauthenticated no longer traps the user in auth before they can use guest storage again.
 * Hardened guest crate migration so auth success captures an explicit guest crate snapshot before the identity switch, seeds the signed-in local crate immediately from that snapshot, persists both a pending signed-in recovery backup and a cookie-backed guest backup across auth round-trips, retries that merge on identity refresh, verifies cloud writes by reading them back, and lets a non-empty remote crate replace an empty local shell on pull.
+* Verified end-to-end guest-to-account crate migration across desktop and phone: guest crate items now migrate into the signed-in account, persist to cloud, and pull back correctly on a second device.
+* Wired admin identity from `/auth/me` into the frontend session state and added a visible blue verified badge on the profile controls plus profile menu for admin accounts.
 
 ### Next
 
-* Finish the remaining Phase 1A verification pass against the deployed session-backed contract: guest-to-account migration, guest-mode gating, merged library behavior, and history or now-playing write flows.
+* Finish the remaining Phase 1A verification pass against the deployed session-backed contract: guest playlist migration, guest-mode gating, merged library behavior, and history or now-playing write flows.
 * Bring the personal-data worker source for playlists, crate, history, now-playing, recently deleted, artist crop, and any still-active account routes into this repo, or repoint the app to a checked-in backend that can enforce and evolve the same contract locally.
 * After that verification pass, add or wire a repeatable verification harness for the account-upgrade and personal-data flows that are currently being checked manually.
 
@@ -269,4 +271,4 @@ Keep the roadmap detailed enough for handoff and keep repo memory short enough t
 
 At the end of the roadmap, always include a sentence stating the last completed step (using the exact roadmap step name) and the next actual roadmap step (using the exact step name). If a prerequisite or sub-step is needed before the next step, include it explicitly as a sub-step and tell me in your report. After completing a full phase, report that the phase is complete and tell me to start a new chat to begin the next phase. If there is something I must do on my end, please walk me through explicitly how to do it. Please advise me when to push changes to github/vercel. 
 
-Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: run the remaining signed-in verification for guest upgrade migration, guest-mode gating, merged library behavior, and history or now-playing write flows against the already-deployed session-backed routes.
+Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: run the remaining signed-in verification for guest playlist migration, guest-mode gating, merged library behavior, and history or now-playing write flows against the already-deployed session-backed routes.

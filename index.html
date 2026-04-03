@@ -4323,7 +4323,7 @@ body.qs-lock {
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <button id="profile-menu-btn" type="button"
-  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
+  class="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95"
   aria-label="Profile menu">
   <i class="fas fa-user text-white/70 text-sm"></i>
 </button>
@@ -4500,7 +4500,7 @@ body.qs-lock {
 
     <!-- Top tabs (not functional yet) -->
     <div class="flex items-center gap-3 mb-6">
-      <button id="desktop-profile-btn" type="button" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95" aria-label="Profile menu">
+      <button id="desktop-profile-btn" type="button" class="relative w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden active:scale-95" aria-label="Profile menu">
         <i class="fas fa-user text-white/70"></i>
       </button>
 
@@ -4568,7 +4568,7 @@ body.qs-lock {
             <div class="flex items-center gap-3">
               <!-- profile -->
 <button id="library-profile-btn" type="button"
-  class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shadow-md border border-white/10 overflow-hidden active:scale-95"
+  class="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shadow-md border border-white/10 overflow-hidden active:scale-95"
   aria-label="Profile menu">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5Z" stroke="white" stroke-opacity=".9" stroke-width="2"/>
@@ -14293,6 +14293,13 @@ try {
         <div id="profile-menu-panel" class="absolute left-1/2 -translate-x-1/2 bottom-6 w-[92%] max-w-sm rounded-2xl bg-[#141414] border border-white/10 overflow-hidden"
            style="z-index:1000001;outline:none;pointer-events:auto;" tabindex="0">
 
+      <div id="profile-menu-admin-badge-row" class="hidden px-5 py-4 text-sm font-semibold text-[#8ec5ff] bg-[#0f2138] border-b border-white/10">
+        <span class="inline-flex items-center gap-2">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#2a7fff] text-white text-[11px] font-black">✓</span>
+          Verified admin
+        </span>
+      </div>
+
       <button id="profile-menu-settings" class="w-full text-left px-5 py-4 font-extrabold text-white hover:bg-white/5">
         Settings
       </button>
@@ -14369,6 +14376,11 @@ try {
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
       profileBtn.appendChild(img);
     });
+      try {
+        if (typeof window.updateAdminVerificationUi === 'function') {
+          window.updateAdminVerificationUi();
+        }
+      } catch (e) {}
   }
 
   // Restore saved photo on load
@@ -14791,6 +14803,35 @@ try {
     clearFeedback();
   }
 
+  function updateAdminVerificationUi() {
+    var isAdmin = !!window.APP_IS_ADMIN;
+
+    ['profile-menu-btn', 'library-profile-btn', 'desktop-profile-btn'].forEach(function(id) {
+      var btn = document.getElementById(id);
+      if (!btn) return;
+
+      var badge = btn.querySelector('[data-admin-badge="1"]');
+      if (!isAdmin) {
+        if (badge) badge.remove();
+        return;
+      }
+
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.setAttribute('data-admin-badge', '1');
+        badge.setAttribute('aria-hidden', 'true');
+        badge.style.cssText = 'position:absolute;right:-2px;bottom:-2px;width:16px;height:16px;border-radius:999px;background:#2a7fff;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141414;box-shadow:0 4px 10px rgba(0,0,0,0.35);';
+        badge.textContent = '✓';
+        btn.appendChild(badge);
+      }
+    });
+
+    var row = document.getElementById('profile-menu-admin-badge-row');
+    if (row) row.classList.toggle('hidden', !isAdmin);
+  }
+
+  window.updateAdminVerificationUi = updateAdminVerificationUi;
+
   window.openAuthModal = function(mode) {
     if (modal) modal.classList.remove('hidden');
     showPane(mode || 'magic');
@@ -14803,7 +14844,7 @@ try {
     }
   };
 
-  async function onAuthSuccess(userId, email) {
+  async function onAuthSuccess(userId, email, isAdmin) {
     var guestCrateDoc = null;
     try {
       if (typeof window.getGuestCrateSnapshot === 'function') {
@@ -14819,6 +14860,7 @@ try {
       window.APP_USER_ID = userId;
     }
     window.APP_USER_EMAIL = email;
+    window.APP_IS_ADMIN = !!isAdmin;
     if (modal) modal.classList.add('hidden');
     // Show logout button in profile menu
     var logoutRow = document.getElementById('auth-logout-row');
@@ -14840,6 +14882,7 @@ try {
       console.warn('Guest data migration failed:', e);
     }
 
+    try { updateAdminVerificationUi(); } catch (e) {}
     await refreshIdentityScopedState();
   }
 
@@ -14857,11 +14900,13 @@ try {
   window.__authReady = (async function() {
     var user = await checkAuth();
     if (user) {
-      await onAuthSuccess(user.userId, user.email);
+      await onAuthSuccess(user.userId, user.email, user.isAdmin);
     } else {
       if (typeof window.clearAccountIdentity === 'function') {
         window.clearAccountIdentity();
       }
+      window.APP_IS_ADMIN = false;
+      try { updateAdminVerificationUi(); } catch (e) {}
       await refreshIdentityScopedState();
       if (typeof window.openAuthModal === 'function') {
         window.openAuthModal('magic');
@@ -14913,7 +14958,7 @@ try {
       var data = await res.json();
       if (data.ok) {
         var me = await checkAuth();
-        if (me) await onAuthSuccess(me.userId, me.email);
+        if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin);
         else    showFeedback('Signed in! Reload if the app does not update.', false);
       } else {
         showFeedback(data.error || 'Sign-in failed.', true);
@@ -14936,7 +14981,7 @@ try {
         var loginData = await loginRes.json();
         if (loginData.ok) {
           var me = await checkAuth();
-          if (me) await onAuthSuccess(me.userId, me.email);
+          if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin);
         } else {
           showFeedback('Account created! Sign in to continue.', false);
           showPane('signin');
@@ -14974,7 +15019,9 @@ try {
       localStorage.removeItem('app_user_id');
       window.APP_USER_ID = null;
       window.APP_USER_EMAIL = null;
+      window.APP_IS_ADMIN = false;
     }
+    try { if (typeof window.updateAdminVerificationUi === 'function') window.updateAdminVerificationUi(); } catch (e) {}
     // Hide logout button
     var logoutRow = document.getElementById('auth-logout-row');
     if (logoutRow) logoutRow.classList.add('hidden');
@@ -14993,6 +15040,7 @@ try {
   window.continueAsGuest = continueAsGuest;
 
   showPane('magic');
+  try { updateAdminVerificationUi(); } catch (e) {}
 
   // Wire logout button (delegated, in case it's rendered later)
   document.addEventListener('click', function(e) {
