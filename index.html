@@ -6188,101 +6188,76 @@ lpTriggered = false;
     }, true);
   }
 
-  const settingsBtn = document.getElementById('profile-menu-settings');
-if (settingsBtn) settingsBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
+  document.addEventListener('click', (e) => {
+    const actionEl = e.target && e.target.closest
+      ? e.target.closest('#profile-menu-settings, #profile-menu-sync, #profile-menu-recently-deleted, #profile-menu-profile, #profile-menu-signin, #profile-menu-register')
+      : null;
+    if (!actionEl) return;
 
-  try { close(); } catch (e) {}
-  try { showView('settings'); } catch (e) {}
-}, true);
+    e.preventDefault();
+    e.stopPropagation();
 
-const syncBtn = document.getElementById('profile-menu-sync');
-if (syncBtn) syncBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
+    const actionId = actionEl.id;
 
-  if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to sync devices.')) {
-    return;
-  }
+    if (actionId === 'profile-menu-settings') {
+      try { close(); } catch (e) {}
+      try { showView('settings'); } catch (e) {}
+      return;
+    }
 
-  try { close(); } catch (e) {}
-  try { showView('settings'); } catch (e) {}
-
-  setTimeout(() => {
-    const btn = document.getElementById('settings-open-sync');
-    try { btn && btn.click(); } catch (e) {}
-  }, 60);
-}, true);
-
-    // syncBtn (profile-menu-sync) is handled in src/features/sync/sync.feature.js
-
-  const rdBtn = document.getElementById('profile-menu-recently-deleted');
-if (rdBtn) rdBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to use Recently Deleted.')) {
-    return;
-  }
-
-  try { close(); } catch (e) {}
-
-  // ✅ Go straight to Recently Deleted view
-  try { showView('recently-deleted'); } catch (e) {}
-}, true);
-
-
-const profileBtn = document.getElementById('profile-menu-profile');
-if (profileBtn) profileBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  if (typeof window.isGuestMode === 'function' && window.isGuestMode()) {
-    try { close(); } catch (e) {}
-    try {
-      if (typeof window.openAuthModal === 'function') {
-        window.openAuthModal('signin');
+    if (actionId === 'profile-menu-sync') {
+      if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to sync devices.')) {
+        try { close(); } catch (e) {}
+        return;
       }
-    } catch (e) {}
-    return;
-  }
 
-  try { close(); } catch (e) {}
-  try { alert('Profile (coming soon)'); } catch (e) {}
-}, true);
+      try { close(); } catch (e) {}
+      try { showView('settings'); } catch (e) {}
 
-const signInBtn = document.getElementById('profile-menu-signin');
-if (signInBtn) signInBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  try { close(); } catch (e) {}
-  try {
-    if (typeof window.openAuthModal === 'function') {
-      window.openAuthModal('signin');
+      setTimeout(() => {
+        const btn = document.getElementById('settings-open-sync');
+        try { btn && btn.click(); } catch (e) {}
+      }, 60);
+      return;
     }
-  } catch (e) {}
-}, true);
 
-const registerBtn = document.getElementById('profile-menu-register');
-if (registerBtn) registerBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
+    if (actionId === 'profile-menu-recently-deleted') {
+      if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to use Recently Deleted.')) {
+        try { close(); } catch (e) {}
+        return;
+      }
 
-  try { close(); } catch (e) {}
-  try {
-    if (typeof window.openAuthModal === 'function') {
-      window.openAuthModal('register');
+      try { close(); } catch (e) {}
+      try { showView('recently-deleted'); } catch (e) {}
+      return;
     }
-  } catch (e) {}
-}, true);
+
+    if (actionId === 'profile-menu-profile') {
+      const guestMode = typeof window.isGuestMode === 'function' && window.isGuestMode();
+      try { close(); } catch (e) {}
+
+      if (guestMode) {
+        try {
+          if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('signin');
+          }
+        } catch (e) {}
+        return;
+      }
+
+      try { alert('Profile (coming soon)'); } catch (e) {}
+      return;
+    }
+
+    if (actionId === 'profile-menu-signin' || actionId === 'profile-menu-register') {
+      try { close(); } catch (e) {}
+      try {
+        if (typeof window.openAuthModal === 'function') {
+          window.openAuthModal(actionId === 'profile-menu-register' ? 'register' : 'signin');
+        }
+      } catch (e) {}
+    }
+  }, true);
 
 })();
 
