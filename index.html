@@ -79,7 +79,7 @@ button,
    MOBILE PULL TO REFRESH
 ------------------------ */
 #ptr-overlay{
-  /* ✅ Fixed to the viewport so it doesn’t “float” with content */
+  /* ✅ Fixed to the viewport so it doesn't “float” with content */
   position: fixed;
   top: 0;
   left: 0;
@@ -543,7 +543,7 @@ img {
   max-width: 100%;
 }
 
-/* ✅ Scroll performance: isolate album tiles so offscreen ones don’t cost layout/paint */
+/* ✅ Scroll performance: isolate album tiles so offscreen ones don't cost layout/paint */
 .album-card{
   cursor: pointer;
   border-radius: 8px;
@@ -6618,7 +6618,7 @@ window.mpLogout = function() {
     <div class="flex items-start justify-between gap-3">
       <div>
         <div class="text-white text-lg font-semibold">No track found</div>
-        <div id="track-missing-sub" class="text-white/70 text-sm mt-1">This file isn’t available in your R2 library.</div>
+        <div id="track-missing-sub" class="text-white/70 text-sm mt-1">This file isn't available in your R2 library.</div>
       </div>
       <button id="track-missing-close" class="text-white/70 hover:text-white text-xl leading-none" aria-label="Close">×</button>
     </div>
@@ -6631,7 +6631,7 @@ window.mpLogout = function() {
     <pre id="track-missing-debug" class="hidden mt-3 max-h-[40vh] overflow-auto rounded-xl bg-black/40 border border-white/10 p-3 text-xs text-white/80 whitespace-pre-wrap"></pre>
 
     <div class="mt-3 text-white/50 text-xs">
-      Tip: this usually means the playlist points to a file that wasn’t uploaded (or was uploaded under a different key).
+      Tip: this usually means the playlist points to a file that wasn't uploaded (or was uploaded under a different key).
     </div>
   </div>
 </div>
@@ -6988,7 +6988,7 @@ lpTriggered = false;
       const u = getSongUrlFromRow(row);
       if (!u) return;
 
-      // only add (don’t toggle off) while dragging
+      // only add (don't toggle off) while dragging
       if (!dragSeen.has(u) && !window.__songSelect.urls.has(u)) {
         window.__songSelect.urls.add(u);
         applyRowSelectedState(row, true);
@@ -7086,73 +7086,44 @@ lpTriggered = false;
     open();
   }, true);
 
-      const modal = document.getElementById('profile-menu-modal');
-  const bd = document.getElementById('profile-menu-backdrop');
-  const panel = document.getElementById('profile-menu-panel');
+  // Delegated handlers for profile menu buttons (menu HTML is later in the DOM)
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest(
+      '#profile-menu-settings, #profile-menu-sync, #profile-menu-recently-deleted, ' +
+      '#profile-menu-profile, #profile-menu-upload-photo, ' +
+      '#profile-menu-backdrop, #profile-menu-modal'
+    ) : null;
+    if (!btn) return;
 
-  // ✅ One tap dismiss: tap the dark backdrop (or the empty modal area) to close.
-  // ✅ Button clicks still work because they’re inside #profile-menu-panel.
-  if (modal && !modal.__outsideCloseBound) {
-    modal.__outsideCloseBound = true;
+    const id = btn.id;
 
-    modal.addEventListener('click', (e) => {
-      // If the click is inside the panel, do nothing (let Settings/Profile work)
-      if (panel && panel.contains(e.target)) return;
-
-      // Otherwise: close (backdrop or empty area)
+    // Backdrop / modal background → close
+    if (id === 'profile-menu-backdrop' || id === 'profile-menu-modal') {
       close();
-    }, true);
-  }
+      return;
+    }
 
-  const settingsBtn = document.getElementById('profile-menu-settings');
-if (settingsBtn) settingsBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-  try { close(); } catch (e) {}
-  try { showView('settings'); } catch (e) {}
-}, true);
-
-const syncBtn = document.getElementById('profile-menu-sync');
-if (syncBtn) syncBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  try { close(); } catch (e) {}
-  try { showView('settings'); } catch (e) {}
-
-  setTimeout(() => {
-    const btn = document.getElementById('settings-open-sync');
-    try { btn && btn.click(); } catch (e) {}
-  }, 60);
-}, true);
-
-    // syncBtn (profile-menu-sync) is handled in src/features/sync/sync.feature.js
-
-  const rdBtn = document.getElementById('profile-menu-recently-deleted');
-if (rdBtn) rdBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  try { close(); } catch (e) {}
-
-  // ✅ Go straight to Recently Deleted view
-  try { showView('recently-deleted'); } catch (e) {}
-}, true);
-
-
-const profileBtn = document.getElementById('profile-menu-profile');
-if (profileBtn) profileBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  try { close(); } catch (e) {}
-  try { mpOpenProfileEditor(); } catch (e) {}
-}, true);
+    if (id === 'profile-menu-settings') {
+      close();
+      try { showView('settings'); } catch (ex) {}
+    } else if (id === 'profile-menu-sync') {
+      close();
+      try { showView('settings'); } catch (ex) {}
+      setTimeout(() => { try { document.getElementById('settings-open-sync').click(); } catch (ex) {} }, 60);
+    } else if (id === 'profile-menu-recently-deleted') {
+      close();
+      try { showView('recently-deleted'); } catch (ex) {}
+    } else if (id === 'profile-menu-profile') {
+      close();
+      try { mpOpenProfileEditor(); } catch (ex) {}
+    } else if (id === 'profile-menu-upload-photo') {
+      close();
+      try { document.getElementById('library-profile-photo-input').click(); } catch (ex) {}
+    }
+  }, true);
 
 })();
 
@@ -8283,7 +8254,7 @@ safe(window.renderHistory);
   // then refresh from network in the background.
     let renderedFromCache = false;
 
-  // ✅ Show the shell immediately (so cold starts don’t feel like 20 seconds of nothing)
+  // ✅ Show the shell immediately (so cold starts don't feel like 20 seconds of nothing)
   try {
     document.getElementById('loading')?.classList.add('hidden');
     safe(window.showView, 'home');
@@ -8751,7 +8722,7 @@ function setNavCurrent(state) {
 }
 
 function pushNavCurrent() {
-  // IMPORTANT: use the global flag so it’s consistent everywhere
+  // IMPORTANT: use the global flag so it's consistent everywhere
   try {
     if (window.__isBackNav) return;
   } catch (e) {}
@@ -8928,7 +8899,7 @@ function initSwipeBack() {
     // Must have something to go back to
     if (!Array.isArray(navStack) || navStack.length === 0) return false;
 
-    // Don’t hijack gestures on form controls / buttons
+    // Don't hijack gestures on form controls / buttons
     const t = e.target;
     if (t && (t.closest('input, textarea, select, button') || t.closest('[data-no-swipe-back="1"]'))) {
       return false;
@@ -9085,7 +9056,7 @@ function initSwipeBack() {
 
         if (!isHorizontal) return;
 
-    // ✅ passive move listener: no preventDefault (we’re already locking via touchAction when horizontal)
+    // ✅ passive move listener: no preventDefault (we're already locking via touchAction when horizontal)
 
 
     // Only allow motion in the direction of the starting edge
@@ -10860,7 +10831,7 @@ function initResizers() {
 
       if (!isSpace) return;
 
-      // Don’t hijack space when typing / editing
+      // Don't hijack space when typing / editing
       const el = document.activeElement;
       const tag = (el && el.tagName) ? el.tagName.toUpperCase() : "";
       const isTypingField =
@@ -10871,7 +10842,7 @@ function initResizers() {
 
       if (isTypingField) return;
 
-      // Don’t trigger if user is using browser/system shortcuts
+      // Don't trigger if user is using browser/system shortcuts
       if (e.altKey || e.ctrlKey || e.metaKey) return;
 
       e.preventDefault();
@@ -10880,7 +10851,7 @@ function initResizers() {
   }
 
       // Existing: click outside closes the context menu
-  // ✅ Bind ONCE so we don’t stack multiple “close” listeners (which causes instant close)
+  // ✅ Bind ONCE so we don't stack multiple “close” listeners (which causes instant close)
   if (!window.__outsideMenuDismissBound) {
     window.__outsideMenuDismissBound = true;
 
@@ -10891,7 +10862,7 @@ function initResizers() {
       if (Date.now() < suppressContextMenuCloseUntil) return;
       if (Date.now() < suppressPlaylistMenuCloseUntil) return;
 
-      // ✅ If the user is clicking the Now Playing "•••" button (or its inner icon), don’t close.
+      // ✅ If the user is clicking the Now Playing "•••" button (or its inner icon), don't close.
 try {
   const npMore = document.getElementById('np-more');
   if (npMore && (npMore === e.target || npMore.contains(e.target))) return;
@@ -14837,7 +14808,7 @@ async function softRefresh(){
       // Best-effort “refresh app” without full page reload:
       // - pull playlists from cloud
       // - re-render home + playlists + history
-      // If anything isn’t available, fallback to location.reload()
+      // If anything isn't available, fallback to location.reload()
       try {
         if (typeof window.forceCloudPlaylistPull === 'function') {
           await window.forceCloudPlaylistPull();
@@ -14852,7 +14823,7 @@ async function softRefresh(){
         // If your library data also needs a refresh, call it if it exists
         try { if (typeof window.loadLibraryFromCloud === 'function') await window.loadLibraryFromCloud(); } catch (e) {}
 
-        // give the spinner a tiny moment so it’s visible
+        // give the spinner a tiny moment so it's visible
         await new Promise(r => setTimeout(r, 350));
       } catch (e) {
         // hard fallback
@@ -14936,7 +14907,7 @@ setIconRotation(0);
         current = 0;
         pid = e.pointerId;
 
-        // don’t set touchAction none yet—only once we know it’s a pull
+        // don't set touchAction none yet—only once we know it's a pull
       }, { passive: true });
 
 
@@ -14950,12 +14921,12 @@ setIconRotation(0);
         // only respond to downward pulls
         if (dy <= 0) return;
 
-        // once it’s a pull, we OWN the gesture
+        // once it's a pull, we OWN the gesture
         if (!pulling) {
           pulling = true;
           area.classList.add('ptr-pulling');
 
-          // take control so it doesn’t “slip”
+          // take control so it doesn't “slip”
           area.style.touchAction = 'none';
 
           try { area.setPointerCapture(e.pointerId); } catch (err) {}
@@ -15007,7 +14978,7 @@ setIconRotation(0);
 setOverlayHeight(SNAP);
 setAreaTranslate(SNAP, true);
 
-// ✅ Spin icon while we’re actually refreshing
+// ✅ Spin icon while we're actually refreshing
 startIconSpin();
 
 try {
