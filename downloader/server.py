@@ -102,6 +102,22 @@ class DeleteFileRequest(BaseModel):
     localPath: str
 
 
+class MySongsRequest(BaseModel):
+    r2AccountId: str
+    r2AccessKeyId: str
+    r2SecretAccessKey: str
+    r2Bucket: str
+
+
+class CopyFromUrlRequest(BaseModel):
+    sourceUrl: str
+    r2Key: str
+    r2AccountId: str
+    r2AccessKeyId: str
+    r2SecretAccessKey: str
+    r2Bucket: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -402,6 +418,116 @@ _MIME_MAP = {
 
 def _mime_for(p: Path) -> str:
     return _MIME_MAP.get(p.suffix.lower(), "application/octet-stream")
+
+
+def _make_s3_client(account_id: str, access_key: str, secret_key: str):
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=Config(signature_version="s3v4"),
+        region_name="auto",
+    )
+
+
+@app.post("/my-songs")
+async def get_my_songs(body: MySongsRequest):
+    """List all songs in user's R2 bucket and return in app library format with 7-day presigned stream URLs."""
+    s3 = _make_s3_client(body.r2AccountId, body.r2AccessKeyId, body.r2SecretAccessKey)
+
+    audio_keys: list[str] = []
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=body.r2Bucket):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if Path(key).suffix.lower() in AUDIO_EXTS:
+                audio_keys.append(key)
+
+    # Group by Artist/Album from path structure
+    albums_map: dict[tuple[str, str], list[str]] = {}
+    for key in audio_keys:
+        parts = key.split("/")
+        if len(parts) >= 3:
+            artist, album = parts[0], parts[1]
+        elif len(parts) == 2:
+            artist, album = parts[0], "Singles"
+        else:
+            artist, album = "Unknown Artist", "Singles"
+        albums_map.setdefault((artist, album), []).append(key)
+
+    PRESIGN_TTL = 604800  # 7 days
+    results = []
+    for (artist, album), keys in sorted(albums_map.items()):
+        cover_key = f"{artist}/{album}/cover.jpg"
+        try:
+            cover_url = s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": body.r2Bucket, "Key": cover_key},
+                ExpiresIn=PRESIGN_TTL,
+            )
+        except Exception:
+            cover_url = ""
+
+        songs = []
+        for key in sorted(keys):
+            filename = key.split("/")[-1]
+            title = Path(filename).stem
+            try:
+                stream_url = s3.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": body.r2Bucket, "Key": key},
+                    ExpiresIn=PRESIGN_TTL,
+                )
+            except Exception:
+                stream_url = ""
+            songs.append({
+                "id": key,
+                "r2Path": key,
+                "fileName": filename,
+                "title": title,
+                "artistName": artist,
+                "albumName": album,
+                "link": stream_url,
+            })
+
+        results.append({
+            "artistName": artist,
+            "albumName": album,
+            "coverArt": cover_url,
+            "fallbackArt": "",
+            "songs": songs,
+        })
+
+    return results
+
+
+@app.post("/copy-from-url")
+async def copy_from_url_endpoint(body: CopyFromUrlRequest):
+    """Download a file from a public URL and upload it to the user's R2 bucket."""
+    import io
+    import urllib.request as _urllib
+
+    def _fetch(url: str) -> bytes:
+        req = _urllib.Request(url, headers={"User-Agent": "MusicImporter/1.0"})
+        with _urllib.urlopen(req, timeout=60) as resp:
+            return resp.read()
+
+    content = await asyncio.to_thread(_fetch, body.sourceUrl)
+
+    s3 = _make_s3_client(body.r2AccountId, body.r2AccessKeyId, body.r2SecretAccessKey)
+    content_type = _mime_for(Path(body.r2Key))
+
+    def _upload() -> None:
+        s3.upload_fileobj(
+            io.BytesIO(content),
+            body.r2Bucket,
+            body.r2Key,
+            ExtraArgs={"ContentType": content_type},
+        )
+
+    await asyncio.to_thread(_upload)
+    return {"ok": True, "r2Key": body.r2Key, "size": len(content)}
 
 
 # ---------------------------------------------------------------------------

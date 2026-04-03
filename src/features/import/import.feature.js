@@ -107,6 +107,7 @@ function importInitSetupPanel() {
     'import-r2-access-key':    settings.r2AccessKeyId    || '',
     'import-r2-secret':        settings.r2SecretAccessKey || '',
     'import-r2-bucket':        settings.r2Bucket         || '',
+    'import-personal-url':     settings.personalUrl      || '',
   };
 
   Object.entries(fields).forEach(([id, val]) => {
@@ -115,6 +116,45 @@ function importInitSetupPanel() {
   });
 
   importPingServer();
+
+  // Library mode toggle
+  const modeSharedBtn   = document.getElementById('import-mode-shared');
+  const modePersonalBtn = document.getElementById('import-mode-personal');
+  const _updateModeBtns = () => {
+    const m = localStorage.getItem('libraryMode') || 'shared';
+    if (modeSharedBtn) {
+      modeSharedBtn.style.background = m === 'shared' ? '#1db954' : '';
+      modeSharedBtn.style.color      = m === 'shared' ? '#000' : '';
+    }
+    if (modePersonalBtn) {
+      modePersonalBtn.style.background = m === 'personal' ? '#1db954' : '';
+      modePersonalBtn.style.color      = m === 'personal' ? '#000' : '';
+    }
+    // Keep settings label in sync
+    try {
+      const lbl = document.getElementById('settings-library-source-label');
+      const sw  = document.getElementById('settings-switch-library-mode');
+      if (lbl) lbl.textContent = m === 'personal' ? 'Your Library' : 'Shared Library';
+      if (sw)  sw.textContent  = m === 'personal' ? 'Use Shared'   : 'Use My Library';
+    } catch (e) {}
+  };
+  _updateModeBtns();
+  if (modeSharedBtn && !modeSharedBtn.__importModeBound) {
+    modeSharedBtn.__importModeBound = true;
+    modeSharedBtn.addEventListener('click', () => {
+      localStorage.setItem('libraryMode', 'shared');
+      _updateModeBtns();
+      importShowSaveToast('Now using Shared Library');
+    });
+  }
+  if (modePersonalBtn && !modePersonalBtn.__importModeBound) {
+    modePersonalBtn.__importModeBound = true;
+    modePersonalBtn.addEventListener('click', () => {
+      localStorage.setItem('libraryMode', 'personal');
+      _updateModeBtns();
+      importShowSaveToast('Now using My Library');
+    });
+  }
 
   const saveBtn = document.getElementById('import-save-settings');
   if (saveBtn && !saveBtn.__importBound) {
@@ -128,6 +168,7 @@ function importInitSetupPanel() {
         r2AccessKeyId:        document.getElementById('import-r2-access-key')?.value?.trim() || '',
         r2SecretAccessKey:    document.getElementById('import-r2-secret')?.value?.trim()   || '',
         r2Bucket:             document.getElementById('import-r2-bucket')?.value?.trim()   || '',
+        personalUrl:          document.getElementById('import-personal-url')?.value?.trim() || '',
       });
       importShowSaveToast('Settings saved');
       importPingServer();
@@ -550,6 +591,144 @@ function importInitReviewPanel() {
   }
 
   importLoadReviewFiles();
+  importInitCloneSection();
+}
+
+// ---------------------------------------------------------------------------
+// Clone from Shared Library
+// ---------------------------------------------------------------------------
+async function importInitCloneSection() {
+  const openBtn = document.getElementById('import-clone-open');
+  const section = document.getElementById('import-clone-section');
+  if (!openBtn || !section) return;
+
+  if (!openBtn.__importCloneBound) {
+    openBtn.__importCloneBound = true;
+    openBtn.addEventListener('click', () => {
+      const isOpen = !section.classList.contains('hidden');
+      section.classList.toggle('hidden', isOpen);
+      if (!isOpen) importLoadCloneList();
+    });
+  }
+
+  const allBtn   = document.getElementById('import-clone-all');
+  const noneBtn  = document.getElementById('import-clone-none');
+  const startBtn = document.getElementById('import-clone-start');
+
+  if (allBtn && !allBtn.__importCloneBound) {
+    allBtn.__importCloneBound = true;
+    allBtn.addEventListener('click', () => {
+      document.querySelectorAll('.import-clone-check').forEach(cb => { cb.checked = true; });
+    });
+  }
+  if (noneBtn && !noneBtn.__importCloneBound) {
+    noneBtn.__importCloneBound = true;
+    noneBtn.addEventListener('click', () => {
+      document.querySelectorAll('.import-clone-check').forEach(cb => { cb.checked = false; });
+    });
+  }
+  if (startBtn && !startBtn.__importCloneBound) {
+    startBtn.__importCloneBound = true;
+    startBtn.addEventListener('click', importRunClone);
+  }
+}
+
+async function importLoadCloneList() {
+  const listEl   = document.getElementById('import-clone-list');
+  const statusEl = document.getElementById('import-clone-status');
+  if (!listEl || !statusEl) return;
+
+  statusEl.textContent = 'Loading shared library…';
+  listEl.innerHTML = '';
+
+  try {
+    const res = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(), {
+      signal: AbortSignal.timeout(8000),
+    });
+    const albums = await res.json();
+    if (!Array.isArray(albums) || !albums.length) {
+      statusEl.textContent = 'Shared library is empty or unreachable.';
+      return;
+    }
+    const totalTracks = albums.reduce((n, a) => n + (a.songs || []).length, 0);
+    statusEl.textContent = `${totalTracks} track(s) available. Check what you want to copy.`;
+
+    albums.forEach(album => {
+      const section = document.createElement('div');
+      section.className = 'mb-2';
+
+      const header = document.createElement('div');
+      header.className = 'text-xs font-extrabold text-white/70 px-1 pt-1 pb-0.5';
+      header.textContent = `${album.artistName} — ${album.albumName}`;
+      section.appendChild(header);
+
+      (album.songs || []).forEach(song => {
+        const row = document.createElement('label');
+        row.className = 'flex items-center gap-2 py-1 px-1 cursor-pointer hover:bg-white/5 rounded';
+        row.innerHTML = `
+          <input type="checkbox" class="import-clone-check"
+            data-link="${_escAttr(song.link)}"
+            data-key="${_escAttr(song.r2Path || (album.artistName + '/' + album.albumName + '/' + song.fileName))}">
+          <span class="text-xs text-white/80">${_escHtml(song.title || song.fileName)}</span>
+        `;
+        section.appendChild(row);
+      });
+
+      listEl.appendChild(section);
+    });
+  } catch (e) {
+    statusEl.textContent = '✗ Could not load shared library: ' + e.message;
+  }
+}
+
+async function importRunClone() {
+  const settings = importLoadSettings();
+  if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
+    alert('R2 credentials are required in Setup to copy tracks to your bucket.');
+    importShowPanel('setup');
+    return;
+  }
+
+  const checks = Array.from(document.querySelectorAll('.import-clone-check:checked'));
+  if (!checks.length) { alert('No tracks selected.'); return; }
+
+  const startBtn = document.getElementById('import-clone-start');
+  const statusEl = document.getElementById('import-clone-status');
+  const serverUrl = importGetServerUrl();
+
+  if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Copying…'; }
+
+  let done = 0, failed = 0;
+  const total = checks.length;
+
+  for (const cb of checks) {
+    const sourceUrl = cb.dataset.link;
+    const r2Key    = cb.dataset.key;
+    if (statusEl) statusEl.textContent = `Copying ${done + failed + 1} / ${total}…`;
+    try {
+      const res = await fetch(serverUrl + '/copy-from-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceUrl,
+          r2Key,
+          r2AccountId:       settings.r2AccountId,
+          r2AccessKeyId:     settings.r2AccessKeyId,
+          r2SecretAccessKey: settings.r2SecretAccessKey,
+          r2Bucket:          settings.r2Bucket,
+        }),
+        signal: AbortSignal.timeout(180000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) done++; else failed++;
+    } catch (e) {
+      failed++;
+    }
+  }
+
+  if (statusEl) statusEl.textContent = `✓ Copied ${done} / ${total}. ${failed > 0 ? failed + ' failed.' : ''}`;
+  if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Copy Selected to My Library'; }
+  if (done > 0) importShowSaveToast(`Copied ${done} track${done !== 1 ? 's' : ''} to your library`);
 }
 
 // ---------------------------------------------------------------------------

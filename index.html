@@ -4842,6 +4842,19 @@ html.mp-auth #mp-login-overlay {
       <div class="text-sm text-white/60">Restore or delete forever</div>
     </button>
 
+    <div id="settings-library-source-card" class="w-full px-4 py-4 rounded-2xl bg-white/10">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-lg font-extrabold">Library</div>
+          <div id="settings-library-source-label" class="text-sm text-white/60">Shared Library</div>
+        </div>
+        <button id="settings-switch-library-mode" type="button"
+          class="px-4 py-2 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">
+          Use My Library
+        </button>
+      </div>
+    </div>
+
     <button id="settings-open-import" type="button"
       class="w-full px-4 py-4 rounded-2xl bg-white/10 text-left">
       <div class="text-lg font-extrabold">Add Music</div>
@@ -4984,6 +4997,28 @@ html.mp-auth #mp-login-overlay {
       </div>
     </div>
 
+    <!-- Library Mode -->
+    <div class="w-full rounded-2xl bg-white/10 px-5 py-4 mb-5">
+      <div class="text-base font-extrabold mb-2">Library Mode</div>
+      <div class="flex gap-2 mb-3">
+        <button id="import-mode-shared" type="button"
+          class="flex-1 py-2 rounded-full text-xs font-extrabold active:scale-95 bg-white/10 text-white">
+          Shared Library
+        </button>
+        <button id="import-mode-personal" type="button"
+          class="flex-1 py-2 rounded-full text-xs font-extrabold active:scale-95 bg-white/10 text-white">
+          My Library
+        </button>
+      </div>
+      <p class="text-xs text-white/50 mb-3">In <strong>My Library</strong> mode the app loads music from your R2 bucket via the local server. Presigned stream URLs are valid for 7 days.</p>
+      <div>
+        <label class="text-xs text-white/60 block mb-1">Personal Access URL <span class="text-white/30 font-normal">(optional &mdash; your own Cloudflare Worker)</span></label>
+        <input id="import-personal-url" type="url" placeholder="https://my-music.myworker.workers.dev"
+          class="w-full bg-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none border border-white/10 focus:border-[#1db954]">
+        <p class="text-xs text-white/40 mt-1">If set, the app uses this URL for streaming without the local server.</p>
+      </div>
+    </div>
+
     <div class="flex gap-3">
       <button id="import-save-settings" type="button"
         class="flex-1 py-3 rounded-full bg-white/10 text-white font-extrabold text-sm active:scale-95">
@@ -5052,6 +5087,28 @@ html.mp-auth #mp-login-overlay {
 
     <div id="import-upload-progress"
       style="white-space:pre-wrap;font-size:13px;color:rgba(255,255,255,.6);margin-bottom:12px;min-height:20px;"></div>
+
+    <!-- Clone from Shared Library -->
+    <div class="mb-3">
+      <button id="import-clone-open" type="button"
+        class="w-full py-3 rounded-2xl bg-white/10 text-white font-extrabold text-sm active:scale-95">
+        Clone Tracks from Shared Library
+      </button>
+    </div>
+    <div id="import-clone-section" class="hidden mb-4 rounded-2xl bg-white/5 px-4 py-4">
+      <p class="text-xs text-white/60 mb-2">Select tracks from the shared library to copy into your R2 bucket.</p>
+      <div id="import-clone-status" class="text-xs text-white/60 mb-2"></div>
+      <div id="import-clone-list" class="flex flex-col gap-1 max-h-72 overflow-y-auto mb-3 pr-1"></div>
+      <div class="flex gap-2">
+        <button id="import-clone-all" type="button" class="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">All</button>
+        <button id="import-clone-none" type="button" class="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-extrabold active:scale-95">None</button>
+        <button id="import-clone-start" type="button"
+          class="flex-1 py-2 rounded-full font-extrabold text-xs active:scale-95"
+          style="background:#1db954;color:#000;">
+          Copy Selected to My Library
+        </button>
+      </div>
+    </div>
 
     <div class="flex gap-3">
       <button id="import-upload-btn" type="button"
@@ -7918,6 +7975,33 @@ try {
 
   // 2) Network refresh (background if cache rendered; blocking if not)
   async function fetchLibraryFromNetwork() {
+    // ── Personal library mode: load from user's R2 via local server ──
+    try {
+      const _s = JSON.parse(localStorage.getItem('importSettings') || '{}');
+      if (
+        localStorage.getItem('libraryMode') === 'personal' &&
+        _s.r2AccountId && _s.r2AccessKeyId && _s.r2SecretAccessKey && _s.r2Bucket
+      ) {
+        const _srv = (_s.serverUrl || 'http://localhost:8765').replace(/\/$/, '');
+        const _r = await fetch(_srv + '/my-songs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            r2AccountId:       _s.r2AccountId,
+            r2AccessKeyId:     _s.r2AccessKeyId,
+            r2SecretAccessKey: _s.r2SecretAccessKey,
+            r2Bucket:          _s.r2Bucket,
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (_r.ok) {
+          const _d = await _r.json();
+          if (Array.isArray(_d)) { applyLibraryAndRender(_d); return; }
+        }
+      }
+    } catch (_e) { /* fall through to shared library */ }
+
+    // ── Shared library (default) ──
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -15391,6 +15475,77 @@ try {
     }, true);
   });
 
+})();
+</script>
+
+<!-- WELCOME MODAL — shown on first visit -->
+<div id="welcome-modal" class="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center hidden">
+  <div class="w-full max-w-md bg-[#1a1a1a] rounded-t-3xl md:rounded-3xl p-6 pb-10 md:pb-6 shadow-2xl mx-4">
+    <div class="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5 md:hidden"></div>
+    <h2 class="text-2xl font-black mb-2">Welcome</h2>
+    <p class="text-sm text-white/60 mb-5">You're browsing a shared music library &mdash; listen to anything here, no account needed.<br><br>Want your own personal collection? Connect your own Cloudflare R2 bucket and add music from Spotify &amp; YouTube.</p>
+    <div class="flex flex-col gap-3">
+      <button id="welcome-browse-shared" type="button"
+        class="w-full py-3.5 rounded-full font-extrabold text-sm active:scale-95"
+        style="background:#1db954;color:#000;">
+        Just Listen &mdash; Browse Shared Library
+      </button>
+      <button id="welcome-setup-own" type="button"
+        class="w-full py-3.5 rounded-full bg-white/10 text-white font-extrabold text-sm active:scale-95">
+        Set Up My Own Library
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Welcome modal — first visit detection
+(function initWelcomeModal() {
+  const modal = document.getElementById('welcome-modal');
+  if (!modal) return;
+  const updateSettingsLabel = () => {
+    try {
+      const lbl = document.getElementById('settings-library-source-label');
+      const switchBtn = document.getElementById('settings-switch-library-mode');
+      const mode = localStorage.getItem('libraryMode') || 'shared';
+      if (lbl) lbl.textContent = mode === 'personal' ? 'Your Library' : 'Shared Library';
+      if (switchBtn) switchBtn.textContent = mode === 'personal' ? 'Use Shared' : 'Use My Library';
+    } catch (e) {}
+  };
+  if (!localStorage.getItem('hasSeenWelcome')) {
+    setTimeout(() => modal.classList.remove('hidden'), 700);
+  }
+  document.getElementById('welcome-browse-shared')?.addEventListener('click', () => {
+    localStorage.setItem('hasSeenWelcome', '1');
+    if (!localStorage.getItem('libraryMode')) localStorage.setItem('libraryMode', 'shared');
+    modal.classList.add('hidden');
+    updateSettingsLabel();
+  });
+  document.getElementById('welcome-setup-own')?.addEventListener('click', () => {
+    localStorage.setItem('hasSeenWelcome', '1');
+    modal.classList.add('hidden');
+    try { showView('import'); } catch (e) {}
+  });
+  updateSettingsLabel();
+})();
+
+// Settings library mode switch
+(function initSettingsLibrarySwitch() {
+  const btn = document.getElementById('settings-switch-library-mode');
+  const lbl = document.getElementById('settings-library-source-label');
+  if (!btn) return;
+  const update = () => {
+    const mode = localStorage.getItem('libraryMode') || 'shared';
+    if (lbl) lbl.textContent = mode === 'personal' ? 'Your Library' : 'Shared Library';
+    btn.textContent = mode === 'personal' ? 'Use Shared' : 'Use My Library';
+  };
+  update();
+  btn.addEventListener('click', () => {
+    const current = localStorage.getItem('libraryMode') || 'shared';
+    localStorage.setItem('libraryMode', current === 'personal' ? 'shared' : 'personal');
+    update();
+    window.location.reload();
+  });
 })();
 </script>
 
