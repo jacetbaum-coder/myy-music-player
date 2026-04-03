@@ -1,10 +1,98 @@
 // -----------------------
 // CRATE (Notes-like + checklist + cloud sync)
 // -----------------------
-const CRATE_LS_KEY = "reson_crate_doc_v1";
-const CRATE_API_BASE = "https://music-streamer.jacetbaum.workers.dev/api/crate";
+const CRATE_LS_KEY = "reson_guest_crate_doc_v1";
+const CRATE_API_PATH = "/api/crate";
 
 let crateDoc = null;
+
+function crateApiUrl(params) {
+  if (typeof window.personalDataApiUrl === "function") {
+    return window.personalDataApiUrl(CRATE_API_PATH, params);
+  }
+  const url = new URL(CRATE_API_PATH, "https://music-streamer.jacetbaum.workers.dev");
+  if (params && typeof params === "object") {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      url.searchParams.set(key, String(value));
+    });
+  }
+  return url.toString();
+}
+
+function getCrateStorageKey() {
+  if (typeof window.getCrateStorageKey === "function") {
+    return window.getCrateStorageKey();
+  }
+  return CRATE_LS_KEY;
+}
+
+function getCrateCloudUserId() {
+  if (typeof window.getCloudUserId === "function") {
+    return String(window.getCloudUserId() || "").trim();
+  }
+  return String(window.APP_USER_ID || "").trim();
+}
+
+function loadCrateDocFromKey(storageKey) {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return defaultCrateDoc();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return defaultCrateDoc();
+    return {
+      title: String(parsed.title || "Crate"),
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      updatedAt: Number(parsed.updatedAt || Date.now()) || Date.now()
+    };
+  } catch (e) {
+    return defaultCrateDoc();
+  }
+}
+
+function crateDocHasMeaningfulContent(doc) {
+  if (!doc || typeof doc !== "object") return false;
+  const title = String(doc.title || "").trim();
+  const items = Array.isArray(doc.items) ? doc.items : [];
+  return (title && title !== "Crate") || items.some((item) => String(item?.text || "").trim().length > 0);
+}
+
+function mergeCrateDocs(accountDoc, guestDoc) {
+  const base = accountDoc && typeof accountDoc === "object" ? accountDoc : defaultCrateDoc();
+  const guest = guestDoc && typeof guestDoc === "object" ? guestDoc : defaultCrateDoc();
+  const merged = {
+    title: String(base.title || "Crate"),
+    items: Array.isArray(base.items) ? base.items.slice() : [],
+    updatedAt: Math.max(Number(base.updatedAt || 0), Number(guest.updatedAt || 0), Date.now())
+  };
+
+  const guestTitle = String(guest.title || "").trim();
+  if ((!merged.title || merged.title === "Crate") && guestTitle && guestTitle !== "Crate") {
+    merged.title = guestTitle;
+  }
+
+  const seen = new Set(merged.items.map((item) => {
+    const kind = String(item?.kind || "check").trim();
+    const text = String(item?.text || "").trim().toLowerCase();
+    return `${kind}|${text}`;
+  }));
+
+  (Array.isArray(guest.items) ? guest.items : []).forEach((item) => {
+    const next = {
+      kind: String(item?.kind || "check").trim() || "check",
+      checked: !!item?.checked,
+      text: String(item?.text || "")
+    };
+    const normalizedText = next.text.trim().toLowerCase();
+    if (!normalizedText) return;
+    const key = `${next.kind}|${normalizedText}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.items.push(next);
+  });
+
+  return merged;
+}
 
 function defaultCrateDoc() {
   return {
@@ -16,7 +104,7 @@ function defaultCrateDoc() {
 
 function loadCrateLocal() {
   try {
-    const raw = localStorage.getItem(CRATE_LS_KEY);
+    const raw = localStorage.getItem(getCrateStorageKey());
     if (!raw) return defaultCrateDoc();
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return defaultCrateDoc();
@@ -33,16 +121,16 @@ function saveCrateLocal() {
   try {
     if (!crateDoc) return;
     crateDoc.updatedAt = Date.now();
-    localStorage.setItem(CRATE_LS_KEY, JSON.stringify(crateDoc));
+    localStorage.setItem(getCrateStorageKey(), JSON.stringify(crateDoc));
   } catch (e) {}
 }
 
 async function pullCrateFromCloud() {
   try {
-    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    const uid = getCrateCloudUserId();
     if (!uid) return;
 
-    const res = await fetch(CRATE_API_BASE + "?userId=" + encodeURIComponent(uid), {
+    const res = await fetch(crateApiUrl({ userId: uid }), {
       method: "GET",
       headers: { "Accept": "application/json" }
     });
@@ -71,11 +159,11 @@ async function pullCrateFromCloud() {
 
 async function pushCrateToCloud() {
   try {
-    const uid = (window.APP_USER_ID || localStorage.getItem("app_user_id") || "").trim();
+    const uid = getCrateCloudUserId();
     if (!uid) return;
     if (!crateDoc) return;
 
-    await fetch(CRATE_API_BASE, {
+    await fetch(crateApiUrl(), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -89,6 +177,38 @@ async function pushCrateToCloud() {
 function ensureCrateLoaded() {
   if (!crateDoc) crateDoc = loadCrateLocal();
 }
+
+window.resetCrateForIdentityChange = async function () {
+  crateDoc = loadCrateLocal();
+  try { renderCrate(); } catch (e) {}
+  try { await pullCrateFromCloud(); } catch (e) {}
+  try { renderCrate(); } catch (e) {}
+};
+
+window.migrateGuestCrateToAccount = async function () {
+  const guestDoc = loadCrateDocFromKey(CRATE_LS_KEY);
+  if (!crateDocHasMeaningfulContent(guestDoc)) {
+    return { migrated: false };
+  }
+
+  if (getCrateStorageKey() === CRATE_LS_KEY) {
+    return { migrated: false, error: new Error("Missing account crate storage key") };
+  }
+
+  try {
+    crateDoc = loadCrateLocal();
+    await pullCrateFromCloud();
+
+    const merged = mergeCrateDocs(crateDoc || loadCrateLocal(), guestDoc);
+    crateDoc = merged;
+    saveCrateLocal();
+    await pushCrateToCloud();
+    try { localStorage.removeItem(CRATE_LS_KEY); } catch (e) {}
+    return { migrated: true, itemCount: merged.items.length };
+  } catch (e) {
+    return { migrated: false, error: e };
+  }
+};
 
 function escapeHtml(s) {
   return String(s || '')
@@ -193,6 +313,9 @@ function openCrateSection(which) {
 }
 
 function openCrateImportView() {
+  if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to import music.")) {
+    return;
+  }
   try { showView("crate"); } catch (e) {}
   openCrateSection("import");
 }

@@ -2,8 +2,25 @@
    SETTINGS + RECENTLY DELETED UI
 ------------------------ */
 
+function personalDataApiUrl(path, params) {
+  if (typeof window.personalDataApiUrl === "function") {
+    return window.personalDataApiUrl(path, params);
+  }
+  const url = new URL(path, "https://music-streamer.jacetbaum.workers.dev");
+  if (params && typeof params === "object") {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      url.searchParams.set(key, String(value));
+    });
+  }
+  return url.toString();
+}
+
 function __effectiveUserId() {
-  return String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
+  if (typeof window.getCloudUserId === "function") {
+    return String(window.getCloudUserId() || "").trim();
+  }
+  return String(window.APP_USER_ID || "").trim();
 }
 
 let __rdType = "playlist"; // "playlist" | "album"
@@ -36,13 +53,10 @@ function __setRdTab(type) {
 
 async function __fetchRecentlyDeleted(type) {
   const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) return [];
   const t = (type === "album") ? "album" : "playlist";
 
-  const url =
-    "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
-    encodeURIComponent(uid) +
-    "&type=" + encodeURIComponent(t);
+  const url = personalDataApiUrl("/api/recently-deleted", { userId: uid, type: t });
 
   const res = await fetch(url);
   const data = await res.json().catch(() => ({}));
@@ -62,7 +76,7 @@ function __formatDaysLeft(expiresAt) {
 
 async function __restoreRecentlyDeletedItem(item) {
   const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) throw new Error("Sign in required");
   const type = item?.type || __rdType;
   const id = item?.id;
   if (!id) throw new Error("Missing id");
@@ -70,13 +84,12 @@ async function __restoreRecentlyDeletedItem(item) {
   // Worker route name can vary; try a couple safe options.
   const tryUrls = [
     {
-      url: "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/restore?userId=" +
-        encodeURIComponent(uid) + "&type=" + encodeURIComponent(type) + "&id=" + encodeURIComponent(id),
+      url: personalDataApiUrl("/api/recently-deleted/restore", { userId: uid, type, id }),
       method: "POST",
       body: null
     },
     {
-      url: "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/restore",
+      url: personalDataApiUrl("/api/recently-deleted/restore"),
       method: "POST",
       body: JSON.stringify({ userId: uid, type, id })
     }
@@ -103,18 +116,14 @@ async function __restoreRecentlyDeletedItem(item) {
 
 async function __deleteRecentlyDeletedForever(item) {
   const uid = __effectiveUserId();
-  if (!uid) throw new Error("Missing userId");
+  if (!uid) throw new Error("Sign in required");
   const type = item?.type || __rdType;
   const id = item?.id;
   if (!id) throw new Error("Missing id");
 
   // Your console error proved this endpoint wants userId present.
   // We include it in querystring AND body to be extra safe.
-  const url =
-    "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/forever?userId=" +
-    encodeURIComponent(uid) +
-    "&type=" + encodeURIComponent(type) +
-    "&id=" + encodeURIComponent(id);
+  const url = personalDataApiUrl("/api/recently-deleted/forever", { userId: uid, type, id });
 
   const res = await fetch(url, {
     method: "DELETE",
@@ -252,6 +261,9 @@ async function __renderRecentlyDeleted() {
   });
 
   if (openSync) openSync.addEventListener("click", async () => {
+    if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to sync devices.")) {
+      return;
+    }
     try {
       if (typeof window.openSyncDevicesModal === "function") {
         await window.openSyncDevicesModal();
@@ -266,6 +278,9 @@ async function __renderRecentlyDeleted() {
 
   // ✅ Settings -> Recently Deleted (route you proved works)
   if (openRD) openRD.addEventListener("click", () => {
+    if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to use Recently Deleted.")) {
+      return;
+    }
     try { showView("recently-deleted"); } catch (e) {}
 
     // ✅ Default to Albums when you arrive
@@ -276,6 +291,9 @@ async function __renderRecentlyDeleted() {
   // Settings -> Add Music
   const openImport = document.getElementById("settings-open-import");
   if (openImport) openImport.addEventListener("click", () => {
+    if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to import music.")) {
+      return;
+    }
     try {
       if (typeof window.openCrateImportView === "function") {
         window.openCrateImportView();

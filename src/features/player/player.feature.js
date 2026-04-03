@@ -1109,7 +1109,9 @@ function persistPlayerState(isPlayingOverride = null) {
 
 
   try {
-    const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+    const uid = (typeof window.getCloudUserId === "function")
+      ? window.getCloudUserId()
+      : String(window.APP_USER_ID || "").trim();
     if (uid && typeof window.syncNowPlayingToCloud === "function") {
       // convert currentSong.url -> trackId (id param) when possible
       let trackId = "";

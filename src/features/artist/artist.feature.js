@@ -15,18 +15,26 @@
 
 // ARTIST MENU + CROP (per-artist saved)
 
-// ✅ Worker base (matches the rest of your file)
-const ARTIST_API_BASE = "https://music-streamer.jacetbaum.workers.dev";
+function artistApiUrl(path, params) {
+  if (typeof window.personalDataApiUrl === "function") {
+    return window.personalDataApiUrl(path, params);
+  }
+  const url = new URL(path, "https://music-streamer.jacetbaum.workers.dev");
+  if (params && typeof params === "object") {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      url.searchParams.set(key, String(value));
+    });
+  }
+  return url.toString();
+}
 
 // ✅ user id helper (matches your app pattern)
 function getAppUserId() {
-  try {
-    const v = localStorage.getItem("app_user_id") || "23";
-    localStorage.setItem("app_user_id", v);
-    return v;
-  } catch (e) {
-    return "23";
+  if (typeof window.getCloudUserId === "function") {
+    return String(window.getCloudUserId() || "").trim();
   }
+  return String(window.APP_USER_ID || "").trim();
 }
 
 // ✅ returns a usable URL for CSS background-image
@@ -54,10 +62,8 @@ async function getArtistHeroImageUrl(artistName){
 // POST /api/artist-crop  { userId, name, crop }
 async function fetchArtistCropFromCloud(artistName) {
   const uid = getAppUserId();
-  const u =
-    `${ARTIST_API_BASE}/api/artist-crop` +
-    `?userId=${encodeURIComponent(uid)}` +
-    `&artist=${encodeURIComponent(artistName)}`;
+  if (!uid) return null;
+  const u = artistApiUrl("/api/artist-crop", { userId: uid, artist: artistName });
 
   try {
     const res = await fetch(u, { method: "GET" });
@@ -71,6 +77,7 @@ async function fetchArtistCropFromCloud(artistName) {
 
 async function saveArtistCropToCloud(artistName, crop) {
   const uid = getAppUserId();
+  if (!uid) return false;
 
   // If crop is null, we treat it as "reset" by saving defaults.
   // (If you later prefer true DELETE, we can wire that too.)
@@ -79,7 +86,7 @@ async function saveArtistCropToCloud(artistName, crop) {
   const zoom = crop && crop.zoom != null ? Number(crop.zoom) : 100;
 
   try {
-    const res = await fetch(`${ARTIST_API_BASE}/api/artist-crop`, {
+    const res = await fetch(artistApiUrl("/api/artist-crop"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -158,6 +165,10 @@ function hideArtistCropModal() {
 }
 
 function showArtistCropModal(artistName) {
+  if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to customize artist artwork.")) {
+    return;
+  }
+
   const modal = document.getElementById("artist-crop-modal");
   const preview = document.getElementById("artist-crop-preview");
   const xR = document.getElementById("artist-crop-x");
@@ -231,10 +242,9 @@ function showArtistCropModal(artistName) {
 
 async function clearArtistCrop(artistName) {
   const uid = getAppUserId();
-  const u =
-    `${ARTIST_API_BASE}/api/artist-crop` +
-    `?userId=${encodeURIComponent(uid)}` +
-    `&artist=${encodeURIComponent(artistName)}`;
+  if (!uid) return;
+
+  const u = artistApiUrl("/api/artist-crop", { userId: uid, artist: artistName });
 
   try {
     await fetch(u, { method: "DELETE" });
@@ -337,6 +347,7 @@ function openArtistByName(artistName) {
   if (cropBtn) cropBtn.onclick = (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!artistName) return;
+    if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to customize artist artwork.')) return;
     try { hideArtistMenu(); } catch (err) {}
     try { showArtistCropModal(artistName); } catch (err) {}
   };
@@ -345,6 +356,7 @@ function openArtistByName(artistName) {
   if (resetCropBtn) resetCropBtn.onclick = (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!artistName) return;
+    if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to customize artist artwork.')) return;
     try { clearArtistCrop(artistName); } catch (err) {}
     try { applyArtistCropToBg(artistName); } catch (err) {}
     try { hideArtistMenu(); } catch (err) {}

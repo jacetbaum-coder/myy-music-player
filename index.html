@@ -6127,7 +6127,9 @@ lpTriggered = false;
         // Persistence
         let history = JSON.parse(localStorage.getItem('historyLog')) || [];
         let likedSongs = JSON.parse(localStorage.getItem('likedSongs')) || [];
-        var playlists = JSON.parse(localStorage.getItem('playlists')) || [];
+        const __storedAccountUserId = String(localStorage.getItem('reson_account_user_id') || localStorage.getItem('app_user_id') || '').trim();
+        const __playlistStorageKey = __storedAccountUserId ? ('reson_account_playlists_v1:' + __storedAccountUserId) : 'reson_guest_playlists_v1';
+        var playlists = JSON.parse(localStorage.getItem(__playlistStorageKey) || '[]') || [];
         window.playlists = playlists;
 
 // --- Playlist IDs (upgrade old saved playlists that don't have an id yet) ---
@@ -6202,6 +6204,10 @@ if (syncBtn) syncBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   e.stopImmediatePropagation();
 
+  if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to sync devices.')) {
+    return;
+  }
+
   try { close(); } catch (e) {}
   try { showView('settings'); } catch (e) {}
 
@@ -6218,6 +6224,10 @@ if (rdBtn) rdBtn.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
   e.stopImmediatePropagation();
+
+  if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to use Recently Deleted.')) {
+    return;
+  }
 
   try { close(); } catch (e) {}
 
@@ -6416,7 +6426,14 @@ try {
   console.warn("playlist trackIds migration failed:", e);
 }
 
-localStorage.setItem('playlists', JSON.stringify(playlists));
+try {
+  const playlistStorageKey = (typeof window.getPlaylistStorageKey === 'function')
+    ? window.getPlaylistStorageKey()
+    : (String(localStorage.getItem('reson_account_user_id') || localStorage.getItem('app_user_id') || '').trim()
+      ? 'reson_account_playlists_v1:' + String(localStorage.getItem('reson_account_user_id') || localStorage.getItem('app_user_id') || '').trim()
+      : 'reson_guest_playlists_v1');
+  localStorage.setItem(playlistStorageKey, JSON.stringify(playlists));
+} catch (e) {}
 
 let lastPlayedTime = parseInt(localStorage.getItem('lastPlayedTime')) || 0;
 
@@ -7079,11 +7096,12 @@ function initMobileDoubleTapScrollToTop(){
 // ============================================================
 
 window.onload = async () => {
-  // ✅ Identity: wait for session auth check, then use real userId (or fall back)
+  // ✅ Identity: wait for session auth check, then use the signed-in account id if present
   if (window.__authReady) { try { await window.__authReady; } catch {} }
-  const userId = localStorage.getItem("app_user_id") || "23";
-  localStorage.setItem("app_user_id", userId);
-  window.APP_USER_ID = userId;
+  const userId = (typeof window.getCloudUserId === "function")
+    ? window.getCloudUserId()
+    : String(localStorage.getItem("reson_account_user_id") || "").trim();
+  window.APP_USER_ID = userId || null;
 
 
   // ✅ Load playlists for this user from Cloudflare (D1 via Worker)
@@ -7094,12 +7112,17 @@ window.cloudPlaylists = [];
 if (typeof window.loadPlaylistsFromCloud !== "function") {
   window.loadPlaylistsFromCloud = async function () {
     try {
-      const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
+      const uid = (typeof window.getCloudUserId === "function")
+        ? window.getCloudUserId()
+        : String(localStorage.getItem("reson_account_user_id") || "").trim();
       if (!uid) return [];
 
-      const res = await fetch(
-        "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
-      );
+      const fallbackBase = "https://music-streamer.jacetbaum.workers.dev";
+      const url = (typeof window.personalDataApiUrl === "function")
+        ? window.personalDataApiUrl("/api/playlists", { userId: uid })
+        : (new URL(`/api/playlists?userId=${encodeURIComponent(uid)}`, fallbackBase).toString());
+
+      const res = await fetch(url);
       const data = await res.json();
 
       if (res.ok && data && data.ok && Array.isArray(data.playlists)) {
@@ -9181,7 +9204,9 @@ if (!album) {
         ? `${artistHint}/`
         : `${artistHint}/${name}/`;
 
-      const plsRaw = localStorage.getItem("playlists") || "[]";
+      const plsRaw = (typeof window.readStoredPlaylists === 'function')
+        ? JSON.stringify(window.readStoredPlaylists())
+        : (localStorage.getItem("playlists") || "[]");
       const plsData = JSON.parse(plsRaw);
       const pls = Array.isArray(plsData)
         ? plsData
@@ -13679,7 +13704,9 @@ function playAlbumByName(name) {
         const looksAudio = (s) => /\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(String(s || ""));
         const wantPrefix = `${hintArtist}/${name}/`;
 
-        const raw = localStorage.getItem("playlists") || "[]";
+        const raw = (typeof window.readStoredPlaylists === 'function')
+          ? JSON.stringify(window.readStoredPlaylists())
+          : (localStorage.getItem("playlists") || "[]");
         const data = JSON.parse(raw);
         const pls = Array.isArray(data) ? data : (Array.isArray(data.playlists) ? data.playlists : []);
 
@@ -13758,7 +13785,11 @@ function playAlbumByName(name) {
 
       // ✅ Link flow (Phase 1): share the same userId across devices
   async function startLink() {
-    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/link/start", {
+    const fallbackBase = 'https://music-streamer.jacetbaum.workers.dev';
+    const url = (typeof window.personalDataApiUrl === 'function')
+      ? window.personalDataApiUrl('/api/link/start')
+      : new URL('/api/link/start', fallbackBase).toString();
+    const res = await fetch(url, {
       method: "POST"
     });
     const data = await res.json();
@@ -13767,14 +13798,23 @@ function playAlbumByName(name) {
     }
 
     // Save the shared userId for this browser
-    localStorage.setItem("app_user_id", data.userId);
-    window.APP_USER_ID = data.userId;
+    if (typeof window.setAccountIdentity === 'function') {
+      window.setAccountIdentity(data.userId);
+    } else {
+      localStorage.setItem("reson_account_user_id", data.userId);
+      localStorage.setItem("app_user_id", data.userId);
+      window.APP_USER_ID = data.userId;
+    }
 
     return data; // { ok, userId, code, expiresAt }
   }
 
   async function redeemLink(code) {
-    const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/link/redeem", {
+    const fallbackBase = 'https://music-streamer.jacetbaum.workers.dev';
+    const url = (typeof window.personalDataApiUrl === 'function')
+      ? window.personalDataApiUrl('/api/link/redeem')
+      : new URL('/api/link/redeem', fallbackBase).toString();
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: String(code || "").trim().toUpperCase() })
@@ -13785,8 +13825,13 @@ function playAlbumByName(name) {
     }
 
     // Save the shared userId for this browser
-    localStorage.setItem("app_user_id", data.userId);
-    window.APP_USER_ID = data.userId;
+    if (typeof window.setAccountIdentity === 'function') {
+      window.setAccountIdentity(data.userId);
+    } else {
+      localStorage.setItem("reson_account_user_id", data.userId);
+      localStorage.setItem("app_user_id", data.userId);
+      window.APP_USER_ID = data.userId;
+    }
 
     return data; // { ok, userId }
   }
@@ -14349,6 +14394,10 @@ try {
   // "Upload Photo" menu item → trigger file picker + close modal
   if (uploadBtn && photoInput) {
     uploadBtn.addEventListener('click', function () {
+      if (typeof window.requireAccount === 'function' && !window.requireAccount('Sign in to save a profile photo.')) {
+        return;
+      }
+
       const modal = document.getElementById('profile-menu-modal');
       if (modal) modal.classList.add('hidden');
       photoInput.value = '';
@@ -14644,6 +14693,47 @@ try {
     if (feedback) feedback.classList.add('hidden');
   }
 
+  function loadScopedPlaylistsIntoMemory() {
+    try {
+      if (typeof window.readStoredPlaylists === 'function') {
+        playlists = window.readStoredPlaylists();
+      } else {
+        playlists = JSON.parse(localStorage.getItem('playlists') || '[]') || [];
+      }
+    } catch (e) {
+      playlists = [];
+    }
+
+    if (!Array.isArray(playlists)) playlists = [];
+    window.playlists = playlists;
+  }
+
+  async function refreshIdentityScopedState() {
+    loadScopedPlaylistsIntoMemory();
+
+    try {
+      if (typeof window.refreshAccountOnlyUi === 'function') {
+        window.refreshAccountOnlyUi();
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof window.loadPlaylistsFromCloud === 'function') {
+        await window.loadPlaylistsFromCloud();
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof window.resetCrateForIdentityChange === 'function') {
+        await window.resetCrateForIdentityChange();
+      }
+    } catch (e) {}
+
+    try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e) {}
+    try { if (typeof renderHome === 'function') renderHome(); } catch (e) {}
+    try { if (typeof renderLibraryPlaylists === 'function') renderLibraryPlaylists(); } catch (e) {}
+  }
+
   function showPane(mode) {
     ['magic', 'signin', 'register'].forEach(function(m) {
       var el = document.getElementById('auth-' + m + '-pane');
@@ -14653,14 +14743,29 @@ try {
     clearFeedback();
   }
 
-  function onAuthSuccess(userId, email) {
-    localStorage.setItem('app_user_id', userId);
-    window.APP_USER_ID = userId;
+  async function onAuthSuccess(userId, email) {
+    if (typeof window.setAccountIdentity === 'function') {
+      window.setAccountIdentity(userId);
+    } else {
+      localStorage.setItem('reson_account_user_id', userId);
+      localStorage.setItem('app_user_id', userId);
+      window.APP_USER_ID = userId;
+    }
     window.APP_USER_EMAIL = email;
     if (modal) modal.classList.add('hidden');
     // Show logout button in profile menu
     var logoutRow = document.getElementById('auth-logout-row');
     if (logoutRow) logoutRow.classList.remove('hidden');
+
+    try {
+      if (typeof window.migrateGuestDataToAccount === 'function') {
+        await window.migrateGuestDataToAccount(userId);
+      }
+    } catch (e) {
+      console.warn('Guest data migration failed:', e);
+    }
+
+    await refreshIdentityScopedState();
   }
 
   async function checkAuth() {
@@ -14677,8 +14782,12 @@ try {
   window.__authReady = (async function() {
     var user = await checkAuth();
     if (user) {
-      onAuthSuccess(user.userId, user.email);
+      await onAuthSuccess(user.userId, user.email);
     } else {
+      if (typeof window.clearAccountIdentity === 'function') {
+        window.clearAccountIdentity();
+      }
+      await refreshIdentityScopedState();
       if (modal) modal.classList.remove('hidden');
     }
   })();
@@ -14722,7 +14831,7 @@ try {
       var data = await res.json();
       if (data.ok) {
         var me = await checkAuth();
-        if (me) onAuthSuccess(me.userId, me.email);
+        if (me) await onAuthSuccess(me.userId, me.email);
         else    showFeedback('Signed in! Reload if the app does not update.', false);
       } else {
         showFeedback(data.error || 'Sign-in failed.', true);
@@ -14745,7 +14854,7 @@ try {
         var loginData = await loginRes.json();
         if (loginData.ok) {
           var me = await checkAuth();
-          if (me) onAuthSuccess(me.userId, me.email);
+          if (me) await onAuthSuccess(me.userId, me.email);
         } else {
           showFeedback('Account created! Sign in to continue.', false);
           showPane('signin');
@@ -14776,8 +14885,13 @@ try {
   // Logout
   window.mpLogout = async function() {
     try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-    localStorage.removeItem('app_user_id');
-    window.APP_USER_ID = null;
+    if (typeof window.clearAccountIdentity === 'function') {
+      window.clearAccountIdentity();
+    } else {
+      localStorage.removeItem('reson_account_user_id');
+      localStorage.removeItem('app_user_id');
+      window.APP_USER_ID = null;
+    }
     // Hide logout button
     var logoutRow = document.getElementById('auth-logout-row');
     if (logoutRow) logoutRow.classList.add('hidden');
@@ -14789,6 +14903,7 @@ try {
       modal.classList.remove('hidden');
       showPane('magic');
     }
+    await refreshIdentityScopedState();
   };
 
   showPane('magic');

@@ -12,6 +12,252 @@
 
 window.cloudPlaylists = [];
 
+function personalDataApiUrl(path, params) {
+  if (typeof window.personalDataApiUrl === "function") {
+    return window.personalDataApiUrl(path, params);
+  }
+  const url = new URL(path, "https://music-streamer.jacetbaum.workers.dev");
+  if (params && typeof params === "object") {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      url.searchParams.set(key, String(value));
+    });
+  }
+  return url.toString();
+}
+
+function getCloudUserIdOrBlank() {
+  if (typeof window.getCloudUserId === "function") {
+    return String(window.getCloudUserId() || "").trim();
+  }
+  return String(window.APP_USER_ID || localStorage.getItem("reson_account_user_id") || "").trim();
+}
+
+function canonPlaylistTrackId(value) {
+  let out = String(value || "").trim();
+  if (!out) return "";
+  try {
+    if (out.includes("://")) {
+      const parsed = new URL(out, window.location.origin);
+      const found = parsed.searchParams.get("id");
+      if (found) out = found;
+    }
+  } catch (e) {}
+  if (out.includes("?id=")) {
+    try { out = (out.split("?id=")[1] || "").split("&")[0] || out; } catch (e) {}
+  }
+  try { out = decodeURIComponent(out); } catch (e) {}
+  return out.replace(/^\/+/, "").trim();
+}
+
+function persistStoredPlaylists(items) {
+  const out = Array.isArray(items) ? items : [];
+  if (typeof window.writeStoredPlaylists === "function") {
+    return window.writeStoredPlaylists(out);
+  }
+  try {
+    localStorage.setItem("playlists", JSON.stringify(out));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function makeLocalPlaylist(name) {
+  const playlistName = String(name || "Playlist").trim() || "Playlist";
+  let playlistId = "";
+  try {
+    playlistId = (window.crypto && typeof crypto.randomUUID === "function")
+      ? crypto.randomUUID()
+      : "pl_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+  } catch (e) {
+    playlistId = "pl_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+  }
+
+  const next = {
+    id: playlistId,
+    name: playlistName,
+    songs: [],
+    trackIds: [],
+    songCount: 0,
+  };
+
+  if (!Array.isArray(playlists)) playlists = [];
+  playlists.push(next);
+  try { window.playlists = playlists; } catch (e) {}
+  persistStoredPlaylists(playlists.filter(p => !p || !p.isAutoPlaylist));
+  return next;
+}
+
+function readGuestPlaylistsForMigration() {
+  try {
+    const raw = localStorage.getItem("reson_guest_playlists_v1") || "[]";
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function normalizeGuestPlaylistForMigration(playlist) {
+  if (!playlist || typeof playlist !== "object") return null;
+
+  const name = String(playlist.name || playlist.title || "Playlist").trim() || "Playlist";
+  let trackIds = Array.isArray(playlist.trackIds) ? playlist.trackIds.map(canonPlaylistTrackId).filter(Boolean) : [];
+
+  if (!trackIds.length && Array.isArray(playlist.songs)) {
+    trackIds = playlist.songs
+      .map((song) => canonPlaylistTrackId(
+        song?.id ||
+        song?.trackId ||
+        song?.track_id ||
+        song?.r2Path ||
+        song?.key ||
+        song?.r2_key ||
+        song?.url ||
+        song?.link ||
+        ""
+      ))
+      .filter(Boolean);
+  }
+
+  return {
+    name,
+    trackIds: Array.from(new Set(trackIds)),
+  };
+}
+
+function playlistLooksEquivalent(existing, incoming) {
+  if (!existing || !incoming) return false;
+  if (String(existing.name || "").trim() !== String(incoming.name || "").trim()) return false;
+
+  const existingIds = Array.isArray(existing.trackIds)
+    ? existing.trackIds.map(canonPlaylistTrackId).filter(Boolean)
+    : [];
+  const incomingIds = Array.isArray(incoming.trackIds)
+    ? incoming.trackIds.map(canonPlaylistTrackId).filter(Boolean)
+    : [];
+
+  if (existingIds.length !== incomingIds.length) return false;
+
+  const existingSet = new Set(existingIds);
+  return incomingIds.every((trackId) => existingSet.has(trackId));
+}
+
+function resolveMigratedPlaylistTarget(created, playlistsAfterLoad, playlistName, previousIds) {
+  const targetIds = [
+    created?.playlistId,
+    created?.playlist_id,
+    created?.id,
+    created?.playlist?.id,
+    created?.data?.playlistId,
+    created?.data?.id,
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+
+  if (targetIds.length) {
+    const match = playlistsAfterLoad.find((playlist) => targetIds.includes(String(playlist?.id || "").trim()));
+    if (match) return match;
+  }
+
+  const byNewId = playlistsAfterLoad.find((playlist) => {
+    const id = String(playlist?.id || "").trim();
+    return id && !previousIds.has(id);
+  });
+  if (byNewId) return byNewId;
+
+  for (let index = playlistsAfterLoad.length - 1; index >= 0; index -= 1) {
+    const playlist = playlistsAfterLoad[index];
+    if (String(playlist?.name || "").trim() === String(playlistName || "").trim()) {
+      return playlist;
+    }
+  }
+
+  return null;
+}
+
+window.migrateGuestPlaylistsToAccount = async function () {
+  const guestPlaylists = readGuestPlaylistsForMigration()
+    .map(normalizeGuestPlaylistForMigration)
+    .filter(Boolean)
+    .filter((playlist) => playlist.trackIds.length || playlist.name);
+
+  if (!guestPlaylists.length) {
+    return { migrated: 0, errors: [] };
+  }
+
+  const errors = [];
+  let migrated = 0;
+
+  try {
+    if (typeof window.loadPlaylistsFromCloud === "function") {
+      await window.loadPlaylistsFromCloud();
+    }
+  } catch (e) {
+    errors.push(e);
+  }
+
+  let accountPlaylists = Array.isArray(window.playlists) ? window.playlists.slice() : [];
+
+  for (const guestPlaylist of guestPlaylists) {
+    try {
+      let target = accountPlaylists.find((playlist) => playlistLooksEquivalent(playlist, guestPlaylist));
+      if (!target) {
+        target = accountPlaylists.find((playlist) => String(playlist?.name || "").trim() === guestPlaylist.name);
+      }
+
+      if (!target) {
+        const previousIds = new Set(accountPlaylists.map((playlist) => String(playlist?.id || "").trim()).filter(Boolean));
+        const created = await window.createPlaylistInCloud(guestPlaylist.name);
+        if (typeof window.loadPlaylistsFromCloud === "function") {
+          await window.loadPlaylistsFromCloud();
+        }
+        accountPlaylists = Array.isArray(window.playlists) ? window.playlists.slice() : [];
+        target = resolveMigratedPlaylistTarget(created, accountPlaylists, guestPlaylist.name, previousIds);
+      }
+
+      if (!target || !target.id) {
+        throw new Error(`Could not resolve migrated playlist target for ${guestPlaylist.name}`);
+      }
+
+      const existingIds = new Set((Array.isArray(target.trackIds) ? target.trackIds : []).map(canonPlaylistTrackId));
+      let changed = false;
+
+      for (const trackId of guestPlaylist.trackIds) {
+        if (!trackId || existingIds.has(trackId)) continue;
+        await window.addTrackToPlaylistInCloud(target.id, trackId);
+        existingIds.add(trackId);
+        changed = true;
+      }
+
+      if (changed) {
+        migrated += 1;
+      }
+
+      const localTarget = (Array.isArray(window.playlists) ? window.playlists : []).find((playlist) => String(playlist?.id || "").trim() === String(target.id).trim());
+      if (localTarget) {
+        localTarget.trackIds = Array.from(existingIds);
+        localTarget.songCount = localTarget.trackIds.length;
+      }
+    } catch (e) {
+      errors.push(e);
+    }
+  }
+
+  try {
+    if (typeof window.loadPlaylistsFromCloud === "function") {
+      await window.loadPlaylistsFromCloud();
+    }
+  } catch (e) {
+    errors.push(e);
+  }
+
+  if (!errors.length) {
+    try { localStorage.removeItem("reson_guest_playlists_v1"); } catch (e) {}
+  }
+
+  return { migrated, errors };
+};
+
 // Convert DB playlist row -> UI playlist object
 function cloudRowToUiPlaylist(row) {
   const id = row.playlist_id || row.id || "";
@@ -29,12 +275,13 @@ function cloudRowToUiPlaylist(row) {
 
 // ✅ Load playlists list (meta) from Cloudflare for the current user
 window.loadPlaylistsFromCloud = async function () {
-  const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) return [];
+  const uid = getCloudUserIdOrBlank();
+  if (!uid) {
+    window.cloudPlaylists = [];
+    return Array.isArray(window.playlists) ? window.playlists : [];
+  }
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlists?userId=" + encodeURIComponent(uid)
-  );
+  const res = await fetch(personalDataApiUrl("/api/playlists", { userId: uid }));
 
   const data = await res.json().catch(() => ({}));
 
@@ -60,8 +307,7 @@ try {
 
   // ✅ IMPORTANT: merge cloud playlists into the actual UI `playlists` array (do NOT wipe local-only playlists)
   try {
-    const uid2 = window.APP_USER_ID || localStorage.getItem("app_user_id") || "";
-    const uid = String(uid2 || "").trim();
+    const uid = getCloudUserIdOrBlank();
 
     // 1) Convert cloud rows to UI objects
     const cloudUi = data.playlists
@@ -91,8 +337,7 @@ try {
     try {
       if (uid) {
         const rd = await fetch(
-          "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted?userId=" +
-            encodeURIComponent(uid) + "&type=playlist"
+          personalDataApiUrl("/api/recently-deleted", { userId: uid, type: "playlist" })
         ).then(r => r.json()).catch(() => null);
 
         if (rd && rd.ok && Array.isArray(rd.items)) {
@@ -116,7 +361,7 @@ try {
   try { window.playlists = playlists; } catch (e) {}
 
   // Persist locally so refresh works even if offline
-  try { localStorage.setItem("playlists", JSON.stringify(playlists)); } catch (e) {}
+  persistStoredPlaylists(playlists);
 
 
     // ✅ Background-hydrate trackIds so playlist covers (1-cover / 2x2) can render without opening each playlist
@@ -326,9 +571,7 @@ const audioUrl = r2Base + encodeURIComponent(audioKey);
 window.loadPlaylistItemsFromCloud = async function (playlistId) {
   if (!playlistId) return [];
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" + encodeURIComponent(playlistId)
-  );
+  const res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId }));
 
   const data = await res.json().catch(() => ({}));
 
@@ -556,6 +799,19 @@ window.showPlaylistAddedToast = function(playlistName, coverUrl) {
 window.addTrackToPlaylistInCloud = async function (playlistId, trackId) {
   if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
 
+  if (!getCloudUserIdOrBlank()) {
+    const pl = (Array.isArray(window.playlists) ? window.playlists : []).find(p => String(p?.id || p?.playlistId || p?.playlist_id || '').trim() === String(playlistId).trim());
+    if (pl) {
+      if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+      const nextTrackId = canonPlaylistTrackId(trackId);
+      const seen = new Set(pl.trackIds.map(canonPlaylistTrackId));
+      if (nextTrackId && !seen.has(nextTrackId)) pl.trackIds.push(nextTrackId);
+      pl.songCount = pl.trackIds.length;
+      persistStoredPlaylists((Array.isArray(window.playlists) ? window.playlists : []).filter(p => !p || !p.isAutoPlaylist));
+    }
+    return { ok: true, localOnly: true };
+  }
+
 // ✅ Always record the last add attempt (even if the function gets reassigned later)
 try {
   window.__lastAddToPlaylist = { playlistId, trackId, at: new Date().toISOString() };
@@ -574,7 +830,7 @@ const body = {
   };
 
   // Try POST with JSON body
-  let res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+  let res = await fetch(personalDataApiUrl("/api/playlist-items"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -582,13 +838,7 @@ const body = {
 
   // Fallback: some APIs expect query params
   if (!res.ok) {
-    res = await fetch(
-      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" +
-        encodeURIComponent(playlistId) +
-        "&trackId=" +
-        encodeURIComponent(trackId),
-      { method: "POST" }
-    );
+    res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "POST" });
   }
 
   const data = await res.json().catch(() => ({}));
@@ -610,6 +860,17 @@ const body = {
 window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
   if (!playlistId || !trackId) throw new Error("Missing playlistId or trackId");
 
+  if (!getCloudUserIdOrBlank()) {
+    const pl = (Array.isArray(window.playlists) ? window.playlists : []).find(p => String(p?.id || p?.playlistId || p?.playlist_id || '').trim() === String(playlistId).trim());
+    if (pl && Array.isArray(pl.trackIds)) {
+      const targetId = canonPlaylistTrackId(trackId);
+      pl.trackIds = pl.trackIds.filter(id => canonPlaylistTrackId(id) !== targetId);
+      pl.songCount = pl.trackIds.length;
+      persistStoredPlaylists((Array.isArray(window.playlists) ? window.playlists : []).filter(p => !p || !p.isAutoPlaylist));
+    }
+    return { ok: true, localOnly: true };
+  }
+
   const body = {
     playlistId,
     playlist_id: playlistId,
@@ -622,7 +883,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
   };
 
   // Try DELETE with JSON body
-  let res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlist-items", {
+  let res = await fetch(personalDataApiUrl("/api/playlist-items"), {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -630,13 +891,7 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 
   // Fallback: some APIs expect query params
   if (!res.ok) {
-    res = await fetch(
-      "https://music-streamer.jacetbaum.workers.dev/api/playlist-items?playlistId=" +
-        encodeURIComponent(playlistId) +
-        "&trackId=" +
-        encodeURIComponent(trackId),
-      { method: "DELETE" }
-    );
+    res = await fetch(personalDataApiUrl("/api/playlist-items", { playlistId, trackId }), { method: "DELETE" });
   }
 
   const data = await res.json().catch(() => ({}));
@@ -649,10 +904,13 @@ window.removeTrackFromPlaylistInCloud = async function (playlistId, trackId) {
 // ✅ Create playlist in cloud
 // ✅ Create playlist in cloud
 window.createPlaylistInCloud = async function (name) {
-  const uid = window.APP_USER_ID || localStorage.getItem("app_user_id");
-  if (!uid) throw new Error("Missing id");
+  const uid = getCloudUserIdOrBlank();
+  if (!uid) {
+    const playlist = makeLocalPlaylist(name);
+    return { ok: true, localOnly: true, playlist };
+  }
 
-  const res = await fetch("https://music-streamer.jacetbaum.workers.dev/api/playlists", {
+  const res = await fetch(personalDataApiUrl("/api/playlists"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: uid, name: String(name || "Playlist") })
@@ -666,16 +924,17 @@ window.createPlaylistInCloud = async function (name) {
 
 // ✅ Delete playlist in cloud
 window.deletePlaylistFromCloud = async function (playlistId) {
-  const uid = String((window.APP_USER_ID || localStorage.getItem("app_user_id") || "")).trim();
-  if (!uid) throw new Error("Missing userId (app_user_id)");
   if (!playlistId) throw new Error("Missing playlistId");
 
-  const res = await fetch(
-    "https://music-streamer.jacetbaum.workers.dev/api/playlists?playlistId=" +
-      encodeURIComponent(playlistId) +
-      "&userId=" + encodeURIComponent(uid),
-    { method: "DELETE" }
-  );
+  const uid = getCloudUserIdOrBlank();
+  if (!uid) {
+    playlists = (Array.isArray(playlists) ? playlists : []).filter(pl => String(pl?.id || "").trim() !== String(playlistId).trim());
+    try { window.playlists = playlists; } catch (e) {}
+    persistStoredPlaylists(playlists.filter(p => !p || !p.isAutoPlaylist));
+    return { ok: true, localOnly: true };
+  }
+
+  const res = await fetch(personalDataApiUrl("/api/playlists", { playlistId, userId: uid }), { method: "DELETE" });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.ok) throw new Error(data?.error || "Delete playlist failed");
@@ -1944,7 +2203,7 @@ function ensurePlaylistIds() {
 function savePlaylists() {
   // ✅ Never persist auto-playlists (Daylist / Nightlist) to storage
   const toSave = playlists.filter(p => !p || !p.isAutoPlaylist);
-  localStorage.setItem('playlists', JSON.stringify(toSave));
+  persistStoredPlaylists(toSave);
 }
 
 /* -----------------------

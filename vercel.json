@@ -3,6 +3,16 @@
   "rewrites": [
     { "source": "/auth/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/auth/:match*" },
     { "source": "/requests/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/requests/:match*" },
+    { "source": "/api/artist-image", "destination": "https://music-streamer.jacetbaum.workers.dev/api/artist-image" },
+    { "source": "/api/artist-crop", "destination": "https://music-streamer.jacetbaum.workers.dev/api/artist-crop" },
+    { "source": "/api/delete-album", "destination": "https://music-streamer.jacetbaum.workers.dev/api/delete-album" },
+    { "source": "/api/now-playing", "destination": "https://music-streamer.jacetbaum.workers.dev/api/now-playing" },
+    { "source": "/api/recently-deleted/:match*", "destination": "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/:match*" },
+    { "source": "/api/playlists", "destination": "https://music-streamer.jacetbaum.workers.dev/api/playlists" },
+    { "source": "/api/playlist-items", "destination": "https://music-streamer.jacetbaum.workers.dev/api/playlist-items" },
+    { "source": "/api/crate", "destination": "https://music-streamer.jacetbaum.workers.dev/api/crate" },
+    { "source": "/api/history-log", "destination": "https://music-streamer.jacetbaum.workers.dev/api/history-log" },
+    { "source": "/api/import-playlist", "destination": "https://music-streamer.jacetbaum.workers.dev/api/import-playlist" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
