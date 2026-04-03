@@ -7,6 +7,7 @@
     { "source": "/api/artist-crop", "destination": "https://music-streamer.jacetbaum.workers.dev/api/artist-crop" },
     { "source": "/api/delete-album", "destination": "https://music-streamer.jacetbaum.workers.dev/api/delete-album" },
     { "source": "/api/now-playing", "destination": "https://music-streamer.jacetbaum.workers.dev/api/now-playing" },
+    { "source": "/api/recently-deleted", "destination": "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted" },
     { "source": "/api/recently-deleted/:match*", "destination": "https://music-streamer.jacetbaum.workers.dev/api/recently-deleted/:match*" },
     { "source": "/api/playlists", "destination": "https://music-streamer.jacetbaum.workers.dev/api/playlists" },
     { "source": "/api/playlist-items", "destination": "https://music-streamer.jacetbaum.workers.dev/api/playlist-items" },

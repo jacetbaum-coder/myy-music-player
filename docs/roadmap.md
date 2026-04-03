@@ -231,18 +231,21 @@ Required verification:
 * Centralized personal-data endpoint routing behind a shared frontend helper so playlists, crate, history, now-playing, recently deleted, artist crop, delete-album, and link flows can be repointed without another multi-file URL sweep.
 * Switched deployed personal-data routing toward same-origin `/api/*` rewrites so account-backed requests can carry the existing session cookie instead of depending on direct cross-origin worker calls.
 * Updated the `music-streamer` worker copy to derive ownership from session-backed identity for artist crop, delete-album, now-playing, recently deleted, playlists, playlist items, crate, import-playlist, and history-log, and removed duplicate playlist handlers in that copy.
+* Verified live anonymous enforcement for deployed `now-playing`, `playlists`, `crate`, `history-log`, and `artist-crop` routes: each now returns `401 Not signed in` through the site origin instead of trusting raw user ids.
 
 ### Next
 
 * Bring the personal-data worker source for playlists, crate, history, now-playing, recently deleted, artist crop, and link endpoints into this repo, or repoint the app to a checked-in backend that can enforce session-backed ownership.
 * Sub-step for Phase 1A: add the `SESSIONS` KV binding to the deployed `music-streamer` worker and deploy the same-origin rewrites so the worker can read the existing auth cookie.
+* Sub-step for Phase 1A: redeploy the exact `/api/recently-deleted` rewrite so the bare route goes to `music-streamer` instead of falling through the generic `/api/*` handler.
 * After that deployment step, verify the hardened personal-data routes against signed-in flows and then add or wire a repeatable verification harness for guest upgrade migration, guest-mode gating, merged library behavior, and history or now-playing sync.
 
 ### Blocked
 
 * The personal-data endpoints used by the frontend still point at `music-streamer.jacetbaum.workers.dev`, but that worker code is not present in this workspace, so backend ownership enforcement cannot be completed from this checkout.
 * The deployed `music-streamer` worker still needs the `SESSIONS` KV binding added in Cloudflare before the new session-backed enforcement can work in production.
-* `link/start` and `link/redeem` are still referenced in the frontend but are not present in the provided worker copies, so that flow remains unresolved until it is either implemented or removed.
+* The bare `/api/recently-deleted` route still needs the new exact Vercel rewrite deployed; without it, that path falls through the generic `/api/*` rule instead of reaching `music-streamer`.
+* `link/start` and `link/redeem` are still referenced in the frontend and live site but are not present in the provided worker copies or deployed rewrites, so that flow remains unresolved until it is either implemented or removed.
 * No automated E2E test harness is present in the repo, and verification of the live personal-data backend still requires a deployed worker plus a valid signed-in test session.
 
 ### Changes From Original Assumption
@@ -264,4 +267,4 @@ Keep the roadmap detailed enough for handoff and keep repo memory short enough t
 
 At the end of the roadmap, always include a sentence stating the last completed step (using the exact roadmap step name) and the next actual roadmap step (using the exact step name). If a prerequisite or sub-step is needed before the next step, include it explicitly as a sub-step and tell me in your report. After completing a full phase, report that the phase is complete and tell me to start a new chat to begin the next phase. If there is something I must do on my end, please walk me through explicitly how to do it. Please advise me when to push changes to github/vercel. 
 
-Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: add the `SESSIONS` KV binding to the deployed `music-streamer` worker and deploy the same-origin `/api/*` rewrites, then verify the session-backed worker enforcement before finishing the broader verification pass.
+Last completed step: Phase 1: Lock product rules. Next actual roadmap step: Phase 1A: Clean up identity boundaries (updated). Prerequisite sub-step: redeploy the exact `/api/recently-deleted` rewrite and confirm the already-deployed `SESSIONS`-backed worker enforcement against signed-in flows before finishing the broader verification pass.
