@@ -215,7 +215,9 @@ window.refreshAccountOnlyUi = function () {
     'settings-open-recently-deleted',
     'profile-menu-profile',
     'crate-open-import',
-    'profile-edit-photo-btn',
+    'profile-open-edit',
+    'profile-launch-edit-card',
+    'profile-modal-upload-photo-btn',
     'profile-signout-btn'
   ].forEach((controlId) => toggleAccountOnlyControl(controlId, enabled));
 

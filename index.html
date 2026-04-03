@@ -4456,44 +4456,144 @@ body.qs-lock {
   </div>
 
   <div class="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 mb-4">
-    <div class="flex items-center gap-4">
-      <div id="profile-avatar-shell" class="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-white/10 flex items-center justify-center">
-        <div id="profile-avatar-fallback" class="text-2xl font-black text-white/80">?</div>
-        <span id="profile-avatar-admin-badge" class="hidden absolute right-0 bottom-0 inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#141414] bg-[#2a7fff] text-xs font-black text-white shadow-[0_4px_10px_rgba(0,0,0,0.35)]">✓</span>
+    <div class="flex items-start gap-4">
+      <div id="profile-avatar-shell" class="relative h-24 w-24 shrink-0 overflow-visible rounded-full bg-white/10 flex items-center justify-center ring-1 ring-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+        <div class="absolute inset-0 overflow-hidden rounded-full">
+          <div id="profile-avatar-fallback" class="flex h-full w-full items-center justify-center text-3xl font-black text-white/80">?</div>
+        </div>
+        <span id="profile-avatar-admin-badge" class="hidden absolute right-0 bottom-0 z-10 inline-flex h-7 w-7 translate-x-[20%] translate-y-[18%] items-center justify-center rounded-full border-2 border-[#141414] bg-[#2a7fff] text-xs font-black text-white shadow-[0_0_0_4px_rgba(42,127,255,0.22),0_10px_18px_rgba(0,0,0,0.38)]">✓</span>
       </div>
 
       <div class="min-w-0 flex-1">
-        <div id="profile-email-heading" class="text-xl font-black truncate">Your account</div>
-        <div id="profile-email-subtitle" class="mt-1 text-sm text-white/60">Signed in account</div>
-        <div id="profile-admin-pill" class="hidden mt-3 inline-flex items-center gap-2 rounded-full border border-[#2a7fff]/50 bg-[#0f2138] px-3 py-1 text-xs font-bold text-[#8ec5ff]">
-          <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2a7fff] text-[10px] font-black text-white">✓</span>
-          Verified admin
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="profile-display-name" class="text-2xl font-black truncate">Your account</div>
+          <div id="profile-admin-pill" class="hidden inline-flex items-center gap-2 rounded-full border border-[#2a7fff]/50 bg-[#0f2138] px-3 py-1 text-xs font-bold text-[#8ec5ff]">
+            <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2a7fff] text-[10px] font-black text-white">✓</span>
+            Verified admin
+          </div>
+        </div>
+        <div id="profile-username-line" class="mt-2 text-sm font-semibold text-white/70">@listener</div>
+        <div id="profile-email-heading" class="mt-1 text-sm text-white/60 truncate">Signed in account</div>
+        <div id="profile-email-subtitle" class="mt-1 text-xs text-white/45">Local profile details for this app on this device.</div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button id="profile-open-edit" type="button" class="inline-flex items-center justify-center rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-black active:scale-95">
+            Edit Profile
+          </button>
+          <button id="profile-open-settings" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-extrabold text-white active:scale-95">
+            Settings
+          </button>
         </div>
       </div>
     </div>
   </div>
 
   <div class="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 mb-4">
-    <div class="text-lg font-extrabold">Edit Profile</div>
-    <div class="mt-1 text-sm text-white/60">Update your account photo from here.</div>
-    <button id="profile-edit-photo-btn" type="button"
-      class="mt-4 inline-flex items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-extrabold text-black active:scale-95">
-      Upload Photo
+    <div class="text-[11px] font-black uppercase tracking-[0.24em] text-white/45">Edit Profile</div>
+    <div class="mt-4 grid gap-3">
+      <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
+        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Display Name</div>
+        <div id="profile-display-name-row" class="mt-2 text-base font-extrabold text-white">Your account</div>
+      </div>
+      <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Username</div>
+            <div id="profile-username-row" class="mt-2 text-base font-extrabold text-white">@listener</div>
+          </div>
+          <button id="profile-randomize-inline-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white active:scale-95">
+            Randomize
+          </button>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
+        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Photo</div>
+        <div id="profile-photo-status" class="mt-2 text-sm font-semibold text-white/70">Default avatar</div>
+      </div>
+    </div>
+    <button id="profile-launch-edit-card" type="button" class="mt-4 inline-flex items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-extrabold text-black active:scale-95">
+      Open Edit Profile
     </button>
   </div>
 
-  <div class="flex flex-col gap-3">
-    <button id="profile-open-settings" type="button"
-      class="w-full rounded-2xl bg-white/10 px-4 py-4 text-left">
-      <div class="text-lg font-extrabold">Settings</div>
-      <div class="text-sm text-white/60">Manage sync and recovery tools</div>
-    </button>
-
+  <div class="rounded-[28px] border border-white/10 bg-white/[0.08] p-5 mb-4">
+    <div class="text-[11px] font-black uppercase tracking-[0.24em] text-white/45">Account</div>
+    <div class="mt-4 grid gap-3">
+      <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
+        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Email</div>
+        <div id="profile-email-line" class="mt-2 text-base font-extrabold text-white break-all">your@email.com</div>
+      </div>
+      <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
+        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Tools</div>
+        <div class="mt-2 text-sm font-semibold text-white/70">Sync devices and Recently Deleted stay inside Settings.</div>
+      </div>
+    </div>
     <button id="profile-signout-btn" type="button"
-      class="w-full rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-4 text-left text-red-300">
+      class="mt-4 w-full rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-4 text-left text-red-300 active:scale-[0.99]">
       <div class="text-lg font-extrabold">Sign out</div>
       <div class="text-sm text-red-200/70">Leave this account on this device</div>
     </button>
+  </div>
+</div>
+
+<div id="profile-edit-modal" class="fixed inset-0 z-[1000000] hidden">
+  <div id="profile-edit-backdrop" class="absolute inset-0 bg-black/70"></div>
+  <div class="absolute inset-x-0 bottom-0 mx-auto w-full max-w-md rounded-t-[30px] border border-white/10 bg-[#141414] p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.45)] md:bottom-8 md:rounded-[30px]">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <div class="text-xl font-black text-white">Edit Profile</div>
+        <div class="mt-1 text-sm text-white/55">Keep the same visual language, but with cleaner nesting.</div>
+      </div>
+      <button id="profile-modal-close" type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 active:scale-95" aria-label="Close edit profile">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="mt-5 flex items-center gap-4 rounded-2xl bg-white/[0.05] p-4">
+      <div class="relative h-16 w-16 overflow-visible rounded-full bg-white/10">
+        <div class="absolute inset-0 overflow-hidden rounded-full">
+          <img id="profile-modal-photo-preview" class="hidden h-full w-full object-cover" alt="Profile preview">
+          <div id="profile-modal-photo-fallback" class="flex h-full w-full items-center justify-center text-2xl font-black text-white/80">?</div>
+        </div>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-extrabold text-white">Profile Photo</div>
+        <div class="mt-1 text-xs text-white/50">Upload or replace the photo used on your profile buttons.</div>
+        <button id="profile-modal-upload-photo-btn" type="button" class="mt-3 inline-flex items-center justify-center rounded-full bg-white px-3 py-2 text-xs font-extrabold text-black active:scale-95">
+          Upload Photo
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4 grid gap-3">
+      <label class="block">
+        <div class="mb-2 text-xs font-black uppercase tracking-[0.22em] text-white/40">Display Name</div>
+        <input id="profile-modal-display-name" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="How your profile should appear">
+      </label>
+
+      <label class="block">
+        <div class="mb-2 flex items-center justify-between gap-3">
+          <span class="text-xs font-black uppercase tracking-[0.22em] text-white/40">Username</span>
+          <button id="profile-randomize-username-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white active:scale-95">
+            Randomize
+          </button>
+        </div>
+        <input id="profile-modal-username" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="Choose a username">
+      </label>
+
+      <div class="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+        <div class="text-xs font-black uppercase tracking-[0.22em] text-white/40">Account Email</div>
+        <div id="profile-modal-email" class="mt-2 text-sm font-semibold text-white/75 break-all">you@example.com</div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex gap-3">
+      <button id="profile-modal-save" type="button" class="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black active:scale-95">
+        Save Changes
+      </button>
+      <button id="profile-modal-cancel" type="button" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-extrabold text-white active:scale-95">
+        Cancel
+      </button>
+    </div>
   </div>
 </div>
 
@@ -4577,39 +4677,29 @@ body.qs-lock {
     <div id="desktop-recent-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
 
     <!-- For You: Daylist & Nightlist (desktop) -->
-    <h2 class="text-3xl font-black mb-4">For You</h2>
-    <div id="for-you-section-desktop" class="mb-6">
-      <!-- static placeholders — JS replaces innerHTML when playlists are ready -->
-      <div class="foryou-cards-row">
-        <div class="foryou-card" data-auto-type="daylist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('daylist')" role="button" tabindex="0" aria-label="Open daylist">
-          <div class="foryou-cover foryou-cover-day"></div>
-          <div class="foryou-below">
-            <div class="foryou-subtitle"></div>
-            <div class="foryou-song-count"></div>
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-black">For You</h2>
+      </div>
+      <div id="for-you-section-desktop" class="mb-5">
+        <div class="foryou-cards-row">
+          <div class="foryou-card" data-auto-type="daylist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('daylist')" role="button" tabindex="0" aria-label="Open daylist">
+            <div class="foryou-cover foryou-cover-day"></div>
+            <div class="foryou-below">
+              <div class="foryou-subtitle"></div>
+              <div class="foryou-song-count"></div>
+            </div>
           </div>
-        </div>
-        <div class="foryou-card" data-auto-type="nightlist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('nightlist')" role="button" tabindex="0" aria-label="Open nightlist">
-          <div class="foryou-cover foryou-cover-night"></div>
-          <div class="foryou-below">
-            <div class="foryou-subtitle"></div>
-            <div class="foryou-song-count"></div>
+          <div class="foryou-card" data-auto-type="nightlist" onclick="window.openAutoPlaylist&&window.openAutoPlaylist('nightlist')" role="button" tabindex="0" aria-label="Open nightlist">
+            <div class="foryou-cover foryou-cover-night"></div>
+            <div class="foryou-below">
+              <div class="foryou-subtitle"></div>
+              <div class="foryou-song-count"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Recently played -->
-    <h2 class="text-3xl font-black mb-4">Recently played</h2>
-    <div id="desktop-recents-row" class="flex gap-5 overflow-x-auto pb-3"></div>
-
-    <!-- Recently played (all types mixed) -->
-    <div class="mt-6">
-      <div id="desktop-all-history-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></div>
-    </div>
-
-  </div>
-
-
     <!-- MOBILE: Recently listened (Spotify-style small rectangles) -->
   <!-- (Removed on mobile Library) -->
 
@@ -14365,7 +14455,7 @@ try {
 (function initProfilePhotoUpload() {
   const photoInput = document.getElementById('library-profile-photo-input');
   const uploadBtns = [
-    document.getElementById('profile-edit-photo-btn')
+    document.getElementById('profile-modal-upload-photo-btn')
   ].filter(Boolean);
   const profileBtns = [
     document.getElementById('profile-menu-btn'),
@@ -14832,7 +14922,7 @@ try {
         badge = document.createElement('span');
         badge.setAttribute('data-admin-badge', '1');
         badge.setAttribute('aria-hidden', 'true');
-        badge.style.cssText = 'position:absolute;right:-2px;bottom:-2px;width:16px;height:16px;border-radius:999px;background:#2a7fff;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141414;box-shadow:0 4px 10px rgba(0,0,0,0.35);';
+        badge.style.cssText = 'position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:999px;background:#2a7fff;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #141414;box-shadow:0 0 0 3px rgba(42,127,255,0.22),0 8px 16px rgba(0,0,0,0.38);transform:translate(18%,18%);';
         badge.textContent = '✓';
         btn.appendChild(badge);
       }

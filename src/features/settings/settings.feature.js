@@ -23,6 +23,169 @@ function __effectiveUserId() {
   return String(window.APP_USER_ID || "").trim();
 }
 
+const PROFILE_PREFS_KEY_PREFIX = "reson_profile_prefs_v1:";
+const PROFILE_PREFS_GUEST_KEY = "reson_profile_prefs_guest_v1";
+const PROFILE_USERNAME_ADJECTIVES = [
+  "silver", "lunar", "quiet", "velvet", "golden", "opal", "neon", "sonic",
+  "faded", "electric", "starlit", "cinder", "glass", "echo", "midnight", "soft",
+  "glow", "ivory", "crystal", "maple"
+];
+const PROFILE_USERNAME_NOUNS = [
+  "listener", "vinyl", "chorus", "signal", "groove", "anthem", "record", "tempo",
+  "aurora", "mixtape", "harbor", "comet", "ripple", "nightowl", "afterglow", "cadence",
+  "daydream", "playlist", "horizon", "soundwave"
+];
+
+function __profilePrefsStorageKey() {
+  const uid = __effectiveUserId();
+  return uid ? PROFILE_PREFS_KEY_PREFIX + uid : PROFILE_PREFS_GUEST_KEY;
+}
+
+function __slugifyProfileUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 24);
+}
+
+function __titleizeProfileLabel(value) {
+  return String(value || "")
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function __generateProfileUsername() {
+  const adjective = PROFILE_USERNAME_ADJECTIVES[Math.floor(Math.random() * PROFILE_USERNAME_ADJECTIVES.length)] || "reson";
+  const noun = PROFILE_USERNAME_NOUNS[Math.floor(Math.random() * PROFILE_USERNAME_NOUNS.length)] || "listener";
+  const suffix = String(Math.floor(Math.random() * 90) + 10);
+  return __slugifyProfileUsername(adjective + noun + suffix) || "resonlistener";
+}
+
+function __deriveProfileDefaults() {
+  const email = String(window.APP_USER_EMAIL || "").trim().toLowerCase();
+  const localPart = email.split("@")[0] || "listener";
+  const prettyName = __titleizeProfileLabel(localPart) || "Your account";
+  return {
+    displayName: prettyName,
+    username: __slugifyProfileUsername(localPart) || __generateProfileUsername()
+  };
+}
+
+function __readProfilePrefs() {
+  const defaults = __deriveProfileDefaults();
+  let stored = {};
+
+  try {
+    stored = JSON.parse(localStorage.getItem(__profilePrefsStorageKey()) || "{}") || {};
+  } catch (e) {
+    stored = {};
+  }
+
+  const prefs = {
+    displayName: String(stored.displayName || defaults.displayName || "Your account").trim(),
+    username: __slugifyProfileUsername(stored.username || defaults.username || "") || __generateProfileUsername()
+  };
+
+  window.APP_USER_NAME = prefs.displayName || prefs.username || defaults.displayName;
+  return prefs;
+}
+
+function __writeProfilePrefs(nextPrefs) {
+  const defaults = __deriveProfileDefaults();
+  const prefs = {
+    displayName: String(nextPrefs && nextPrefs.displayName || defaults.displayName || "Your account").trim(),
+    username: __slugifyProfileUsername(nextPrefs && nextPrefs.username || defaults.username || "") || __generateProfileUsername()
+  };
+
+  try {
+    localStorage.setItem(__profilePrefsStorageKey(), JSON.stringify(prefs));
+  } catch (e) {}
+
+  window.APP_USER_NAME = prefs.displayName || prefs.username || defaults.displayName;
+  return prefs;
+}
+
+function __setProfileEditModalOpen(open) {
+  const modal = document.getElementById("profile-edit-modal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+}
+
+function __populateProfileEditModal(prefs) {
+  const profilePrefs = prefs || __readProfilePrefs();
+  const email = String(window.APP_USER_EMAIL || "").trim();
+  const displayNameInput = document.getElementById("profile-modal-display-name");
+  const usernameInput = document.getElementById("profile-modal-username");
+  const emailEl = document.getElementById("profile-modal-email");
+  const photo = (() => {
+    try { return String(localStorage.getItem("profilePhoto") || "").trim(); } catch (e) { return ""; }
+  })();
+  const photoPreview = document.getElementById("profile-modal-photo-preview");
+  const photoFallback = document.getElementById("profile-modal-photo-fallback");
+
+  if (displayNameInput) displayNameInput.value = profilePrefs.displayName || "";
+  if (usernameInput) usernameInput.value = profilePrefs.username || "";
+  if (emailEl) emailEl.textContent = email || "Sign in to access account details";
+
+  if (photoPreview && photoFallback) {
+    if (photo) {
+      photoPreview.src = photo;
+      photoPreview.classList.remove("hidden");
+      photoFallback.classList.add("hidden");
+    } else {
+      photoPreview.classList.add("hidden");
+      photoFallback.textContent = (profilePrefs.displayName || email || "?").charAt(0).toUpperCase() || "?";
+      photoFallback.classList.remove("hidden");
+    }
+  }
+}
+
+function __openProfileEditModal() {
+  const prefs = __readProfilePrefs();
+  __populateProfileEditModal(prefs);
+  __setProfileEditModalOpen(true);
+}
+
+function __closeProfileEditModal() {
+  __setProfileEditModalOpen(false);
+}
+
+function __saveProfileFromModal() {
+  const displayNameInput = document.getElementById("profile-modal-display-name");
+  const usernameInput = document.getElementById("profile-modal-username");
+  const prefs = __writeProfilePrefs({
+    displayName: displayNameInput ? displayNameInput.value : "",
+    username: usernameInput ? usernameInput.value : ""
+  });
+
+  __populateProfileEditModal(prefs);
+  __renderProfileScreen();
+  __closeProfileEditModal();
+}
+
+function __randomizeProfileUsername(options) {
+  const generated = __generateProfileUsername();
+  const targetInput = options && options.toInput ? document.getElementById(options.toInput) : null;
+  if (targetInput) {
+    targetInput.value = generated;
+    targetInput.focus();
+    targetInput.select();
+    return generated;
+  }
+
+  const current = __readProfilePrefs();
+  const next = __writeProfilePrefs({ displayName: current.displayName, username: generated });
+  __populateProfileEditModal(next);
+  __renderProfileScreen();
+  return generated;
+}
+
 let __rdType = "playlist"; // "playlist" | "album"
 let __rdItems = [];
 
@@ -243,7 +406,16 @@ async function __renderRecentlyDeleted() {
 }
 
 function __renderProfileScreen() {
+  const prefs = __readProfilePrefs();
   const email = String(window.APP_USER_EMAIL || "").trim();
+  const displayName = prefs.displayName || "Your account";
+  const username = prefs.username || __generateProfileUsername();
+  const displayNameEl = document.getElementById("profile-display-name");
+  const displayNameRow = document.getElementById("profile-display-name-row");
+  const usernameLine = document.getElementById("profile-username-line");
+  const usernameRow = document.getElementById("profile-username-row");
+  const emailLine = document.getElementById("profile-email-line");
+  const photoStatus = document.getElementById("profile-photo-status");
   const heading = document.getElementById("profile-email-heading");
   const subtitle = document.getElementById("profile-email-subtitle");
   const fallback = document.getElementById("profile-avatar-fallback");
@@ -251,10 +423,16 @@ function __renderProfileScreen() {
   const adminPill = document.getElementById("profile-admin-pill");
   const adminAvatarBadge = document.getElementById("profile-avatar-admin-badge");
   const signoutBtn = document.getElementById("profile-signout-btn");
-  const photoBtn = document.getElementById("profile-edit-photo-btn");
+  const openEditBtn = document.getElementById("profile-open-edit");
+  const openEditCardBtn = document.getElementById("profile-launch-edit-card");
 
-  if (heading) heading.textContent = email || "Your account";
-  if (subtitle) subtitle.textContent = email ? "Signed in on this device" : "Sign in to access your profile";
+  if (displayNameEl) displayNameEl.textContent = displayName;
+  if (displayNameRow) displayNameRow.textContent = displayName;
+  if (usernameLine) usernameLine.textContent = "@" + username;
+  if (usernameRow) usernameRow.textContent = "@" + username;
+  if (emailLine) emailLine.textContent = email || "Sign in to access account details";
+  if (heading) heading.textContent = email || "Signed in account";
+  if (subtitle) subtitle.textContent = email ? "Local profile details for this app on this device." : "Sign in to access your profile";
 
   let photo = "";
   try {
@@ -276,11 +454,13 @@ function __renderProfileScreen() {
     } else {
       if (img) img.remove();
       if (fallback) {
-        fallback.textContent = (email || "?").charAt(0).toUpperCase() || "?";
+        fallback.textContent = (displayName || email || "?").charAt(0).toUpperCase() || "?";
         fallback.classList.remove("hidden");
       }
     }
   }
+
+  if (photoStatus) photoStatus.textContent = photo ? "Custom profile photo active" : "Default avatar";
 
   const isAdmin = !!window.APP_IS_ADMIN;
   if (adminPill) adminPill.classList.toggle("hidden", !isAdmin);
@@ -288,7 +468,10 @@ function __renderProfileScreen() {
 
   const guestMode = typeof window.isGuestMode === "function" ? window.isGuestMode() : !email;
   if (signoutBtn) signoutBtn.classList.toggle("hidden", guestMode);
-  if (photoBtn) photoBtn.classList.toggle("hidden", guestMode);
+  if (openEditBtn) openEditBtn.classList.toggle("hidden", guestMode);
+  if (openEditCardBtn) openEditCardBtn.classList.toggle("hidden", guestMode);
+
+  __populateProfileEditModal(prefs);
 }
 
 (function bindSettingsAndRDViews() {
@@ -296,8 +479,16 @@ function __renderProfileScreen() {
   const openSync = document.getElementById("settings-open-sync");
   const openRD = document.getElementById("settings-open-recently-deleted");
   const backProfile = document.getElementById("profile-back");
+  const openProfileEdit = document.getElementById("profile-open-edit");
+  const launchProfileEditCard = document.getElementById("profile-launch-edit-card");
   const openProfileSettings = document.getElementById("profile-open-settings");
   const profileSignout = document.getElementById("profile-signout-btn");
+  const profileEditClose = document.getElementById("profile-modal-close");
+  const profileEditCancel = document.getElementById("profile-modal-cancel");
+  const profileEditBackdrop = document.getElementById("profile-edit-backdrop");
+  const profileEditSave = document.getElementById("profile-modal-save");
+  const profileRandomizeInline = document.getElementById("profile-randomize-inline-btn");
+  const profileRandomizeModal = document.getElementById("profile-randomize-username-btn");
 
   const rdBack = document.getElementById("rd-back");
 
@@ -318,6 +509,30 @@ function __renderProfileScreen() {
 
   if (openProfileSettings) openProfileSettings.addEventListener("click", () => {
     try { showView("settings"); } catch (e) {}
+  });
+
+  [openProfileEdit, launchProfileEditCard].filter(Boolean).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      try { __openProfileEditModal(); } catch (e) { console.warn(e); }
+    });
+  });
+
+  [profileEditClose, profileEditCancel, profileEditBackdrop].filter(Boolean).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      try { __closeProfileEditModal(); } catch (e) { console.warn(e); }
+    });
+  });
+
+  if (profileEditSave) profileEditSave.addEventListener("click", () => {
+    try { __saveProfileFromModal(); } catch (e) { console.warn(e); }
+  });
+
+  if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
+    try { __randomizeProfileUsername(); } catch (e) { console.warn(e); }
+  });
+
+  if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
+    try { __randomizeProfileUsername({ toInput: "profile-modal-username" }); } catch (e) { console.warn(e); }
   });
 
   if (profileSignout) profileSignout.addEventListener("click", () => {
@@ -389,4 +604,7 @@ function __renderProfileScreen() {
   window.renderRecentlyDeleted = __renderRecentlyDeleted;
   window.setRecentlyDeletedTab = __setRdTab;
   window.renderProfileScreen = __renderProfileScreen;
+  window.readProfilePrefs = __readProfilePrefs;
+  window.writeProfilePrefs = __writeProfilePrefs;
+  window.generateProfileUsername = __generateProfileUsername;
 })();

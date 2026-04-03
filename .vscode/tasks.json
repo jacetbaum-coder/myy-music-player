@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Preview site locally",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vercel",
+				"dev"
+			],
+			"isBackground": true,
+			"group": "build"
+		}
+	]
+}

@@ -241,6 +241,7 @@ Required verification:
 * Verified end-to-end guest-to-account crate migration across desktop and phone: guest crate items now migrate into the signed-in account, persist to cloud, and pull back correctly on a second device.
 * Wired admin identity from `/auth/me` into the frontend session state and added a visible blue verified badge on the profile controls plus profile menu for admin accounts.
 * Replaced the placeholder profile alert with a dedicated profile view, moved photo upload and sign-out into that profile screen, and kept Sync Devices plus Recently Deleted inside Settings so the top-level profile menu only routes to real destinations.
+* Expanded the profile surface into a richer nested account screen with an edit-profile modal, local account-scoped display name and username preferences, a safe username randomizer, and a more pronounced admin badge that sits outside the avatar circle.
 
 ### Next
 
