@@ -1,7 +1,19 @@
-name = "reson-api-worker"           # name for this Worker
-main = "index.js"                   # path to your Worker code
-compatibility_date = "2026-04-02"  # Cloudflare versioning date
+name = "reson-api-worker"
+main = "index.js"
+compatibility_date = "2026-04-02"
 
 [[r2_buckets]]
-binding = "MUSIC_BUCKET"           # must match env.MUSIC_BUCKET in your code
-bucket_name = "reson-music"        # replace with your actual R2 bucket name
+binding = "MUSIC_BUCKET"
+bucket_name = "local-music-bucket"
+preview_bucket_name = "local-music-bucket"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "local_sessions"
+
+[[kv_namespaces]]
+binding = "REQUESTS"
+id = "local_requests"
+[vars]
+RESEND_API_KEY = "e_au7cbMUs_JQkF9m7XxBcjmv2oU6V9Bru6"
+OWNER_EMAIL = "jacetbaum@gmail.com"
