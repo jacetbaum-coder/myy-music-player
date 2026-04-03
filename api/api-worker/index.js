@@ -83,7 +83,7 @@ export default {
         if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) return errJson(400, 'Invalid email');
         const token = crypto.randomUUID();
         await env.SESSIONS.put(`magic:${token}`, email, { expirationTtl: 900 });
-        const verifyUrl = `https://resonmusic.us/?token=${token}`;
+        const verifyUrl = `https://resonmusic.us/auth/verify?token=${token}`;
         const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {

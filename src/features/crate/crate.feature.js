@@ -160,6 +160,7 @@ function openCrateSection(which) {
   const editor = document.getElementById("crate-editor");
   const stats = document.getElementById("crate-stats");
   const features = document.getElementById("crate-features");
+  const importView = document.getElementById("crate-import");
 
   const w = String(which || "home");
 
@@ -167,11 +168,12 @@ function openCrateSection(which) {
   if (editor) editor.classList.toggle("hidden", w !== "crate");
   if (stats) stats.classList.toggle("hidden", w !== "stats");
   if (features) features.classList.toggle("hidden", w !== "features");
+  if (importView) importView.classList.toggle("hidden", w !== "import");
 
   // If user opens the editor, make sure it renders
   if (w === "crate") {
     try { initCrateUIOnce(); } catch (e) {}
-        try { renderCrate(); } catch (e) {}
+    try { renderCrate(); } catch (e) {}
   }
 
   // If user opens stats, render it
@@ -179,6 +181,10 @@ function openCrateSection(which) {
     try { renderCrateStats(); } catch (e) {}
   }
 
+  // If user opens import, init the import workflow
+  if (w === "import") {
+    try { initImportView(); } catch (e) {}
+  }
 }
 
 function initCrateUIOnce() {
