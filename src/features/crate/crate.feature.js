@@ -7,6 +7,7 @@ const CRATE_PENDING_MIGRATION_PREFIX = "reson_pending_guest_crate_v1:";
 const CRATE_COOKIE_BACKUP_KEY = "reson_guest_crate_backup";
 
 let crateDoc = null;
+window.__crateLastCloudSync = { ok: false, reason: "not-started" };
 
 function crateApiUrl(params) {
   if (typeof window.personalDataApiUrl === "function") {
@@ -241,21 +242,98 @@ function clearPendingCrateMigrationDoc(userId) {
   try { localStorage.removeItem(storageKey); } catch (e) {}
 }
 
+function extractCrateDocFromResponse(data) {
+  if (!data || typeof data !== "object") return null;
+
+  const direct = [data.doc, data.crate, data.data, data.item, data.result]
+    .find((value) => value && typeof value === "object" && !Array.isArray(value));
+  if (direct) return cloneCrateDoc(direct);
+
+  if (Array.isArray(data.items) || typeof data.title !== "undefined") {
+    return cloneCrateDoc({
+      title: data.title,
+      items: data.items,
+      updatedAt: data.updatedAt || data.updated_at
+    });
+  }
+
+  const nestedData = data.data && typeof data.data === "object" ? data.data : null;
+  if (nestedData && (Array.isArray(nestedData.items) || typeof nestedData.title !== "undefined")) {
+    return cloneCrateDoc({
+      title: nestedData.title,
+      items: nestedData.items,
+      updatedAt: nestedData.updatedAt || nestedData.updated_at
+    });
+  }
+
+  return null;
+}
+
+function buildCrateWritePayloads(userId, doc) {
+  const safeDoc = cloneCrateDoc(doc);
+  return [
+    {
+      method: "PUT",
+      url: crateApiUrl(),
+      body: {
+        userId,
+        doc: safeDoc
+      }
+    },
+    {
+      method: "PUT",
+      url: crateApiUrl(),
+      body: {
+        userId,
+        crate: safeDoc
+      }
+    },
+    {
+      method: "PUT",
+      url: crateApiUrl({ userId }),
+      body: {
+        title: safeDoc.title,
+        items: safeDoc.items,
+        updatedAt: safeDoc.updatedAt
+      }
+    },
+    {
+      method: "POST",
+      url: crateApiUrl(),
+      body: {
+        userId,
+        doc: safeDoc,
+        crate: safeDoc,
+        title: safeDoc.title,
+        items: safeDoc.items,
+        updatedAt: safeDoc.updatedAt
+      }
+    }
+  ];
+}
+
 async function pullCrateFromCloud() {
   try {
     const uid = getCrateCloudUserId();
     if (!uid) return { ok: false, reason: "missing-user-id" };
 
-    const res = await fetch(crateApiUrl({ userId: uid }), {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    });
+    const attempts = [
+      { url: crateApiUrl({ userId: uid }), init: { method: "GET", headers: { "Accept": "application/json" } } },
+      { url: crateApiUrl(), init: { method: "GET", headers: { "Accept": "application/json" } } }
+    ];
 
-    if (!res.ok) return { ok: false, status: res.status };
+    let remote = null;
+    let lastStatus = null;
+    for (const attempt of attempts) {
+      const res = await fetch(attempt.url, attempt.init);
+      lastStatus = res.status;
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => ({}));
+      remote = extractCrateDocFromResponse(data);
+      if (remote) break;
+    }
 
-    const data = await res.json();
-    const remote = data && (data.doc || data.crate || data.data);
-    if (!remote || typeof remote !== "object") return { ok: false, reason: "missing-remote-doc" };
+    if (!remote) return { ok: false, status: lastStatus, reason: "missing-remote-doc" };
 
     const local = crateDoc || loadCrateLocal();
     const remoteTime = Number(remote.updatedAt || 0);
@@ -284,24 +362,49 @@ async function pushCrateToCloud(options) {
     if (!uid) return { ok: false, reason: "missing-user-id" };
     if (!crateDoc) return { ok: false, reason: "missing-crate-doc" };
 
-    const res = await fetch(crateApiUrl(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: uid,
-        doc: crateDoc
-      })
-    });
+    const attempts = buildCrateWritePayloads(uid, crateDoc);
+    let lastError = null;
+    let lastStatus = null;
 
-    if (!res.ok) {
-      const error = new Error(`Crate cloud sync failed with status ${res.status}`);
-      if (strict) throw error;
-      try { console.warn(error.message); } catch (_) {}
-      return { ok: false, status: res.status };
+    for (const attempt of attempts) {
+      const res = await fetch(attempt.url, {
+        method: attempt.method,
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(attempt.body)
+      });
+
+      lastStatus = res.status;
+      if (!res.ok) {
+        lastError = new Error(`Crate cloud sync failed with status ${res.status} via ${attempt.method}`);
+        continue;
+      }
+
+      window.__crateLastCloudSync = {
+        ok: true,
+        method: attempt.method,
+        status: res.status,
+        url: attempt.url,
+        syncedAt: Date.now()
+      };
+      return { ok: true, status: res.status, method: attempt.method };
     }
 
-    return { ok: true, status: res.status };
+    const error = lastError || new Error("Crate cloud sync failed");
+    window.__crateLastCloudSync = {
+      ok: false,
+      status: lastStatus,
+      error: String(error && error.message || error),
+      syncedAt: Date.now()
+    };
+    if (strict) throw error;
+    try { console.warn(error.message); } catch (_) {}
+    return { ok: false, status: lastStatus, error };
   } catch (e) {
+    window.__crateLastCloudSync = {
+      ok: false,
+      error: String(e && e.message || e),
+      syncedAt: Date.now()
+    };
     if (strict) throw e;
     try { console.warn("Failed to sync crate to cloud:", e); } catch (_) {}
     return { ok: false, error: e };
