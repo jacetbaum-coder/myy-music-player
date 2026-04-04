@@ -8220,13 +8220,19 @@ safe(window.renderHistory);
 window.libraryData = libraryData;
 window.libraryDataOriginal = libraryDataOriginal;
 
-// ✅ Track "first seen" for Recently added (proxy for newest from cloud)
-window.__albumFirstSeen = window.__albumFirstSeen || {};
+// ✅ Track "first seen" for Recently added — persisted in localStorage
 try {
+  const stored = localStorage.getItem('__albumFirstSeen');
+  if (!window.__albumFirstSeen) window.__albumFirstSeen = stored ? JSON.parse(stored) : {};
+} catch (e) { if (!window.__albumFirstSeen) window.__albumFirstSeen = {}; }
+try {
+  let changed = false;
+  const now = Date.now();
   for (const a of (libraryDataOriginal || [])) {
     const k = `${String(a?.artistName || "").trim()}///${String(a?.albumName || "").trim()}`;
-    if (!window.__albumFirstSeen[k]) window.__albumFirstSeen[k] = Date.now();
+    if (!window.__albumFirstSeen[k]) { window.__albumFirstSeen[k] = now; changed = true; }
   }
+  if (changed) localStorage.setItem('__albumFirstSeen', JSON.stringify(window.__albumFirstSeen));
 } catch (e) {}
 
 
@@ -14977,10 +14983,10 @@ try {
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
 <script src="src/features/artist/artist-portraits.feature.js"></script>
-<script src="src/features/library/library.feature.js"></script>
+<script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js"></script>
-<script src="src/features/search/search.feature.js"></script>
+<script src="src/features/search/search.feature.js?v=2"></script>
 <script src="src/features/crate/crate.feature.js"></script>
 <script src="src/features/import/import.feature.js?v=13"></script>
 

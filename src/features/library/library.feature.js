@@ -183,7 +183,12 @@ function getLibraryGridData() {
 
 
   if (mode === 'Recently added') {
-    return original;
+    const seen = window.__albumFirstSeen || {};
+    return original.slice().sort((a, b) => {
+      const ka = `${String(a?.artistName || '').trim()}///${String(a?.albumName || '').trim()}`;
+      const kb = `${String(b?.artistName || '').trim()}///${String(b?.albumName || '').trim()}`;
+      return Number(seen[kb] || 0) - Number(seen[ka] || 0);
+    });
   }
 
   if (mode === 'Alphabetical by album') {

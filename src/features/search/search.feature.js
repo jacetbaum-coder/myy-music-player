@@ -542,10 +542,6 @@ function initSearchSwipeDownClose() {
     lastMoveAt = performance.now();
     prevMoveAt = lastMoveAt;
 
-    // Reveal the previous screen behind search while dragging
-    showSwipeBackUnderlay();
-
-    try { searchView.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
 
   searchView.addEventListener('pointermove', (e) => {
@@ -559,6 +555,10 @@ function initSearchSwipeDownClose() {
       if (Math.abs(dx) < MOVE_DECIDE_PX && Math.abs(dy) < MOVE_DECIDE_PX) return;
       decided = true;
       isVertical = Math.abs(dy) > Math.abs(dx);
+      if (isVertical) {
+        showSwipeBackUnderlay();
+        try { searchView.setPointerCapture(e.pointerId); } catch (err) {}
+      }
     }
 
     if (!isVertical) return;
