@@ -364,8 +364,9 @@ async function importApplyReviewPreviewDefaults() {
 
   // For radio/mix downloads, each track was individually fetched with its own
   // metadata from yt-dlp. Don't overwrite with the seed video's metadata.
-  const src = __importReviewContext.sourceUrl || __importReviewContext.input || '';
-  if (importIsRadioOrMixUrl(src) || (__importReviewContext.preview.kind === 'playlist' && __importReviewContext.preview.title === 'Radio / Mix')) {
+  const srcInput = __importReviewContext.input || '';
+  const srcUrl   = __importReviewContext.sourceUrl || '';
+  if (importIsRadioOrMixUrl(srcInput) || importIsRadioOrMixUrl(srcUrl) || (__importReviewContext.preview && __importReviewContext.preview.kind === 'playlist')) {
     return;
   }
 
@@ -1050,7 +1051,9 @@ function importPollJob(jobId, opts) {
 
   // Regex to parse yt-dlp progress lines like:
   // [download]  45.3% of   5.67MiB at    2.34MiB/s ETA 00:02
-  const progressRe = /\[download\]\s+([\d.]+)%.*?ETA\s+([\d:]+)/i;
+  // [download] 100% of    3.08MiB in 00:00:00 at 15.50MiB/s
+  const progressReETA  = /\[download\]\s+([\d.]+)%.*?ETA\s+([\d:]+)/i;
+  const progressRePct  = /\[download\]\s+([\d.]+)%/i;
 
   function _setOverallProgress(filePercent) {
     const overall = ((completedTracks + filePercent / 100) / totalTracks) * 100;
@@ -1069,15 +1072,25 @@ function importPollJob(jobId, opts) {
         lastLogCount = data.logs.length;
         if (newLines.length) {
           for (let i = newLines.length - 1; i >= 0; i--) {
-            const match = progressRe.exec(newLines[i]);
-            if (match) {
-              const filePct = parseFloat(match[1]);
-              const eta = match[2];
+            const mETA = progressReETA.exec(newLines[i]);
+            if (mETA) {
+              const filePct = parseFloat(mETA[1]);
               _setOverallProgress(filePct);
               const lbl = ui('import-progress-label');
               if (lbl) {
-                const trackInfo = totalTracks > 1 ? `Track ${completedTracks + 1} of ${totalTracks} — ` : '';
-                lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%  •  ~${eta} remaining`;
+                const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} — ` : '';
+                lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%  •  ~${mETA[2]} remaining`;
+              }
+              break;
+            }
+            const mPct = progressRePct.exec(newLines[i]);
+            if (mPct) {
+              const filePct = parseFloat(mPct[1]);
+              _setOverallProgress(filePct);
+              const lbl = ui('import-progress-label');
+              if (lbl) {
+                const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} — ` : '';
+                lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%`;
               }
               break;
             }

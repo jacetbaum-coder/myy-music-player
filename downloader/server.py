@@ -476,6 +476,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--audio-quality", "0",
             "--embed-thumbnail",
             "--add-metadata",
+            "--no-playlist",
             "--ignore-errors",
             "--js-runtimes", "node",
             "--remote-components", "ejs:github",
