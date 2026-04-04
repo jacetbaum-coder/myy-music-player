@@ -8164,7 +8164,7 @@ safe(window.renderHistory);
 
           try { setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', '')); } catch (e) {}
           const artistEl = document.getElementById('p-artist');
-          if (artistEl) artistEl.innerText = currentSong.artist || "";
+          if (artistEl) artistEl.innerText = (currentSong.artist === 'users' || /^users\//i.test(currentSong.artist || '') ? '' : currentSong.artist) || "";
 
           try { setAllPlayIconsToPlay(); } catch (e) {}
         } catch (e) {}
@@ -9968,7 +9968,8 @@ function renderGrid(data) {
       // Try the common fields you use elsewhere in the app
       const url = song.url || song.link || song.src || "";
       const title = song.title || song.name || fallback.title || "Unknown Title";
-      const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
+      const _rawArtistShim = song.artist || song.artistName || fallback.artist || "Unknown Artist";
+      const artist = (_rawArtistShim === 'users' || /^users\//i.test(_rawArtistShim) ? '' : _rawArtistShim) || fallback.artist || "Unknown Artist";
       const album = song.album || song.albumName || fallback.album || "Unknown Album";
             let cover = song.cover || song.coverArt || fallback.cover || "";
 
@@ -15004,8 +15005,8 @@ try {
 
 <script src="src/features/sync/sync.feature.js"></script>
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
-<script src="src/features/player/player.feature.js"></script>
-<script src="src/features/playlists/playlists.feature.js?v=2"></script>
+<script src="src/features/player/player.feature.js?v=3"></script>
+<script src="src/features/playlists/playlists.feature.js?v=3"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
 <script src="src/features/artist/artist-portraits.feature.js"></script>

@@ -2067,7 +2067,9 @@ async function playSpecificSong(url, title, album, artist, cover) {
   try {
     const key = "reson_play_events_v1";
     const raw = localStorage.getItem(key);
-    const arr = raw ? (JSON.parse(raw) || []) : [];
+    let arr = raw ? (JSON.parse(raw) || []) : [];
+    // One-time: scrub stale 'users' artist values from old events
+    arr = arr.map(ev => (ev.artist === 'users' || /^users\//i.test(ev.artist || '')) ? { ...ev, artist: '' } : ev);
     arr.push({ ts: Date.now(), title: titleClean, artist: String(artist || ""), album: String(albumFolder || ""), url: String(url || ""), started: !!started });
     while (arr.length > 500) arr.shift();
     localStorage.setItem(key, JSON.stringify(arr));
