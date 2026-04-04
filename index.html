@@ -5752,27 +5752,49 @@ body.qs-lock {
           <i class="fas fa-cog" style="margin-right:4px;opacity:0.5"></i> Advanced settings
         </button>
         <div id="import-wiz-advanced" class="import-wiz-advanced hidden">
-          <div class="bg-white/5 rounded-2xl p-4 space-y-3">
+          <div class="bg-white/5 rounded-2xl p-4 space-y-4">
+
+            <!-- Spotify credentials -->
             <div>
-              <div class="import-section-label">Spotify (optional)</div>
-              <input id="import-spotify-client" type="text" class="import-input" placeholder="Client ID">
-              <input id="import-spotify-secret" type="password" class="import-input" placeholder="Client Secret" style="margin-bottom:0">
+              <div class="import-section-label">Spotify playlists</div>
+              <p style="font-size:0.78rem;color:rgba(255,255,255,0.45);margin:2px 0 8px;">
+                Only needed if you want to paste a <strong style="color:rgba(255,255,255,0.65)">Spotify playlist link</strong> and download it via YouTube.
+                Create a free app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" style="color:#1db954;text-decoration:underline;">developer.spotify.com/dashboard</a>,
+                then copy the Client ID and Client Secret from that app's settings page.
+              </p>
+              <input id="import-spotify-client" type="text" class="import-input" placeholder="Client ID (from Spotify developer dashboard)">
+              <input id="import-spotify-secret" type="password" class="import-input" placeholder="Client Secret (from Spotify developer dashboard)" style="margin-bottom:0">
             </div>
+
             <div class="h-px bg-white/10"></div>
+
+            <!-- Personal library URL -->
             <div>
-              <div class="import-section-label">Personal library URL</div>
-              <input id="import-personal-url" type="url" class="import-input" placeholder="https://…" style="margin-bottom:0">
+              <div class="import-section-label">Personal library URL <span style="font-size:0.72rem;font-weight:400;color:rgba(255,255,255,0.35);margin-left:4px;">— optional</span></div>
+              <p style="font-size:0.78rem;color:rgba(255,255,255,0.45);margin:2px 0 8px;">
+                Leave this blank — it's only used if you're self-hosting your own music storage.
+                Most people don't need it.
+              </p>
+              <input id="import-personal-url" type="url" class="import-input" placeholder="https://… (leave blank if unsure)" style="margin-bottom:0">
             </div>
+
             <div class="h-px bg-white/10"></div>
+
+            <!-- Library mode -->
             <div>
-              <div class="import-section-label">Library mode</div>
+              <div class="import-section-label">Where should uploads go?</div>
+              <p style="font-size:0.78rem;color:rgba(255,255,255,0.45);margin:2px 0 8px;">
+                <strong style="color:rgba(255,255,255,0.65)">My Library</strong> — music goes into your personal account only (recommended for most people).<br>
+                <strong style="color:rgba(255,255,255,0.65)">Shared</strong> — music goes into the shared library that everyone on this app can see.
+              </p>
               <div class="flex gap-2 mt-1">
                 <button id="import-mode-shared"   class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">Shared</button>
                 <button id="import-mode-personal" class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">My Library</button>
               </div>
             </div>
+
           </div>
-          <button id="import-save-settings" class="import-btn import-btn-secondary mt-3">Save advanced settings</button>
+          <button id="import-save-settings" class="import-btn import-btn-secondary mt-3">Save settings</button>
         </div>
       </div>
     </div>
