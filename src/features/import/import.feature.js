@@ -362,6 +362,13 @@ async function importApplyReviewPreviewDefaults() {
     return;
   }
 
+  // For radio/mix downloads, each track was individually fetched with its own
+  // metadata from yt-dlp. Don't overwrite with the seed video's metadata.
+  const src = __importReviewContext.sourceUrl || __importReviewContext.input || '';
+  if (importIsRadioOrMixUrl(src) || (__importReviewContext.preview.kind === 'playlist' && __importReviewContext.preview.title === 'Radio / Mix')) {
+    return;
+  }
+
   const metaOpts = importGetMetaOptions();
   const preview = __importReviewContext.preview;
   const tracks = Array.isArray(preview.tracks) ? preview.tracks : [];
