@@ -1437,8 +1437,27 @@ function importPollJob(jobId, opts) {
   // Regex to parse yt-dlp progress lines like:
   // [download]  45.3% of   5.67MiB at    2.34MiB/s ETA 00:02
   // [download] 100% of    3.08MiB in 00:00:00 at 15.50MiB/s
-  const progressReETA  = /\[download\]\s+([\d.]+)%.*?ETA\s+([\d:]+)/i;
-  const progressRePct  = /\[download\]\s+([\d.]+)%/i;
+  const progressReETA    = /\[download\]\s+([\d.]+)%.*?ETA\s+([\d:]+)/i;
+  const progressRePct    = /\[download\]\s+([\d.]+)%/i;
+  // spotdl progress: "Downloading  \"Title\" : 100%|..." or "Downloaded \"...\""
+  const spotdlDone   = /Downloaded.*?\"(.+?)\"/i;
+  const spotdlActive = /Downloading.*?\"(.+?)\"/i;
+
+  // Indeterminate pulse for spotdl (no per-byte progress)
+  let _pulseTimer = null;
+  let _pulseStep = 0;
+  const _pulseFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  function _startPulse(label) {
+    if (_pulseTimer) return;
+    _pulseTimer = setInterval(() => {
+      const lbl = ui('import-progress-label');
+      if (lbl) lbl.textContent = `${_pulseFrames[_pulseStep % _pulseFrames.length]} ${label}`;
+      _pulseStep++;
+    }, 120);
+  }
+  function _stopPulse() {
+    if (_pulseTimer) { clearInterval(_pulseTimer); _pulseTimer = null; }
+  }
 
   function _setOverallProgress(filePercent) {
     const overall = ((completedTracks + filePercent / 100) / totalTracks) * 100;
@@ -1456,9 +1475,26 @@ function importPollJob(jobId, opts) {
         const newLines = data.logs.slice(lastLogCount);
         lastLogCount = data.logs.length;
         if (newLines.length) {
+          let foundProgress = false;
           for (let i = newLines.length - 1; i >= 0; i--) {
+            // spotdl "Downloaded" line → completed one track
+            if (spotdlDone.test(newLines[i])) {
+              _stopPulse();
+              const m = spotdlDone.exec(newLines[i]);
+              const lbl = ui('import-progress-label');
+              if (lbl) lbl.textContent = `✓ ${m ? m[1] : 'Track'} done`;
+              foundProgress = true; break;
+            }
+            // spotdl "Downloading" line → show animated pulse
+            if (spotdlActive.test(newLines[i])) {
+              const m = spotdlActive.exec(newLines[i]);
+              const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} — ` : '';
+              _startPulse(`${trackInfo}${m ? m[1] : 'Downloading…'}`);
+              foundProgress = true; break;
+            }
             const mETA = progressReETA.exec(newLines[i]);
             if (mETA) {
+              _stopPulse();
               const filePct = parseFloat(mETA[1]);
               _setOverallProgress(filePct);
               const lbl = ui('import-progress-label');
@@ -1466,10 +1502,11 @@ function importPollJob(jobId, opts) {
                 const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} — ` : '';
                 lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%  •  ~${mETA[2]} remaining`;
               }
-              break;
+              foundProgress = true; break;
             }
             const mPct = progressRePct.exec(newLines[i]);
             if (mPct) {
+              _stopPulse();
               const filePct = parseFloat(mPct[1]);
               _setOverallProgress(filePct);
               const lbl = ui('import-progress-label');
@@ -1477,8 +1514,13 @@ function importPollJob(jobId, opts) {
                 const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} — ` : '';
                 lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%`;
               }
-              break;
+              foundProgress = true; break;
             }
+          }
+          // If no progress pattern found, start a generic pulse so the UI doesn't look frozen
+          if (!foundProgress && !_pulseTimer) {
+            const trackInfo = totalTracks > 1 ? `Track ${completedTracks + skippedTracks + 1} of ${totalTracks}` : 'Downloading…';
+            _startPulse(trackInfo);
           }
         }
       }
@@ -1486,6 +1528,7 @@ function importPollJob(jobId, opts) {
       if (data.status === 'done') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
+        _stopPulse();
         completedTracks += 1;
         _setOverallProgress(100);
 
@@ -1554,6 +1597,7 @@ function importPollJob(jobId, opts) {
       if (data.status === 'error') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
+        _stopPulse();
         skippedTracks += 1;
 
         // If more tracks remain, skip this failed one and continue
@@ -2054,6 +2098,13 @@ async function importUploadSelected() {
 
     if (succeeded > 0 && doneBtn) doneBtn.classList.remove('hidden');
 
+    // Disable upload button — files are already uploaded
+    if (uploadBtn) {
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = '✓ Uploaded';
+      uploadBtn.style.opacity = '0.5';
+    }
+
     // If this was a playlist import (Spotify or YouTube), create the playlist in the cloud
     if (succeeded > 0) {
       const preview = __importReviewContext && __importReviewContext.preview;
@@ -2104,7 +2155,12 @@ async function importUploadSelected() {
     if (barWrap) barWrap.classList.add('hidden');
     if (progressEl) progressEl.textContent = '✗ Upload error: ' + e.message;
   } finally {
-    if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Selected'; }
+    // Only re-enable if upload did NOT succeed (success path leaves it disabled)
+    if (uploadBtn && !uploadBtn.textContent.startsWith('✓')) {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload Selected';
+      uploadBtn.style.opacity = '';
+    }
   }
 }
 
@@ -2128,13 +2184,28 @@ function importInitReviewPanel() {
     });
   }
 
+  const doneBtn = document.getElementById('import-upload-done');
+  // Always reset to hidden when the panel opens — may have been shown from a prior session
+  if (doneBtn) doneBtn.classList.add('hidden');
+  if (doneBtn && !doneBtn.__importBound) {
+    doneBtn.__importBound = true;
+    doneBtn.addEventListener('click', async () => {
+      try {
+        await importLoadPersonalLibraryIntoApp();
+      } catch (e) {
+        importShowSaveToast('Uploaded, but library refresh failed');
+      }
+    });
+  }
+
   const uploadBtn = document.getElementById('import-upload-btn');
+  // Reset upload button to active state on each panel open
+  if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Selected'; uploadBtn.style.opacity = ''; }
+
   if (uploadBtn && !uploadBtn.__importBound) {
     uploadBtn.__importBound = true;
     uploadBtn.addEventListener('click', importUploadSelected);
   }
-
-  // Scroll to and briefly flash the upload button so the user knows what to do next
   if (uploadBtn) {
     setTimeout(() => {
       uploadBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2146,18 +2217,6 @@ function importInitReviewPanel() {
         uploadBtn.style.boxShadow = '';
       }, 900);
     }, 350);
-  }
-
-  const doneBtn = document.getElementById('import-upload-done');
-  if (doneBtn && !doneBtn.__importBound) {
-    doneBtn.__importBound = true;
-    doneBtn.addEventListener('click', async () => {
-      try {
-        await importLoadPersonalLibraryIntoApp();
-      } catch (e) {
-        importShowSaveToast('Uploaded, but library refresh failed');
-      }
-    });
   }
 
   const clearBtn = document.getElementById('import-clear-all');
