@@ -161,7 +161,7 @@ export default {
           title: file.replace(/\.[^/.]+$/, ''),
           artistName: artist,
           albumName: album,
-          link: `${url.origin}/?id=${encodeURIComponent(key)}`
+          link: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(key)}`
         });
       }
       return json(Object.values(albums));

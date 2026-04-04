@@ -7627,6 +7627,13 @@ function albumKey(artistName, albumName) {
   return `${a} — ${b}`;
 }
 
+/** Strip `users/{uid}/` prefix from personal R2 keys so path parsing yields Artist/Album/Track */
+function stripUserPrefix(key) {
+  const parts = String(key || '').split('/').filter(Boolean);
+  if (parts.length >= 3 && parts[0] === 'users') parts.splice(0, 2);
+  return parts;
+}
+
 function loadAlbumCoverOverrides() {
   try {
     const obj = JSON.parse(localStorage.getItem('albumCoverOverrides') || "{}");
@@ -8120,7 +8127,7 @@ safe(window.renderHistory);
       if (np && np.track_id) {
         // Build a playable URL from the track_id (R2 key)
         const trackId = String(np.track_id);
-        const parts = trackId.split("/");
+        const parts = stripUserPrefix(trackId);
         const artist = parts[0] || "";
         const album = parts[1] || "";
         const title = (parts[parts.length - 1] || "").replace(/\.[^/.]+$/, "");
@@ -9449,14 +9456,7 @@ try { renderHome(); } catch (e) {}
   if (viewType === 'crate') {
   document.getElementById('crate-view')?.classList.remove('hidden');
   try { initCrateUIOnce(); } catch (e) {}
-  try {
-    const targetSection = (typeof window.hasMeaningfulCrateContent === 'function' && window.hasMeaningfulCrateContent())
-      ? 'crate'
-      : 'home';
-    openCrateSection(targetSection);
-  } catch (e) {
-    try { openCrateSection('home'); } catch (_) {}
-  }
+  try { openCrateSection('home'); } catch (e) {}
   try { renderCrate(); } catch (e) {}
   // ✅ DO NOT auto-focus here — keyboard should appear only when user taps a field.
 }
@@ -9924,7 +9924,7 @@ function renderGrid(data) {
        data-album="${safeName}"
        data-no-swipe-back="1">
     <div class="p-4">
-      ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
+      ${cover ? `<img src="${cover}" style="border-radius:0;width:100%;aspect-ratio:1/1;object-fit:cover;display:block;" onerror="this.outerHTML='<div style=\\'aspect-ratio:1/1;\\' class=\\'bg-white/10 flex items-center justify-center\\'><i class=\\'fas fa-music text-white/50 text-3xl\\'></i></div>';">` : `<div style="aspect-ratio:1/1;" class="bg-white/10 flex items-center justify-center"><i class="fas fa-music text-white/50 text-3xl"></i></div>`}
     </div>
     <div class="playlist-card-info">
       <h3>${album.albumName}</h3>
@@ -9993,7 +9993,7 @@ function renderGrid(data) {
           try { id = decodeURIComponent(id); } catch (e) {}
           id = id.replace(/^\/+/, "").trim();
 
-          const parts = String(id || "").split("/").filter(Boolean);
+          const parts = stripUserPrefix(id);
           if (parts.length >= 2) {
             const artistFromId = parts[0] || "";
             const albumFromId = (parts.length >= 3 ? (parts[1] || "") : "Singles");
@@ -10498,7 +10498,7 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
       try { key = decodeURIComponent(safeUrl.split("?id=")[1].split("&")[0]); } catch (e) {}
     }
 
-    const parts = key.split("/").filter(Boolean);
+    const parts = stripUserPrefix(key);
     if (parts.length >= 2) {
       const artistFromPath = parts[0] || "";
       const albumFromPath = (parts[1] && !looksLikeFile(parts[1])) ? parts[1] : "";
@@ -10591,7 +10591,7 @@ if (true) {
 
                 // 2b) LAST fallback: derive cover from id → cover.jpg
         if (!thumbSrc && key.includes("/")) {
-          const parts = key.split("/").filter(Boolean);
+          const parts = stripUserPrefix(key);
 
           // ✅ 3-part+: Artist/Album/Track.mp3 -> Artist/Album/cover.jpg
           // ✅ 2-part:  Artist/Track.mp3      -> Artist/Singles/cover.jpg
@@ -13857,7 +13857,7 @@ window.resolveTrackIdsToSongs = function (trackIds) {
       }
 
       // Fallback: parse from id
-      const parts = resolvedKey.split("/").filter(Boolean);
+      const parts = stripUserPrefix(resolvedKey);
 
       const artist = parts[0] ? parts[0] : "Unknown Artist";
 
