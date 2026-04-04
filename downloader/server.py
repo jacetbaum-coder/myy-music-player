@@ -608,6 +608,169 @@ async def playlist_tracks(request: PreviewRequest):
     return {"tracks": tracks, "total": len(tracks)}
 
 
+# ---------------------------------------------------------------------------
+# Spotify playlist helpers (no credentials required for public playlists)
+# ---------------------------------------------------------------------------
+
+class SpotifyPlaylistTracksRequest(BaseModel):
+    url: str
+    spotifyClientId: str = ""
+    spotifyClientSecret: str = ""
+
+
+def _spotify_extract_playlist_id(url: str) -> Optional[str]:
+    m = re.search(r'spotify\.com/playlist/([A-Za-z0-9]+)', url)
+    if m:
+        return m.group(1)
+    m = re.search(r'spotify:playlist:([A-Za-z0-9]+)', url)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _spotify_get_anonymous_token() -> Optional[str]:
+    """Request an anonymous web-player access token from Spotify (no credentials needed)."""
+    try:
+        import urllib.request as _ureq
+        req = _ureq.Request(
+            'https://open.spotify.com/get_access_token?reason=transport&productType=web_player',
+            headers={
+                'User-Agent': (
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/124.0.0.0 Safari/537.36'
+                ),
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://open.spotify.com/',
+            },
+        )
+        with _ureq.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return data.get('accessToken') or None
+    except Exception:
+        return None
+
+
+def _spotify_get_token_from_credentials(client_id: str, client_secret: str) -> Optional[str]:
+    """Exchange client credentials for a Spotify API access token."""
+    try:
+        import base64
+        import urllib.request as _ureq
+        credentials = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
+        req = _ureq.Request(
+            'https://accounts.spotify.com/api/token',
+            data=b'grant_type=client_credentials',
+            headers={
+                'Authorization': f'Basic {credentials}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        )
+        with _ureq.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return data.get('access_token') or None
+    except Exception:
+        return None
+
+
+def _spotify_fetch_playlist_tracks(playlist_id: str, token: str) -> list[dict]:
+    """Paginate through all tracks in a Spotify playlist (up to 500)."""
+    import urllib.request as _ureq
+    tracks: list[dict] = []
+    fields = 'next,items(track(name,artists(name),album(name),duration_ms))'
+    url: Optional[str] = (
+        f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
+        f'?limit=100&offset=0&fields={fields}'
+    )
+    while url and len(tracks) < 500:
+        req = _ureq.Request(
+            url,
+            headers={
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/json',
+            },
+        )
+        try:
+            with _ureq.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f'Spotify API error: {e}')
+        for item in (data.get('items') or []):
+            track = item.get('track') if isinstance(item, dict) else None
+            if not track or not isinstance(track, dict):
+                continue
+            name = track.get('name') or ''
+            if not name:
+                continue
+            artists = [a['name'] for a in (track.get('artists') or []) if a.get('name')]
+            album = (track.get('album') or {}).get('name') or ''
+            duration_ms = track.get('duration_ms') or 0
+            tracks.append({
+                'title': name,
+                'artist': ', '.join(artists),
+                'album': album,
+                'durationMs': duration_ms,
+            })
+        url = data.get('next') or None
+    return tracks
+
+
+@app.post("/spotify-playlist-tracks")
+async def spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
+    """
+    Return the track list for a public Spotify playlist.
+    No credentials are required for public playlists — an anonymous web-player
+    token is used automatically. If that fails, provided credentials (or
+    SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET env vars) are used as fallback.
+    """
+    url = str(request.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required.")
+
+    playlist_id = _spotify_extract_playlist_id(url)
+    if not playlist_id:
+        raise HTTPException(status_code=400, detail="Could not extract a playlist ID from that URL.")
+
+    # 1. Try anonymous token (zero-config path for public playlists)
+    token: Optional[str] = await asyncio.to_thread(_spotify_get_anonymous_token)
+
+    # 2. Fall back to request-provided credentials
+    if not token and request.spotifyClientId and request.spotifyClientSecret:
+        token = await asyncio.to_thread(
+            _spotify_get_token_from_credentials,
+            request.spotifyClientId,
+            request.spotifyClientSecret,
+        )
+
+    # 3. Fall back to server environment variables
+    if not token:
+        env_id = os.environ.get("SPOTIFY_CLIENT_ID", "")
+        env_secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
+        if env_id and env_secret:
+            token = await asyncio.to_thread(
+                _spotify_get_token_from_credentials, env_id, env_secret
+            )
+
+    if not token:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Could not authenticate with Spotify. The playlist may be private, "
+                "or Spotify is blocking the request. You can add your Spotify Client ID "
+                "and Secret in Advanced settings to use them as a fallback."
+            ),
+        )
+
+    tracks = await asyncio.to_thread(_spotify_fetch_playlist_tracks, playlist_id, token)
+    if not tracks:
+        raise HTTPException(
+            status_code=404,
+            detail="No tracks found. The playlist may be empty or private.",
+        )
+
+    return {"tracks": tracks, "total": len(tracks)}
+
+
 @app.post("/search")
 async def search(request: SearchRequest):
     query = str(request.query or "").strip()

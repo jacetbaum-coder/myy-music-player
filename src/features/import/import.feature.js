@@ -271,6 +271,115 @@ function importIsPlaylistUrl(url) {
   return false;
 }
 
+function importIsSpotifyPlaylistUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''));
+    return parsed.hostname === 'open.spotify.com' && /^\/playlist\/[A-Za-z0-9]+/.test(parsed.pathname);
+  } catch (_) {}
+  return false;
+}
+
+async function importFetchSpotifyTracks(url) {
+  const serverUrl = importGetServerUrl();
+  const settings  = importLoadSettings();
+  const res = await fetch(serverUrl + '/spotify-playlist-tracks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url,
+      spotifyClientId:     settings.spotifyClientId || '',
+      spotifyClientSecret: settings.spotifySecret   || '',
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Could not fetch Spotify playlist');
+  return Array.isArray(data.tracks) ? data.tracks : [];
+}
+
+async function importDownloadSpotifyPlaylist(tracks) {
+  if (!tracks || !tracks.length) return;
+
+  const statusEl     = document.getElementById('import-download-status');
+  const reviewBtn    = document.getElementById('import-goto-review');
+  const dlBtn        = document.getElementById('import-download-btn');
+  const logsEl       = document.getElementById('import-logs');
+  const progressWrap = document.getElementById('import-progress-wrap');
+  const progressBar  = document.getElementById('import-progress-bar');
+  const progressLbl  = document.getElementById('import-progress-label');
+
+  if (logsEl)       { logsEl.textContent = ''; logsEl.style.display = 'none'; }
+  if (reviewBtn)    reviewBtn.classList.add('hidden');
+  if (dlBtn)        { dlBtn.disabled = true; dlBtn.textContent = 'Downloading…'; }
+  if (progressWrap) progressWrap.classList.remove('hidden');
+  if (progressBar)  progressBar.style.width = '0%';
+  if (progressLbl)  progressLbl.textContent = '';
+
+  const serverUrl = importGetServerUrl();
+  const settings  = importLoadSettings();
+  const totalTracks = tracks.length;
+
+  if (statusEl) statusEl.textContent = `Starting download of ${totalTracks} track${totalTracks === 1 ? '' : 's'}…`;
+
+  // Convert each Spotify track to a yt-dlp YouTube search query
+  const urlsToDownload = tracks.map(t => {
+    const q = [t.artist, t.title].filter(Boolean).join(' - ');
+    return 'ytsearch1:' + q;
+  });
+
+  // Clear any leftover files from a previous session
+  try { await fetch(serverUrl + '/clear', { method: 'POST' }); } catch (_) {}
+
+  __importReviewContext = {
+    input: importTrimmedInput(),
+    sourceUrl: urlsToDownload[0],
+    provider: 'youtube',
+    item: null,
+    preview: {
+      kind: 'playlist',
+      title: 'Spotify Playlist',
+      artist: (tracks[0] && tracks[0].artist) || '',
+      trackCount: totalTracks,
+      tracks: tracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist })),
+    },
+  };
+
+  const body = {
+    url: urlsToDownload[0],
+    outputFormat: '{artist}/{album}/{title}.{output-ext}',
+    spotifyClientId:     settings.spotifyClientId || undefined,
+    spotifyClientSecret: settings.spotifySecret   || undefined,
+  };
+  Object.keys(body).forEach(k => { if (body[k] === undefined) delete body[k]; });
+
+  let jobId;
+  try {
+    const res = await fetch(serverUrl + '/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.jobId) throw new Error(data.detail || 'Server error');
+    jobId = data.jobId;
+    __importCurrentJobId = jobId;
+  } catch (e) {
+    if (statusEl)     statusEl.textContent = '✗ Failed to start: ' + e.message;
+    if (progressWrap) progressWrap.classList.add('hidden');
+    importUpdatePrimaryAction();
+    return;
+  }
+
+  const pollOpts = {
+    totalTracks,
+    completedTracks: 0,
+    skippedTracks:   0,
+    remainingUrls:   urlsToDownload.slice(1),
+    settings,
+  };
+  __importBgPollOpts = pollOpts;
+  importPollJob(jobId, pollOpts);
+}
+
 function importRenderPreview(previewData, prefetchedTracks) {
   const target = document.getElementById('import-selection-preview');
   importRenderPreviewInto(target, previewData, { emptyMessage: 'Metadata will be editable before save.' });
@@ -516,7 +625,20 @@ async function importResolvePrimaryAction() {
   }
 
   if (importDetectUrlType(raw) === 'spotify') {
-    if (statusEl) statusEl.textContent = 'Spotify links download directly for now.';
+    if (importIsSpotifyPlaylistUrl(raw)) {
+      if (statusEl) statusEl.textContent = 'Fetching Spotify playlist…';
+      try {
+        const tracks = await importFetchSpotifyTracks(raw);
+        if (statusEl) statusEl.textContent = `Found ${tracks.length} track${tracks.length === 1 ? '' : 's'}. Starting download…`;
+        await importDownloadSpotifyPlaylist(tracks);
+      } catch (e) {
+        if (statusEl) statusEl.textContent = '✗ ' + e.message;
+        importUpdatePrimaryAction();
+      }
+      return;
+    }
+    // Single Spotify track — use spotdl as before
+    if (statusEl) statusEl.textContent = 'Downloading via Spotify…';
     await importStartDownload(raw);
     return;
   }
