@@ -269,6 +269,7 @@ def _run_json_command(cmd: list[str], timeout: int = 30) -> Any:
     try:
         result = subprocess.run(
             cmd,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -474,6 +475,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--audio-quality", "0",
             "--embed-thumbnail",
             "--add-metadata",
+            "--js-runtimes", "node",
             "-o", yt_template,
             request.url,
         )
@@ -483,6 +485,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
@@ -544,6 +547,7 @@ async def playlist_tracks(request: PreviewRequest):
         "--flat-playlist",
         "--no-warnings",
         "--skip-download",
+        "--js-runtimes", "node",
         url,
     ]
     data = await asyncio.to_thread(_run_json_command, cmd, 60)
@@ -568,6 +572,7 @@ async def search(request: SearchRequest):
         "--dump-single-json",
         "--flat-playlist",
         "--no-warnings",
+        "--js-runtimes", "node",
         f"ytsearch{limit}:{query}",
     ]
     if not _module_available("yt_dlp"):
@@ -609,6 +614,7 @@ async def preview(request: PreviewRequest):
         "--dump-single-json",
         "--no-warnings",
         "--skip-download",
+        "--js-runtimes", "node",
         url,
     ]
     data = await asyncio.to_thread(_run_json_command, cmd, 45)
