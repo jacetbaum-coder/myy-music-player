@@ -4,8 +4,8 @@ compatibility_date = "2026-04-02"
 
 [[r2_buckets]]
 binding = "MUSIC_BUCKET"
-bucket_name = "local-music-bucket"
-preview_bucket_name = "local-music-bucket"
+bucket_name = "music-files"
+preview_bucket_name = "music-files"
 
 [[kv_namespaces]]
 binding = "SESSIONS"

@@ -9315,6 +9315,12 @@ if (scrollArea) {
     scrollArea.__wheelScrollFixInstalled = true;
 
     scrollArea.addEventListener('wheel', (e) => {
+  // ✅ If the wheel is inside an independently-scrollable child, let it scroll natively
+  const scrollChild = e.target.closest('.import-track-checklist, #import-file-list');
+  if (scrollChild && scrollChild.scrollHeight > scrollChild.clientHeight + 1) {
+    return;                          // native overflow-y handles it
+  }
+
   // ✅ If the wheel is happening inside the Album view, scroll THAT (not main-scroll-area)
   const av = document.getElementById('album-view');
   if (av && av.contains(e.target) && av.scrollHeight > av.clientHeight + 1) {
@@ -14976,7 +14982,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=12"></script>
+<script src="src/features/import/import.feature.js?v=13"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.
