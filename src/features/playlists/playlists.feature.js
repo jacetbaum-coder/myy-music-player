@@ -757,10 +757,16 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
   if (window.__playlistHydrateInFlight) return;
   window.__playlistHydrateInFlight = true;
 
+  // Track which playlists have already been fetched (even if result was empty)
+  // so empty playlists don't get re-fetched on every 12-second sync cycle.
+  if (!window.__playlistHydratedIds) window.__playlistHydratedIds = new Set();
+
   try {
     const list = Array.isArray(playlists) ? playlists : [];
     const targets = list
-      .filter(p => p && p.id && !p.isAutoPlaylist && p.id !== '__daylist__' && p.id !== '__nightlist__' && (!Array.isArray(p.trackIds) || p.trackIds.length === 0))
+      .filter(p => p && p.id && !p.isAutoPlaylist && p.id !== '__daylist__' && p.id !== '__nightlist__'
+        && !window.__playlistHydratedIds.has(p.id)
+        && (!Array.isArray(p.trackIds) || p.trackIds.length === 0))
       .slice(0, max);
 
     if (!targets.length) return;
@@ -776,6 +782,8 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
         } catch (e) {
           // ignore single-playlist failures
         }
+        // Mark as hydrated whether result was empty or not
+        window.__playlistHydratedIds.add(pl.id);
       }
     }
 
@@ -787,7 +795,12 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
     try { if (typeof savePlaylists === "function") savePlaylists(); } catch (e) {}
     try { if (typeof window.renderPlaylists === "function") window.renderPlaylists(); } catch (e) {}
     try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
-    try { if (typeof renderLibraryMain === "function") renderLibraryMain(); } catch (e) {}
+    // Only re-render Library if on a tab that actually shows playlist cards.
+    // Albums/Artists tabs don't need this and rebuilding the grid causes scroll jumps.
+    const _ltt = String(window.libraryTopTab || '');
+    if (_ltt === 'playlists' || _ltt === 'all') {
+      try { if (typeof renderLibraryMain === "function") renderLibraryMain(); } catch (e) {}
+    }
   } finally {
     window.__playlistHydrateInFlight = false;
   }
