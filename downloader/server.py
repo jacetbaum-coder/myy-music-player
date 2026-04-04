@@ -731,18 +731,16 @@ async def spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     if not playlist_id:
         raise HTTPException(status_code=400, detail="Could not extract a playlist ID from that URL.")
 
-    # 1. Try anonymous token (zero-config path for public playlists)
-    token: Optional[str] = await asyncio.to_thread(_spotify_get_anonymous_token)
-
-    # 2. Fall back to request-provided credentials
-    if not token and request.spotifyClientId and request.spotifyClientSecret:
+    # 1. Try request-provided credentials
+    token: Optional[str] = None
+    if request.spotifyClientId and request.spotifyClientSecret:
         token = await asyncio.to_thread(
             _spotify_get_token_from_credentials,
             request.spotifyClientId,
             request.spotifyClientSecret,
         )
 
-    # 3. Fall back to server environment variables
+    # 2. Fall back to server environment variables
     if not token:
         env_id = os.environ.get("SPOTIFY_CLIENT_ID", "")
         env_secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
@@ -754,11 +752,7 @@ async def spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     if not token:
         raise HTTPException(
             status_code=403,
-            detail=(
-                "Could not authenticate with Spotify. The playlist may be private, "
-                "or Spotify is blocking the request. You can add your Spotify Client ID "
-                "and Secret in Advanced settings to use them as a fallback."
-            ),
+            detail="SPOTIFY_CREDENTIALS_REQUIRED",
         )
 
     tracks = await asyncio.to_thread(_spotify_fetch_playlist_tracks, playlist_id, token)

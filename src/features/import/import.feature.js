@@ -292,8 +292,37 @@ async function importFetchSpotifyTracks(url) {
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || 'Could not fetch Spotify playlist');
+  if (!res.ok) {
+    if (data.detail === 'SPOTIFY_CREDENTIALS_REQUIRED') {
+      throw Object.assign(new Error('SPOTIFY_CREDENTIALS_REQUIRED'), { isCredsMissing: true });
+    }
+    throw new Error(data.detail || 'Could not fetch Spotify playlist');
+  }
   return Array.isArray(data.tracks) ? data.tracks : [];
+}
+
+function importShowSpotifyCredsPrompt(statusEl) {
+  if (!statusEl) return;
+  statusEl.innerHTML =
+    'Spotify credentials are required to read a playlist. ' +
+    '<button id="import-open-adv-settings" style="' +
+      'background:none;border:none;color:#1db954;text-decoration:underline;' +
+      'cursor:pointer;padding:0;font:inherit' +
+    '">Open Advanced Settings</button> to add your Client ID and Secret, then try again.';
+  const btn = document.getElementById('import-open-adv-settings');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      // Switch to setup panel and expand Advanced Settings
+      importShowPanel('setup');
+      const advPanel  = document.getElementById('import-wiz-advanced');
+      if (advPanel) advPanel.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        const clientInput = document.getElementById('import-spotify-client');
+        if (clientInput) clientInput.focus();
+        (advPanel || clientInput)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
 }
 
 async function importDownloadSpotifyPlaylist(tracks) {
@@ -632,7 +661,11 @@ async function importResolvePrimaryAction() {
         if (statusEl) statusEl.textContent = `Found ${tracks.length} track${tracks.length === 1 ? '' : 's'}. Starting download…`;
         await importDownloadSpotifyPlaylist(tracks);
       } catch (e) {
-        if (statusEl) statusEl.textContent = '✗ ' + e.message;
+        if (e.isCredsMissing) {
+          importShowSpotifyCredsPrompt(statusEl);
+        } else {
+          if (statusEl) statusEl.textContent = '✗ ' + e.message;
+        }
         importUpdatePrimaryAction();
       }
       return;
