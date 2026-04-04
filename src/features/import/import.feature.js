@@ -954,7 +954,7 @@ async function importStartDownload(sourceUrl) {
   const dlBtn = document.getElementById('import-download-btn');
 
   if (logsEl) logsEl.textContent = '';
-  if (logsEl) logsEl.style.display = '';
+  if (logsEl) logsEl.style.display = 'none';
   if (statusEl) statusEl.textContent = 'Starting download…';
   if (reviewBtn) reviewBtn.classList.add('hidden');
   if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = 'Downloading…'; }
@@ -987,6 +987,9 @@ async function importStartDownload(sourceUrl) {
   const urlsToDownload = selectedUrls.length > 0 ? selectedUrls : [url];
   const totalTracks = urlsToDownload.length;
   let completedTracks = 0;
+
+  // Clear previous downloads before starting a new batch
+  try { await fetch(serverUrl + '/clear', { method: 'POST' }); } catch (_) {}
 
   const body = {
     url: urlsToDownload[0],
@@ -1058,11 +1061,6 @@ function importPollJob(jobId, opts) {
         const newLines = data.logs.slice(lastLogCount);
         lastLogCount = data.logs.length;
         if (newLines.length) {
-          const logsEl = ui('import-logs');
-          if (logsEl) {
-            logsEl.textContent += newLines.join('\n') + '\n';
-            logsEl.scrollTop = logsEl.scrollHeight;
-          }
           for (let i = newLines.length - 1; i >= 0; i--) {
             const match = progressRe.exec(newLines[i]);
             if (match) {
