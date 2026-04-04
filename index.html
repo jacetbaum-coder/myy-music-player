@@ -3873,6 +3873,194 @@ body.qs-lock {
 .import-step-inactive { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.4); }
 .import-step-sep { color: rgba(255,255,255,0.25); }
 
+/* Wizard step-by-step */
+.import-wiz-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.import-wiz-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+.import-wiz-dot.active { background: #1db954; transform: scale(1.25); }
+.import-wiz-dot.done   { background: rgba(255,255,255,0.45); }
+
+.import-wiz-step {
+  animation: importWizFadeIn 0.25s ease;
+}
+@keyframes importWizFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.import-wiz-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 6px;
+}
+.import-wiz-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+.import-wiz-inline-msg {
+  background: rgba(255,60,60,0.1);
+  border: 1px solid rgba(255,60,60,0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.import-wiz-link {
+  background: none;
+  border: none;
+  color: #1db954;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.import-wiz-link:hover { color: #22d35e; }
+
+.import-wiz-help-toggle {
+  display: block;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 16px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.import-wiz-help-toggle:hover { color: rgba(255,255,255,0.6); }
+
+.import-wiz-help {
+  margin-top: 10px;
+  padding: 14px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.5;
+  animation: importWizFadeIn 0.2s ease;
+}
+.import-wiz-help p { margin: 0; }
+.import-wiz-code {
+  display: block;
+  background: rgba(0,0,0,0.4);
+  color: rgba(255,255,255,0.75);
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 6px;
+  user-select: all;
+}
+
+.import-wiz-checklist {
+  margin: 16px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.import-wiz-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.import-wiz-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.import-wiz-note i { margin-top: 2px; flex-shrink: 0; color: rgba(255,255,255,0.3); }
+
+.import-wiz-skip {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 0 0;
+  text-align: center;
+}
+.import-wiz-skip:hover { color: rgba(255,255,255,0.65); }
+
+.import-wiz-advanced-wrap {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.import-wiz-advanced-toggle {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.import-wiz-advanced-toggle:hover { color: rgba(255,255,255,0.5); }
+.import-wiz-advanced {
+  margin-top: 14px;
+  animation: importWizFadeIn 0.2s ease;
+}
+
+.mt-3 { margin-top: 12px; }
+
+.import-review-banner {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  animation: importWizFadeIn 0.2s ease;
+}
+.import-review-banner-warn {
+  background: rgba(240,180,41,0.12);
+  border: 1px solid rgba(240,180,41,0.25);
+  color: rgba(255,255,255,0.85);
+}
+.import-review-banner-error {
+  background: rgba(255,60,60,0.1);
+  border: 1px solid rgba(255,60,60,0.25);
+  color: rgba(255,255,255,0.85);
+}
+
 .import-section-label {
   font-size: 11px;
   font-weight: 700;
@@ -5454,60 +5642,119 @@ body.qs-lock {
       <button id="import-step-review"   class="import-step-btn import-step-inactive">Review</button>
     </div>
 
-    <!-- ── PANEL: Setup ─────────────────────────────────────── -->
+    <!-- ── PANEL: Setup (wizard) ─────────────────────────────── -->
     <div id="import-panel-setup">
 
-      <!-- Server status -->
-      <div class="import-server-status">
-        <div id="import-server-dot" class="import-server-dot"></div>
-        <span id="import-server-label">—</span>
+      <!-- Wizard progress dots -->
+      <div class="import-wiz-dots">
+        <div id="import-wiz-dot-1" class="import-wiz-dot active"></div>
+        <div id="import-wiz-dot-2" class="import-wiz-dot"></div>
+        <div id="import-wiz-dot-3" class="import-wiz-dot"></div>
       </div>
 
-      <div class="bg-white/5 rounded-2xl p-4 mb-4 space-y-3">
-        <div>
-          <div class="import-section-label">Local server URL</div>
+      <!-- ── Wizard Step 1: Connect your server ────────────── -->
+      <div id="import-wiz-1" class="import-wiz-step">
+        <div class="import-wiz-title">Connect your server</div>
+        <div class="import-wiz-desc">The download server runs on your computer. It should already be connected.</div>
+
+        <div class="import-server-status" style="margin:16px 0 8px">
+          <div id="import-server-dot" class="import-server-dot"></div>
+          <span id="import-server-label">Checking…</span>
+        </div>
+
+        <div id="import-wiz1-form" class="hidden">
           <input id="import-server-url" type="url" class="import-input" placeholder="http://localhost:8765">
           <button id="import-test-server" class="import-btn import-btn-secondary" style="margin-bottom:0">Test connection</button>
         </div>
 
-        <div class="h-px bg-white/10"></div>
-
-        <div>
-          <div class="import-section-label">Spotify (optional)</div>
-          <input id="import-spotify-client" type="text" class="import-input" placeholder="Client ID">
-          <input id="import-spotify-secret" type="password" class="import-input" placeholder="Client Secret">
+        <div id="import-wiz1-error" class="import-wiz-inline-msg hidden">
+          <span>Can't reach the server.</span>
+          <button id="import-wiz1-show-url" class="import-wiz-link">Change server URL</button>
         </div>
 
-        <div class="h-px bg-white/10"></div>
+        <button id="import-wiz1-next" class="import-btn import-btn-primary mt-3" disabled>Continue</button>
 
-        <div>
-          <div class="import-section-label">Cloudflare R2</div>
-          <input id="import-r2-account"    type="text"     class="import-input" placeholder="Account ID">
-          <input id="import-r2-access-key" type="text"     class="import-input" placeholder="Access Key ID">
-          <input id="import-r2-secret"     type="password" class="import-input" placeholder="Secret Access Key">
-          <input id="import-r2-bucket"     type="text"     class="import-input" placeholder="Bucket name">
-        </div>
-
-        <div class="h-px bg-white/10"></div>
-
-        <div>
-          <div class="import-section-label">Personal library URL (optional)</div>
-          <input id="import-personal-url" type="url" class="import-input" placeholder="https://…">
-        </div>
-
-        <div class="h-px bg-white/10"></div>
-
-        <div>
-          <div class="import-section-label">Library mode</div>
-          <div class="flex gap-2 mt-1">
-            <button id="import-mode-shared"   class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">Shared</button>
-            <button id="import-mode-personal" class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">My Library</button>
-          </div>
+        <button id="import-wiz1-help-toggle" class="import-wiz-help-toggle">What is this?</button>
+        <div id="import-wiz1-help" class="import-wiz-help hidden">
+          <p>The download server is a small program that runs on your computer and handles fetching music files.</p>
+          <p style="margin-top:6px">To start it, open Terminal and run:</p>
+          <code class="import-wiz-code">bash downloader/start.sh</code>
+          <p style="margin-top:6px">Once it's running, click <strong>Test connection</strong> above.</p>
         </div>
       </div>
 
-      <button id="import-save-settings" class="import-btn import-btn-secondary mb-3">Save settings</button>
-      <button id="import-goto-download" class="import-btn import-btn-primary">Next: Download →</button>
+      <!-- ── Wizard Step 2: Cloud storage ──────────────────── -->
+      <div id="import-wiz-2" class="import-wiz-step hidden">
+        <div class="import-wiz-title">Save to your library</div>
+        <div class="import-wiz-desc">Connect cloud storage so your music syncs across all your devices. Without this, downloads stay on this computer only.</div>
+
+        <div class="bg-white/5 rounded-2xl p-4 mt-3 mb-3 space-y-2">
+          <input id="import-r2-account"    type="text"     class="import-input" placeholder="Account ID">
+          <input id="import-r2-access-key" type="text"     class="import-input" placeholder="Access Key ID">
+          <input id="import-r2-secret"     type="password" class="import-input" placeholder="Secret Access Key">
+          <input id="import-r2-bucket"     type="text"     class="import-input" placeholder="Bucket name" style="margin-bottom:0">
+        </div>
+
+        <button id="import-wiz2-next" class="import-btn import-btn-primary" disabled>Continue</button>
+        <button id="import-wiz2-skip" class="import-wiz-skip">Skip for now — I just want to download</button>
+
+        <button id="import-wiz2-help-toggle" class="import-wiz-help-toggle">How do I get these?</button>
+        <div id="import-wiz2-help" class="import-wiz-help hidden">
+          <p><strong>1.</strong> Go to <strong>Cloudflare Dashboard → R2 Object Storage</strong></p>
+          <p><strong>2.</strong> Create a bucket (any name works, e.g. <em>my-music</em>)</p>
+          <p><strong>3.</strong> Go to <strong>Manage R2 API Tokens → Create API token</strong></p>
+          <p><strong>4.</strong> Give it <em>Object Read &amp; Write</em> access to your bucket</p>
+          <p><strong>5.</strong> Copy the <em>Account ID</em>, <em>Access Key ID</em>, and <em>Secret Access Key</em> into the fields above</p>
+          <p style="margin-top:6px;color:rgba(255,255,255,0.4);font-size:11px;">Your credentials stay in this browser only — they are never sent to our servers.</p>
+        </div>
+      </div>
+
+      <!-- ── Wizard Step 3: All set ────────────────────────── -->
+      <div id="import-wiz-3" class="import-wiz-step hidden">
+        <div class="import-wiz-title">You're all set!</div>
+
+        <div class="import-wiz-checklist">
+          <div class="import-wiz-check"><i class="fas fa-check-circle" style="color:#1db954"></i> Server connected</div>
+          <div id="import-wiz3-r2-status" class="import-wiz-check"><i class="fas fa-check-circle" style="color:#1db954"></i> Cloud storage connected</div>
+        </div>
+
+        <div id="import-wiz3-r2-note" class="import-wiz-note hidden">
+          <i class="fas fa-info-circle"></i>
+          You skipped cloud storage. Your downloads will be saved locally. You can set it up anytime from the <button id="import-wiz3-goto-settings" class="import-wiz-link" style="font-size:inherit">settings</button>.
+        </div>
+
+        <button id="import-wiz3-start" class="import-btn import-btn-primary mt-3">Start downloading →</button>
+      </div>
+
+      <!-- ── Advanced settings (collapsed) ─────────────────── -->
+      <div class="import-wiz-advanced-wrap">
+        <button id="import-wiz-advanced-toggle" class="import-wiz-advanced-toggle">
+          <i class="fas fa-cog" style="margin-right:4px;opacity:0.5"></i> Advanced settings
+        </button>
+        <div id="import-wiz-advanced" class="import-wiz-advanced hidden">
+          <div class="bg-white/5 rounded-2xl p-4 space-y-3">
+            <div>
+              <div class="import-section-label">Spotify (optional)</div>
+              <input id="import-spotify-client" type="text" class="import-input" placeholder="Client ID">
+              <input id="import-spotify-secret" type="password" class="import-input" placeholder="Client Secret" style="margin-bottom:0">
+            </div>
+            <div class="h-px bg-white/10"></div>
+            <div>
+              <div class="import-section-label">Personal library URL</div>
+              <input id="import-personal-url" type="url" class="import-input" placeholder="https://…" style="margin-bottom:0">
+            </div>
+            <div class="h-px bg-white/10"></div>
+            <div>
+              <div class="import-section-label">Library mode</div>
+              <div class="flex gap-2 mt-1">
+                <button id="import-mode-shared"   class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">Shared</button>
+                <button id="import-mode-personal" class="import-btn import-btn-secondary" style="width:auto;padding:8px 16px">My Library</button>
+              </div>
+            </div>
+          </div>
+          <button id="import-save-settings" class="import-btn import-btn-secondary mt-3">Save advanced settings</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── PANEL: Download ──────────────────────────────────── -->
@@ -14729,7 +14976,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=10"></script>
+<script src="src/features/import/import.feature.js?v=11"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.

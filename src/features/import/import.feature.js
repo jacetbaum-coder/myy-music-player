@@ -615,6 +615,11 @@ function importShowPanel(panel) {
     if (el) el.classList.toggle('hidden', id !== panel);
   });
 
+  // When returning to setup, show the wizard from step 1
+  if (panel === 'setup') {
+    importShowWizardStep(__importWizardStep || 1);
+  }
+
   // Update step indicator
   const steps = ['setup', 'download', 'review'];
   steps.forEach((s, i) => {
@@ -634,11 +639,47 @@ function importShowPanel(panel) {
 }
 
 // ---------------------------------------------------------------------------
-// Setup panel
+// Setup panel — wizard
 // ---------------------------------------------------------------------------
+let __importWizardStep = 1;
+
+function importShowWizardStep(n) {
+  __importWizardStep = n;
+  for (let i = 1; i <= 3; i++) {
+    const step = document.getElementById('import-wiz-' + i);
+    if (step) step.classList.toggle('hidden', i !== n);
+    const dot = document.getElementById('import-wiz-dot-' + i);
+    if (dot) {
+      dot.classList.toggle('active', i === n);
+      dot.classList.toggle('done', i < n);
+    }
+  }
+}
+
+function _importReadR2Fields() {
+  return {
+    r2AccountId:       document.getElementById('import-r2-account')?.value?.trim() || '',
+    r2AccessKeyId:     document.getElementById('import-r2-access-key')?.value?.trim() || '',
+    r2SecretAccessKey: document.getElementById('import-r2-secret')?.value?.trim() || '',
+    r2Bucket:          document.getElementById('import-r2-bucket')?.value?.trim() || '',
+  };
+}
+
+function _importHasR2(settings) {
+  return !!(settings.r2AccountId && settings.r2AccessKeyId && settings.r2SecretAccessKey && settings.r2Bucket);
+}
+
+function _importUpdateR2ContinueBtn() {
+  const btn = document.getElementById('import-wiz2-next');
+  if (!btn) return;
+  const r2 = _importReadR2Fields();
+  btn.disabled = !_importHasR2(r2);
+}
+
 function importInitSetupPanel() {
   const settings = importLoadSettings();
 
+  // Populate all fields from saved settings
   const fields = {
     'import-server-url':       settings.serverUrl       || IMPORT_DEFAULT_SERVER,
     'import-spotify-client':   settings.spotifyClientId  || '',
@@ -649,13 +690,158 @@ function importInitSetupPanel() {
     'import-r2-bucket':        settings.r2Bucket         || '',
     'import-personal-url':     settings.personalUrl      || '',
   };
-
   Object.entries(fields).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (el) el.value = val;
   });
 
-  importPingServer();
+  // --- Wizard Step 1: Server connection ---
+  const wiz1Error   = document.getElementById('import-wiz1-error');
+  const wiz1Form    = document.getElementById('import-wiz1-form');
+  const wiz1Next    = document.getElementById('import-wiz1-next');
+  const wiz1ShowUrl = document.getElementById('import-wiz1-show-url');
+
+  async function _wizPingAndAdvance(autoAdvance) {
+    if (wiz1Error) wiz1Error.classList.add('hidden');
+    const ok = await importPingServer();
+    if (ok) {
+      if (wiz1Next) wiz1Next.disabled = false;
+      // Auto-advance: if server is up and this is the initial load, skip step 1
+      if (autoAdvance) {
+        if (_importHasR2(settings)) {
+          // Everything configured — skip entire wizard
+          importShowPanel('download');
+          return;
+        }
+        // Server OK but no R2 — jump to step 2
+        importShowWizardStep(2);
+        return;
+      }
+    } else {
+      if (wiz1Next) wiz1Next.disabled = true;
+      if (wiz1Error) wiz1Error.classList.remove('hidden');
+    }
+  }
+
+  // Auto-ping on load. If everything is configured, skip the wizard entirely.
+  _wizPingAndAdvance(true);
+
+  // "Change server URL" link in error message
+  if (wiz1ShowUrl && !wiz1ShowUrl.__bound) {
+    wiz1ShowUrl.__bound = true;
+    wiz1ShowUrl.addEventListener('click', () => {
+      if (wiz1Form) wiz1Form.classList.remove('hidden');
+    });
+  }
+
+  // Test connection button
+  const testBtn = document.getElementById('import-test-server');
+  if (testBtn && !testBtn.__importBound) {
+    testBtn.__importBound = true;
+    testBtn.addEventListener('click', () => {
+      const raw = document.getElementById('import-server-url')?.value?.trim();
+      if (raw) importSaveSettings({ serverUrl: raw });
+      _wizPingAndAdvance(false);
+    });
+  }
+
+  // Step 1 Continue
+  if (wiz1Next && !wiz1Next.__bound) {
+    wiz1Next.__bound = true;
+    wiz1Next.addEventListener('click', () => {
+      importShowWizardStep(2);
+    });
+  }
+
+  // Step 1 help toggle
+  const wiz1HelpBtn = document.getElementById('import-wiz1-help-toggle');
+  const wiz1Help    = document.getElementById('import-wiz1-help');
+  if (wiz1HelpBtn && !wiz1HelpBtn.__bound) {
+    wiz1HelpBtn.__bound = true;
+    wiz1HelpBtn.addEventListener('click', () => {
+      if (wiz1Help) wiz1Help.classList.toggle('hidden');
+      wiz1HelpBtn.textContent = wiz1Help && !wiz1Help.classList.contains('hidden') ? 'Hide help' : 'What is this?';
+    });
+  }
+
+  // --- Wizard Step 2: R2 cloud storage ---
+  _importUpdateR2ContinueBtn();
+  ['import-r2-account', 'import-r2-access-key', 'import-r2-secret', 'import-r2-bucket'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.__bound) {
+      el.__bound = true;
+      el.addEventListener('input', _importUpdateR2ContinueBtn);
+    }
+  });
+
+  const wiz2Next = document.getElementById('import-wiz2-next');
+  if (wiz2Next && !wiz2Next.__bound) {
+    wiz2Next.__bound = true;
+    wiz2Next.addEventListener('click', () => {
+      const r2 = _importReadR2Fields();
+      importSaveSettings(r2);
+      _importShowWiz3(true);
+    });
+  }
+
+  const wiz2Skip = document.getElementById('import-wiz2-skip');
+  if (wiz2Skip && !wiz2Skip.__bound) {
+    wiz2Skip.__bound = true;
+    wiz2Skip.addEventListener('click', () => {
+      _importShowWiz3(false);
+    });
+  }
+
+  // Step 2 help toggle
+  const wiz2HelpBtn = document.getElementById('import-wiz2-help-toggle');
+  const wiz2Help    = document.getElementById('import-wiz2-help');
+  if (wiz2HelpBtn && !wiz2HelpBtn.__bound) {
+    wiz2HelpBtn.__bound = true;
+    wiz2HelpBtn.addEventListener('click', () => {
+      if (wiz2Help) wiz2Help.classList.toggle('hidden');
+      wiz2HelpBtn.textContent = wiz2Help && !wiz2Help.classList.contains('hidden') ? 'Hide help' : 'How do I get these?';
+    });
+  }
+
+  // --- Wizard Step 3: Confirmation ---
+  function _importShowWiz3(hasR2) {
+    importShowWizardStep(3);
+    const r2Status = document.getElementById('import-wiz3-r2-status');
+    const r2Note   = document.getElementById('import-wiz3-r2-note');
+    if (hasR2) {
+      if (r2Status) { r2Status.classList.remove('hidden'); }
+      if (r2Note)   r2Note.classList.add('hidden');
+    } else {
+      if (r2Status) { r2Status.classList.add('hidden'); }
+      if (r2Note)   r2Note.classList.remove('hidden');
+    }
+  }
+
+  const wiz3Start = document.getElementById('import-wiz3-start');
+  if (wiz3Start && !wiz3Start.__bound) {
+    wiz3Start.__bound = true;
+    wiz3Start.addEventListener('click', () => {
+      importShowPanel('download');
+    });
+  }
+
+  const wiz3GoSettings = document.getElementById('import-wiz3-goto-settings');
+  if (wiz3GoSettings && !wiz3GoSettings.__bound) {
+    wiz3GoSettings.__bound = true;
+    wiz3GoSettings.addEventListener('click', () => {
+      importShowWizardStep(2);
+    });
+  }
+
+  // --- Advanced settings ---
+  const advToggle = document.getElementById('import-wiz-advanced-toggle');
+  const advPanel  = document.getElementById('import-wiz-advanced');
+  if (advToggle && !advToggle.__bound) {
+    advToggle.__bound = true;
+    advToggle.addEventListener('click', () => {
+      if (advPanel) advPanel.classList.toggle('hidden');
+    });
+  }
 
   // Library mode toggle
   const modeSharedBtn   = document.getElementById('import-mode-shared');
@@ -670,7 +856,6 @@ function importInitSetupPanel() {
       modePersonalBtn.style.background = m === 'personal' ? '#1db954' : '';
       modePersonalBtn.style.color      = m === 'personal' ? '#000' : '';
     }
-    // Keep settings label in sync
     try {
       const lbl = document.getElementById('settings-library-source-label');
       const sw  = document.getElementById('settings-switch-library-mode');
@@ -712,30 +897,6 @@ function importInitSetupPanel() {
       });
       importShowSaveToast('Settings saved');
       importPingServer();
-    });
-  }
-
-  const testBtn = document.getElementById('import-test-server');
-  if (testBtn && !testBtn.__importBound) {
-    testBtn.__importBound = true;
-    testBtn.addEventListener('click', () => {
-      // Re-read URL from input before pinging (user may have typed a new one without saving)
-      const raw = document.getElementById('import-server-url')?.value?.trim();
-      if (raw) importSaveSettings({ serverUrl: raw });
-      importPingServer();
-    });
-  }
-
-  const nextBtn = document.getElementById('import-goto-download');
-  if (nextBtn && !nextBtn.__importBound) {
-    nextBtn.__importBound = true;
-    nextBtn.addEventListener('click', async () => {
-      const ok = await importPingServer();
-      if (!ok) {
-        alert('Cannot reach the local server. Make sure it is running first.');
-        return;
-      }
-      importShowPanel('download');
     });
   }
 }
@@ -1519,19 +1680,21 @@ async function importUploadSelected() {
   const userId = importGetAccountUserId();
 
   if (!userId) {
-    alert('Sign in before uploading music into your personal library.');
+    importShowReviewBanner('Sign in to upload music to your library.', 'warn');
     return;
   }
 
   if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
-    alert('R2 credentials are missing. Please fill them in on the Setup panel.');
-    importShowPanel('setup');
+    importShowReviewBanner(
+      'Cloud storage is not set up. <button class="import-wiz-link" data-wiz-action="setup-r2">Set it up now</button> to upload your music.',
+      'warn'
+    );
     return;
   }
 
   const selected = importGetSelectedFiles();
   if (!selected.length) {
-    alert('No files selected.');
+    importShowReviewBanner('No files selected. Check the boxes next to the tracks you want to upload.', 'warn');
     return;
   }
 
@@ -1623,7 +1786,7 @@ function importInitReviewPanel() {
       try {
         await importLoadPersonalLibraryIntoApp();
       } catch (e) {
-        alert('Upload finished, but the personal library refresh failed: ' + e.message);
+        importShowSaveToast('Uploaded, but library refresh failed');
       }
     });
   }
@@ -1642,7 +1805,8 @@ function importInitReviewPanel() {
         const statusEl = document.getElementById('import-review-status');
         if (statusEl) statusEl.textContent = 'Output folder cleared.';
       } catch (e) {
-        alert('Could not clear files: ' + e.message);
+        importShowSaveToast('Could not clear files');
+        try { console.warn('[import] clear failed:', e); } catch (_) {}
       }
     });
   }
@@ -1742,17 +1906,18 @@ async function importRunClone() {
   const settings = importLoadSettings();
   const userId = importGetAccountUserId();
   if (!userId) {
-    alert('Sign in before copying tracks into your personal library.');
+    importShowSaveToast('Sign in to copy tracks to your library');
     return;
   }
   if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
-    alert('R2 credentials are required in Setup to copy tracks to your bucket.');
+    importShowSaveToast('Set up cloud storage first');
     importShowPanel('setup');
+    importShowWizardStep(2);
     return;
   }
 
   const checks = Array.from(document.querySelectorAll('.import-clone-check:checked'));
-  if (!checks.length) { alert('No tracks selected.'); return; }
+  if (!checks.length) { importShowSaveToast('No tracks selected'); return; }
 
   const startBtn = document.getElementById('import-clone-start');
   const statusEl = document.getElementById('import-clone-status');
@@ -1811,6 +1976,39 @@ async function importRunClone() {
 // ---------------------------------------------------------------------------
 // Toast
 // ---------------------------------------------------------------------------
+function importShowReviewBanner(html, type) {
+  // type: 'warn' | 'error'
+  let container = document.getElementById('import-review-banners');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'import-review-banners';
+    const reviewPanel = document.getElementById('import-panel-review');
+    if (reviewPanel) reviewPanel.prepend(container);
+    else return;
+  }
+  container.innerHTML = '';
+  const banner = document.createElement('div');
+  banner.className = 'import-review-banner import-review-banner-' + (type || 'warn');
+  banner.innerHTML = html;
+  container.appendChild(banner);
+  // Wire up any links inside the banner
+  banner.querySelectorAll('[data-wiz-action]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const action = el.dataset.wizAction;
+      if (action === 'setup-r2') {
+        importShowPanel('setup');
+        importShowWizardStep(2);
+      }
+    });
+  });
+}
+
+function importClearReviewBanners() {
+  const container = document.getElementById('import-review-banners');
+  if (container) container.innerHTML = '';
+}
+
 function importShowSaveToast(msg) {
   let el = document.getElementById('import-toast');
   if (!el) {
