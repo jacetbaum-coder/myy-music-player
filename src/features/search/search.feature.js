@@ -1406,45 +1406,9 @@ try {
 
             const img = document.createElement('img');
 
-const cover = (() => {
-  try {
-    // 1) direct cover fields (if present)
-    const raw =
-      (s && (s.cover || s.coverArt || s.cover_url || s.coverUrl)) || '';
-    const direct = String(raw || '').trim();
-
-    if (direct) {
-      // If getAlbumCover() exists, let it normalize/upgrade the URL
-      if (typeof getAlbumCover === 'function') {
-        const maybe = String(getAlbumCover(s.artist || '', s.album || '', direct) || '').trim();
-        return maybe || direct;
-      }
-      return direct;
-    }
-
-    // 2) derive from the track link (?id=Artist/Album/Track OR Artist/Track)
-    const link = String((s && s.link) || '').trim();
-    const m = link.match(/[?&]id=([^&]+)/);
-    if (!m || !m[1]) return '';
-
-    let key = m[1];
-    try { key = decodeURIComponent(key); } catch (e) {}
-
-    const parts = String(key).split('/').filter(Boolean);
-    if (parts.length < 2) return '';
-
-    // If we have Artist/Album/Track -> use Artist/Album/cover.jpg
-    // If we only have Artist/Track -> use Artist/cover.jpg
-    const coverKey = (parts.length >= 3)
-      ? (parts[0] + '/' + parts[1] + '/cover.jpg')
-      : (parts[0] + '/cover.jpg');
-
-    const base = 'https://music-streamer.jacetbaum.workers.dev/?id=';
-    return base + encodeURIComponent(coverKey);
-  } catch (e) {
-    return '';
-  }
-})();
+const cover = (typeof getAlbumCover === 'function')
+  ? getAlbumCover(s.artist || '', s.album || '', s.coverArt || s.cover || '')
+  : (s.coverArt || s.cover || '');
 
 // ✅ Never leave src empty (empty src becomes your site URL)
 

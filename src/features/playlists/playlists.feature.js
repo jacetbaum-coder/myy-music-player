@@ -787,7 +787,7 @@ window.hydratePlaylistTrackIdsInBackground = async function (opts) {
     try { if (typeof savePlaylists === "function") savePlaylists(); } catch (e) {}
     try { if (typeof window.renderPlaylists === "function") window.renderPlaylists(); } catch (e) {}
     try { if (typeof renderHome === "function") renderHome(); } catch (e) {}
-    try { if (typeof renderLibraryPlaylists === "function") renderLibraryPlaylists(); } catch (e) {}
+    try { if (typeof renderLibraryMain === "function") renderLibraryMain(); } catch (e) {}
   } finally {
     window.__playlistHydrateInFlight = false;
   }
