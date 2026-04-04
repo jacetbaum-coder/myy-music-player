@@ -474,7 +474,6 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--audio-quality", "0",
             "--embed-thumbnail",
             "--add-metadata",
-            "--extractor-args", "youtube:player_client=tv_embedded,web",
             "-o", yt_template,
             request.url,
         )
@@ -610,7 +609,6 @@ async def preview(request: PreviewRequest):
         "--dump-single-json",
         "--no-warnings",
         "--skip-download",
-        "--extractor-args", "youtube:player_client=tv_embedded,web",
         url,
     ]
     data = await asyncio.to_thread(_run_json_command, cmd, 45)

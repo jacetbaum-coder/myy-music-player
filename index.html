@@ -12063,7 +12063,7 @@ for (let i = 0; i < slotCount; i++) {
   });
 }
 
-// Renders a "Recently played" grid showing ALL history types (no tab filter)
+// Renders a "Recently played" grid — respects the active homeTopTab filter
 function renderHomeAllHistory(containerId) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
@@ -12073,16 +12073,10 @@ function renderHomeAllHistory(containerId) {
   const isMobile = (window.innerWidth <= 768);
   const slotCount = isMobile ? 4 : 8;
 
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem('historyLog') || '[]'); } catch (e) { history = []; }
-  if (!Array.isArray(history)) history = [];
-
-  const items = history.slice(0, slotCount).map(h => {
-    const type = String(h?.type || '').trim().toLowerCase();
-    if (type === 'playlist') return { type: 'playlist', id: h.id, name: h.name, cover: h.cover };
-    if (type === 'artist')   return { type: 'artist', artist: h.artist, cover: h.cover };
-    return { type: 'album', album: h.album, artist: h.artist, cover: h.cover };
-  });
+  // Use getHomeRecentsItems() so the tab filter (Artists / Albums / etc.) is respected
+  const items = (typeof getHomeRecentsItems === 'function')
+    ? getHomeRecentsItems().slice(0, slotCount)
+    : [];
 
   const tiles = [];
   for (let i = 0; i < slotCount; i++) {
