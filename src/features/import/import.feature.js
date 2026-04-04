@@ -257,7 +257,21 @@ function importIsRadioOrMixUrl(url) {
   return false;
 }
 
-function importRenderPreview(previewData) {
+function importIsPlaylistUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''));
+    const host = parsed.hostname || '';
+    if (!['www.youtube.com', 'youtube.com', 'm.youtube.com'].includes(host)) return false;
+    // /playlist?list=PLxxx
+    if (parsed.pathname === '/playlist' && parsed.searchParams.has('list')) return true;
+    // /watch?v=xxx&list=PLxxx (regular playlist, not radio/mix)
+    const list = parsed.searchParams.get('list') || '';
+    if (list && !list.startsWith('RD') && !list.startsWith('FL') && !parsed.searchParams.has('start_radio')) return true;
+  } catch (_) {}
+  return false;
+}
+
+function importRenderPreview(previewData, prefetchedTracks) {
   const target = document.getElementById('import-selection-preview');
   importRenderPreviewInto(target, previewData, { emptyMessage: 'Metadata will be editable before save.' });
 
@@ -269,19 +283,25 @@ function importRenderPreview(previewData) {
     return;
   }
 
-  // Only show a track list for radio/mix URLs — not for single videos or regular playlists.
+  // Show track list for radio/mix URLs AND regular playlists.
   const originalInput = __importSelectedSource && __importSelectedSource.input || '';
   const isRadio = importIsRadioOrMixUrl(originalInput);
+  const isPlaylist = importIsPlaylistUrl(originalInput);
 
-  if (isRadio) {
+  if (isRadio || isPlaylist) {
     const statusEl = document.getElementById('import-download-status');
-    if (statusEl) statusEl.textContent = 'Loading track list…';
-    importFetchPlaylistTracks(originalInput).then(tracks => {
-      importRenderTrackSelection(tracks);
-      if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Check the ones you want, then click Download.`;
-    }).catch(e => {
-      if (statusEl) statusEl.textContent = '✗ Could not load track list: ' + e.message;
-    });
+    if (prefetchedTracks && prefetchedTracks.length) {
+      importRenderTrackSelection(prefetchedTracks);
+      if (statusEl) statusEl.textContent = `${prefetchedTracks.length} tracks found. Check the ones you want, then click Download.`;
+    } else {
+      if (statusEl) statusEl.textContent = 'Loading track list…';
+      importFetchPlaylistTracks(originalInput).then(tracks => {
+        importRenderTrackSelection(tracks);
+        if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Check the ones you want, then click Download.`;
+      }).catch(e => {
+        if (statusEl) statusEl.textContent = '✗ Could not load track list: ' + e.message;
+      });
+    }
   } else {
     importHideTrackSelection();
   }
@@ -503,15 +523,34 @@ async function importResolvePrimaryAction() {
 
   importClearSearchResults();
   if (statusEl) statusEl.textContent = 'Loading preview…';
-  const cleanedRaw = importCleanUrl(raw);
+  const isPlaylistLink = importIsPlaylistUrl(raw);
+  const cleanedRaw = isPlaylistLink ? raw : importCleanUrl(raw);
   let preview = null;
+  let playlistTracks = null;
   try {
-    preview = await importPreviewUrl(cleanedRaw);
+    if (isPlaylistLink) {
+      // For playlists, fetch the track list and build a synthetic preview
+      playlistTracks = await importFetchPlaylistTracks(raw);
+      const first = playlistTracks[0] || {};
+      preview = {
+        kind: 'playlist',
+        title: first.album || first.title || 'Playlist',
+        artist: first.artist || '',
+        coverUrl: first.coverUrl || '',
+        sourceUrl: raw,
+        trackCount: playlistTracks.length,
+        tracks: playlistTracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist, durationLabel: t.durationLabel })),
+      };
+    } else {
+      preview = await importPreviewUrl(cleanedRaw);
+    }
   } catch (e) {
-    // If preview fails but the original URL is a radio/mix, don't give up —
+    // If preview fails but the original URL is a radio/mix or playlist, don't give up —
     // the seed video may be geo-restricted but the playlist itself is accessible.
     if (importIsRadioOrMixUrl(raw)) {
       preview = { kind: 'playlist', title: 'Radio / Mix', artist: '', sourceUrl: raw, trackCount: 0, tracks: [] };
+    } else if (isPlaylistLink) {
+      preview = { kind: 'playlist', title: 'Playlist', artist: '', sourceUrl: raw, trackCount: 0, tracks: [] };
     } else {
       if (statusEl) statusEl.textContent = '✗ ' + e.message;
       importUpdatePrimaryAction();
@@ -525,10 +564,10 @@ async function importResolvePrimaryAction() {
     item: null,
     preview,
   };
-  importRenderPreview(preview);
-  // importRenderPreview sets the status to "Loading track list…" for radio URLs,
+  importRenderPreview(preview, playlistTracks);
+  // importRenderPreview sets the status to "Loading track list…" for radio/playlist URLs,
   // so only update status here for single-track previews.
-  if (!importIsRadioOrMixUrl(raw)) {
+  if (!importIsRadioOrMixUrl(raw) && !isPlaylistLink) {
     if (statusEl) statusEl.textContent = 'Preview ready. Click Download when you are ready.';
   }
   importUpdatePrimaryAction();

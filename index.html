@@ -6213,7 +6213,7 @@ body.qs-lock {
           </button>
         </div>
 
-        <div id="np-artist" class="text-[#b3b3b3] mt-2 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
+        <div id="np-artist" class="text-[#b3b3b3] mt-9 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
       </div>
 
       <!-- progress -->
@@ -6229,7 +6229,7 @@ body.qs-lock {
       </div>
 
       <!-- controls (play/pause + prev/next work) -->
-<div id="np-controls" class="mt-4 text-white">
+<div id="np-controls" class="mt-8 text-white">
 
 
   <!-- SHUFFLE (mobile) -->
@@ -8226,9 +8226,7 @@ safe(window.renderHistory);
             r2Path: id,
             title: s?.title || s?.name || id.split("/").pop() || id,
             name: s?.name || s?.title || id.split("/").pop() || id,
-            artist: s?.artistName || album?.artistName || s?.artist || "",
             artistName: s?.artistName || album?.artistName || "",
-            album: s?.albumName || album?.albumName || s?.album || "",
             albumName: s?.albumName || album?.albumName || "",
             cover: s?.cover || album?.coverArt || album?.fallbackArt || "",
             link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
@@ -9967,8 +9965,7 @@ function renderGrid(data) {
       // Try the common fields you use elsewhere in the app
       const url = song.url || song.link || song.src || "";
       const title = song.title || song.name || fallback.title || "Unknown Title";
-      const _rawArtist = song.artist && song.artist !== 'users' ? song.artist : null;
-      const artist = _rawArtist || song.artistName || fallback.artist || "Unknown Artist";
+      const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
       const album = song.album || song.albumName || fallback.album || "Unknown Album";
             let cover = song.cover || song.coverArt || fallback.cover || "";
 
@@ -10505,7 +10502,7 @@ const isCurrent = currentSong && (currentSong.url === songUrl);
     if (parts.length >= 2) {
       const artistFromPath = parts[0] || "";
       const albumFromPath = (parts[1] && !looksLikeFile(parts[1])) ? parts[1] : "";
-      if (artistFromPath && (!song.artist || song.artist === 'users')) song.artist = artistFromPath;
+      if (artistFromPath && !song.artist) song.artist = artistFromPath;
       if (albumFromPath) song.album = albumFromPath;
     }
   } catch (e) {}
@@ -13771,7 +13768,7 @@ function __buildTrackIndexIfNeeded() {
         map.set(key, entry);
 
         // ✅ also index "Artist/Track.mp3" → full key entry (for old playlists)
-        const parts = stripUserPrefix(key);
+        const parts = key.split("/").filter(Boolean);
         if (parts.length >= 3) {
           const shortKey = `${parts[0]}/${parts[parts.length - 1]}`; // Artist/File.mp3
           if (!shortMap.has(shortKey)) {
@@ -13791,7 +13788,7 @@ function __buildTrackIndexIfNeeded() {
   try {
     const shortMap = new Map();
     for (const fullId of map.keys()) {
-      const parts = stripUserPrefix(fullId);
+      const parts = String(fullId || "").split("/").filter(Boolean);
       if (parts.length >= 3) {
         const shortId = `${parts[0]}/${parts[parts.length - 1]}`;
         if (!shortMap.has(shortId)) shortMap.set(shortId, fullId);
@@ -15001,7 +14998,7 @@ try {
 
 <script src="src/features/sync/sync.feature.js"></script>
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
-<script src="src/features/player/player.feature.js?v=3"></script>
+<script src="src/features/player/player.feature.js"></script>
 <script src="src/features/playlists/playlists.feature.js?v=2"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
@@ -15011,7 +15008,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js?v=2"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=14"></script>
+<script src="src/features/import/import.feature.js?v=15"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.
