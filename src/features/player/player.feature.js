@@ -1,5 +1,12 @@
 // Extracted Player feature from index.html
 
+/** Strip `users/{uid}/` prefix from personal R2 keys */
+function _stripUserPrefix(key) {
+  const parts = String(key || '').split('/').filter(Boolean);
+  if (parts.length >= 3 && parts[0] === 'users') parts.splice(0, 2);
+  return parts;
+}
+
 // VOLUME CONTROL
 // -----------------------
 
@@ -1219,7 +1226,7 @@ function restorePlayerStateIfRecent() {
         try { id = decodeURIComponent(id); } catch (e) {}
         id = id.replace(/^\/+/, '').trim();
 
-        const parts = String(id || '').split('/').filter(Boolean);
+        const parts = _stripUserPrefix(id);
         if (parts.length >= 2) {
           const artist = parts[0];
           const album = (parts.length >= 3 ? parts[1] : 'Singles');
@@ -1886,7 +1893,7 @@ function updateNowPlayingUI() {
         }
         try { id = decodeURIComponent(id); } catch (e) {}
         id = id.replace(/^\/+/, '').trim();
-        const parts = String(id || '').split('/').filter(Boolean);
+        const parts = _stripUserPrefix(id);
         if (parts.length >= 2) {
           const a = parts[0];
           const al = (parts.length >= 3 ? parts[1] : 'Singles');
@@ -1942,7 +1949,7 @@ async function playSpecificSong(url, title, album, artist, cover) {
     const u0 = new URL(url, window.location.origin);
     const id0 = String(u0.searchParams.get("id") || "").trim();
     const decoded0 = id0 ? decodeURIComponent(id0) : "";
-    const parts0 = decoded0.split("/").filter(Boolean);
+    const parts0 = _stripUserPrefix(decoded0);
     if (parts0.length >= 3) inferredAlbum = parts0[1] || "";
   } catch (e) {}
 

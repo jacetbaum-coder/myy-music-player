@@ -8226,7 +8226,9 @@ safe(window.renderHistory);
             r2Path: id,
             title: s?.title || s?.name || id.split("/").pop() || id,
             name: s?.name || s?.title || id.split("/").pop() || id,
+            artist: s?.artistName || album?.artistName || s?.artist || "",
             artistName: s?.artistName || album?.artistName || "",
+            album: s?.albumName || album?.albumName || s?.album || "",
             albumName: s?.albumName || album?.albumName || "",
             cover: s?.cover || album?.coverArt || album?.fallbackArt || "",
             link: s?.link || `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(id)}`,
@@ -13768,7 +13770,7 @@ function __buildTrackIndexIfNeeded() {
         map.set(key, entry);
 
         // ✅ also index "Artist/Track.mp3" → full key entry (for old playlists)
-        const parts = key.split("/").filter(Boolean);
+        const parts = stripUserPrefix(key);
         if (parts.length >= 3) {
           const shortKey = `${parts[0]}/${parts[parts.length - 1]}`; // Artist/File.mp3
           if (!shortMap.has(shortKey)) {
@@ -13788,7 +13790,7 @@ function __buildTrackIndexIfNeeded() {
   try {
     const shortMap = new Map();
     for (const fullId of map.keys()) {
-      const parts = String(fullId || "").split("/").filter(Boolean);
+      const parts = stripUserPrefix(fullId);
       if (parts.length >= 3) {
         const shortId = `${parts[0]}/${parts[parts.length - 1]}`;
         if (!shortMap.has(shortId)) shortMap.set(shortId, fullId);
@@ -14998,7 +15000,7 @@ try {
 
 <script src="src/features/sync/sync.feature.js"></script>
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
-<script src="src/features/player/player.feature.js"></script>
+<script src="src/features/player/player.feature.js?v=2"></script>
 <script src="src/features/playlists/playlists.feature.js?v=2"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
