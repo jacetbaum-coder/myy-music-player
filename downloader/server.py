@@ -477,6 +477,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--add-metadata",
             "--ignore-errors",
             "--js-runtimes", "node",
+            "--remote-components", "ejs:github",
             "-o", yt_template,
             request.url,
         )
@@ -549,6 +550,7 @@ async def playlist_tracks(request: PreviewRequest):
         "--no-warnings",
         "--skip-download",
         "--js-runtimes", "node",
+        "--remote-components", "ejs:github",
         "--playlist-end", "100",
         url,
     ]
@@ -575,6 +577,7 @@ async def search(request: SearchRequest):
         "--flat-playlist",
         "--no-warnings",
         "--js-runtimes", "node",
+        "--remote-components", "ejs:github",
         f"ytsearch{limit}:{query}",
     ]
     if not _module_available("yt_dlp"):
@@ -617,6 +620,7 @@ async def preview(request: PreviewRequest):
         "--no-warnings",
         "--skip-download",
         "--js-runtimes", "node",
+        "--remote-components", "ejs:github",
         url,
     ]
     data = await asyncio.to_thread(_run_json_command, cmd, 45)
