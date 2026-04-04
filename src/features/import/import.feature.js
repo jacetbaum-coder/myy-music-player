@@ -298,7 +298,11 @@ async function importFetchSpotifyTracks(url) {
     }
     throw new Error(data.detail || 'Could not fetch Spotify playlist');
   }
-  return Array.isArray(data.tracks) ? data.tracks : [];
+  return {
+    tracks:       Array.isArray(data.tracks) ? data.tracks : [],
+    playlistName: data.playlistName || '',
+    coverUrl:     data.coverUrl     || '',
+  };
 }
 
 function importShowSpotifyCredsPrompt(statusEl) {
