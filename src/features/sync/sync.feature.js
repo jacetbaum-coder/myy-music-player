@@ -214,7 +214,6 @@ window.refreshAccountOnlyUi = function () {
     'settings-open-sync',
     'settings-open-recently-deleted',
     'profile-menu-profile',
-    'crate-open-import',
     'profile-open-edit',
     'profile-launch-edit-card',
     'profile-modal-upload-photo-btn',
@@ -225,6 +224,12 @@ window.refreshAccountOnlyUi = function () {
     'profile-menu-signin',
     'profile-menu-register'
   ].forEach((controlId) => toggleGuestOnlyControl(controlId, !enabled));
+
+  try {
+    if (typeof window.refreshCrateImportUi === 'function') {
+      window.refreshCrateImportUi();
+    }
+  } catch (e) {}
 };
 
 window.migrateGuestDataToAccount = async function (userId, options) {

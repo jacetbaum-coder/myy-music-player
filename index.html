@@ -1613,12 +1613,14 @@ body.song-multiselect .track-row:hover{
 /* NOW PLAYING: About artist bio collapse/expand */
 .np-bio-collapsed{
   display: -webkit-box;
+  line-clamp: 4;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .np-bio-expanded{
   display: block;
+  line-clamp: unset;
   -webkit-line-clamp: unset;
   overflow: visible;
 }
@@ -3944,6 +3946,127 @@ body.qs-lock {
   margin-bottom: 8px;
 }
 
+.import-discovery-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.58);
+  margin: 2px 0 10px;
+}
+
+.import-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.import-result-card {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  border-radius: 14px;
+  padding: 12px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.import-result-card:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.16);
+}
+
+.import-result-card:active {
+  transform: scale(0.99);
+}
+
+.import-result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.import-result-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.import-result-meta {
+  font-size: 12px;
+  color: rgba(255,255,255,0.58);
+  margin-top: 4px;
+}
+
+.import-result-pill {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.74);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.import-preview-card {
+  display: flex;
+  gap: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.import-preview-cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.import-preview-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 22px;
+}
+
+.import-preview-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.import-preview-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.import-preview-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,0.62);
+  margin-top: 4px;
+}
+
+.import-preview-tracks {
+  margin-top: 8px;
+  padding-left: 16px;
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+}
+
+.import-preview-tracks li + li {
+  margin-top: 4px;
+}
+
 .import-file-row {
   background: rgba(255,255,255,0.05);
   border-radius: 12px;
@@ -5006,10 +5129,11 @@ body.qs-lock {
         <div class="crate-tile-sub">Playback options</div>
       </button>
 
-      <button type="button" id="crate-open-import" class="crate-tile" onclick="openCrateImportView()">
-        <div class="crate-tile-icon"><i class="fas fa-cloud-arrow-up"></i></div>
-        <div class="crate-tile-title">Add Music</div>
-        <div class="crate-tile-sub">Download &amp; upload</div>
+      <button type="button" id="crate-open-import" class="crate-tile" onclick="openCrateImportView()" aria-describedby="crate-open-import-note">
+        <div class="crate-tile-icon"><i class="fas fa-download"></i></div>
+        <div id="crate-open-import-title" class="crate-tile-title">Download Your Music</div>
+        <div id="crate-open-import-sub" class="crate-tile-sub">Search, download, and save to your library</div>
+        <div id="crate-open-import-note" class="crate-tile-sub hidden">Account required</div>
       </button>
     </div>
   </div>
@@ -5177,7 +5301,7 @@ body.qs-lock {
         onclick="openCrateSection('home')">
         <i class="fas fa-arrow-left text-white/70"></i>
       </button>
-      <div class="text-2xl font-black">Add Music</div>
+      <div class="text-2xl font-black">Download Your Music</div>
     </div>
 
     <!-- Step indicator -->
@@ -5249,25 +5373,22 @@ body.qs-lock {
     <div id="import-panel-download" class="hidden">
 
       <div class="bg-white/5 rounded-2xl p-4 mb-4">
-        <div class="import-section-label">Spotify or YouTube URL</div>
-        <input id="import-url" type="url" class="import-input" placeholder="https://open.spotify.com/… or youtube.com/…">
-        <button id="import-download-btn" class="import-btn import-btn-primary mb-3">Download</button>
+        <div class="import-section-label">Search or paste a link</div>
+        <input id="import-url" type="text" class="import-input" placeholder="Type an artist, album, or song, or paste a YouTube or Spotify link">
+        <div id="import-discovery-hint" class="import-discovery-hint">Type what you want and I’ll find matches, or paste a direct link to preview it first.</div>
+        <div id="import-search-results" class="import-result-list hidden"></div>
+        <div id="import-selection-preview" class="hidden"></div>
+        <button id="import-download-btn" class="import-btn import-btn-primary mb-3">Find Matches</button>
         <div id="import-download-status" class="text-sm text-white/60 mb-2"></div>
         <div id="import-logs" class="import-logs hidden-empty" style="display:none"></div>
         <button id="import-goto-review" class="import-btn import-btn-secondary hidden">Next: Review →</button>
       </div>
-
-      <script>
-        // Show logs container once download starts
-        document.getElementById('import-download-btn')?.addEventListener('click', function() {
-          var el = document.getElementById('import-logs');
-          if (el) el.style.display = '';
-        }, { once: true });
-      </script>
     </div>
 
     <!-- ── PANEL: Review & Upload ────────────────────────────── -->
     <div id="import-panel-review" class="hidden">
+
+      <div id="import-review-preview" class="hidden mb-4"></div>
 
       <div class="flex items-center justify-between mb-3">
         <div id="import-review-status" class="text-sm text-white/60"></div>
@@ -5948,6 +6069,7 @@ let isAutoNav = false;     // true only when Next/Prev triggers playback
 let isShuffle = false;     // shuffle enabled flag
 
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
+const LIBRARY_CACHE_PERSONAL_KEY = 'libraryDataCache:personal';
 
 // -----------------------
 // CRATE FEATURES (global flags)
@@ -6653,10 +6775,98 @@ function setAccentRGB(r, g, b) {
 
 
 
+function getActiveLibraryCacheKey() {
+  try {
+    const mode = String(localStorage.getItem('libraryMode') || 'shared').trim().toLowerCase();
+    return mode === 'personal' ? LIBRARY_CACHE_PERSONAL_KEY : LIBRARY_CACHE_KEY;
+  } catch (e) {
+    return LIBRARY_CACHE_KEY;
+  }
+}
+
+function shouldUsePersonalLibrary() {
+  try {
+    const mode = String(localStorage.getItem('libraryMode') || 'shared').trim().toLowerCase();
+    if (mode !== 'personal') return false;
+    if (typeof window.getCloudUserId === 'function') {
+      return !!String(window.getCloudUserId() || '').trim();
+    }
+    return !!String(window.APP_ACCOUNT_USER_ID || window.APP_USER_ID || '').trim();
+  } catch (e) {
+    return false;
+  }
+}
+
+function mergeLibraryAlbums(sharedAlbums, personalAlbums) {
+  const merged = [];
+  const albumMap = new Map();
+
+  function normalizeSongId(song, fallbackArtist, fallbackAlbum) {
+    const raw = String(
+      (song && (song.id || song.r2Path || song.track_id || song.trackId || song.key || song.r2_key || song.link || song.url)) || ''
+    ).trim();
+    if (raw) return raw;
+    const artist = String(song && song.artistName || fallbackArtist || '').trim();
+    const album = String(song && song.albumName || fallbackAlbum || '').trim();
+    const fileName = String(song && song.fileName || song && song.title || '').trim();
+    return [artist, album, fileName].filter(Boolean).join('///');
+  }
+
+  function cloneAlbum(album) {
+    const next = Object.assign({}, album || {});
+    next.songs = Array.isArray(album && album.songs)
+      ? album.songs.map((song) => Object.assign({}, song || {}))
+      : [];
+    return next;
+  }
+
+  function mergeFrom(sourceAlbums, sourceType) {
+    (Array.isArray(sourceAlbums) ? sourceAlbums : []).forEach((album) => {
+      const artistName = String(album && album.artistName || '').trim();
+      const albumName = String(album && album.albumName || '').trim();
+      const albumKey = `${artistName}///${albumName}`;
+      if (!albumKey.trim()) return;
+
+      let target = albumMap.get(albumKey);
+      if (!target) {
+        target = cloneAlbum(album);
+        target.songs = [];
+        target.__songIds = new Set();
+        target.__sources = new Set();
+        albumMap.set(albumKey, target);
+        merged.push(target);
+      } else {
+        if (!target.coverArt && album && album.coverArt) target.coverArt = album.coverArt;
+        if (!target.fallbackArt && album && album.fallbackArt) target.fallbackArt = album.fallbackArt;
+      }
+
+      target.__sources.add(sourceType);
+
+      (Array.isArray(album && album.songs) ? album.songs : []).forEach((song) => {
+        const songId = normalizeSongId(song, artistName, albumName);
+        if (!songId || target.__songIds.has(songId)) return;
+        target.__songIds.add(songId);
+        target.songs.push(Object.assign({}, song || {}));
+      });
+    });
+  }
+
+  mergeFrom(sharedAlbums, 'shared');
+  mergeFrom(personalAlbums, 'personal');
+
+  return merged.map((album) => {
+    const next = Object.assign({}, album);
+    next.songs = Array.isArray(album.songs) ? album.songs.slice() : [];
+    delete next.__songIds;
+    delete next.__sources;
+    return next;
+  });
+}
+
         function loadLibraryCache() {
   try {
-    const stored = JSON.parse(localStorage.getItem(LIBRARY_CACHE_KEY) || "[]");
-    if (Array.isArray(stored) && stored.length >= 300) return stored;
+    const stored = JSON.parse(localStorage.getItem(getActiveLibraryCacheKey()) || "[]");
+    if (Array.isArray(stored) && stored.length) return stored;
     return [];
 
   } catch (e) {
@@ -6666,7 +6876,7 @@ function setAccentRGB(r, g, b) {
 
 function saveLibraryCache(data) {
   try {
-    localStorage.setItem(LIBRARY_CACHE_KEY, JSON.stringify(Array.isArray(data) ? data : []));
+    localStorage.setItem(getActiveLibraryCacheKey(), JSON.stringify(Array.isArray(data) ? data : []));
   } catch (e) {
     // ignore cache write failures
   }
@@ -7642,6 +7852,8 @@ try {
     try { if (typeof window.initForYou === 'function') window.initForYou(); } catch (e) {}
   }
 
+  window.applyLibraryAndRender = applyLibraryAndRender;
+
   // 1) Try cache first (instant paint)
 
   try {
@@ -7657,17 +7869,60 @@ try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch('https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now(), { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const sharedUrl = 'https://music-streamer.jacetbaum.workers.dev/api/get-songs?t=' + Date.now();
+    const usePersonal = shouldUsePersonalLibrary() && typeof window.personalDataApiUrl === 'function';
 
+    try {
+      if (usePersonal) {
+        const [sharedResponse, personalResponse] = await Promise.all([
+          fetch(sharedUrl, { signal: controller.signal }),
+          fetch(window.personalDataApiUrl('/user/songs', { t: Date.now() }), {
+            signal: controller.signal,
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' },
+          }),
+        ]);
 
-    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+        if (personalResponse.status === 401) {
+          try { localStorage.setItem('libraryMode', 'shared'); } catch (e) {}
+          if (!sharedResponse.ok) throw new Error(`Request failed with status ${sharedResponse.status}`);
+          const sharedOnly = await sharedResponse.json();
+          if (!Array.isArray(sharedOnly)) throw new Error('Invalid library response');
+          applyLibraryAndRender(sharedOnly);
+          return sharedOnly;
+        }
 
-    const fresh = await response.json();
-    if (!Array.isArray(fresh)) throw new Error('Invalid library response');
+        if (!sharedResponse.ok) throw new Error(`Request failed with status ${sharedResponse.status}`);
+        if (!personalResponse.ok) throw new Error(`Request failed with status ${personalResponse.status}`);
 
-    applyLibraryAndRender(fresh);
+        const [sharedAlbums, personalAlbums] = await Promise.all([
+          sharedResponse.json(),
+          personalResponse.json(),
+        ]);
+
+        if (!Array.isArray(sharedAlbums) || !Array.isArray(personalAlbums)) {
+          throw new Error('Invalid library response');
+        }
+
+        const mergedAlbums = mergeLibraryAlbums(sharedAlbums, personalAlbums);
+        applyLibraryAndRender(mergedAlbums);
+        return mergedAlbums;
+      }
+
+      const response = await fetch(sharedUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+      const fresh = await response.json();
+      if (!Array.isArray(fresh)) throw new Error('Invalid library response');
+      applyLibraryAndRender(fresh);
+      return fresh;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
+
+  window.refreshLibraryForCurrentMode = async function () {
+    return fetchLibraryFromNetwork();
+  };
 
   if (renderedFromCache) {
     // ✅ Let the first paint happen, then refresh

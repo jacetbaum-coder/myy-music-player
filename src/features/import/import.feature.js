@@ -15,6 +15,12 @@ let __importCurrentPanel = 'setup';   // 'setup' | 'download' | 'review'
 let __importCurrentJobId = null;
 let __importPollTimer = null;
 let __importReviewFiles = [];
+let __importSearchResults = [];
+let __importSelectedSource = null;
+let __importLaunchContext = null;
+let __importReviewContext = null;
+
+const IMPORT_SEARCH_LIMIT = 8;
 
 // ---------------------------------------------------------------------------
 // Settings helpers
@@ -36,6 +42,442 @@ function importSaveSettings(patch) {
 
 function importGetServerUrl() {
   return (importLoadSettings().serverUrl || IMPORT_DEFAULT_SERVER).replace(/\/$/, '');
+}
+
+function importSetLaunchContext(context) {
+  __importLaunchContext = context && typeof context === 'object'
+    ? Object.assign({}, context)
+    : null;
+}
+
+function importConsumeLaunchContext() {
+  const next = __importLaunchContext && typeof __importLaunchContext === 'object'
+    ? Object.assign({}, __importLaunchContext)
+    : null;
+  __importLaunchContext = null;
+  return next;
+}
+
+function importTrimmedInput() {
+  return (document.getElementById('import-url')?.value || '').trim();
+}
+
+function importGetAccountUserId() {
+  if (typeof window.getCloudUserId === 'function') {
+    return String(window.getCloudUserId() || '').trim();
+  }
+  return String(window.APP_ACCOUNT_USER_ID || window.APP_USER_ID || '').trim();
+}
+
+function importCloneData(value) {
+  try {
+    return value == null ? value : JSON.parse(JSON.stringify(value));
+  } catch (e) {
+    return value;
+  }
+}
+
+function importIsUrlLike(value) {
+  const raw = String(value || '').trim();
+  return /^(https?:\/\/|spotify:)/i.test(raw);
+}
+
+function importDetectInputKind(value) {
+  return importIsUrlLike(value) ? 'url' : 'query';
+}
+
+function importClearSearchResults() {
+  __importSearchResults = [];
+  const box = document.getElementById('import-search-results');
+  if (!box) return;
+  box.innerHTML = '';
+  box.classList.add('hidden');
+}
+
+function importResetSelectedSource() {
+  __importSelectedSource = null;
+  const preview = document.getElementById('import-selection-preview');
+  if (preview) {
+    preview.innerHTML = '';
+    preview.classList.add('hidden');
+  }
+}
+
+function importResetReviewContext() {
+  __importReviewContext = null;
+  const preview = document.getElementById('import-review-preview');
+  if (preview) {
+    preview.innerHTML = '';
+    preview.classList.add('hidden');
+  }
+}
+
+function importResetDiscoveryState(options) {
+  const preserveStatus = !!(options && options.preserveStatus);
+  const preserveLogs = !!(options && options.preserveLogs);
+  const hideReview = !options || options.hideReview !== false;
+
+  importClearSearchResults();
+  importResetSelectedSource();
+  if (!options || !options.preserveReviewContext) {
+    importResetReviewContext();
+  }
+
+  if (!preserveStatus) {
+    const statusEl = document.getElementById('import-download-status');
+    if (statusEl) statusEl.textContent = '';
+  }
+
+  if (!preserveLogs) {
+    const logsEl = document.getElementById('import-logs');
+    if (logsEl) {
+      logsEl.textContent = '';
+      logsEl.style.display = 'none';
+    }
+  }
+
+  if (hideReview) {
+    const reviewBtn = document.getElementById('import-goto-review');
+    if (reviewBtn) reviewBtn.classList.add('hidden');
+  }
+
+  importUpdatePrimaryAction();
+}
+
+function importGetPrimaryActionConfig() {
+  const raw = importTrimmedInput();
+  const selected = __importSelectedSource;
+  if (!raw) {
+    return { label: 'Find Matches', disabled: false };
+  }
+  if (selected && selected.input === raw && selected.sourceUrl) {
+    return { label: 'Download Selection', disabled: false };
+  }
+  if (importDetectInputKind(raw) === 'query') {
+    return { label: 'Find Matches', disabled: false };
+  }
+  return {
+    label: importDetectUrlType(raw) === 'spotify' ? 'Download Link' : 'Preview Link',
+    disabled: false,
+  };
+}
+
+function importUpdatePrimaryAction() {
+  const btn = document.getElementById('import-download-btn');
+  if (!btn) return;
+  const config = importGetPrimaryActionConfig();
+  btn.textContent = config.label;
+  btn.disabled = !!config.disabled;
+}
+
+function importRenderSearchResults(items) {
+  const box = document.getElementById('import-search-results');
+  if (!box) return;
+
+  if (!Array.isArray(items) || !items.length) {
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    return;
+  }
+
+  box.innerHTML = items.map((item, idx) => {
+    const metaParts = [item.artist, item.album, item.year, item.durationLabel].filter(Boolean);
+    return `
+      <button type="button" class="import-result-card" data-import-result-idx="${idx}">
+        <div class="import-result-top">
+          <div class="min-w-0">
+            <div class="import-result-title">${_escHtml(item.title || 'Untitled')}</div>
+            <div class="import-result-meta">${_escHtml(metaParts.join(' • '))}</div>
+          </div>
+          <div class="import-result-pill">${_escHtml(item.kind || 'track')}</div>
+        </div>
+      </button>
+    `;
+  }).join('');
+  box.classList.remove('hidden');
+
+  box.querySelectorAll('[data-import-result-idx]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const idx = Number(btn.getAttribute('data-import-result-idx'));
+      const item = __importSearchResults[idx];
+      if (!item) return;
+      await importPreviewSelection(item, { input: importTrimmedInput() });
+    });
+  });
+}
+
+function importRenderPreview(previewData) {
+  const target = document.getElementById('import-selection-preview');
+  importRenderPreviewInto(target, previewData, { emptyMessage: 'Metadata will be editable before save.' });
+}
+
+function importRenderPreviewInto(target, previewData, options) {
+  if (!target) return;
+
+  if (!previewData || typeof previewData !== 'object') {
+    target.innerHTML = '';
+    target.classList.add('hidden');
+    return;
+  }
+
+  const cover = String(previewData.coverUrl || '').trim();
+  const metaParts = [previewData.artist, previewData.album, previewData.year, previewData.trackCount ? `${previewData.trackCount} track${previewData.trackCount === 1 ? '' : 's'}` : ''].filter(Boolean);
+  const tracks = Array.isArray(previewData.tracks) ? previewData.tracks.slice(0, 5) : [];
+  const remainingCount = Math.max((previewData.trackCount || tracks.length) - tracks.length, 0);
+  const emptyMessage = String(options && options.emptyMessage || 'Metadata will be editable before save.');
+
+  target.innerHTML = `
+    <div class="import-preview-card">
+      ${cover
+        ? `<img class="import-preview-cover" src="${_escAttr(cover)}" alt="Preview artwork">`
+        : `<div class="import-preview-cover import-preview-cover-fallback"><i class="fas fa-music"></i></div>`}
+      <div class="import-preview-body">
+        <div class="import-preview-title">${_escHtml(previewData.title || 'Untitled')}</div>
+        <div class="import-preview-sub">${_escHtml(metaParts.join(' • ') || emptyMessage)}</div>
+        ${tracks.length ? `
+          <ol class="import-preview-tracks">
+            ${tracks.map((track) => `<li>${_escHtml(track.title || 'Untitled')}${track.artist ? ` <span style="color:rgba(255,255,255,0.45)">• ${_escHtml(track.artist)}</span>` : ''}</li>`).join('')}
+            ${remainingCount > 0 ? `<li>+ ${remainingCount} more track${remainingCount === 1 ? '' : 's'}</li>` : ''}
+          </ol>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  target.classList.remove('hidden');
+}
+
+function importRenderReviewContext() {
+  const box = document.getElementById('import-review-preview');
+  if (!box) return;
+  if (!__importReviewContext || !__importReviewContext.preview) {
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    return;
+  }
+  importRenderPreviewInto(box, __importReviewContext.preview, { emptyMessage: 'Matched source metadata for this download.' });
+}
+
+function importNeedsMetadataDefault(value, file) {
+  const raw = String(value || '').trim();
+  const stem = String(file && file.fileName ? file.fileName.replace(/\.[^.]+$/, '') : '').trim();
+  if (!raw) return true;
+  if (stem && raw.toLowerCase() === stem.toLowerCase()) return true;
+  return false;
+}
+
+async function importPatchReviewField(file, field, value) {
+  const next = String(value || '').trim();
+  if (!file || !next) return file;
+
+  const serverUrl = importGetServerUrl();
+  const res = await fetch(serverUrl + '/file', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ localPath: file.localPath, field, value: next }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok || !data.file) {
+    throw new Error(data.detail || 'Could not save metadata defaults');
+  }
+  return data.file;
+}
+
+async function importApplyReviewPreviewDefaults() {
+  if (!__importReviewContext || !__importReviewContext.preview || !Array.isArray(__importReviewFiles) || !__importReviewFiles.length) {
+    return;
+  }
+
+  const preview = __importReviewContext.preview;
+  const tracks = Array.isArray(preview.tracks) ? preview.tracks : [];
+
+  for (let idx = 0; idx < __importReviewFiles.length; idx += 1) {
+    let file = __importReviewFiles[idx];
+    const track = tracks[idx] || tracks[0] || null;
+    const patchPlan = [];
+
+    if (track && importNeedsMetadataDefault(file.title, file) && track.title) {
+      patchPlan.push(['title', track.title]);
+    }
+    if (track && importNeedsMetadataDefault(file.artist, file) && track.artist) {
+      patchPlan.push(['artist', track.artist]);
+    }
+    if (importNeedsMetadataDefault(file.album, file) && preview.title) {
+      patchPlan.push(['album', preview.title]);
+    }
+    if (importNeedsMetadataDefault(file.albumartist, file) && preview.artist) {
+      patchPlan.push(['albumartist', preview.artist]);
+    }
+
+    for (const [field, value] of patchPlan) {
+      try {
+        file = await importPatchReviewField(file, field, value);
+      } catch (e) {
+        try { console.warn('[import] default metadata patch failed:', e); } catch (_) {}
+      }
+    }
+
+    __importReviewFiles[idx] = file;
+  }
+}
+
+async function importSearchCandidates(query) {
+  const serverUrl = importGetServerUrl();
+  const res = await fetch(serverUrl + '/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, limit: IMPORT_SEARCH_LIMIT }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Search request failed');
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+async function importPreviewUrl(url) {
+  const serverUrl = importGetServerUrl();
+  const res = await fetch(serverUrl + '/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Preview request failed');
+  return data.preview || null;
+}
+
+async function importPreviewSelection(item, options) {
+  const statusEl = document.getElementById('import-download-status');
+  const inputSnapshot = String(options && options.input || importTrimmedInput());
+
+  importRenderSearchResults(__importSearchResults);
+  importRenderPreview(null);
+  if (statusEl) statusEl.textContent = 'Loading preview…';
+
+  try {
+    const preview = await importPreviewUrl(item.sourceUrl);
+    __importSelectedSource = {
+      input: inputSnapshot,
+      sourceUrl: item.sourceUrl,
+      provider: item.provider || 'youtube',
+      item,
+      preview,
+    };
+    importRenderPreview(preview);
+    if (statusEl) statusEl.textContent = 'Preview ready. Download when you are ready.';
+  } catch (e) {
+    __importSelectedSource = null;
+    if (statusEl) statusEl.textContent = '✗ ' + e.message;
+  }
+
+  importUpdatePrimaryAction();
+}
+
+async function importResolvePrimaryAction() {
+  const raw = importTrimmedInput();
+  const statusEl = document.getElementById('import-download-status');
+  const reviewBtn = document.getElementById('import-goto-review');
+
+  if (!raw) {
+    alert('Please type a search or paste a link.');
+    return;
+  }
+
+  if (reviewBtn) reviewBtn.classList.add('hidden');
+
+  const selected = __importSelectedSource;
+  if (selected && selected.input === raw && selected.sourceUrl) {
+    await importStartDownload(selected.sourceUrl);
+    return;
+  }
+
+  if (importDetectInputKind(raw) === 'query') {
+    importResetSelectedSource();
+    importClearSearchResults();
+    if (statusEl) statusEl.textContent = 'Searching…';
+    try {
+      const items = await importSearchCandidates(raw);
+      __importSearchResults = items;
+      importRenderSearchResults(items);
+      if (!items.length) {
+        if (statusEl) statusEl.textContent = 'No matches found. Try a more specific artist, album, or song.';
+      } else {
+        if (statusEl) statusEl.textContent = `Found ${items.length} match${items.length === 1 ? '' : 'es'}. Pick the closest one to preview.`;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = '✗ ' + e.message;
+    }
+    importUpdatePrimaryAction();
+    return;
+  }
+
+  if (importDetectUrlType(raw) === 'spotify') {
+    if (statusEl) statusEl.textContent = 'Spotify links download directly for now.';
+    await importStartDownload(raw);
+    return;
+  }
+
+  importClearSearchResults();
+  if (statusEl) statusEl.textContent = 'Loading preview…';
+  try {
+    const preview = await importPreviewUrl(raw);
+    __importSelectedSource = {
+      input: raw,
+      sourceUrl: raw,
+      provider: 'youtube',
+      item: null,
+      preview,
+    };
+    importRenderPreview(preview);
+    if (statusEl) statusEl.textContent = 'Preview ready. Download when you are ready.';
+  } catch (e) {
+    __importSelectedSource = null;
+    if (statusEl) statusEl.textContent = '✗ ' + e.message;
+  }
+  importUpdatePrimaryAction();
+}
+
+async function importApplyLaunchContext(context) {
+  const launch = context && typeof context === 'object' ? context : null;
+  if (!launch) return;
+
+  const inputEl = document.getElementById('import-url');
+  const launchInput = String(launch.input || launch.query || launch.url || '').trim();
+
+  if (inputEl && launchInput) {
+    inputEl.value = launchInput;
+  }
+
+  if (launch.preview && launch.sourceUrl) {
+    __importSelectedSource = {
+      input: launchInput || String(launch.sourceUrl || '').trim(),
+      sourceUrl: String(launch.sourceUrl || '').trim(),
+      provider: String(launch.provider || 'youtube').trim() || 'youtube',
+      item: launch.item || null,
+      preview: launch.preview,
+    };
+    __importReviewContext = importCloneData(__importSelectedSource);
+    importRenderPreview(launch.preview);
+  }
+
+  importUpdatePrimaryAction();
+
+  const wantsDownloadPanel = !!(launch.preferDownloadPanel || launchInput || launch.sourceUrl || launch.preview);
+  if (!wantsDownloadPanel) return;
+
+  const serverOk = await importPingServer();
+  if (serverOk) {
+    importShowPanel('download');
+    importUpdatePrimaryAction();
+    if (launch.autoResolve) {
+      await importResolvePrimaryAction();
+    }
+    return;
+  }
+
+  importShowPanel('setup');
+  const statusEl = document.getElementById('import-download-status');
+  if (statusEl && launchInput) {
+    statusEl.textContent = 'Finish setup and start the local helper to continue with your selected download.';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +649,28 @@ function importInitDownloadPanel() {
   const dlBtn = document.getElementById('import-download-btn');
   if (dlBtn && !dlBtn.__importBound) {
     dlBtn.__importBound = true;
-    dlBtn.addEventListener('click', importStartDownload);
+    dlBtn.addEventListener('click', importResolvePrimaryAction);
+  }
+
+  const input = document.getElementById('import-url');
+  if (input && !input.__importBound) {
+    input.__importBound = true;
+    input.addEventListener('input', () => {
+      const current = importTrimmedInput();
+      if (!__importSelectedSource || __importSelectedSource.input !== current) {
+        importResetSelectedSource();
+      }
+      importClearSearchResults();
+      const statusEl = document.getElementById('import-download-status');
+      if (statusEl && statusEl.textContent && !current) statusEl.textContent = '';
+      importUpdatePrimaryAction();
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        importResolvePrimaryAction();
+      }
+    });
   }
 
   const reviewBtn = document.getElementById('import-goto-review');
@@ -215,15 +678,16 @@ function importInitDownloadPanel() {
     reviewBtn.__importBound = true;
     reviewBtn.addEventListener('click', () => importShowPanel('review'));
   }
+
+  importUpdatePrimaryAction();
 }
 
 function importDetectUrlType(url) {
   return (url.includes('spotify.com') || url.startsWith('spotify:')) ? 'spotify' : 'youtube';
 }
 
-async function importStartDownload() {
-  const urlInput = document.getElementById('import-url');
-  const url = (urlInput?.value || '').trim();
+async function importStartDownload(sourceUrl) {
+  const url = String(sourceUrl || importTrimmedInput()).trim();
   if (!url) { alert('Please enter a URL.'); return; }
 
   const logsEl = document.getElementById('import-logs');
@@ -232,12 +696,24 @@ async function importStartDownload() {
   const dlBtn = document.getElementById('import-download-btn');
 
   if (logsEl) logsEl.textContent = '';
+  if (logsEl) logsEl.style.display = '';
   if (statusEl) statusEl.textContent = 'Starting download…';
   if (reviewBtn) reviewBtn.classList.add('hidden');
   if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = 'Downloading…'; }
 
   const settings = importLoadSettings();
   const serverUrl = importGetServerUrl();
+  const selected = __importSelectedSource && __importSelectedSource.sourceUrl === url
+    ? importCloneData(__importSelectedSource)
+    : null;
+
+  __importReviewContext = selected || {
+    input: importTrimmedInput(),
+    sourceUrl: url,
+    provider: importDetectUrlType(url),
+    item: null,
+    preview: selected ? selected.preview : null,
+  };
 
   const body = {
     url,
@@ -262,7 +738,7 @@ async function importStartDownload() {
     __importCurrentJobId = jobId;
   } catch (e) {
     if (statusEl) statusEl.textContent = '✗ Failed to start: ' + e.message;
-    if (dlBtn) { dlBtn.disabled = false; dlBtn.textContent = 'Download'; }
+    importUpdatePrimaryAction();
     return;
   }
 
@@ -300,15 +776,22 @@ function importPollJob(jobId) {
         __importPollTimer = null;
         const fileCount = Array.isArray(data.files) ? data.files.length : '?';
         if (statusEl) statusEl.textContent = `✓ Done — ${fileCount} file(s) ready`;
-        if (dlBtn) { dlBtn.disabled = false; dlBtn.textContent = 'Download Another'; }
-        if (reviewBtn) reviewBtn.classList.remove('hidden');
+        importResetSelectedSource();
+        importClearSearchResults();
+        importUpdatePrimaryAction();
+        if (__importReviewContext && __importReviewContext.preview) {
+          importShowPanel('review');
+          importInitReviewPanel();
+        } else if (reviewBtn) {
+          reviewBtn.classList.remove('hidden');
+        }
       }
 
       if (data.status === 'error') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
         if (statusEl) statusEl.textContent = '✗ Download failed — see logs above';
-        if (dlBtn) { dlBtn.disabled = false; dlBtn.textContent = 'Try Again'; }
+        importUpdatePrimaryAction();
       }
     } catch (e) {
       // network blip — keep polling
@@ -323,6 +806,7 @@ async function importLoadReviewFiles() {
   const listEl = document.getElementById('import-file-list');
   const statusEl = document.getElementById('import-review-status');
 
+  importRenderReviewContext();
   if (statusEl) statusEl.textContent = 'Loading files…';
   if (listEl) listEl.innerHTML = '';
 
@@ -342,6 +826,8 @@ async function importLoadReviewFiles() {
     return;
   }
 
+  await importApplyReviewPreviewDefaults();
+
   if (statusEl) statusEl.textContent = `${__importReviewFiles.length} file(s) — edit tags, then upload.`;
 
   importRenderFileRows();
@@ -353,6 +839,69 @@ function importComputeR2Key(file) {
   const title = (file.title || file.fileName || 'Unknown').trim();
   const ext = file.fileName ? file.fileName.split('.').pop() : 'mp3';
   return `${artist}/${album}/${title}.${ext}`;
+}
+
+function importComputeUploadR2Key(file) {
+  const baseKey = importComputeR2Key(file);
+  const uid = importGetAccountUserId();
+  return uid ? `users/${uid}/${baseKey}` : baseKey;
+}
+
+function importIsPersonalLibraryMode() {
+  try {
+    return String(localStorage.getItem('libraryMode') || 'shared').trim().toLowerCase() === 'personal';
+  } catch (e) {
+    return false;
+  }
+}
+
+function importDescribeAuthFailure(status, fallbackMessage) {
+  if (Number(status) === 401) {
+    return 'Your sign-in expired. Sign in again and retry.';
+  }
+  return fallbackMessage;
+}
+
+async function importRefreshPersonalLibrary(options) {
+  const navigateToLibrary = !options || options.navigateToLibrary !== false;
+  try { localStorage.setItem('libraryMode', 'personal'); } catch (e) {}
+  if (typeof window.refreshLibraryForCurrentMode === 'function') {
+    await window.refreshLibraryForCurrentMode();
+    if (navigateToLibrary) {
+      try { showView('library'); } catch (e) {}
+    }
+    return;
+  }
+
+  if (typeof window.personalDataApiUrl !== 'function') {
+    throw new Error('Personal library API is unavailable.');
+  }
+
+  const res = await fetch(window.personalDataApiUrl('/user/songs'), {
+    credentials: 'include',
+    headers: { 'Accept': 'application/json' },
+  });
+  const data = await res.json().catch(() => ([]));
+  if (!res.ok) {
+    throw new Error(importDescribeAuthFailure(
+      res.status,
+      data && data.error ? data.error : `Personal library request failed with status ${res.status}`
+    ));
+  }
+  if (!Array.isArray(data)) {
+    throw new Error('Personal library response was invalid.');
+  }
+
+  if (typeof window.applyLibraryAndRender === 'function') {
+    window.applyLibraryAndRender(data);
+  }
+  if (navigateToLibrary) {
+    try { showView('library'); } catch (e) {}
+  }
+}
+
+async function importLoadPersonalLibraryIntoApp() {
+  return importRefreshPersonalLibrary({ navigateToLibrary: true });
 }
 
 function importRenderFileRows() {
@@ -464,6 +1013,12 @@ function importGetSelectedFiles() {
 async function importUploadSelected() {
   const settings = importLoadSettings();
   const serverUrl = importGetServerUrl();
+  const userId = importGetAccountUserId();
+
+  if (!userId) {
+    alert('Sign in before uploading music into your personal library.');
+    return;
+  }
 
   if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
     alert('R2 credentials are missing. Please fill them in on the Setup panel.');
@@ -487,7 +1042,7 @@ async function importUploadSelected() {
 
   const files = selected.map(f => ({
     localPath: f.localPath,
-    r2Key: importComputeR2Key(f),
+    r2Key: importComputeUploadR2Key(f),
   }));
 
   const body = {
@@ -496,6 +1051,7 @@ async function importUploadSelected() {
     r2AccessKeyId:        settings.r2AccessKeyId,
     r2SecretAccessKey:    settings.r2SecretAccessKey,
     r2Bucket:             settings.r2Bucket,
+    userId,
   };
 
   try {
@@ -506,7 +1062,9 @@ async function importUploadSelected() {
     });
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) throw new Error(data.detail || 'Upload request failed');
+    if (!res.ok) {
+      throw new Error(importDescribeAuthFailure(res.status, data.detail || 'Upload request failed'));
+    }
 
     const results = Array.isArray(data.results) ? data.results : [];
     const succeeded = results.filter(r => r.ok).length;
@@ -558,16 +1116,11 @@ function importInitReviewPanel() {
   const doneBtn = document.getElementById('import-upload-done');
   if (doneBtn && !doneBtn.__importBound) {
     doneBtn.__importBound = true;
-    doneBtn.addEventListener('click', () => {
-      // Reload the library
+    doneBtn.addEventListener('click', async () => {
       try {
-        if (typeof window.applyLibraryAndRender === 'function') {
-          window.applyLibraryAndRender();
-        } else {
-          window.location.reload();
-        }
+        await importLoadPersonalLibraryIntoApp();
       } catch (e) {
-        window.location.reload();
+        alert('Upload finished, but the personal library refresh failed: ' + e.message);
       }
     });
   }
@@ -581,6 +1134,7 @@ function importInitReviewPanel() {
       try {
         await fetch(serverUrl + '/clear', { method: 'POST' });
         __importReviewFiles = [];
+        importResetReviewContext();
         importRenderFileRows();
         const statusEl = document.getElementById('import-review-status');
         if (statusEl) statusEl.textContent = 'Output folder cleared.';
@@ -683,6 +1237,11 @@ async function importLoadCloneList() {
 
 async function importRunClone() {
   const settings = importLoadSettings();
+  const userId = importGetAccountUserId();
+  if (!userId) {
+    alert('Sign in before copying tracks into your personal library.');
+    return;
+  }
   if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
     alert('R2 credentials are required in Setup to copy tracks to your bucket.');
     importShowPanel('setup');
@@ -699,9 +1258,11 @@ async function importRunClone() {
   if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Copying…'; }
 
   let done = 0, failed = 0;
+  let authExpired = false;
   const total = checks.length;
 
   for (const cb of checks) {
+    if (authExpired) break;
     const sourceUrl = cb.dataset.link;
     const r2Key    = cb.dataset.key;
     if (statusEl) statusEl.textContent = `Copying ${done + failed + 1} / ${total}…`;
@@ -716,19 +1277,32 @@ async function importRunClone() {
           r2AccessKeyId:     settings.r2AccessKeyId,
           r2SecretAccessKey: settings.r2SecretAccessKey,
           r2Bucket:          settings.r2Bucket,
+          userId,
         }),
         signal: AbortSignal.timeout(180000),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        authExpired = true;
+        if (statusEl) statusEl.textContent = '✗ Your sign-in expired. Sign in again and retry copying tracks.';
+        continue;
+      }
       if (res.ok && data.ok) done++; else failed++;
     } catch (e) {
       failed++;
     }
   }
 
-  if (statusEl) statusEl.textContent = `✓ Copied ${done} / ${total}. ${failed > 0 ? failed + ' failed.' : ''}`;
+  if (!authExpired && statusEl) statusEl.textContent = `✓ Copied ${done} / ${total}. ${failed > 0 ? failed + ' failed.' : ''}`;
   if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Copy Selected to My Library'; }
-  if (done > 0) importShowSaveToast(`Copied ${done} track${done !== 1 ? 's' : ''} to your library`);
+  if (done > 0) {
+    if (importIsPersonalLibraryMode()) {
+      importRefreshPersonalLibrary({ navigateToLibrary: false }).catch((e) => {
+        try { console.warn('[import] background personal library refresh failed:', e); } catch (_) {}
+      });
+    }
+    importShowSaveToast(`Copied ${done} track${done !== 1 ? 's' : ''} to your library`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -774,9 +1348,12 @@ function _formatBytes(bytes) {
 // Main init — called by showView('import')
 // ---------------------------------------------------------------------------
 function initImportView() {
+  const launchContext = importConsumeLaunchContext();
+
   importShowPanel('setup');
   importInitSetupPanel();
   importInitDownloadPanel();
+  importResetDiscoveryState();
 
   // Back button
   const backBtn = document.getElementById('import-back');
@@ -803,6 +1380,10 @@ function initImportView() {
     gotoReview.addEventListener('click', __importGotoReviewHandler);
     gotoReview.__importBound = false; // re-allow re-bind if needed
   }
+
+  importApplyLaunchContext(launchContext).catch((err) => {
+    try { console.warn('[import] failed to apply launch context:', err); } catch (e) {}
+  });
 }
 
 function __importGotoReviewHandler() {
@@ -811,3 +1392,4 @@ function __importGotoReviewHandler() {
 }
 
 window.initImportView = initImportView;
+window.setImportLaunchContext = importSetLaunchContext;

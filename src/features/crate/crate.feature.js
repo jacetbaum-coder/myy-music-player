@@ -699,6 +699,37 @@ function goBackFromCrate() {
   showView("home");
 }
 
+function refreshCrateImportUi() {
+  const tile = document.getElementById("crate-open-import");
+  const title = document.getElementById("crate-open-import-title");
+  const sub = document.getElementById("crate-open-import-sub");
+  const note = document.getElementById("crate-open-import-note");
+  const signedIn = !!getCrateCloudUserId();
+
+  if (!tile) return;
+
+  tile.classList.toggle("disabled", !signedIn);
+  tile.setAttribute("aria-disabled", signedIn ? "false" : "true");
+  tile.title = signedIn
+    ? "Download music into your personal library"
+    : "Create an account to download music into your personal library";
+
+  if (title) {
+    title.textContent = signedIn ? "Download Your Music" : "Download Your Music";
+  }
+
+  if (sub) {
+    sub.textContent = signedIn
+      ? "Search, download, and save to your library"
+      : "Create an account to search, download, and save music";
+  }
+
+  if (note) {
+    note.classList.toggle("hidden", signedIn);
+    note.textContent = signedIn ? "" : "Account required";
+  }
+}
+
 function openCrateSection(which) {
   const home = document.getElementById("crate-home");
   const editor = document.getElementById("crate-editor");
@@ -707,6 +738,11 @@ function openCrateSection(which) {
   const importView = document.getElementById("crate-import");
 
   const w = String(which || "home");
+
+  if (w === "import" && typeof window.requireAccount === "function" && !window.requireAccount("Create an account to download music into your library.")) {
+    refreshCrateImportUi();
+    return;
+  }
 
   if (home) home.classList.toggle("hidden", w !== "home");
   if (editor) editor.classList.toggle("hidden", w !== "crate");
@@ -736,10 +772,16 @@ function openCrateSection(which) {
   } catch (e) {}
 }
 
-function openCrateImportView() {
-  if (typeof window.requireAccount === "function" && !window.requireAccount("Sign in to import music.")) {
+function openCrateImportView(context) {
+  if (typeof window.requireAccount === "function" && !window.requireAccount("Create an account to download music into your library.")) {
+    refreshCrateImportUi();
     return;
   }
+  try {
+    if (typeof window.setImportLaunchContext === "function") {
+      window.setImportLaunchContext(Object.assign({ preferDownloadPanel: true, source: "crate" }, context || {}));
+    }
+  } catch (e) {}
   try { showView("crate"); } catch (e) {}
   openCrateSection("import");
 }
@@ -750,11 +792,13 @@ function initCrateUIOnce() {
   window.__crateUIBound = true;
 
   ensureCrateLoaded();
+  refreshCrateImportUi();
 
   // Pull from cloud once on first init
   pullCrateFromCloud().then(() => {
     try { renderCrate(); } catch (e) {}
     try { renderCrateSyncStatus(); } catch (e) {}
+    try { refreshCrateImportUi(); } catch (e) {}
     try { revealCrateEditorIfNeeded(); } catch (e) {}
   });
 
@@ -844,6 +888,7 @@ window.initCrateUIOnce = initCrateUIOnce;
 window.renderCrate = renderCrate;
 window.openCrateSection = openCrateSection;
 window.openCrateImportView = openCrateImportView;
+window.refreshCrateImportUi = refreshCrateImportUi;
 
 
 /* -----------------------

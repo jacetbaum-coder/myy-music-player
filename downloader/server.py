@@ -9,9 +9,12 @@ Start: python server.py  (or bash start.sh)
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import json
 import os
 import shutil
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -79,6 +82,15 @@ class DownloadRequest(BaseModel):
     outputFormat: str = "{artist}/{album}/{title}.{output-ext}"
 
 
+class SearchRequest(BaseModel):
+    query: str
+    limit: int = 8
+
+
+class PreviewRequest(BaseModel):
+    url: str
+
+
 class PatchFileRequest(BaseModel):
     localPath: str
     field: str   # title | artist | album | albumartist
@@ -96,6 +108,7 @@ class UploadRequest(BaseModel):
     r2AccessKeyId: str
     r2SecretAccessKey: str
     r2Bucket: str
+    userId: Optional[str] = None
 
 
 class DeleteFileRequest(BaseModel):
@@ -116,6 +129,7 @@ class CopyFromUrlRequest(BaseModel):
     r2AccessKeyId: str
     r2SecretAccessKey: str
     r2Bucket: str
+    userId: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -224,28 +238,217 @@ def detect_url_type(url: str) -> str:
     return "youtube"
 
 
+def _module_available(module_name: str) -> bool:
+    return importlib.util.find_spec(module_name) is not None
+
+
+def _module_command(module_name: str, *args: str) -> list[str]:
+    return [sys.executable, "-m", module_name, *args]
+
+
+def _run_json_command(cmd: list[str], timeout: int = 30) -> Any:
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"'{cmd[0]}' not found. Make sure it is installed and on your PATH.")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Lookup timed out.")
+
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+
+    if result.returncode != 0:
+        detail = stderr or stdout or f"{cmd[0]} failed with exit code {result.returncode}."
+        raise HTTPException(status_code=502, detail=detail)
+
+    if not stdout:
+        raise HTTPException(status_code=502, detail=f"{cmd[0]} returned no data.")
+
+    try:
+        return json.loads(stdout)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail=f"{cmd[0]} returned invalid JSON.")
+
+
+def _pick_thumbnail(data: Any) -> str:
+    if not isinstance(data, dict):
+        return ""
+
+    thumbs = data.get("thumbnails")
+    if isinstance(thumbs, list):
+        for item in reversed(thumbs):
+            if isinstance(item, dict) and item.get("url"):
+                return str(item["url"])
+
+    return str(data.get("thumbnail") or "")
+
+
+def _extract_year(data: Any) -> str:
+    if not isinstance(data, dict):
+        return ""
+
+    for key in ("release_year", "release_date", "upload_date"):
+        value = data.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if len(text) >= 4:
+            return text[:4]
+    return ""
+
+
+def _extract_duration_label(data: Any) -> str:
+    if not isinstance(data, dict):
+        return ""
+
+    value = data.get("duration_string")
+    if value:
+        return str(value)
+
+    seconds = data.get("duration")
+    if not isinstance(seconds, (int, float)) or seconds <= 0:
+        return ""
+
+    total = int(seconds)
+    minutes, sec = divmod(total, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{sec:02d}"
+    return f"{minutes}:{sec:02d}"
+
+
+def _normalize_source_url(data: Any) -> str:
+    if not isinstance(data, dict):
+        return ""
+
+    raw = str(data.get("webpage_url") or "").strip()
+    if raw.startswith("http"):
+        return raw
+
+    display_id = str(data.get("url") or "").strip()
+    if display_id.startswith("http"):
+        return display_id
+
+    video_id = str(data.get("id") or display_id).strip()
+    if video_id:
+        return f"https://www.youtube.com/watch?v={video_id}"
+
+    return ""
+
+
+def _normalize_search_item(entry: Any) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        return {}
+
+    kind = "playlist" if entry.get("_type") == "playlist" else "track"
+    title = str(entry.get("title") or entry.get("playlist_title") or "Untitled")
+    artist = str(
+        entry.get("artist")
+        or entry.get("uploader")
+        or entry.get("channel")
+        or entry.get("playlist_uploader")
+        or ""
+    )
+    album = str(entry.get("album") or entry.get("playlist_title") or "")
+
+    return {
+        "provider": "youtube",
+        "kind": kind,
+        "title": title,
+        "artist": artist,
+        "album": album,
+        "year": _extract_year(entry),
+        "durationLabel": _extract_duration_label(entry),
+        "coverUrl": _pick_thumbnail(entry),
+        "sourceUrl": _normalize_source_url(entry),
+    }
+
+
+def _normalize_preview_track(entry: Any) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        return {}
+
+    return {
+        "title": str(entry.get("track") or entry.get("title") or "Untitled"),
+        "artist": str(entry.get("artist") or entry.get("uploader") or entry.get("channel") or ""),
+        "sourceUrl": _normalize_source_url(entry),
+        "durationLabel": _extract_duration_label(entry),
+    }
+
+
+def _normalize_preview(data: Any, source_url: str) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="Preview data was missing or malformed.")
+
+    entries = [entry for entry in (data.get("entries") or []) if isinstance(entry, dict)]
+    if entries:
+        tracks = [_normalize_preview_track(entry) for entry in entries]
+        return {
+            "provider": "youtube",
+            "kind": "playlist",
+            "title": str(data.get("playlist_title") or data.get("title") or "Playlist"),
+            "artist": str(data.get("playlist_uploader") or data.get("uploader") or ""),
+            "album": str(data.get("playlist_title") or data.get("title") or ""),
+            "year": _extract_year(data) or _extract_year(entries[0]),
+            "coverUrl": _pick_thumbnail(data) or _pick_thumbnail(entries[0]),
+            "sourceUrl": source_url,
+            "trackCount": len(tracks),
+            "tracks": tracks,
+        }
+
+    single_track = _normalize_preview_track(data)
+    return {
+        "provider": "youtube",
+        "kind": "track",
+        "title": single_track.get("title") or "Untitled",
+        "artist": single_track.get("artist") or "",
+        "album": str(data.get("album") or data.get("playlist_title") or ""),
+        "year": _extract_year(data),
+        "coverUrl": _pick_thumbnail(data),
+        "sourceUrl": source_url,
+        "trackCount": 1,
+        "tracks": [single_track],
+    }
+
+
 async def run_download(job_id: str, request: DownloadRequest) -> None:
     """Run the download subprocess and update the job store on completion."""
     url_type = detect_url_type(request.url)
     output_dir = str(OUTPUT_DIR)
 
     if url_type == "spotify":
-        cmd = [
+        if not _module_available("spotdl"):
+            append_log(job_id, "✗ 'spotdl' is not installed in this Python environment.")
+            jobs[job_id]["status"] = "error"
+            return
+
+        cmd = _module_command(
             "spotdl",
             "download",
             request.url,
             "--output",
             os.path.join(output_dir, request.outputFormat.lstrip("/")),
-        ]
+        )
         if request.spotifyClientId:
             cmd += ["--client-id", request.spotifyClientId]
         if request.spotifyClientSecret:
             cmd += ["--client-secret", request.spotifyClientSecret]
     else:
+        if not _module_available("yt_dlp"):
+            append_log(job_id, "✗ 'yt-dlp' is not installed in this Python environment.")
+            jobs[job_id]["status"] = "error"
+            return
+
         # Build yt-dlp output template — embed the folder structure
         yt_template = os.path.join(output_dir, "%(uploader)s", "%(album,playlist_title,uploader)s", "%(title)s.%(ext)s")
-        cmd = [
-            "yt-dlp",
+        cmd = _module_command(
+            "yt_dlp",
             "-x",
             "--audio-format", "mp3",
             "--audio-quality", "0",
@@ -253,7 +456,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--add-metadata",
             "-o", yt_template,
             request.url,
-        ]
+        )
 
     append_log(job_id, f"▶ Running: {' '.join(cmd)}")
 
@@ -283,7 +486,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
 
     except FileNotFoundError as exc:
         tool = "spotdl" if url_type == "spotify" else "yt-dlp"
-        append_log(job_id, f"✗ '{tool}' not found. Make sure it is installed and on your PATH.")
+        append_log(job_id, f"✗ '{tool}' could not be launched from this Python environment.")
         jobs[job_id]["status"] = "error"
     except Exception as exc:
         append_log(job_id, f"✗ Unexpected error: {exc}")
@@ -304,6 +507,50 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
 @app.get("/health")
 def health():
     return {"ok": True, "outputDir": str(OUTPUT_DIR)}
+
+
+@app.post("/search")
+async def search(request: SearchRequest):
+    query = str(request.query or "").strip()
+    limit = max(1, min(int(request.limit or 8), 12))
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required.")
+
+    cmd = [
+        *_module_command("yt_dlp"),
+        "--dump-single-json",
+        "--flat-playlist",
+        "--no-warnings",
+        f"ytsearch{limit}:{query}",
+    ]
+    if not _module_available("yt_dlp"):
+        raise HTTPException(status_code=500, detail="'yt-dlp' is not installed in this Python environment.")
+    data = await asyncio.to_thread(_run_json_command, cmd, 30)
+    entries = [entry for entry in (data.get("entries") or []) if isinstance(entry, dict)]
+    items = [_normalize_search_item(entry) for entry in entries]
+    items = [item for item in items if item.get("sourceUrl")]
+    return {"provider": "youtube", "query": query, "items": items}
+
+
+@app.post("/preview")
+async def preview(request: PreviewRequest):
+    url = str(request.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required.")
+    if detect_url_type(url) != "youtube":
+        raise HTTPException(status_code=400, detail="Preview is currently supported for YouTube links and search matches only.")
+    if not _module_available("yt_dlp"):
+        raise HTTPException(status_code=500, detail="'yt-dlp' is not installed in this Python environment.")
+
+    cmd = [
+        *_module_command("yt_dlp"),
+        "--dump-single-json",
+        "--no-warnings",
+        "--skip-download",
+        url,
+    ]
+    data = await asyncio.to_thread(_run_json_command, cmd, 45)
+    return {"provider": "youtube", "preview": _normalize_preview(data, url)}
 
 
 @app.post("/download")
@@ -357,20 +604,21 @@ async def upload(request: UploadRequest):
     results = []
     for spec in request.files:
         p = safe_path(spec.localPath)
+        target_key = _account_scoped_r2_key(spec.r2Key, request.userId)
         if not p.exists():
-            results.append({"r2Key": spec.r2Key, "ok": False, "error": "File not found."})
+            results.append({"r2Key": target_key, "ok": False, "error": "File not found."})
             continue
         content_type = _mime_for(p)
         try:
             s3.upload_file(
                 str(p),
                 request.r2Bucket,
-                spec.r2Key,
+                target_key,
                 ExtraArgs={"ContentType": content_type},
             )
-            results.append({"r2Key": spec.r2Key, "ok": True})
+            results.append({"r2Key": target_key, "ok": True})
         except Exception as exc:
-            results.append({"r2Key": spec.r2Key, "ok": False, "error": str(exc)})
+            results.append({"r2Key": target_key, "ok": False, "error": str(exc)})
 
     return {"results": results}
 
@@ -418,6 +666,14 @@ _MIME_MAP = {
 
 def _mime_for(p: Path) -> str:
     return _MIME_MAP.get(p.suffix.lower(), "application/octet-stream")
+
+
+def _account_scoped_r2_key(raw_key: str, user_id: Optional[str]) -> str:
+    key = str(raw_key or "").lstrip("/")
+    uid = str(user_id or "").strip()
+    if not uid or not key or key.startswith("users/"):
+        return key
+    return f"users/{uid}/{key}"
 
 
 def _make_s3_client(account_id: str, access_key: str, secret_key: str):
@@ -516,18 +772,19 @@ async def copy_from_url_endpoint(body: CopyFromUrlRequest):
     content = await asyncio.to_thread(_fetch, body.sourceUrl)
 
     s3 = _make_s3_client(body.r2AccountId, body.r2AccessKeyId, body.r2SecretAccessKey)
-    content_type = _mime_for(Path(body.r2Key))
+    target_key = _account_scoped_r2_key(body.r2Key, body.userId)
+    content_type = _mime_for(Path(target_key))
 
     def _upload() -> None:
         s3.upload_fileobj(
             io.BytesIO(content),
             body.r2Bucket,
-            body.r2Key,
+            target_key,
             ExtraArgs={"ContentType": content_type},
         )
 
     await asyncio.to_thread(_upload)
-    return {"ok": True, "r2Key": body.r2Key, "size": len(content)}
+    return {"ok": True, "r2Key": target_key, "size": len(content)}
 
 
 # ---------------------------------------------------------------------------
