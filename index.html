@@ -8435,6 +8435,24 @@ try {
     return fetchLibraryFromNetwork();
   };
 
+  // Re-fetch the song library whenever the user returns to the tab/app,
+  // so changes made on another device appear automatically (no manual refresh needed).
+  if (!window.__librarySyncBound) {
+    window.__librarySyncBound = true;
+
+    const _quietRefresh = () => {
+      fetchLibraryFromNetwork().catch(() => {});
+    };
+
+    // Tab becomes visible again (phone switching back to browser, laptop un-minimising, etc.)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) _quietRefresh();
+    });
+
+    // Window regains focus (clicking back into the browser window on desktop)
+    window.addEventListener('focus', _quietRefresh);
+  }
+
   if (renderedFromCache) {
     // ✅ Let the first paint happen, then refresh
     const run = () => {
