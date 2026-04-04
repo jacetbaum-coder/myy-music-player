@@ -549,12 +549,7 @@ window.hasMeaningfulCrateContent = function () {
 };
 
 function revealCrateEditorIfNeeded() {
-  try {
-    const crateView = document.getElementById("crate-view");
-    if (!crateView || crateView.classList.contains("hidden")) return;
-    if (!window.hasMeaningfulCrateContent || !window.hasMeaningfulCrateContent()) return;
-    openCrateSection("crate");
-  } catch (e) {}
+  // Always land on the home/menu view — do not auto-navigate into the editor.
 }
 
 window.resetCrateForIdentityChange = async function () {
