@@ -1185,6 +1185,17 @@ function restorePlayerStateIfRecent() {
 
         currentSong = state.song;
 
+    // ✅ Sanitize stale "users" artist from cached state
+    if (currentSong && currentSong.artist === 'users') {
+      try {
+        const u = new URL(currentSong.url, window.location.origin);
+        const id = String(u.searchParams.get("id") || "").trim();
+        const decoded = id ? decodeURIComponent(id) : "";
+        const parts = _stripUserPrefix(decoded);
+        currentSong.artist = (parts.length >= 3 ? parts[0] : "") || "";
+      } catch (e) { currentSong.artist = ""; }
+    }
+
     // ✅ keep global in sync (Now Playing menu relies on this fallback)
     try { window.currentSong = currentSong; } catch (e) {}
 
@@ -1941,17 +1952,21 @@ function updateNowPlayingUI() {
 
 async function playSpecificSong(url, title, album, artist, cover) {
 
+  if (artist === 'users') artist = '';
   const titleClean = String(title || "").split("/").pop().replace(/\.[^/.]+$/, "");
   const albumRaw = String(album || "").trim();
 
   let inferredAlbum = "";
+  let inferredArtist = "";
   try {
     const u0 = new URL(url, window.location.origin);
     const id0 = String(u0.searchParams.get("id") || "").trim();
     const decoded0 = id0 ? decodeURIComponent(id0) : "";
     const parts0 = _stripUserPrefix(decoded0);
-    if (parts0.length >= 3) inferredAlbum = parts0[1] || "";
+    if (parts0.length >= 3) { inferredArtist = parts0[0] || ""; inferredAlbum = parts0[1] || ""; }
   } catch (e) {}
+
+  if (!artist) artist = inferredArtist;
 
   const albumCandidate = (!albumRaw || albumRaw === "Unknown Album") ? (inferredAlbum || "") : albumRaw;
   const albumIsFile = /\.[a-z0-9]{2,5}$/i.test(String(albumCandidate || "").trim());
