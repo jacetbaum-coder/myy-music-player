@@ -334,10 +334,11 @@ async function importSearchCandidates(query) {
 
 async function importPreviewUrl(url) {
   const serverUrl = importGetServerUrl();
+  const cleanedUrl = importCleanUrl(url);
   const res = await fetch(serverUrl + '/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url: cleanedUrl }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || 'Preview request failed');
@@ -417,11 +418,12 @@ async function importResolvePrimaryAction() {
 
   importClearSearchResults();
   if (statusEl) statusEl.textContent = 'Loading preview…';
+  const cleanedRaw = importCleanUrl(raw);
   try {
-    const preview = await importPreviewUrl(raw);
+    const preview = await importPreviewUrl(cleanedRaw);
     __importSelectedSource = {
       input: raw,
-      sourceUrl: raw,
+      sourceUrl: cleanedRaw,
       provider: 'youtube',
       item: null,
       preview,
@@ -680,6 +682,18 @@ function importInitDownloadPanel() {
   }
 
   importUpdatePrimaryAction();
+}
+
+function importCleanUrl(url) {
+  // Strip YouTube radio/mix/playlist params, keeping only ?v=VIDEO_ID
+  try {
+    const parsed = new URL(url);
+    if (['www.youtube.com', 'youtube.com', 'm.youtube.com'].includes(parsed.hostname) && parsed.pathname === '/watch') {
+      const videoId = parsed.searchParams.get('v');
+      if (videoId) return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+  } catch (_) {}
+  return url;
 }
 
 function importDetectUrlType(url) {

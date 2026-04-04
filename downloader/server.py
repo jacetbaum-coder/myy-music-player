@@ -532,9 +532,24 @@ async def search(request: SearchRequest):
     return {"provider": "youtube", "query": query, "items": items}
 
 
+def _clean_youtube_url(url: str) -> str:
+    """Strip radio/mix/playlist params from a YouTube watch URL, keeping only ?v=VIDEO_ID."""
+    try:
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(url)
+        if parsed.hostname in ("www.youtube.com", "youtube.com", "m.youtube.com") and parsed.path == "/watch":
+            qs = parse_qs(parsed.query, keep_blank_values=False)
+            video_id = (qs.get("v") or [None])[0]
+            if video_id:
+                return f"https://www.youtube.com/watch?v={video_id}"
+    except Exception:
+        pass
+    return url
+
+
 @app.post("/preview")
 async def preview(request: PreviewRequest):
-    url = str(request.url or "").strip()
+    url = _clean_youtube_url(str(request.url or "").strip())
     if not url:
         raise HTTPException(status_code=400, detail="URL is required.")
     if detect_url_type(url) != "youtube":
