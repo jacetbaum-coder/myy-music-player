@@ -1085,7 +1085,12 @@ function importInitSetupPanel() {
         r2Bucket:             document.getElementById('import-r2-bucket')?.value?.trim()   || '',
         personalUrl:          document.getElementById('import-personal-url')?.value?.trim() || '',
       });
-      importShowSaveToast('Settings saved');
+      // Show inline confirmation below the button
+      const savedMsg = document.getElementById('import-adv-saved-msg');
+      if (savedMsg) {
+        savedMsg.style.display = 'block';
+        setTimeout(() => { savedMsg.style.display = 'none'; }, 6000);
+      }
       importPingServer();
     });
   }
