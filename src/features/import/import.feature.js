@@ -1014,7 +1014,7 @@ async function importStartDownload(sourceUrl) {
     return;
   }
 
-  const pollOpts = { totalTracks, completedTracks, remainingUrls: urlsToDownload.slice(1), settings };
+  const pollOpts = { totalTracks, completedTracks, skippedTracks: 0, remainingUrls: urlsToDownload.slice(1), settings };
   __importBgPollOpts = pollOpts;
   importPollJob(jobId, pollOpts);
 }
@@ -1032,6 +1032,7 @@ function importPollJob(jobId, opts) {
 
   const totalTracks     = (opts && opts.totalTracks)     || 1;
   let   completedTracks = (opts && opts.completedTracks) || 0;
+  let   skippedTracks   = (opts && opts.skippedTracks)   || 0;
   const remainingUrls   = (opts && opts.remainingUrls)   || [];
   const settings        = (opts && opts.settings)        || importLoadSettings();
 
@@ -1095,12 +1096,12 @@ function importPollJob(jobId, opts) {
             spotifyClientSecret: settings.spotifySecret || undefined,
           };
           Object.keys(nextBody).forEach(k => { if (nextBody[k] === undefined) delete nextBody[k]; });
-          const nextOpts = { totalTracks, completedTracks, remainingUrls: remainingUrls.slice(1), settings };
+          const nextOpts = { totalTracks, completedTracks, skippedTracks, remainingUrls: remainingUrls.slice(1), settings };
           __importBgPollOpts = nextOpts;
           const statusEl = ui('import-download-status');
           const lbl = ui('import-progress-label');
-          if (statusEl) statusEl.textContent = `Downloading track ${completedTracks + 1} of ${totalTracks}…`;
-          if (lbl) lbl.textContent = `Track ${completedTracks + 1} of ${totalTracks}`;
+          if (statusEl) statusEl.textContent = `Downloading track ${completedTracks + skippedTracks + 1} of ${totalTracks}…`;
+          if (lbl) lbl.textContent = `Track ${completedTracks + skippedTracks + 1} of ${totalTracks}`;
           try {
             const res2 = await fetch(serverUrl + '/download', {
               method: 'POST',
@@ -1123,7 +1124,8 @@ function importPollJob(jobId, opts) {
         __importBgPollOpts = null;
         importSetDownloadBadge(false);
         const fileCount = Array.isArray(data.files) ? data.files.length : 0;
-        const label = totalTracks > 1 ? `${totalTracks} tracks downloaded` : 'Download complete';
+        const skippedNote = skippedTracks > 0 ? ` (${skippedTracks} skipped)` : '';
+        const label = totalTracks > 1 ? `${completedTracks} of ${totalTracks} tracks downloaded${skippedNote}` : 'Download complete';
         // Toast is shown regardless of which tab the user is on
         importShowToast(`✓ ${label} — tap Crate to review`, 5000);
 
@@ -1153,13 +1155,57 @@ function importPollJob(jobId, opts) {
       if (data.status === 'error') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
+        skippedTracks += 1;
+
+        // If more tracks remain, skip this failed one and continue
+        if (remainingUrls.length > 0) {
+          const nextUrl = remainingUrls[0];
+          const nextBody = {
+            url: nextUrl,
+            outputFormat: '{artist}/{album}/{title}.{output-ext}',
+            spotifyClientId: settings.spotifyClientId || undefined,
+            spotifyClientSecret: settings.spotifySecret || undefined,
+          };
+          Object.keys(nextBody).forEach(k => { if (nextBody[k] === undefined) delete nextBody[k]; });
+          const nextOpts = { totalTracks, completedTracks, skippedTracks, remainingUrls: remainingUrls.slice(1), settings };
+          __importBgPollOpts = nextOpts;
+          const statusEl = ui('import-download-status');
+          const lbl = ui('import-progress-label');
+          if (statusEl) statusEl.textContent = `Skipped unavailable track. Downloading ${completedTracks + skippedTracks + 1} of ${totalTracks}…`;
+          if (lbl) lbl.textContent = `Track ${completedTracks + skippedTracks + 1} of ${totalTracks} (${skippedTracks} skipped)`;
+          _setOverallProgress(0);
+          try {
+            const res2 = await fetch(serverUrl + '/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(nextBody),
+            });
+            const d2 = await res2.json();
+            if (!res2.ok || !d2.jobId) throw new Error(d2.detail || 'Server error');
+            __importCurrentJobId = d2.jobId;
+            importPollJob(d2.jobId, nextOpts);
+          } catch (e) {
+            const s = ui('import-download-status');
+            if (s) s.textContent = '✗ Failed on track ' + (completedTracks + skippedTracks + 1) + ': ' + e.message;
+            importSetDownloadBadge(false);
+          }
+          return;
+        }
+
+        // No more tracks in queue
         __importCurrentJobId = null;
         __importBgPollOpts = null;
         importSetDownloadBadge(false);
-        importShowToast('✗ Download failed — open Crate to see details', 5000);
-        const statusEl = ui('import-download-status');
+        if (completedTracks > 0) {
+          importShowToast(`✓ ${completedTracks} downloaded, ${skippedTracks} skipped`, 5000);
+          const statusEl = ui('import-download-status');
+          if (statusEl) statusEl.textContent = `✓ ${completedTracks} downloaded, ${skippedTracks} skipped`;
+        } else {
+          importShowToast('✗ All tracks failed — see logs', 5000);
+          const statusEl = ui('import-download-status');
+          if (statusEl) statusEl.textContent = '✗ All tracks failed — see logs above';
+        }
         const progressWrap = ui('import-progress-wrap');
-        if (statusEl) statusEl.textContent = '✗ Download failed — see logs above';
         if (progressWrap) progressWrap.classList.add('hidden');
         importUpdatePrimaryAction();
       }
