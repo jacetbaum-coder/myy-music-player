@@ -247,6 +247,15 @@ function importRenderSearchResults(items) {
   });
 }
 
+function importIsRadioOrMixUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''));
+    const list = parsed.searchParams.get('list') || '';
+    return parsed.searchParams.has('start_radio') || list.startsWith('RD') || list.startsWith('FL');
+  } catch (_) {}
+  return false;
+}
+
 function importRenderPreview(previewData) {
   const target = document.getElementById('import-selection-preview');
   importRenderPreviewInto(target, previewData, { emptyMessage: 'Metadata will be editable before save.' });
@@ -254,11 +263,22 @@ function importRenderPreview(previewData) {
   const metaOpts = document.getElementById('import-meta-opts');
   if (metaOpts) metaOpts.classList.toggle('hidden', !previewData);
 
-  // For playlists, load the full track list into the checklist panel
-  if (previewData && previewData.kind === 'playlist' && previewData.sourceUrl) {
+  if (!previewData) {
+    importHideTrackSelection();
+    return;
+  }
+
+  // Use the original pasted URL (before cleaning) for track list enumeration so
+  // radio/mix links enumerate all their tracks rather than just the seed video.
+  const originalInput = __importSelectedSource && __importSelectedSource.input || '';
+  const urlForTracklist = importIsRadioOrMixUrl(originalInput)
+    ? originalInput
+    : (previewData.kind === 'playlist' ? previewData.sourceUrl : null);
+
+  if (urlForTracklist) {
     const statusEl = document.getElementById('import-download-status');
     if (statusEl) statusEl.textContent = 'Loading track list…';
-    importFetchPlaylistTracks(previewData.sourceUrl).then(tracks => {
+    importFetchPlaylistTracks(urlForTracklist).then(tracks => {
       importRenderTrackSelection(tracks);
       if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Select what you want then click Download.`;
     }).catch(e => {

@@ -474,6 +474,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--audio-quality", "0",
             "--embed-thumbnail",
             "--add-metadata",
+            "--extractor-args", "youtube:player_client=tv_embedded,web",
             "-o", yt_template,
             request.url,
         )
@@ -532,7 +533,8 @@ def health():
 @app.post("/playlist-tracks")
 async def playlist_tracks(request: PreviewRequest):
     """Return the full flat track list for a YouTube playlist/mix URL."""
-    url = _clean_youtube_url(str(request.url or "").strip())
+    # Do NOT clean the URL here — we want the full playlist/radio enumeration
+    url = str(request.url or "").strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL is required.")
     if not _module_available("yt_dlp"):
@@ -608,6 +610,7 @@ async def preview(request: PreviewRequest):
         "--dump-single-json",
         "--no-warnings",
         "--skip-download",
+        "--extractor-args", "youtube:player_client=tv_embedded,web",
         url,
     ]
     data = await asyncio.to_thread(_run_json_command, cmd, 45)
