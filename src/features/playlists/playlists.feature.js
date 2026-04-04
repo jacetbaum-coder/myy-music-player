@@ -2359,7 +2359,7 @@ function getSongCoverFromPlaylistSong(s) {
 
   // ✅ Mutate once derived (so playlist row text + now playing can use it)
   try {
-    if (folderParts[0] && !s.artist) s.artist = folderParts[0];
+    if (folderParts[0] && (!s.artist || s.artist === 'users')) s.artist = folderParts[0];
     if (folderParts[1]) s.album = folderParts[1];
   } catch (e) {}
 

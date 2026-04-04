@@ -1253,7 +1253,7 @@ function restorePlayerStateIfRecent() {
 updateAccentFromCover(currentSong.cover || "");
 
 setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
-document.getElementById('p-artist').innerText = (currentSong.artist === 'users' ? '' : currentSong.artist) || "";
+document.getElementById('p-artist').innerText = (currentSong.artist === 'users' || /^users\//i.test(currentSong.artist || '') ? '' : currentSong.artist) || "";
 
 
   // Ensure icons show PAUSED state on refresh
@@ -1609,7 +1609,8 @@ function normalizeSong(song, fallback = {}) {
   const rawTitle = song.name || song.title || "Unknown Title";
 
   const album = song.album || song.albumName || fallback.album || "Unknown Album";
-  const artist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
+  const _rawArtist = song.artist || song.artistName || fallback.artist || "Unknown Artist";
+  const artist = (_rawArtist === 'users' ? '' : _rawArtist) || fallback.artist || "Unknown Artist";
   const cover = song.cover || song.coverArt || fallback.cover || "";
 
   // ✅ Display fix:
@@ -1880,6 +1881,15 @@ function setAllPlayIcons(isPlaying){
 
 function updateNowPlayingUI() {
   if (!currentSong) return;
+  // Sanitize stale 'users' artist that may have been persisted to localStorage
+  if (currentSong.artist === 'users' || /^users\//i.test(currentSong.artist || '')) {
+    try {
+      const _u = new URL(currentSong.url, window.location.origin);
+      const _id = decodeURIComponent(_u.searchParams.get('id') || '');
+      const _p = _stripUserPrefix(_id);
+      currentSong.artist = (_p.length >= 3 ? _p[0] : '') || '';
+    } catch (e) { currentSong.artist = ''; }
+  }
   try { window.currentSong = currentSong; } catch (e) {}
 
   const cover  = document.getElementById('np-cover');
@@ -1917,10 +1927,10 @@ function updateNowPlayingUI() {
   }
 
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
-  const _npArtistText = (currentSong.artist === 'users' ? '' : currentSong.artist) || "";
+  const _npArtistText = (currentSong.artist === 'users' || /^users\//i.test(currentSong.artist || '') ? '' : currentSong.artist) || "";
   if (artist) artist.textContent = _npArtistText;
   try { loadNpBio(_npArtistText); } catch (e) {}
-  try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), currentSong.artist); } catch (e) {}
+  try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), _npArtistText); } catch (e) {}
 
   if (ctx) {
     let label = "";
@@ -1953,7 +1963,7 @@ function updateNowPlayingUI() {
 
 async function playSpecificSong(url, title, album, artist, cover) {
 
-  if (artist === 'users') artist = '';
+  if (!artist || artist === 'users' || /^users\//i.test(artist)) artist = '';
   const titleClean = String(title || "").split("/").pop().replace(/\.[^/.]+$/, "");
   const albumRaw = String(album || "").trim();
 

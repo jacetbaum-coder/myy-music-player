@@ -6216,7 +6216,7 @@ body.qs-lock {
           </button>
         </div>
 
-        <div id="np-artist" class="text-[#b3b3b3] mt-2 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
+        <div id="np-artist" class="text-[#b3b3b3] mt-1 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
       </div>
 
       <!-- progress -->
@@ -10551,10 +10551,12 @@ const albumCell = `<span data-role="album" class="truncate hidden md:block text-
 // ✅ Playlist-safe artist + thumbnail
 // - playlist items often have coverUrl OR only trackId
 // - this uses your helper that already knows how to derive covers safely
+const _songArtistRaw = (song && (song.artist || song.artistName)) || '';
+const _songIdFirst = (song && (song.trackId || song.id || song.r2Path || ''))?.split?.('/')?.[0] || '';
 const displayArtist = String(
-  (song && (song.artist || song.artistName)) ||
-  (song && (song.trackId || song.id || song.r2Path || ""))?.split?.("/")?.[0] ||
-  ""
+  (_songArtistRaw === 'users' ? '' : _songArtistRaw) ||
+  (_songIdFirst === 'users' ? '' : _songIdFirst) ||
+  ''
 ).trim();
 
 let thumbSrc = "";
@@ -14424,11 +14426,12 @@ if (hero && activePlaylistId) {
       : rawTitle;
 
     // ✅ Artist line (prefer real field, else infer from "Artist/Title")
-    const displayArtist = String(
+    const _rawArtist14 = String(
       song.artist ||
       (isPlaylist && rawTitle.includes('/') ? rawTitle.split('/')[0] : '') ||
       ''
     ).trim();
+    const displayArtist = (_rawArtist14 === 'users' ? '' : _rawArtist14);
     row.dataset.sortArtist = String(displayArtist || '').toLowerCase();
 
     // ✅ Thumbnail ONLY for playlists
