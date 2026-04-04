@@ -6518,6 +6518,21 @@ let isShuffle = false;     // shuffle enabled flag
 const LIBRARY_CACHE_KEY = 'libraryDataCache';
 const LIBRARY_CACHE_PERSONAL_KEY = 'libraryDataCache:personal';
 
+// One-time flush of stale personal cache entries that have 'users' artistName or hash albumName
+try {
+  const _staleRaw = localStorage.getItem(LIBRARY_CACHE_PERSONAL_KEY);
+  if (_staleRaw) {
+    const _staleArr = JSON.parse(_staleRaw);
+    if (Array.isArray(_staleArr) && _staleArr.some(a => {
+      const art = String(a && a.artistName || '').trim();
+      const alb = String(a && a.albumName || '').trim();
+      return art === 'users' || /^users\//i.test(art) || /^[0-9a-f]{8,}$/i.test(alb);
+    })) {
+      localStorage.removeItem(LIBRARY_CACHE_PERSONAL_KEY);
+    }
+  }
+} catch (e) {}
+
 // -----------------------
 // CRATE FEATURES (global flags)
 // -----------------------
@@ -7271,6 +7286,9 @@ function mergeLibraryAlbums(sharedAlbums, personalAlbums) {
     (Array.isArray(sourceAlbums) ? sourceAlbums : []).forEach((album) => {
       const artistName = String(album && album.artistName || '').trim();
       const albumName = String(album && album.albumName || '').trim();
+      // Skip entries that are clearly corrupt (users prefix leaked into library data)
+      if (artistName === 'users' || /^users\//i.test(artistName)) return;
+      if (/^[0-9a-f]{8,}$/i.test(albumName)) return; // hash-looking userId as album name
       const albumKey = `${artistName}///${albumName}`;
       if (!albumKey.trim()) return;
 
@@ -7311,11 +7329,15 @@ function mergeLibraryAlbums(sharedAlbums, personalAlbums) {
 }
 
         function loadLibraryCache() {
+  const _isBadAlbum = (a) => {
+    const art = String(a && a.artistName || '').trim();
+    const alb = String(a && a.albumName || '').trim();
+    return art === 'users' || /^users\//i.test(art) || /^[0-9a-f]{8,}$/i.test(alb);
+  };
   try {
     const stored = JSON.parse(localStorage.getItem(getActiveLibraryCacheKey()) || "[]");
-    if (Array.isArray(stored) && stored.length) return stored;
+    if (Array.isArray(stored) && stored.length) return stored.filter(a => !_isBadAlbum(a));
     return [];
-
   } catch (e) {
     return [];
   }
@@ -8245,7 +8267,13 @@ safe(window.renderHistory);
   }
 
     function applyLibraryAndRender(albums) {
-    libraryData = Array.isArray(albums) ? albums : [];
+    // Strip corrupt entries where the users/ prefix leaked into artistName/albumName
+    const _isBadAlbum = (a) => {
+      const art = String(a && a.artistName || '').trim();
+      const alb = String(a && a.albumName || '').trim();
+      return art === 'users' || /^users\//i.test(art) || /^[0-9a-f]{8,}$/i.test(alb);
+    };
+    libraryData = (Array.isArray(albums) ? albums : []).filter(a => !_isBadAlbum(a));
     libraryDataOriginal = libraryData.slice();
 window.libraryData = libraryData;
 window.libraryDataOriginal = libraryDataOriginal;

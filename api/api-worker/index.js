@@ -144,6 +144,8 @@ export default {
         const parts = key.replace(prefix, '').split('/');
         if (parts.length < 3) continue;
         const [artist, album, file] = parts;
+        // Guard: skip if the prefix wasn't stripped (artist would be 'users' or the userId hash)
+        if (artist === 'users' || /^[0-9a-f]{8,}$/i.test(artist)) continue;
         if (file === 'cover.jpg') continue; // skip cover art objects from song list
         const albumKey = `${artist}///${album}`;
         if (!albums[albumKey]) {
