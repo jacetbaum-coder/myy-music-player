@@ -262,7 +262,7 @@ def detect_url_type(url: str) -> str:
 _TITLE_NOISE = re.compile(
     r'\s*[\(\[\{]'
     r'(official\s*(music\s*)?video|official\s*audio|official\s*lyric\s*video'
-    r'|lyric\s*video|lyrics?|visuali[sz]er|audio|hd|hq|4k|live|live\s*session'
+    r'|music\s+audio|lyric\s*video|lyrics?|visuali[sz]er|audio|hd|hq|4k|live|live\s*session'
     r'|extended|acoustic|remix|official\s*clip|studio\s*session|full\s*album'
     r'|official|video\s*clip|360°?)'
     r'[\)\]\}]',
@@ -394,13 +394,13 @@ def _normalize_search_item(entry: Any) -> dict[str, Any]:
 
     kind = "playlist" if entry.get("_type") == "playlist" else "track"
     title = _clean_title(str(entry.get("title") or entry.get("playlist_title") or "Untitled"))
-    artist = str(
+    artist = _clean_artist(str(
         entry.get("artist")
         or entry.get("uploader")
         or entry.get("channel")
         or entry.get("playlist_uploader")
         or ""
-    )
+    ))
     album = str(entry.get("album") or entry.get("playlist_title") or "")
 
     return {
@@ -412,6 +412,56 @@ def _normalize_search_item(entry: Any) -> dict[str, Any]:
         "year": _extract_year(entry),
         "durationLabel": _extract_duration_label(entry),
         "coverUrl": _pick_thumbnail(entry),
+        "sourceUrl": _normalize_source_url(entry),
+    }
+
+
+def _normalize_yt_flat_entry(entry: dict) -> dict:
+    """Normalize a yt-dlp --flat-playlist entry with smart title/artist inference."""
+    raw_title = str(entry.get("title") or "Untitled")
+
+    # YouTube provides explicit artist field for Topic channels — trust it
+    explicit_artist = str(entry.get("artist") or "").strip()
+    uploader_clean = _clean_artist(str(
+        entry.get("uploader") or entry.get("channel") or ""
+    ))
+
+    if explicit_artist:
+        artist = explicit_artist
+        title = _clean_title(raw_title)
+    else:
+        # Try "Artist - Title" split on first occurrence of " - "
+        parts = raw_title.split(" - ", 1)
+        if len(parts) == 2:
+            maybe_artist = parts[0].strip()
+            maybe_title = parts[1].strip()
+            # Reject if the "artist" part is suspiciously long or contains bracket noise
+            if maybe_artist and maybe_title and len(maybe_artist) <= 60 and "[" not in maybe_artist:
+                artist = maybe_artist
+                title = _clean_title(maybe_title)
+            else:
+                artist = uploader_clean
+                title = _clean_title(raw_title)
+        else:
+            artist = uploader_clean
+            title = _clean_title(raw_title)
+
+    # Build thumbnail — prefer yt-dlp data, fall back to constructed URL from video ID
+    cover_url = _pick_thumbnail(entry)
+    if not cover_url:
+        vid = str(entry.get("id") or "").strip()
+        if vid and re.match(r'^[A-Za-z0-9_-]{11}$', vid):
+            cover_url = f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+
+    return {
+        "provider": "youtube",
+        "kind": "track",
+        "title": title,
+        "artist": artist,
+        "album": str(entry.get("album") or ""),
+        "year": _extract_year(entry),
+        "durationLabel": _extract_duration_label(entry),
+        "coverUrl": cover_url,
         "sourceUrl": _normalize_source_url(entry),
     }
 
@@ -603,11 +653,19 @@ async def playlist_tracks(request: PreviewRequest):
     if not entries:
         # single video — wrap it
         entries = [data]
-    tracks = [_normalize_search_item(e) for e in entries]
+    tracks = [_normalize_yt_flat_entry(e) for e in entries]
     tracks = [t for t in tracks if t.get("sourceUrl")]
 
-    # Extract playlist-level metadata (title, cover, uploader)
-    playlist_title = str(data.get("title") or data.get("playlist_title") or "")
+    # Extract playlist-level metadata
+    # Prefer playlist_title over title — for watch?v=xxx&list=PLxxx URLs,
+    # data["title"] may be the video title while data["playlist_title"] is the playlist name
+    first_entry_title = str(entries[0].get("title") or "") if entries else ""
+    playlist_title = str(data.get("playlist_title") or "")
+    if not playlist_title:
+        raw_top_title = str(data.get("title") or "")
+        # Only use top-level title if it differs from the first entry (otherwise it's a video title)
+        playlist_title = "" if raw_top_title == first_entry_title else raw_top_title
+
     uploader_name = str(data.get("uploader") or data.get("channel") or data.get("playlist_uploader") or "")
     thumbnails = data.get("thumbnails")
     cover_url = ""

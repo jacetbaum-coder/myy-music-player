@@ -702,7 +702,7 @@ async function importResolvePrimaryAction() {
         coverUrl: ytInfo.coverUrl || first.coverUrl || '',
         sourceUrl: raw,
         trackCount: playlistTracks.length,
-        tracks: playlistTracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist, durationLabel: t.durationLabel })),
+        tracks: playlistTracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist, durationLabel: t.durationLabel, coverUrl: t.coverUrl || '' })),
       };
     } else {
       preview = await importPreviewUrl(cleanedRaw);
@@ -1370,7 +1370,8 @@ async function importStartDownload(sourceUrl) {
     sourceUrl: url,
     provider: importDetectUrlType(url),
     item: null,
-    preview: selected ? selected.preview : null,
+    // Preserve playlist preview even when URL was cleaned (list= param stripped)
+    preview: (__importSelectedSource && __importSelectedSource.preview) || null,
   };
 
   // If we have a per-track checklist (playlist/mix), kick off one job per selected URL.
