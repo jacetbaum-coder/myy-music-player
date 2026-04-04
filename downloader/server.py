@@ -605,7 +605,26 @@ async def playlist_tracks(request: PreviewRequest):
         entries = [data]
     tracks = [_normalize_search_item(e) for e in entries]
     tracks = [t for t in tracks if t.get("sourceUrl")]
-    return {"tracks": tracks, "total": len(tracks)}
+
+    # Extract playlist-level metadata (title, cover, uploader)
+    playlist_title = str(data.get("title") or data.get("playlist_title") or "")
+    uploader_name = str(data.get("uploader") or data.get("channel") or data.get("playlist_uploader") or "")
+    thumbnails = data.get("thumbnails")
+    cover_url = ""
+    if isinstance(thumbnails, list) and thumbnails:
+        best = max(thumbnails, key=lambda t: (t.get("width") or 0) * (t.get("height") or 0), default=None)
+        if best:
+            cover_url = str(best.get("url") or "")
+    if not cover_url:
+        cover_url = str(data.get("thumbnail") or "")
+
+    return {
+        "tracks": tracks,
+        "total": len(tracks),
+        "playlistTitle": playlist_title,
+        "coverUrl": cover_url,
+        "uploaderName": uploader_name,
+    }
 
 
 # ---------------------------------------------------------------------------

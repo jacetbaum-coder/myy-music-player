@@ -5804,6 +5804,11 @@ body.qs-lock {
         <div id="import-discovery-hint" class="import-discovery-hint">Type what you want and I’ll find matches, or paste a direct link to preview it first.</div>
         <div id="import-search-results" class="import-result-list hidden"></div>
         <div id="import-selection-preview" class="hidden"></div>
+        <!-- Playlist name (editable, shown for YouTube playlist imports) -->
+        <div id="import-playlist-name-row" class="hidden mb-3">
+          <label class="text-xs font-bold text-white/50 mb-1 uppercase tracking-wider block" for="import-playlist-name">Playlist name</label>
+          <input id="import-playlist-name" type="text" class="import-input" placeholder="Playlist name">
+        </div>
         <!-- Track checklist (shown for playlists/mixes before download) -->
         <div id="import-track-select" class="hidden mb-3">
           <div class="flex items-center justify-between mb-2">
@@ -15061,7 +15066,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js?v=2"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=23"></script>
+<script src="src/features/import/import.feature.js?v=24"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.

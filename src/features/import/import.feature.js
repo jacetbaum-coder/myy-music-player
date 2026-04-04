@@ -138,6 +138,8 @@ function importResetSelectedSource() {
   const metaOpts = document.getElementById('import-meta-opts');
   if (metaOpts) metaOpts.classList.add('hidden');
   importHideTrackSelection();
+  const nameRow = document.getElementById('import-playlist-name-row');
+  if (nameRow) nameRow.classList.add('hidden');
 }
 
 function importResetReviewContext() {
@@ -438,9 +440,9 @@ function importRenderPreview(previewData, prefetchedTracks) {
       if (statusEl) statusEl.textContent = `${prefetchedTracks.length} tracks found. Check the ones you want, then click Download.`;
     } else {
       if (statusEl) statusEl.textContent = 'Loading track list…';
-      importFetchPlaylistTracks(originalInput).then(tracks => {
-        importRenderTrackSelection(tracks);
-        if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Check the ones you want, then click Download.`;
+      importFetchPlaylistTracks(originalInput).then(result => {
+        importRenderTrackSelection(result.tracks);
+        if (statusEl) statusEl.textContent = `${result.tracks.length} tracks found. Check the ones you want, then click Download.`;
       }).catch(e => {
         if (statusEl) statusEl.textContent = '✗ Could not load track list: ' + e.message;
       });
@@ -689,14 +691,15 @@ async function importResolvePrimaryAction() {
   let playlistTracks = null;
   try {
     if (isPlaylistLink) {
-      // For playlists, fetch the track list and build a synthetic preview
-      playlistTracks = await importFetchPlaylistTracks(raw);
+      // For playlists, fetch the track list and real playlist metadata
+      const ytInfo = await importFetchPlaylistTracks(raw);
+      playlistTracks = ytInfo.tracks;
       const first = playlistTracks[0] || {};
       preview = {
         kind: 'playlist',
-        title: first.album || first.title || 'Playlist',
-        artist: first.artist || '',
-        coverUrl: first.coverUrl || '',
+        title: ytInfo.playlistTitle || first.album || first.title || 'Playlist',
+        artist: ytInfo.uploaderName || first.artist || '',
+        coverUrl: ytInfo.coverUrl || first.coverUrl || '',
         sourceUrl: raw,
         trackCount: playlistTracks.length,
         tracks: playlistTracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist, durationLabel: t.durationLabel })),
@@ -725,6 +728,21 @@ async function importResolvePrimaryAction() {
     preview,
   };
   importRenderPreview(preview, playlistTracks);
+  // Show editable playlist name input for YouTube playlists (not radio/mix)
+  if (isPlaylistLink) {
+    const nameRow = document.getElementById('import-playlist-name-row');
+    const nameInput = document.getElementById('import-playlist-name');
+    if (nameRow && nameInput) {
+      nameInput.value = preview.title || '';
+      nameRow.classList.remove('hidden');
+      nameInput.oninput = () => {
+        const edited = nameInput.value.trim();
+        if (__importSelectedSource && __importSelectedSource.preview) {
+          __importSelectedSource.preview.title = edited;
+        }
+      };
+    }
+  }
   // importRenderPreview sets the status to "Loading track list…" for radio/playlist URLs,
   // so only update status here for single-track previews.
   if (!importIsRadioOrMixUrl(raw) && !isPlaylistLink) {
@@ -1180,7 +1198,12 @@ async function importFetchPlaylistTracks(url) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || 'Could not load track list');
-  return Array.isArray(data.tracks) ? data.tracks : [];
+  return {
+    tracks:       Array.isArray(data.tracks) ? data.tracks : [],
+    playlistTitle: data.playlistTitle || '',
+    coverUrl:     data.coverUrl || '',
+    uploaderName: data.uploaderName || '',
+  };
 }
 
 function importRenderTrackSelection(tracks) {
@@ -2034,7 +2057,7 @@ async function importUploadSelected() {
 
     if (succeeded > 0 && doneBtn) doneBtn.classList.remove('hidden');
 
-    // If this was a Spotify playlist import, create the playlist in the cloud
+    // If this was a playlist import (Spotify or YouTube), create the playlist in the cloud
     if (succeeded > 0) {
       const preview = __importReviewContext && __importReviewContext.preview;
       const playlistName = preview && preview.kind === 'playlist' && preview.title
