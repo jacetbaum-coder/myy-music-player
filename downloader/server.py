@@ -153,6 +153,7 @@ def safe_path(raw: str) -> Path:
         p.relative_to(OUTPUT_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=400, detail="Path must be inside output directory.")
+    return p
 
 
 def _extract_cover_art(audio_path: Path) -> Optional[bytes]:
@@ -171,7 +172,6 @@ def _extract_cover_art(audio_path: Path) -> Optional[bytes]:
     except Exception:
         pass
     return None
-    return p
 
 
 def read_tags(p: Path) -> dict:
@@ -190,10 +190,10 @@ def read_tags(p: Path) -> dict:
         audio = MutagenFile(p, easy=True)
         if audio is None:
             return info
-        info["title"] = (audio.get("title") or [p.stem])[0]
-        info["artist"] = (audio.get("artist") or [""])[0]
+        info["title"] = _clean_title((audio.get("title") or [p.stem])[0])
+        info["artist"] = _clean_artist((audio.get("artist") or [""])[0])
         info["album"] = (audio.get("album") or [""])[0]
-        info["albumartist"] = (audio.get("albumartist") or [""])[0]
+        info["albumartist"] = _clean_artist((audio.get("albumartist") or [""])[0])
 
         # Check for embedded cover art
         raw = MutagenFile(p, easy=False)
@@ -275,6 +275,12 @@ def _clean_title(title: str) -> str:
     cleaned = _TITLE_NOISE.sub('', str(title or '')).strip()
     cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip(' -–—|')
     return cleaned or str(title or '')
+
+
+def _clean_artist(artist: str) -> str:
+    """Strip common noise like ' - Topic' from YouTube artist names."""
+    cleaned = re.sub(r'\s*-\s*Topic$', '', str(artist or ''), flags=re.IGNORECASE).strip()
+    return cleaned or str(artist or '')
 
 
 def _module_available(module_name: str) -> bool:
