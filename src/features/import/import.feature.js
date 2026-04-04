@@ -2042,12 +2042,37 @@ async function importUploadSelected() {
         : '';
       if (playlistName && typeof window.createPlaylistInCloud === 'function') {
         try {
+          const previousIds = new Set(
+            (Array.isArray(window.playlists) ? window.playlists : [])
+              .map(p => String(p && p.id || '').trim()).filter(Boolean)
+          );
           const created = await window.createPlaylistInCloud(playlistName);
-          const playlistId = created && (created.playlistId || (created.playlist && created.playlist.id));
-          if (playlistId && typeof window.addTrackToPlaylistInCloud === 'function') {
+          // Reload so we can resolve the real playlist object
+          if (typeof window.loadPlaylistsFromCloud === 'function') {
+            try { await window.loadPlaylistsFromCloud(); } catch (_) {}
+          }
+          const allPlaylists = Array.isArray(window.playlists) ? window.playlists : [];
+          // Resolve using the same pattern the rest of the app uses
+          const targetIds = [
+            created && created.playlistId, created && created.playlist_id,
+            created && created.id, created && created.playlist && created.playlist.id,
+            created && created.data && created.data.playlistId,
+          ].map(v => String(v || '').trim()).filter(Boolean);
+          let target = targetIds.length
+            ? allPlaylists.find(p => targetIds.includes(String(p && p.id || '').trim()))
+            : null;
+          if (!target) target = allPlaylists.find(p => {
+            const id = String(p && p.id || '').trim();
+            return id && !previousIds.has(id);
+          });
+          if (!target) target = [...allPlaylists].reverse().find(p =>
+            String(p && p.name || '').trim() === playlistName
+          );
+
+          if (target && target.id && typeof window.addTrackToPlaylistInCloud === 'function') {
             const uploadedKeys = selected.map(f => importComputeUploadR2Key(f));
             for (const key of uploadedKeys) {
-              try { await window.addTrackToPlaylistInCloud(playlistId, key); } catch (_) {}
+              try { await window.addTrackToPlaylistInCloud(target.id, key); } catch (_) {}
             }
           }
         } catch (_) {}
