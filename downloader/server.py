@@ -283,6 +283,41 @@ def _clean_artist(artist: str) -> str:
     return cleaned or str(artist or '')
 
 
+def _infer_artist_title(raw_title: str, fallback_artist: str) -> tuple[str, str]:
+    """Infer (title, artist) from a raw YouTube video title using heuristics.
+
+    Heuristic 1: 'Artist - Title'  — e.g. 'Beyoncé - Diva (Lyrics)'
+    Heuristic 2: 'Artist (non-ASCII) Title' — common K-pop / J-pop pattern,
+                 e.g. 'LE SSERAFIM (르세라핌) \'CRAZY\' [MUSIC AUDIO]'
+    """
+    cleaned = _clean_title(raw_title).strip(' -\u2013\u2014|')
+
+    # ── Heuristic 1: "Artist - Title" split ───────────────────────────────────
+    parts = cleaned.split(' - ', 1)
+    if len(parts) == 2:
+        maybe_artist = parts[0].strip()
+        maybe_title  = _clean_title(parts[1]).strip("'\" ")
+        # Reject if the 'artist' chunk is suspiciously long or has bracket noise
+        if (maybe_artist and maybe_title
+                and len(maybe_artist) <= 60
+                and '[' not in maybe_artist
+                and '(' not in maybe_artist):
+            return maybe_title, maybe_artist
+
+    # ── Heuristic 2: "Artist (non-ASCII text) rest" ───────────────────────────
+    m = re.match(r'^(.+?)\s*\([^\x00-\x7F]', cleaned)
+    if m:
+        maybe_artist = m.group(1).strip()
+        rest = cleaned[len(m.group(1)):]
+        # Strip the (non-ASCII...) parenthetical block
+        maybe_title = re.sub(r'\([^\x00-\x7F][^)]*\)', '', rest).strip()
+        maybe_title = _clean_title(maybe_title).strip("'\" ")
+        if maybe_artist and maybe_title and len(maybe_artist) <= 60:
+            return maybe_title, maybe_artist
+
+    return cleaned, fallback_artist
+
+
 def _module_available(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
 
@@ -418,52 +453,56 @@ def _normalize_search_item(entry: Any) -> dict[str, Any]:
 
 def _normalize_yt_flat_entry(entry: dict) -> dict:
     """Normalize a yt-dlp --flat-playlist entry with smart title/artist inference."""
-    raw_title = str(entry.get("title") or "Untitled")
+    raw_title = str(entry.get('title') or 'Untitled')
 
-    # YouTube provides explicit artist field for Topic channels — trust it
-    explicit_artist = str(entry.get("artist") or "").strip()
-    uploader_clean = _clean_artist(str(
-        entry.get("uploader") or entry.get("channel") or ""
-    ))
+    # YouTube provides an explicit artist field for Topic / auto-generated channels—trust it
+    explicit_artist = str(entry.get('artist') or '').strip()
+    uploader_clean  = _clean_artist(str(entry.get('uploader') or entry.get('channel') or ''))
 
     if explicit_artist:
+        title  = _clean_title(raw_title)
         artist = explicit_artist
-        title = _clean_title(raw_title)
     else:
-        # Try "Artist - Title" split on first occurrence of " - "
-        parts = raw_title.split(" - ", 1)
-        if len(parts) == 2:
-            maybe_artist = parts[0].strip()
-            maybe_title = parts[1].strip()
-            # Reject if the "artist" part is suspiciously long or contains bracket noise
-            if maybe_artist and maybe_title and len(maybe_artist) <= 60 and "[" not in maybe_artist:
-                artist = maybe_artist
-                title = _clean_title(maybe_title)
-            else:
-                artist = uploader_clean
-                title = _clean_title(raw_title)
-        else:
-            artist = uploader_clean
-            title = _clean_title(raw_title)
+        title, artist = _infer_artist_title(raw_title, uploader_clean)
 
     # Build thumbnail — prefer yt-dlp data, fall back to constructed URL from video ID
     cover_url = _pick_thumbnail(entry)
     if not cover_url:
-        vid = str(entry.get("id") or "").strip()
+        vid = str(entry.get('id') or '').strip()
         if vid and re.match(r'^[A-Za-z0-9_-]{11}$', vid):
-            cover_url = f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+            cover_url = f'https://i.ytimg.com/vi/{vid}/mqdefault.jpg'
 
     return {
-        "provider": "youtube",
-        "kind": "track",
-        "title": title,
-        "artist": artist,
-        "album": str(entry.get("album") or ""),
-        "year": _extract_year(entry),
-        "durationLabel": _extract_duration_label(entry),
-        "coverUrl": cover_url,
-        "sourceUrl": _normalize_source_url(entry),
+        'provider':      'youtube',
+        'kind':          'track',
+        'title':         title,
+        'artist':        artist,
+        'album':         str(entry.get('album') or ''),
+        'year':          _extract_year(entry),
+        'durationLabel': _extract_duration_label(entry),
+        'coverUrl':      cover_url,
+        'sourceUrl':     _normalize_source_url(entry),
     }
+
+
+def _smart_fix_tags(p: Path) -> None:
+    """Post-process a downloaded file: infer proper artist/title from embedded tag data."""
+    try:
+        audio = MutagenFile(p, easy=True)
+        if audio is None:
+            return
+        raw_title  = str((audio.get('title')  or [p.stem])[0])
+        raw_artist = str((audio.get('artist') or [''     ])[0])
+
+        fallback    = _clean_artist(raw_artist)
+        new_title, new_artist = _infer_artist_title(raw_title, fallback)
+
+        if new_title != raw_title:
+            write_tag(p, 'title', new_title)
+        if new_artist and new_artist != fallback:
+            write_tag(p, 'artist', new_artist)
+    except Exception:
+        pass  # non-fatal
 
 
 def _normalize_preview_track(entry: Any) -> dict[str, Any]:
@@ -594,10 +633,11 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
         append_log(job_id, f"✗ Unexpected error: {exc}")
         jobs[job_id]["status"] = "error"
 
-    # Populate file list
+    # Populate file list — smart-fix embedded tags before reading
     files = []
     for p in sorted(OUTPUT_DIR.rglob("*")):
         if p.is_file() and is_audio(p):
+            _smart_fix_tags(p)
             files.append(read_tags(p))
     jobs[job_id]["files"] = files
 
