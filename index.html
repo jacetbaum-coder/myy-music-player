@@ -15082,7 +15082,7 @@ try {
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js"></script>
-<script src="src/features/search/search.feature.js?v=2"></script>
+<script src="src/features/search/search.feature.js?v=3"></script>
 <script src="src/features/crate/crate.feature.js"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
 
@@ -15679,15 +15679,6 @@ try {
   async function refreshIdentityScopedState() {
     loadScopedPlaylistsIntoMemory();
 
-    // Auto-activate personal library mode for signed-in users
-    try {
-      const userId = (typeof window.getCloudUserId === 'function' ? window.getCloudUserId() : null)
-        || window.APP_ACCOUNT_USER_ID || '';
-      if (userId) {
-        localStorage.setItem('libraryMode', 'personal');
-      }
-    } catch (e) {}
-
     try {
       if (typeof window.refreshAccountOnlyUi === 'function') {
         window.refreshAccountOnlyUi();
@@ -15709,20 +15700,12 @@ try {
     try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e) {}
     try { if (typeof renderHome === 'function') renderHome(); } catch (e) {}
     try { if (typeof renderLibraryPlaylists === 'function') renderLibraryPlaylists(); } catch (e) {}
-
-    // Refresh library to include personal songs
-    try {
-      if (typeof window.refreshLibraryForCurrentMode === 'function') {
-        window.refreshLibraryForCurrentMode();
-      }
-    } catch (e) {}
   }
 
   async function continueAsGuest() {
     if (typeof window.clearAccountIdentity === 'function') {
       window.clearAccountIdentity();
     }
-    try { localStorage.setItem('libraryMode', 'shared'); } catch (e) {}
     if (typeof window.mpGuestModeActivated === 'function') {
       try { window.mpGuestModeActivated(); } catch (e) {}
     }
@@ -15955,7 +15938,6 @@ try {
   // Logout
   window.mpLogout = async function() {
     try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
-    try { localStorage.setItem('libraryMode', 'shared'); } catch (e) {}
     if (typeof window.clearAccountIdentity === 'function') {
       window.clearAccountIdentity();
     } else {

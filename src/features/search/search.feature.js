@@ -164,7 +164,7 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
                 data-album="${String(x.album).replace(/"/g,'&quot;')}"
                 data-title="${String(x.title).replace(/"/g,'&quot;')}"
                 data-query="${q.replace(/"/g,'&quot;')}">
-          <i class="fas fa-music text-zinc-400"></i>
+          <div class="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center">${x.coverArt ? `<img src="${x.coverArt.replace(/"/g,'&quot;')}" class="w-full h-full object-cover" alt="" loading="lazy">` : '<i class="fas fa-music text-zinc-400"></i>'}</div>
           <div class="min-w-0">
             <div class="text-white text-sm font-bold truncate">${x.title}</div>
             <div class="text-zinc-400 text-xs truncate">${x.artist} • ${x.album}</div>
@@ -183,7 +183,7 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
                 data-action="album"
                 data-album="${String(x.album).replace(/"/g,'&quot;')}"
                 data-query="${q.replace(/"/g,'&quot;')}">
-          <i class="fas fa-compact-disc text-zinc-400"></i>
+          <div class="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center">${x.coverArt ? `<img src="${x.coverArt.replace(/"/g,'&quot;')}" class="w-full h-full object-cover" alt="" loading="lazy">` : '<i class="fas fa-compact-disc text-zinc-400"></i>'}</div>
           <div class="min-w-0">
             <div class="text-white text-sm font-bold truncate">${x.album}</div>
             <div class="text-zinc-400 text-xs truncate">${x.artist}</div>
@@ -311,7 +311,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
         Math.round(fuzzyScore(q, artistName) * 0.90)
       );
       if (score >= 60) {
-        items.push({ type: 'song', _score: score, title: songName, album: albumName, artist: artistName });
+        items.push({ type: 'song', _score: score, title: songName, album: albumName, artist: artistName, coverArt: album.coverArt || '' });
       }
     });
   });
@@ -321,7 +321,7 @@ function handleLibrarySearch(query, boxId = 'library-search-results') {
     const albumName = album.albumName || '';
     const artistName = album.artistName || '';
     const score = Math.max(fuzzyScore(q, albumName), Math.round(fuzzyScore(q, artistName) * 0.75));
-    if (score >= 60) items.push({ type: 'album', _score: score, album: albumName, artist: artistName });
+    if (score >= 60) items.push({ type: 'album', _score: score, album: albumName, artist: artistName, coverArt: album.coverArt || '' });
   });
 
   // Artists (unique)
