@@ -2,6 +2,7 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/auth/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/auth/:match*" },
+    { "source": "/user/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/user/:match*" },
     { "source": "/requests/:match*", "destination": "https://reson-api-worker.jacetbaum.workers.dev/requests/:match*" },
     { "source": "/api/artist-image", "destination": "https://music-streamer.jacetbaum.workers.dev/api/artist-image" },
     { "source": "/api/artist-crop", "destination": "https://music-streamer.jacetbaum.workers.dev/api/artist-crop" },
