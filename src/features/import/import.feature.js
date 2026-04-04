@@ -325,7 +325,7 @@ function importShowSpotifyCredsPrompt(statusEl) {
   }
 }
 
-async function importDownloadSpotifyPlaylist(tracks) {
+async function importDownloadSpotifyPlaylist({ tracks, playlistName, coverUrl }) {
   if (!tracks || !tracks.length) return;
 
   const statusEl     = document.getElementById('import-download-status');
@@ -365,10 +365,11 @@ async function importDownloadSpotifyPlaylist(tracks) {
     item: null,
     preview: {
       kind: 'playlist',
-      title: 'Spotify Playlist',
+      title: playlistName || 'Spotify Playlist',
       artist: (tracks[0] && tracks[0].artist) || '',
+      coverUrl: coverUrl || '',
       trackCount: totalTracks,
-      tracks: tracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist })),
+      tracks: tracks.slice(0, 5).map(t => ({ title: t.title, artist: t.artist, coverUrl: t.albumCoverUrl || '' })),
     },
   };
 
@@ -470,7 +471,7 @@ function importRenderPreviewInto(target, previewData, options) {
         <div class="import-preview-sub">${_escHtml(metaParts.join(' • ') || emptyMessage)}</div>
         ${tracks.length ? `
           <ol class="import-preview-tracks">
-            ${tracks.map((track) => `<li>${_escHtml(importCleanTitle(track.title || 'Untitled'))}${track.artist ? ` <span style="color:rgba(255,255,255,0.45)">• ${_escHtml(track.artist)}</span>` : ''}</li>`).join('')}
+            ${tracks.map((track) => `<li style="display:flex;align-items:center;gap:7px;">${track.coverUrl ? `<img src="${_escAttr(track.coverUrl)}" style="width:26px;height:26px;border-radius:3px;object-fit:cover;flex-shrink:0;">` : ''}<span>${_escHtml(importCleanTitle(track.title || 'Untitled'))}${track.artist ? ` <span style="color:rgba(255,255,255,0.45)">• ${_escHtml(track.artist)}</span>` : ''}</span></li>`).join('')}
             ${remainingCount > 0 ? `<li>+ ${remainingCount} more track${remainingCount === 1 ? '' : 's'}</li>` : ''}
           </ol>
         ` : ''}
@@ -657,9 +658,9 @@ async function importResolvePrimaryAction() {
     if (importIsSpotifyPlaylistUrl(raw)) {
       if (statusEl) statusEl.textContent = 'Fetching Spotify playlist…';
       try {
-        const tracks = await importFetchSpotifyTracks(raw);
-        if (statusEl) statusEl.textContent = `Found ${tracks.length} track${tracks.length === 1 ? '' : 's'}. Starting download…`;
-        await importDownloadSpotifyPlaylist(tracks);
+        const result = await importFetchSpotifyTracks(raw);
+        if (statusEl) statusEl.textContent = `Found ${result.tracks.length} track${result.tracks.length === 1 ? '' : 's'}. Starting download…`;
+        await importDownloadSpotifyPlaylist(result);
       } catch (e) {
         if (e.isCredsMissing) {
           importShowSpotifyCredsPrompt(statusEl);

@@ -673,11 +673,28 @@ def _spotify_get_token_from_credentials(client_id: str, client_secret: str) -> O
         return None
 
 
+def _spotify_fetch_playlist_info(playlist_id: str, token: str) -> dict:
+    """Fetch playlist name and cover image."""
+    import urllib.request as _ureq
+    req = _ureq.Request(
+        f'https://api.spotify.com/v1/playlists/{playlist_id}?fields=name,images',
+        headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
+    )
+    try:
+        with _ureq.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        return {'name': '', 'coverUrl': ''}
+    images = data.get('images') or []
+    cover_url = images[0].get('url', '') if images else ''
+    return {'name': data.get('name') or '', 'coverUrl': cover_url}
+
+
 def _spotify_fetch_playlist_tracks(playlist_id: str, token: str) -> list[dict]:
     """Paginate through all tracks in a Spotify playlist (up to 500)."""
     import urllib.request as _ureq
     tracks: list[dict] = []
-    fields = 'next,items(track(name,artists(name),album(name),duration_ms))'
+    fields = 'next,items(track(name,artists(name),album(name,images(url)),duration_ms))'
     url: Optional[str] = (
         f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
         f'?limit=100&offset=0&fields={fields}'
@@ -703,13 +720,17 @@ def _spotify_fetch_playlist_tracks(playlist_id: str, token: str) -> list[dict]:
             if not name:
                 continue
             artists = [a['name'] for a in (track.get('artists') or []) if a.get('name')]
-            album = (track.get('album') or {}).get('name') or ''
+            album_data = track.get('album') or {}
+            album = album_data.get('name') or ''
+            album_images = album_data.get('images') or []
+            album_cover = album_images[0].get('url', '') if album_images else ''
             duration_ms = track.get('duration_ms') or 0
             tracks.append({
                 'title': name,
                 'artist': ', '.join(artists),
                 'album': album,
                 'durationMs': duration_ms,
+                'albumCoverUrl': album_cover,
             })
         url = data.get('next') or None
     return tracks
@@ -755,14 +776,22 @@ async def spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
             detail="SPOTIFY_CREDENTIALS_REQUIRED",
         )
 
-    tracks = await asyncio.to_thread(_spotify_fetch_playlist_tracks, playlist_id, token)
+    playlist_info, tracks = await asyncio.gather(
+        asyncio.to_thread(_spotify_fetch_playlist_info, playlist_id, token),
+        asyncio.to_thread(_spotify_fetch_playlist_tracks, playlist_id, token),
+    )
     if not tracks:
         raise HTTPException(
             status_code=404,
             detail="No tracks found. The playlist may be empty or private.",
         )
 
-    return {"tracks": tracks, "total": len(tracks)}
+    return {
+        "tracks": tracks,
+        "total": len(tracks),
+        "playlistName": playlist_info.get('name') or '',
+        "coverUrl": playlist_info.get('coverUrl') or '',
+    }
 
 
 @app.post("/search")
