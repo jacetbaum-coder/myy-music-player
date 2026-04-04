@@ -1956,7 +1956,15 @@ async function importUploadSelected() {
   if (!__importServerR2Configured) {
     // Check browser-side settings as fallback
     if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
-      importShowReviewBanner('Cloud storage is not configured on your server. Ask your admin or see the setup guide.', 'warn');
+      importShowReviewBanner('Cloud storage isn\'t set up yet — <a href="#" id="import-review-goto-r2" style="color:#1db954;text-decoration:underline;">go to Setup to connect it</a> so your music syncs to your library.', 'warn');
+      setTimeout(() => {
+        const link = document.getElementById('import-review-goto-r2');
+        if (link) link.addEventListener('click', (e) => {
+          e.preventDefault();
+          importShowPanel('setup');
+          importShowWizardStep(2);
+        });
+      }, 50);
       return;
     }
   }
@@ -2191,7 +2199,7 @@ async function importRunClone() {
     return;
   }
   if (!__importServerR2Configured && (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket)) {
-    importShowSaveToast('Cloud storage is not configured on the server');
+    importShowSaveToast('Cloud storage isn\'t set up — go to Setup to connect it');
     return;
   }
 
