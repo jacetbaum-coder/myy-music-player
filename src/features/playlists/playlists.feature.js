@@ -2323,6 +2323,12 @@ function getSongCoverFromPlaylistSong(s) {
     }
   } catch (e) {}
 
+  // Strip users/{uid}/ prefix so path math uses Artist/Album/Track layout
+  {
+    const _p = tid.split('/').filter(Boolean);
+    if (_p.length >= 3 && _p[0] === 'users') tid = _p.slice(2).join('/');
+  }
+
   const parts = tid.split("/").filter(Boolean);
 
   if (parts.length < 1) return "";

@@ -1809,11 +1809,19 @@ async function importUploadSelected() {
 
   const uploadBtn = document.getElementById('import-upload-btn');
   const progressEl = document.getElementById('import-upload-progress');
+  const barWrap = document.getElementById('import-upload-bar-wrap');
+  const barFill = document.getElementById('import-upload-bar-fill');
   const doneBtn = document.getElementById('import-upload-done');
+
+  const setBar = (pct) => {
+    if (barWrap) barWrap.classList.remove('hidden');
+    if (barFill) barFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  };
 
   if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…'; }
   if (progressEl) progressEl.textContent = `Uploading 0 / ${selected.length}…`;
   if (doneBtn) doneBtn.classList.add('hidden');
+  setBar(0);
 
   const files = selected.map(f => ({
     localPath: f.localPath,
@@ -1845,6 +1853,8 @@ async function importUploadSelected() {
     const succeeded = results.filter(r => r.ok).length;
     const failed = results.filter(r => !r.ok);
 
+    setBar(results.length > 0 ? (succeeded / results.length) * 100 : 100);
+
     if (progressEl) {
       progressEl.textContent = `✓ Uploaded ${succeeded} / ${results.length} file(s).`;
       if (failed.length) {
@@ -1856,6 +1866,8 @@ async function importUploadSelected() {
     if (succeeded > 0 && doneBtn) doneBtn.classList.remove('hidden');
 
   } catch (e) {
+    setBar(0);
+    if (barWrap) barWrap.classList.add('hidden');
     if (progressEl) progressEl.textContent = '✗ Upload error: ' + e.message;
   } finally {
     if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.textContent = 'Upload Selected'; }

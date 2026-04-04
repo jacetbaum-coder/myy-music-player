@@ -5841,6 +5841,9 @@ body.qs-lock {
       <div id="import-file-list" class="mb-4"></div>
 
       <button id="import-upload-btn" class="import-btn import-btn-primary mb-2">Upload Selected</button>
+      <div id="import-upload-bar-wrap" class="import-progress-bar-bg mb-1 hidden">
+        <div id="import-upload-bar-fill" class="import-progress-bar-fill" style="width:0%"></div>
+      </div>
       <div id="import-upload-progress" class="text-sm text-white/60 mb-3 whitespace-pre-wrap"></div>
       <button id="import-upload-done"  class="import-btn import-btn-secondary hidden mb-4">Done — go to library</button>
       <button id="import-clear-all"    class="import-btn import-btn-danger">Clear downloaded files</button>
@@ -6213,7 +6216,7 @@ body.qs-lock {
           </button>
         </div>
 
-        <div id="np-artist" class="text-[#b3b3b3] mt-9 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
+        <div id="np-artist" class="text-[#b3b3b3] mt-2 text-[1rem] font-semibold hover:underline cursor-pointer">—</div>
       </div>
 
       <!-- progress -->

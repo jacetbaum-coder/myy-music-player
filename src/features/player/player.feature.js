@@ -1253,7 +1253,7 @@ function restorePlayerStateIfRecent() {
 updateAccentFromCover(currentSong.cover || "");
 
 setMarqueeTitle('p-title', (currentSong.title || "").replace('.mp3', ''));
-document.getElementById('p-artist').innerText = currentSong.artist || "";
+document.getElementById('p-artist').innerText = (currentSong.artist === 'users' ? '' : currentSong.artist) || "";
 
 
   // Ensure icons show PAUSED state on refresh
@@ -1917,8 +1917,9 @@ function updateNowPlayingUI() {
   }
 
   setMarqueeTitle('np-title', (currentSong.title || "").replace('.mp3', ''));
-  if (artist) artist.textContent = currentSong.artist || "";
-  try { loadNpBio(currentSong.artist); } catch (e) {}
+  const _npArtistText = (currentSong.artist === 'users' ? '' : currentSong.artist) || "";
+  if (artist) artist.textContent = _npArtistText;
+  try { loadNpBio(_npArtistText); } catch (e) {}
   try { loadNpLyrics((currentSong.title || currentSong.name || '').replace('.mp3',''), currentSong.artist); } catch (e) {}
 
   if (ctx) {
