@@ -37,6 +37,7 @@ from mutagen.id3 import (
 )
 from mutagen.mp4 import MP4
 from pydantic import BaseModel
+import tempfile
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -152,6 +153,24 @@ def safe_path(raw: str) -> Path:
         p.relative_to(OUTPUT_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=400, detail="Path must be inside output directory.")
+
+
+def _extract_cover_art(audio_path: Path) -> Optional[bytes]:
+    """Extract embedded cover art from an audio file. Returns JPEG/PNG bytes or None."""
+    try:
+        raw = MutagenFile(str(audio_path), easy=False)
+        if raw is None or not hasattr(raw, "tags") or not raw.tags:
+            return None
+        # MP3: APIC frames
+        for key in raw.tags:
+            if key.startswith("APIC"):
+                return raw.tags[key].data
+        # MP4/M4A: covr
+        if "covr" in raw.tags and raw.tags["covr"]:
+            return bytes(raw.tags["covr"][0])
+    except Exception:
+        pass
+    return None
     return p
 
 
@@ -729,6 +748,8 @@ async def upload(request: UploadRequest):
     )
 
     results = []
+    uploaded_cover_albums: set[str] = set()   # track which albums already got a cover
+
     for spec in request.files:
         p = safe_path(spec.localPath)
         target_key = _account_scoped_r2_key(spec.r2Key, request.userId)
@@ -744,6 +765,24 @@ async def upload(request: UploadRequest):
                 ExtraArgs={"ContentType": content_type},
             )
             results.append({"r2Key": target_key, "ok": True})
+
+            # Auto-upload cover.jpg for the album (once per album)
+            album_prefix = "/".join(target_key.split("/")[:-1])  # e.g. users/{uid}/{artist}/{album}
+            if album_prefix and album_prefix not in uploaded_cover_albums:
+                cover_data = _extract_cover_art(p)
+                if cover_data:
+                    cover_key = f"{album_prefix}/cover.jpg"
+                    try:
+                        s3.put_object(
+                            Bucket=bucket,
+                            Key=cover_key,
+                            Body=cover_data,
+                            ContentType="image/jpeg",
+                        )
+                        uploaded_cover_albums.add(album_prefix)
+                    except Exception:
+                        pass  # non-fatal — song uploaded fine, cover is bonus
+
         except Exception as exc:
             results.append({"r2Key": target_key, "ok": False, "error": str(exc)})
 

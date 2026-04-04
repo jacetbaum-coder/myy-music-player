@@ -144,8 +144,16 @@ export default {
         const parts = key.replace(prefix, '').split('/');
         if (parts.length < 3) continue;
         const [artist, album, file] = parts;
+        if (file === 'cover.jpg') continue; // skip cover art objects from song list
         const albumKey = `${artist}///${album}`;
-        if (!albums[albumKey]) albums[albumKey] = { artistName: artist, albumName: album, songs: [] };
+        if (!albums[albumKey]) {
+          albums[albumKey] = {
+            artistName: artist,
+            albumName: album,
+            coverArt: `https://music-streamer.jacetbaum.workers.dev/?id=${encodeURIComponent(prefix + artist + '/' + album + '/cover.jpg')}`,
+            songs: [],
+          };
+        }
         albums[albumKey].songs.push({
           id: key,
           r2Path: key,
