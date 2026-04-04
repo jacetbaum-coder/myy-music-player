@@ -498,21 +498,31 @@ async function importResolvePrimaryAction() {
   importClearSearchResults();
   if (statusEl) statusEl.textContent = 'Loading preview…';
   const cleanedRaw = importCleanUrl(raw);
+  let preview = null;
   try {
-    const preview = await importPreviewUrl(cleanedRaw);
-    __importSelectedSource = {
-      input: raw,
-      sourceUrl: cleanedRaw,
-      provider: 'youtube',
-      item: null,
-      preview,
-    };
-    importRenderPreview(preview);
-    if (statusEl) statusEl.textContent = 'Preview ready. Download when you are ready.';
+    preview = await importPreviewUrl(cleanedRaw);
   } catch (e) {
-    __importSelectedSource = null;
-    if (statusEl) statusEl.textContent = '✗ ' + e.message;
+    // If preview fails but the original URL is a radio/mix, don't give up —
+    // the seed video may be geo-restricted but the playlist itself is accessible.
+    if (importIsRadioOrMixUrl(raw)) {
+      preview = { kind: 'playlist', title: 'Radio / Mix', artist: '', sourceUrl: raw, trackCount: 0, tracks: [] };
+    } else {
+      if (statusEl) statusEl.textContent = '✗ ' + e.message;
+      importUpdatePrimaryAction();
+      return;
+    }
   }
+  __importSelectedSource = {
+    input: raw,
+    sourceUrl: cleanedRaw,
+    provider: 'youtube',
+    item: null,
+    preview,
+  };
+  importRenderPreview(preview);
+  if (statusEl) statusEl.textContent = preview.kind === 'playlist' || preview.trackCount > 1
+    ? 'Loading track list…'
+    : 'Preview ready. Download when you are ready.';
   importUpdatePrimaryAction();
 }
 
