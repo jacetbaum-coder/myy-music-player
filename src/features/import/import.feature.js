@@ -268,19 +268,16 @@ function importRenderPreview(previewData) {
     return;
   }
 
-  // Use the original pasted URL (before cleaning) for track list enumeration so
-  // radio/mix links enumerate all their tracks rather than just the seed video.
+  // Only show a track list for radio/mix URLs — not for single videos or regular playlists.
   const originalInput = __importSelectedSource && __importSelectedSource.input || '';
-  const urlForTracklist = importIsRadioOrMixUrl(originalInput)
-    ? originalInput
-    : (previewData.kind === 'playlist' ? previewData.sourceUrl : null);
+  const isRadio = importIsRadioOrMixUrl(originalInput);
 
-  if (urlForTracklist) {
+  if (isRadio) {
     const statusEl = document.getElementById('import-download-status');
     if (statusEl) statusEl.textContent = 'Loading track list…';
-    importFetchPlaylistTracks(urlForTracklist).then(tracks => {
+    importFetchPlaylistTracks(originalInput).then(tracks => {
       importRenderTrackSelection(tracks);
-      if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Select what you want then click Download.`;
+      if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Check the ones you want, then click Download.`;
     }).catch(e => {
       if (statusEl) statusEl.textContent = '✗ Could not load track list: ' + e.message;
     });
@@ -520,9 +517,11 @@ async function importResolvePrimaryAction() {
     preview,
   };
   importRenderPreview(preview);
-  if (statusEl) statusEl.textContent = preview.kind === 'playlist' || preview.trackCount > 1
-    ? 'Loading track list…'
-    : 'Preview ready. Download when you are ready.';
+  // importRenderPreview sets the status to "Loading track list…" for radio URLs,
+  // so only update status here for single-track previews.
+  if (!importIsRadioOrMixUrl(raw)) {
+    if (statusEl) statusEl.textContent = 'Preview ready. Click Download when you are ready.';
+  }
   importUpdatePrimaryAction();
 }
 

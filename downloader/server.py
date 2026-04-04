@@ -548,9 +548,10 @@ async def playlist_tracks(request: PreviewRequest):
         "--no-warnings",
         "--skip-download",
         "--js-runtimes", "node",
+        "--playlist-end", "100",
         url,
     ]
-    data = await asyncio.to_thread(_run_json_command, cmd, 60)
+    data = await asyncio.to_thread(_run_json_command, cmd, 90)
     entries = [e for e in (data.get("entries") or []) if isinstance(e, dict)]
     if not entries:
         # single video — wrap it
