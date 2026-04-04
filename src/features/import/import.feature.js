@@ -1519,13 +1519,9 @@ function importPollJob(jobId, opts) {
         importClearSearchResults();
         importUpdatePrimaryAction();
         if (__importReviewContext && __importReviewContext.preview) {
-          // Only auto-switch panel if user is already looking at the download panel
-          if (__importCurrentPanel === 'download') {
-            importShowPanel('review');
-            importInitReviewPanel();
-          } else if (reviewBtn) {
-            reviewBtn.classList.remove('hidden');
-          }
+          // Always switch to review panel when download completes
+          importShowPanel('review');
+          importInitReviewPanel();
         } else if (reviewBtn) {
           reviewBtn.classList.remove('hidden');
         }
@@ -2038,6 +2034,26 @@ async function importUploadSelected() {
 
     if (succeeded > 0 && doneBtn) doneBtn.classList.remove('hidden');
 
+    // If this was a Spotify playlist import, create the playlist in the cloud
+    if (succeeded > 0) {
+      const preview = __importReviewContext && __importReviewContext.preview;
+      const playlistName = preview && preview.kind === 'playlist' && preview.title
+        ? String(preview.title).trim()
+        : '';
+      if (playlistName && typeof window.createPlaylistInCloud === 'function') {
+        try {
+          const created = await window.createPlaylistInCloud(playlistName);
+          const playlistId = created && (created.playlistId || (created.playlist && created.playlist.id));
+          if (playlistId && typeof window.addTrackToPlaylistInCloud === 'function') {
+            const uploadedKeys = selected.map(f => importComputeUploadR2Key(f));
+            for (const key of uploadedKeys) {
+              try { await window.addTrackToPlaylistInCloud(playlistId, key); } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
   } catch (e) {
     setBar(0);
     if (barWrap) barWrap.classList.add('hidden');
@@ -2071,6 +2087,20 @@ function importInitReviewPanel() {
   if (uploadBtn && !uploadBtn.__importBound) {
     uploadBtn.__importBound = true;
     uploadBtn.addEventListener('click', importUploadSelected);
+  }
+
+  // Scroll to and briefly flash the upload button so the user knows what to do next
+  if (uploadBtn) {
+    setTimeout(() => {
+      uploadBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      uploadBtn.style.transition = 'box-shadow 0.15s ease, outline 0.15s ease';
+      uploadBtn.style.outline = '3px solid #1db954';
+      uploadBtn.style.boxShadow = '0 0 0 6px rgba(29,185,84,0.25)';
+      setTimeout(() => {
+        uploadBtn.style.outline = '';
+        uploadBtn.style.boxShadow = '';
+      }, 900);
+    }, 350);
   }
 
   const doneBtn = document.getElementById('import-upload-done');
