@@ -12,6 +12,7 @@ import asyncio
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -238,6 +239,24 @@ def detect_url_type(url: str) -> str:
     return "youtube"
 
 
+_TITLE_NOISE = re.compile(
+    r'\s*[\(\[\{]'
+    r'(official\s*(music\s*)?video|official\s*audio|official\s*lyric\s*video'
+    r'|lyric\s*video|lyrics?|visuali[sz]er|audio|hd|hq|4k|live|live\s*session'
+    r'|extended|acoustic|remix|official\s*clip|studio\s*session|full\s*album'
+    r'|official|video\s*clip|360°?)'
+    r'[\)\]\}]',
+    re.IGNORECASE,
+)
+
+
+def _clean_title(title: str) -> str:
+    """Strip common noise suffixes from a YouTube video title."""
+    cleaned = _TITLE_NOISE.sub('', str(title or '')).strip()
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip(' -–—|')
+    return cleaned or str(title or '')
+
+
 def _module_available(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
 
@@ -347,7 +366,7 @@ def _normalize_search_item(entry: Any) -> dict[str, Any]:
         return {}
 
     kind = "playlist" if entry.get("_type") == "playlist" else "track"
-    title = str(entry.get("title") or entry.get("playlist_title") or "Untitled")
+    title = _clean_title(str(entry.get("title") or entry.get("playlist_title") or "Untitled"))
     artist = str(
         entry.get("artist")
         or entry.get("uploader")
@@ -375,7 +394,7 @@ def _normalize_preview_track(entry: Any) -> dict[str, Any]:
         return {}
 
     return {
-        "title": str(entry.get("track") or entry.get("title") or "Untitled"),
+        "title": _clean_title(str(entry.get("track") or entry.get("title") or "Untitled")),
         "artist": str(entry.get("artist") or entry.get("uploader") or entry.get("channel") or ""),
         "sourceUrl": _normalize_source_url(entry),
         "durationLabel": _extract_duration_label(entry),
@@ -406,7 +425,7 @@ def _normalize_preview(data: Any, source_url: str) -> dict[str, Any]:
     return {
         "provider": "youtube",
         "kind": "track",
-        "title": single_track.get("title") or "Untitled",
+        "title": _clean_title(single_track.get("title") or "Untitled"),
         "artist": single_track.get("artist") or "",
         "album": str(data.get("album") or data.get("playlist_title") or ""),
         "year": _extract_year(data),
@@ -419,6 +438,7 @@ def _normalize_preview(data: Any, source_url: str) -> dict[str, Any]:
 
 async def run_download(job_id: str, request: DownloadRequest) -> None:
     """Run the download subprocess and update the job store on completion."""
+    request = request.model_copy(update={"url": _clean_youtube_url(request.url)})
     url_type = detect_url_type(request.url)
     output_dir = str(OUTPUT_DIR)
 
@@ -507,6 +527,32 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
 @app.get("/health")
 def health():
     return {"ok": True, "outputDir": str(OUTPUT_DIR)}
+
+
+@app.post("/playlist-tracks")
+async def playlist_tracks(request: PreviewRequest):
+    """Return the full flat track list for a YouTube playlist/mix URL."""
+    url = _clean_youtube_url(str(request.url or "").strip())
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required.")
+    if not _module_available("yt_dlp"):
+        raise HTTPException(status_code=500, detail="'yt-dlp' is not installed.")
+    cmd = [
+        *_module_command("yt_dlp"),
+        "--dump-single-json",
+        "--flat-playlist",
+        "--no-warnings",
+        "--skip-download",
+        url,
+    ]
+    data = await asyncio.to_thread(_run_json_command, cmd, 60)
+    entries = [e for e in (data.get("entries") or []) if isinstance(e, dict)]
+    if not entries:
+        # single video — wrap it
+        entries = [data]
+    tracks = [_normalize_search_item(e) for e in entries]
+    tracks = [t for t in tracks if t.get("sourceUrl")]
+    return {"tracks": tracks, "total": len(tracks)}
 
 
 @app.post("/search")

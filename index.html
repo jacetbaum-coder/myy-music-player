@@ -44,6 +44,7 @@ button,
 .nav-item {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 /* Prevent text selection during fast taps/swipes */
@@ -4067,6 +4068,81 @@ body.qs-lock {
   margin-top: 4px;
 }
 
+/* Track checklist */
+.import-track-checklist {
+  max-height: 220px;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 6px 4px;
+}
+.import-track-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.import-track-row:hover { background: rgba(255,255,255,0.06); }
+.import-track-row input[type="checkbox"] { flex-shrink: 0; }
+.import-track-row-title { font-size: 13px; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.import-track-row-meta  { font-size: 11px; color: rgba(255,255,255,0.45); flex-shrink: 0; }
+
+/* Progress bar */
+.import-progress-bar-bg {
+  height: 6px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.import-progress-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Download-in-progress badge on Crate nav tab */
+.import-nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  border: 2px solid #000;
+  animation: import-badge-pulse 1.4s ease-in-out infinite;
+}
+@keyframes import-badge-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.85); }
+}
+
+/* Toast notification */
+.import-toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  z-index: 9999;
+  white-space: nowrap;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.import-toast.hidden { display: none; }
+
+
+
 .import-file-row {
   background: rgba(255,255,255,0.05);
   border-radius: 12px;
@@ -5378,8 +5454,40 @@ body.qs-lock {
         <div id="import-discovery-hint" class="import-discovery-hint">Type what you want and I’ll find matches, or paste a direct link to preview it first.</div>
         <div id="import-search-results" class="import-result-list hidden"></div>
         <div id="import-selection-preview" class="hidden"></div>
+        <!-- Track checklist (shown for playlists/mixes before download) -->
+        <div id="import-track-select" class="hidden mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div id="import-track-select-label" class="text-sm font-bold text-white/80"></div>
+            <div class="flex gap-3">
+              <button type="button" id="import-track-check-all" class="text-xs text-white/60 hover:text-white">All</button>
+              <button type="button" id="import-track-check-none" class="text-xs text-white/60 hover:text-white">None</button>
+            </div>
+          </div>
+          <div id="import-track-list" class="import-track-checklist"></div>
+        </div>
+
+        <!-- Metadata fields to include -->
+        <div id="import-meta-opts" class="hidden mb-3">
+          <div class="text-xs font-bold text-white/50 mb-1 uppercase tracking-wider">Include metadata</div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="title" checked> Title</label>
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="artist" checked> Artist</label>
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="album" checked> Album</label>
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="albumartist" checked> Album Artist</label>
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="year" checked> Year</label>
+            <label class="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer"><input type="checkbox" class="import-meta-check" data-field="artwork" checked> Artwork</label>
+          </div>
+        </div>
+
         <button id="import-download-btn" class="import-btn import-btn-primary mb-3">Find Matches</button>
         <div id="import-download-status" class="text-sm text-white/60 mb-2"></div>
+        <!-- Progress bar -->
+        <div id="import-progress-wrap" class="hidden mb-2">
+          <div class="import-progress-bar-bg">
+            <div id="import-progress-bar" class="import-progress-bar-fill" style="width:0%"></div>
+          </div>
+          <div id="import-progress-label" class="text-xs text-white/50 mt-1"></div>
+        </div>
         <div id="import-logs" class="import-logs hidden-empty" style="display:none"></div>
         <button id="import-goto-review" class="import-btn import-btn-secondary hidden">Next: Review →</button>
       </div>
@@ -5642,8 +5750,12 @@ body.qs-lock {
     <div class="nav-item" id="nav-premium" onclick="onNavTap('crate')">
     <i class="fas fa-box-archive"></i>
     <span>Crate</span>
+    <span id="import-nav-badge" class="import-nav-badge hidden"></span>
   </div>
 </nav>
+
+<!-- Download toast (shown when download completes while on another tab) -->
+<div id="import-toast" class="import-toast hidden" role="alert"></div>
 
 
 

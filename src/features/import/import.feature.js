@@ -19,8 +19,41 @@ let __importSearchResults = [];
 let __importSelectedSource = null;
 let __importLaunchContext = null;
 let __importReviewContext = null;
+let __importTrackSelection = [];       // Array<{ sourceUrl, title, artist, duration, checked }>
+let __importBgPollOpts = null;         // opts saved so re-attach can continue the same job
 
 const IMPORT_SEARCH_LIMIT = 8;
+
+// ---------------------------------------------------------------------------
+// Background badge + toast helpers
+// ---------------------------------------------------------------------------
+function importSetDownloadBadge(active) {
+  const badge = document.getElementById('import-nav-badge');
+  if (!badge) return;
+  badge.classList.toggle('hidden', !active);
+}
+
+let __importToastTimer = null;
+function importShowToast(message, durationMs) {
+  const el = document.getElementById('import-toast');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.remove('hidden');
+  el.style.opacity = '1';
+  if (__importToastTimer) clearTimeout(__importToastTimer);
+  __importToastTimer = setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.classList.add('hidden'), 320);
+  }, durationMs || 4000);
+}
+
+// Title noise patterns: strip "(Visualizer)", "(Lyrics)", "(Official Video)", etc.
+const _IMPORT_TITLE_NOISE = /\s*[\(\[\{](official\s*(music\s*)?video|official\s*audio|official\s*lyric\s*video|lyric\s*video|lyrics?|visuali[sz]er|audio|hd|hq|4k|live|live\s*session|extended|acoustic|remix|official\s*clip|studio\s*session|full\s*album|official|video\s*clip|360°?)[\)\]\}]/gi;
+
+function importCleanTitle(title) {
+  const cleaned = String(title || '').replace(_IMPORT_TITLE_NOISE, '').trim().replace(/\s{2,}/g, ' ').replace(/[\s\-–—|]+$/, '').trim();
+  return cleaned || String(title || '');
+}
 
 // ---------------------------------------------------------------------------
 // Settings helpers
@@ -101,6 +134,9 @@ function importResetSelectedSource() {
     preview.innerHTML = '';
     preview.classList.add('hidden');
   }
+  const metaOpts = document.getElementById('import-meta-opts');
+  if (metaOpts) metaOpts.classList.add('hidden');
+  importHideTrackSelection();
 }
 
 function importResetReviewContext() {
@@ -151,6 +187,11 @@ function importGetPrimaryActionConfig() {
     return { label: 'Find Matches', disabled: false };
   }
   if (selected && selected.input === raw && selected.sourceUrl) {
+    // If we have a track checklist, label reflects selected count
+    const checkedCount = __importTrackSelection.filter(t => t.checked).length;
+    if (__importTrackSelection.length > 0) {
+      return { label: `Download ${checkedCount} track${checkedCount === 1 ? '' : 's'}`, disabled: checkedCount === 0 };
+    }
     return { label: 'Download Selection', disabled: false };
   }
   if (importDetectInputKind(raw) === 'query') {
@@ -209,6 +250,23 @@ function importRenderSearchResults(items) {
 function importRenderPreview(previewData) {
   const target = document.getElementById('import-selection-preview');
   importRenderPreviewInto(target, previewData, { emptyMessage: 'Metadata will be editable before save.' });
+
+  const metaOpts = document.getElementById('import-meta-opts');
+  if (metaOpts) metaOpts.classList.toggle('hidden', !previewData);
+
+  // For playlists, load the full track list into the checklist panel
+  if (previewData && previewData.kind === 'playlist' && previewData.sourceUrl) {
+    const statusEl = document.getElementById('import-download-status');
+    if (statusEl) statusEl.textContent = 'Loading track list…';
+    importFetchPlaylistTracks(previewData.sourceUrl).then(tracks => {
+      importRenderTrackSelection(tracks);
+      if (statusEl) statusEl.textContent = `${tracks.length} tracks found. Select what you want then click Download.`;
+    }).catch(e => {
+      if (statusEl) statusEl.textContent = '✗ Could not load track list: ' + e.message;
+    });
+  } else {
+    importHideTrackSelection();
+  }
 }
 
 function importRenderPreviewInto(target, previewData, options) {
@@ -232,11 +290,11 @@ function importRenderPreviewInto(target, previewData, options) {
         ? `<img class="import-preview-cover" src="${_escAttr(cover)}" alt="Preview artwork">`
         : `<div class="import-preview-cover import-preview-cover-fallback"><i class="fas fa-music"></i></div>`}
       <div class="import-preview-body">
-        <div class="import-preview-title">${_escHtml(previewData.title || 'Untitled')}</div>
+        <div class="import-preview-title">${_escHtml(importCleanTitle(previewData.title || 'Untitled'))}</div>
         <div class="import-preview-sub">${_escHtml(metaParts.join(' • ') || emptyMessage)}</div>
         ${tracks.length ? `
           <ol class="import-preview-tracks">
-            ${tracks.map((track) => `<li>${_escHtml(track.title || 'Untitled')}${track.artist ? ` <span style="color:rgba(255,255,255,0.45)">• ${_escHtml(track.artist)}</span>` : ''}</li>`).join('')}
+            ${tracks.map((track) => `<li>${_escHtml(importCleanTitle(track.title || 'Untitled'))}${track.artist ? ` <span style="color:rgba(255,255,255,0.45)">• ${_escHtml(track.artist)}</span>` : ''}</li>`).join('')}
             ${remainingCount > 0 ? `<li>+ ${remainingCount} more track${remainingCount === 1 ? '' : 's'}</li>` : ''}
           </ol>
         ` : ''}
@@ -287,6 +345,7 @@ async function importApplyReviewPreviewDefaults() {
     return;
   }
 
+  const metaOpts = importGetMetaOptions();
   const preview = __importReviewContext.preview;
   const tracks = Array.isArray(preview.tracks) ? preview.tracks : [];
 
@@ -295,16 +354,16 @@ async function importApplyReviewPreviewDefaults() {
     const track = tracks[idx] || tracks[0] || null;
     const patchPlan = [];
 
-    if (track && importNeedsMetadataDefault(file.title, file) && track.title) {
-      patchPlan.push(['title', track.title]);
+    if (metaOpts.title && track && importNeedsMetadataDefault(file.title, file) && track.title) {
+      patchPlan.push(['title', importCleanTitle(track.title)]);
     }
-    if (track && importNeedsMetadataDefault(file.artist, file) && track.artist) {
+    if (metaOpts.artist && track && importNeedsMetadataDefault(file.artist, file) && track.artist) {
       patchPlan.push(['artist', track.artist]);
     }
-    if (importNeedsMetadataDefault(file.album, file) && preview.title) {
+    if (metaOpts.album && importNeedsMetadataDefault(file.album, file) && preview.title) {
       patchPlan.push(['album', preview.title]);
     }
-    if (importNeedsMetadataDefault(file.albumartist, file) && preview.artist) {
+    if (metaOpts.albumartist && importNeedsMetadataDefault(file.albumartist, file) && preview.artist) {
       patchPlan.push(['albumartist', preview.artist]);
     }
 
@@ -696,12 +755,112 @@ function importCleanUrl(url) {
   return url;
 }
 
+// ---------------------------------------------------------------------------
+// Metadata options (which fields to auto-fill)
+// ---------------------------------------------------------------------------
+function importGetMetaOptions() {
+  const opts = {};
+  document.querySelectorAll('.import-meta-check').forEach(cb => {
+    opts[cb.dataset.field] = cb.checked;
+  });
+  // default all true if checkboxes not in DOM yet
+  ['title','artist','album','albumartist','year','artwork'].forEach(f => {
+    if (!(f in opts)) opts[f] = true;
+  });
+  return opts;
+}
+
+// ---------------------------------------------------------------------------
+// Track selection helpers
+// ---------------------------------------------------------------------------
+async function importFetchPlaylistTracks(url) {
+  const serverUrl = importGetServerUrl();
+  const res = await fetch(serverUrl + '/playlist-tracks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Could not load track list');
+  return Array.isArray(data.tracks) ? data.tracks : [];
+}
+
+function importRenderTrackSelection(tracks) {
+  const wrap = document.getElementById('import-track-select');
+  const listEl = document.getElementById('import-track-list');
+  const label = document.getElementById('import-track-select-label');
+  if (!wrap || !listEl) return;
+
+  if (!tracks || !tracks.length) {
+    wrap.classList.add('hidden');
+    return;
+  }
+
+  __importTrackSelection = tracks.map(t => ({ ...t, checked: true }));
+
+  function updateLabel() {
+    const checked = __importTrackSelection.filter(t => t.checked).length;
+    if (label) label.textContent = `${checked} of ${__importTrackSelection.length} tracks selected`;
+    const btn = document.getElementById('import-download-btn');
+    if (btn) btn.textContent = `Download ${checked} track${checked === 1 ? '' : 's'}`;
+  }
+
+  listEl.innerHTML = __importTrackSelection.map((t, idx) => `
+    <label class="import-track-row" data-track-idx="${idx}">
+      <input type="checkbox" class="import-track-cb" data-idx="${idx}" ${t.checked ? 'checked' : ''}>
+      <span class="import-track-row-title">${_escHtml(importCleanTitle(t.title || 'Untitled'))}</span>
+      <span class="import-track-row-meta">${_escHtml(t.durationLabel || t.artist || '')}</span>
+    </label>
+  `).join('');
+
+  listEl.querySelectorAll('.import-track-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const idx = Number(cb.dataset.idx);
+      __importTrackSelection[idx].checked = cb.checked;
+      updateLabel();
+    });
+  });
+
+  const allBtn = document.getElementById('import-track-check-all');
+  const noneBtn = document.getElementById('import-track-check-none');
+  if (allBtn && !allBtn.__trackBound) {
+    allBtn.__trackBound = true;
+    allBtn.addEventListener('click', () => {
+      __importTrackSelection.forEach(t => { t.checked = true; });
+      listEl.querySelectorAll('.import-track-cb').forEach(cb => { cb.checked = true; });
+      updateLabel();
+    });
+  }
+  if (noneBtn && !noneBtn.__trackBound) {
+    noneBtn.__trackBound = true;
+    noneBtn.addEventListener('click', () => {
+      __importTrackSelection.forEach(t => { t.checked = false; });
+      listEl.querySelectorAll('.import-track-cb').forEach(cb => { cb.checked = false; });
+      updateLabel();
+    });
+  }
+
+  updateLabel();
+  wrap.classList.remove('hidden');
+}
+
+function importHideTrackSelection() {
+  __importTrackSelection = [];
+  const wrap = document.getElementById('import-track-select');
+  if (wrap) wrap.classList.add('hidden');
+}
+
+function importGetSelectedTrackUrls() {
+  const checked = __importTrackSelection.filter(t => t.checked);
+  return checked.map(t => t.sourceUrl).filter(Boolean);
+}
+
 function importDetectUrlType(url) {
   return (url.includes('spotify.com') || url.startsWith('spotify:')) ? 'spotify' : 'youtube';
 }
 
 async function importStartDownload(sourceUrl) {
-  const url = String(sourceUrl || importTrimmedInput()).trim();
+  const url = importCleanUrl(String(sourceUrl || importTrimmedInput()).trim());
   if (!url) { alert('Please enter a URL.'); return; }
 
   const logsEl = document.getElementById('import-logs');
@@ -714,6 +873,14 @@ async function importStartDownload(sourceUrl) {
   if (statusEl) statusEl.textContent = 'Starting download…';
   if (reviewBtn) reviewBtn.classList.add('hidden');
   if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = 'Downloading…'; }
+
+  // Reset progress bar
+  const progressWrap = document.getElementById('import-progress-wrap');
+  const progressBar  = document.getElementById('import-progress-bar');
+  const progressLabel = document.getElementById('import-progress-label');
+  if (progressWrap) progressWrap.classList.remove('hidden');
+  if (progressBar)  progressBar.style.width = '0%';
+  if (progressLabel) progressLabel.textContent = '';
 
   const settings = importLoadSettings();
   const serverUrl = importGetServerUrl();
@@ -729,14 +896,19 @@ async function importStartDownload(sourceUrl) {
     preview: selected ? selected.preview : null,
   };
 
+  // If we have a per-track checklist (playlist/mix), kick off one job per selected URL.
+  // Otherwise fall through to the normal single-URL job.
+  const selectedUrls = importGetSelectedTrackUrls();
+  const urlsToDownload = selectedUrls.length > 0 ? selectedUrls : [url];
+  const totalTracks = urlsToDownload.length;
+  let completedTracks = 0;
+
   const body = {
-    url,
+    url: urlsToDownload[0],
     outputFormat: '{artist}/{album}/{title}.{output-ext}',
     spotifyClientId: settings.spotifyClientId || undefined,
     spotifyClientSecret: settings.spotifySecret || undefined,
   };
-
-  // Clear undefined keys
   Object.keys(body).forEach(k => { if (body[k] === undefined) delete body[k]; });
 
   let jobId;
@@ -752,50 +924,142 @@ async function importStartDownload(sourceUrl) {
     __importCurrentJobId = jobId;
   } catch (e) {
     if (statusEl) statusEl.textContent = '✗ Failed to start: ' + e.message;
+    if (progressWrap) progressWrap.classList.add('hidden');
     importUpdatePrimaryAction();
     return;
   }
 
-  importPollJob(jobId);
+  const pollOpts = { totalTracks, completedTracks, remainingUrls: urlsToDownload.slice(1), settings };
+  __importBgPollOpts = pollOpts;
+  importPollJob(jobId, pollOpts);
 }
 
-function importPollJob(jobId) {
+function importPollJob(jobId, opts) {
   if (__importPollTimer) { clearInterval(__importPollTimer); __importPollTimer = null; }
 
+  // Show the download-in-progress badge on the Crate nav tab
+  importSetDownloadBadge(true);
+
   const serverUrl = importGetServerUrl();
-  const logsEl = document.getElementById('import-logs');
-  const statusEl = document.getElementById('import-download-status');
-  const reviewBtn = document.getElementById('import-goto-review');
-  const dlBtn = document.getElementById('import-download-btn');
+
+  // Grab UI elements fresh — they may not exist if the user navigated away
+  function ui(id) { return document.getElementById(id); }
+
+  const totalTracks     = (opts && opts.totalTracks)     || 1;
+  let   completedTracks = (opts && opts.completedTracks) || 0;
+  const remainingUrls   = (opts && opts.remainingUrls)   || [];
+  const settings        = (opts && opts.settings)        || importLoadSettings();
 
   let lastLogCount = 0;
+
+  // Regex to parse yt-dlp progress lines like:
+  // [download]  45.3% of   5.67MiB at    2.34MiB/s ETA 00:02
+  const progressRe = /\[download\]\s+([\d.]+)%.*?ETA\s+([\d:]+)/i;
+
+  function _setOverallProgress(filePercent) {
+    const overall = ((completedTracks + filePercent / 100) / totalTracks) * 100;
+    const bar = ui('import-progress-bar');
+    if (bar) bar.style.width = Math.min(100, overall).toFixed(1) + '%';
+  }
 
   __importPollTimer = setInterval(async () => {
     try {
       const res = await fetch(serverUrl + '/job/' + jobId);
       const data = await res.json();
 
-      // Append new log lines
-      if (logsEl && Array.isArray(data.logs)) {
+      // Append new log lines + parse progress
+      if (Array.isArray(data.logs)) {
         const newLines = data.logs.slice(lastLogCount);
         lastLogCount = data.logs.length;
         if (newLines.length) {
-          logsEl.textContent += newLines.join('\n') + '\n';
-          logsEl.scrollTop = logsEl.scrollHeight;
+          const logsEl = ui('import-logs');
+          if (logsEl) {
+            logsEl.textContent += newLines.join('\n') + '\n';
+            logsEl.scrollTop = logsEl.scrollHeight;
+          }
+          for (let i = newLines.length - 1; i >= 0; i--) {
+            const match = progressRe.exec(newLines[i]);
+            if (match) {
+              const filePct = parseFloat(match[1]);
+              const eta = match[2];
+              _setOverallProgress(filePct);
+              const lbl = ui('import-progress-label');
+              if (lbl) {
+                const trackInfo = totalTracks > 1 ? `Track ${completedTracks + 1} of ${totalTracks} — ` : '';
+                lbl.textContent = `${trackInfo}${filePct.toFixed(0)}%  •  ~${eta} remaining`;
+              }
+              break;
+            }
+          }
         }
       }
 
       if (data.status === 'done') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
-        const fileCount = Array.isArray(data.files) ? data.files.length : '?';
+        completedTracks += 1;
+        _setOverallProgress(100);
+
+        // If there are more queued tracks, start the next one
+        if (remainingUrls.length > 0) {
+          const nextUrl = remainingUrls[0];
+          const nextBody = {
+            url: nextUrl,
+            outputFormat: '{artist}/{album}/{title}.{output-ext}',
+            spotifyClientId: settings.spotifyClientId || undefined,
+            spotifyClientSecret: settings.spotifySecret || undefined,
+          };
+          Object.keys(nextBody).forEach(k => { if (nextBody[k] === undefined) delete nextBody[k]; });
+          const nextOpts = { totalTracks, completedTracks, remainingUrls: remainingUrls.slice(1), settings };
+          __importBgPollOpts = nextOpts;
+          const statusEl = ui('import-download-status');
+          const lbl = ui('import-progress-label');
+          if (statusEl) statusEl.textContent = `Downloading track ${completedTracks + 1} of ${totalTracks}…`;
+          if (lbl) lbl.textContent = `Track ${completedTracks + 1} of ${totalTracks}`;
+          try {
+            const res2 = await fetch(serverUrl + '/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(nextBody),
+            });
+            const d2 = await res2.json();
+            if (!res2.ok || !d2.jobId) throw new Error(d2.detail || 'Server error');
+            __importCurrentJobId = d2.jobId;
+            importPollJob(d2.jobId, nextOpts);
+          } catch (e) {
+            if (statusEl) statusEl.textContent = '✗ Failed on track ' + (completedTracks + 1) + ': ' + e.message;
+            importSetDownloadBadge(false);
+          }
+          return;
+        }
+
+        // All done
+        __importCurrentJobId = null;
+        __importBgPollOpts = null;
+        importSetDownloadBadge(false);
+        const fileCount = Array.isArray(data.files) ? data.files.length : 0;
+        const label = totalTracks > 1 ? `${totalTracks} tracks downloaded` : 'Download complete';
+        // Toast is shown regardless of which tab the user is on
+        importShowToast(`✓ ${label} — tap Crate to review`, 5000);
+
+        const statusEl = ui('import-download-status');
+        const progressLbl = ui('import-progress-label');
+        const progressWrap = ui('import-progress-wrap');
+        const reviewBtn = ui('import-goto-review');
         if (statusEl) statusEl.textContent = `✓ Done — ${fileCount} file(s) ready`;
+        if (progressLbl) progressLbl.textContent = '';
+        if (progressWrap) progressWrap.classList.add('hidden');
         importResetSelectedSource();
         importClearSearchResults();
         importUpdatePrimaryAction();
         if (__importReviewContext && __importReviewContext.preview) {
-          importShowPanel('review');
-          importInitReviewPanel();
+          // Only auto-switch panel if user is already looking at the download panel
+          if (__importCurrentPanel === 'download') {
+            importShowPanel('review');
+            importInitReviewPanel();
+          } else if (reviewBtn) {
+            reviewBtn.classList.remove('hidden');
+          }
         } else if (reviewBtn) {
           reviewBtn.classList.remove('hidden');
         }
@@ -804,7 +1068,14 @@ function importPollJob(jobId) {
       if (data.status === 'error') {
         clearInterval(__importPollTimer);
         __importPollTimer = null;
+        __importCurrentJobId = null;
+        __importBgPollOpts = null;
+        importSetDownloadBadge(false);
+        importShowToast('✗ Download failed — open Crate to see details', 5000);
+        const statusEl = ui('import-download-status');
+        const progressWrap = ui('import-progress-wrap');
         if (statusEl) statusEl.textContent = '✗ Download failed — see logs above';
+        if (progressWrap) progressWrap.classList.add('hidden');
         importUpdatePrimaryAction();
       }
     } catch (e) {
@@ -812,6 +1083,7 @@ function importPollJob(jobId) {
     }
   }, 1200);
 }
+
 
 // ---------------------------------------------------------------------------
 // Review panel
@@ -1363,6 +1635,24 @@ function _formatBytes(bytes) {
 // ---------------------------------------------------------------------------
 function initImportView() {
   const launchContext = importConsumeLaunchContext();
+
+  // If a download is already in progress, re-attach the UI to it instead of resetting.
+  if (__importCurrentJobId && __importPollTimer) {
+    importShowPanel('download');
+    importInitDownloadPanel();
+    // Restore in-progress UI state
+    const statusEl = document.getElementById('import-download-status');
+    const progressWrap = document.getElementById('import-progress-wrap');
+    const dlBtn = document.getElementById('import-download-btn');
+    if (statusEl && !statusEl.textContent) statusEl.textContent = 'Downloading…';
+    if (progressWrap) progressWrap.classList.remove('hidden');
+    if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = 'Downloading…'; }
+    if (launchContext) {
+      // Allow launch context to override after download finishes — store but don't apply now
+      importSetLaunchContext(launchContext);
+    }
+    return;
+  }
 
   importShowPanel('setup');
   importInitSetupPanel();
