@@ -21,6 +21,7 @@ let __importLaunchContext = null;
 let __importReviewContext = null;
 let __importTrackSelection = [];       // Array<{ sourceUrl, title, artist, duration, checked }>
 let __importBgPollOpts = null;         // opts saved so re-attach can continue the same job
+let __importServerR2Configured = false; // set by importPingServer from /health response
 
 const IMPORT_SEARCH_LIMIT = 8;
 
@@ -593,6 +594,7 @@ async function importPingServer() {
     const res = await fetch(url + '/health', { signal: AbortSignal.timeout(3000) });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.ok) {
+      __importServerR2Configured = !!data.r2Configured;
       if (dot) dot.className = 'import-server-dot import-dot-ok';
       if (label) label.textContent = 'Connected';
       return true;
@@ -706,15 +708,9 @@ function importInitSetupPanel() {
     const ok = await importPingServer();
     if (ok) {
       if (wiz1Next) wiz1Next.disabled = false;
-      // Auto-advance: if server is up and this is the initial load, skip step 1
+      // Auto-advance: server is up — skip directly to Download panel
       if (autoAdvance) {
-        if (_importHasR2(settings)) {
-          // Everything configured — skip entire wizard
-          importShowPanel('download');
-          return;
-        }
-        // Server OK but no R2 — jump to step 2
-        importShowWizardStep(2);
+        importShowPanel('download');
         return;
       }
     } else {
@@ -1684,12 +1680,12 @@ async function importUploadSelected() {
     return;
   }
 
-  if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
-    importShowReviewBanner(
-      'Cloud storage is not set up. <button class="import-wiz-link" data-wiz-action="setup-r2">Set it up now</button> to upload your music.',
-      'warn'
-    );
-    return;
+  if (!__importServerR2Configured) {
+    // Check browser-side settings as fallback
+    if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
+      importShowReviewBanner('Cloud storage is not configured on your server. Ask your admin or see the setup guide.', 'warn');
+      return;
+    }
   }
 
   const selected = importGetSelectedFiles();
@@ -1711,14 +1707,14 @@ async function importUploadSelected() {
     r2Key: importComputeUploadR2Key(f),
   }));
 
-  const body = {
-    files,
-    r2AccountId:          settings.r2AccountId,
-    r2AccessKeyId:        settings.r2AccessKeyId,
-    r2SecretAccessKey:    settings.r2SecretAccessKey,
-    r2Bucket:             settings.r2Bucket,
-    userId,
-  };
+  // Only send browser-side R2 creds if the server doesn't have its own
+  const body = { files, userId };
+  if (!__importServerR2Configured) {
+    body.r2AccountId       = settings.r2AccountId;
+    body.r2AccessKeyId     = settings.r2AccessKeyId;
+    body.r2SecretAccessKey = settings.r2SecretAccessKey;
+    body.r2Bucket          = settings.r2Bucket;
+  }
 
   try {
     const res = await fetch(serverUrl + '/upload', {
@@ -1909,10 +1905,8 @@ async function importRunClone() {
     importShowSaveToast('Sign in to copy tracks to your library');
     return;
   }
-  if (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket) {
-    importShowSaveToast('Set up cloud storage first');
-    importShowPanel('setup');
-    importShowWizardStep(2);
+  if (!__importServerR2Configured && (!settings.r2AccountId || !settings.r2AccessKeyId || !settings.r2SecretAccessKey || !settings.r2Bucket)) {
+    importShowSaveToast('Cloud storage is not configured on the server');
     return;
   }
 

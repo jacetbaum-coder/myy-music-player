@@ -106,10 +106,10 @@ class UploadFileSpec(BaseModel):
 
 class UploadRequest(BaseModel):
     files: list[UploadFileSpec]
-    r2AccountId: str
-    r2AccessKeyId: str
-    r2SecretAccessKey: str
-    r2Bucket: str
+    r2AccountId: Optional[str] = None
+    r2AccessKeyId: Optional[str] = None
+    r2SecretAccessKey: Optional[str] = None
+    r2Bucket: Optional[str] = None
     userId: Optional[str] = None
 
 
@@ -528,12 +528,29 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
 
 
 # ---------------------------------------------------------------------------
+# R2 configuration — prefer environment variables over per-request credentials
+# ---------------------------------------------------------------------------
+_ENV_R2_ACCOUNT_ID        = os.environ.get("R2_ACCOUNT_ID", "")
+_ENV_R2_ACCESS_KEY_ID     = os.environ.get("R2_ACCESS_KEY_ID", "")
+_ENV_R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+_ENV_R2_BUCKET            = os.environ.get("R2_BUCKET", "")
+
+def _r2_configured() -> bool:
+    return bool(
+        _ENV_R2_ACCOUNT_ID
+        and _ENV_R2_ACCESS_KEY_ID
+        and _ENV_R2_SECRET_ACCESS_KEY
+        and _ENV_R2_BUCKET
+    )
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health():
-    return {"ok": True, "outputDir": str(OUTPUT_DIR)}
+    return {"ok": True, "outputDir": str(OUTPUT_DIR), "r2Configured": _r2_configured()}
 
 
 @app.post("/playlist-tracks")
@@ -688,13 +705,25 @@ def patch_file(request: PatchFileRequest):
 
 @app.post("/upload")
 async def upload(request: UploadRequest):
-    endpoint = f"https://{request.r2AccountId}.r2.cloudflarestorage.com"
+    # Resolve R2 credentials: env vars take priority, then request body
+    account_id = _ENV_R2_ACCOUNT_ID or (request.r2AccountId or "")
+    access_key = _ENV_R2_ACCESS_KEY_ID or (request.r2AccessKeyId or "")
+    secret_key = _ENV_R2_SECRET_ACCESS_KEY or (request.r2SecretAccessKey or "")
+    bucket     = _ENV_R2_BUCKET or (request.r2Bucket or "")
+
+    if not (account_id and access_key and secret_key and bucket):
+        raise HTTPException(
+            status_code=400,
+            detail="R2 credentials are not configured on the server.",
+        )
+
+    endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
 
     s3 = boto3.client(
         "s3",
         endpoint_url=endpoint,
-        aws_access_key_id=request.r2AccessKeyId,
-        aws_secret_access_key=request.r2SecretAccessKey,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
         config=Config(signature_version="s3v4"),
         region_name="auto",
     )
@@ -710,7 +739,7 @@ async def upload(request: UploadRequest):
         try:
             s3.upload_file(
                 str(p),
-                request.r2Bucket,
+                bucket,
                 target_key,
                 ExtraArgs={"ContentType": content_type},
             )

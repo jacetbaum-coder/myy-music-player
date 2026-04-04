@@ -2,6 +2,11 @@
 set -e
 cd "$(dirname "$0")"
 
+# Load R2 credentials and other config from .env if present
+if [ -f .env ]; then
+	set -a; source .env; set +a
+fi
+
 if [ -z "${PYTHON_BIN:-}" ]; then
 	if [ -x "../.venv/bin/python" ]; then
 		PYTHON_BIN="../.venv/bin/python"

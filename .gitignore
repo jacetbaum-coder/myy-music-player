@@ -1,5 +1,7 @@
 .vercel
 .env*.local
+.env
+downloader/.env
 .venv/
 __pycache__/
 *.pyc
