@@ -1326,6 +1326,7 @@ function importRenderFileRows() {
   if (!listEl) return;
 
   listEl.innerHTML = '';
+  const serverUrl = importGetServerUrl();
 
   __importReviewFiles.forEach((file, idx) => {
     const row = document.createElement('div');
@@ -1333,12 +1334,16 @@ function importRenderFileRows() {
     row.dataset.idx = idx;
 
     const r2Key = importComputeR2Key(file);
+    const streamUrl = serverUrl + '/stream?path=' + encodeURIComponent(file.localPath);
 
     row.innerHTML = `
       <div class="import-row-top">
         <label class="import-checkbox-wrap">
           <input type="checkbox" class="import-file-check" checked data-idx="${idx}">
         </label>
+        <button type="button" class="import-play-btn" data-idx="${idx}" data-stream="${_escAttr(streamUrl)}" aria-label="Play preview">
+          <i class="fas fa-play"></i>
+        </button>
         <div class="import-filename">${_escHtml(file.fileName)}</div>
         <div class="import-file-size">${_formatBytes(file.size)}</div>
       </div>
@@ -1364,6 +1369,11 @@ function importRenderFileRows() {
     `;
 
     listEl.appendChild(row);
+  });
+
+  // Bind play buttons
+  listEl.querySelectorAll('.import-play-btn').forEach(btn => {
+    btn.addEventListener('click', importHandlePreviewPlay);
   });
 
   // Bind tag input blur → save tag + update R2 key preview
@@ -1410,6 +1420,64 @@ async function importHandleTagBlur(e) {
     // non-fatal — user can retry
     console.warn('[import] tag save failed:', err);
   }
+}
+
+// Shared audio element for preview playback in the review panel
+let __importPreviewAudio = null;
+let __importPreviewIdx = -1;
+
+function importHandlePreviewPlay(e) {
+  const btn = e.currentTarget;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const streamUrl = btn.dataset.stream;
+
+  if (!__importPreviewAudio) {
+    __importPreviewAudio = new Audio();
+    __importPreviewAudio.addEventListener('ended', () => {
+      _importResetAllPlayBtns();
+      __importPreviewIdx = -1;
+    });
+    __importPreviewAudio.addEventListener('error', () => {
+      _importResetAllPlayBtns();
+      __importPreviewIdx = -1;
+    });
+  }
+
+  // If tapping the same track that's playing, pause/resume
+  if (__importPreviewIdx === idx && !__importPreviewAudio.paused) {
+    __importPreviewAudio.pause();
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    return;
+  }
+  if (__importPreviewIdx === idx && __importPreviewAudio.paused && __importPreviewAudio.src) {
+    __importPreviewAudio.play();
+    btn.innerHTML = '<i class="fas fa-pause"></i>';
+    return;
+  }
+
+  // New track — stop old, start new
+  _importResetAllPlayBtns();
+  __importPreviewIdx = idx;
+  __importPreviewAudio.src = streamUrl;
+  __importPreviewAudio.play();
+  btn.innerHTML = '<i class="fas fa-pause"></i>';
+  btn.classList.add('import-play-active');
+}
+
+function _importResetAllPlayBtns() {
+  document.querySelectorAll('.import-play-btn').forEach(b => {
+    b.innerHTML = '<i class="fas fa-play"></i>';
+    b.classList.remove('import-play-active');
+  });
+}
+
+function importStopPreviewAudio() {
+  if (__importPreviewAudio) {
+    __importPreviewAudio.pause();
+    __importPreviewAudio.src = '';
+  }
+  __importPreviewIdx = -1;
+  _importResetAllPlayBtns();
 }
 
 function importGetSelectedFiles() {

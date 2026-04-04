@@ -4203,6 +4203,26 @@ body.qs-lock {
   gap: 10px;
   margin-bottom: 8px;
 }
+.import-play-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+}
+.import-play-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+.import-play-btn.import-play-active {
+  background: rgba(29,185,84,0.25);
+  color: #1db954;
+}
 .import-filename {
   flex: 1;
   font-size: 13px;
@@ -14709,7 +14729,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=6"></script>
+<script src="src/features/import/import.feature.js?v=7"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.

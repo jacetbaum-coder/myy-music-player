@@ -23,8 +23,9 @@ from typing import Any, Optional
 import boto3
 import uvicorn
 from botocore.config import Config
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from mutagen import File as MutagenFile
 from mutagen.id3 import (
     TALB,
@@ -648,6 +649,28 @@ def list_files():
         if p.is_file() and is_audio(p):
             files.append(read_tags(p))
     return {"files": files, "outputDir": str(OUTPUT_DIR)}
+
+
+@app.get("/stream")
+def stream_file(path: str):
+    """Serve a local audio file for in-browser playback."""
+    p = safe_path(path)
+    if not p.exists() or not p.is_file():
+        raise HTTPException(status_code=404, detail="File not found.")
+    if not is_audio(p):
+        raise HTTPException(status_code=400, detail="Not an audio file.")
+    media_types = {
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+        ".flac": "audio/flac",
+        ".ogg": "audio/ogg",
+        ".opus": "audio/opus",
+        ".wav": "audio/wav",
+        ".wma": "audio/x-ms-wma",
+        ".aac": "audio/aac",
+    }
+    mt = media_types.get(p.suffix.lower(), "application/octet-stream")
+    return FileResponse(str(p), media_type=mt, filename=p.name)
 
 
 @app.patch("/file")
