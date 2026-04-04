@@ -1533,7 +1533,10 @@ function importRenderFileRows() {
         </div>
         <div class="import-tag-group">
           <label class="import-tag-label">Album</label>
-          <input type="text" class="import-tag-input" data-idx="${idx}" data-field="album" value="${_escAttr(file.album)}">
+          <div class="import-tag-with-btn">
+            <input type="text" class="import-tag-input" data-idx="${idx}" data-field="album" value="${_escAttr(file.album)}">
+            <button type="button" class="import-find-album-btn" data-idx="${idx}" title="Look up album from title + artist">find</button>
+          </div>
         </div>
         <div class="import-tag-group">
           <label class="import-tag-label">Album Artist</label>
@@ -1566,6 +1569,77 @@ function importRenderFileRows() {
       }
     });
   });
+
+  // Bind "find" album lookup buttons
+  listEl.querySelectorAll('.import-find-album-btn').forEach(btn => {
+    btn.addEventListener('click', importHandleFindAlbum);
+  });
+}
+
+async function importHandleFindAlbum(e) {
+  const idx = parseInt(e.target.dataset.idx, 10);
+  const file = __importReviewFiles[idx];
+  if (!file) return;
+
+  const title = (file.title || '').trim();
+  const artist = (file.artist || '').trim();
+  if (!title && !artist) return;
+
+  const btn = e.target;
+  const origText = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+
+  try {
+    const serverUrl = importGetServerUrl();
+    const query = artist ? `${artist} ${title}` : title;
+    const res = await fetch(serverUrl + '/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit: 5 }),
+    });
+    const data = await res.json();
+    const items = data.items || [];
+
+    // Find first result with a non-empty album
+    const match = items.find(item => (item.album || '').trim());
+    if (!match || !(match.album || '').trim()) {
+      btn.textContent = 'none found';
+      setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
+      return;
+    }
+
+    const row = btn.closest('.import-file-row');
+    if (!row) return;
+
+    // Fill album
+    const albumInput = row.querySelector('.import-tag-input[data-field="album"]');
+    if (albumInput) {
+      albumInput.value = match.album;
+      file.album = match.album;
+      albumInput.dispatchEvent(new Event('blur'));
+    }
+
+    // Fill album artist if empty
+    if (!file.albumartist && match.artist) {
+      const albumArtistInput = row.querySelector('.import-tag-input[data-field="albumartist"]');
+      if (albumArtistInput) {
+        albumArtistInput.value = match.artist;
+        file.albumartist = match.artist;
+        albumArtistInput.dispatchEvent(new Event('blur'));
+      }
+    }
+
+    // Update R2 key preview
+    const keyEl = document.getElementById('import-r2key-' + idx);
+    if (keyEl) keyEl.textContent = 'R2: ' + importComputeR2Key(file);
+
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 1500);
+  } catch (err) {
+    btn.textContent = 'error';
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
+  }
 }
 
 async function importHandleTagBlur(e) {

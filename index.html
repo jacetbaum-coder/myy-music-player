@@ -4444,6 +4444,26 @@ body.qs-lock {
   box-sizing: border-box;
 }
 .import-tag-input:focus { box-shadow: 0 0 0 2px rgba(29,185,84,0.4); }
+.import-tag-with-btn {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.import-tag-with-btn .import-tag-input { flex: 1; min-width: 0; }
+.import-find-album-btn {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.6);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.import-find-album-btn:hover { background: rgba(29,185,84,0.3); color: #fff; }
+.import-find-album-btn:disabled { opacity: 0.5; cursor: default; }
 .import-r2-key {
   font-size: 10px;
   color: rgba(255,255,255,0.3);
@@ -14988,7 +15008,7 @@ try {
 <script src="src/features/artist/artist.feature.js"></script>
 <script src="src/features/search/search.feature.js?v=2"></script>
 <script src="src/features/crate/crate.feature.js"></script>
-<script src="src/features/import/import.feature.js?v=13"></script>
+<script src="src/features/import/import.feature.js?v=14"></script>
 
 <script>
 // Device-aware bottom docking: keep tabs/player pinned to the visible viewport bottom.
