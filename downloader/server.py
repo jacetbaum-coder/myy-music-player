@@ -911,6 +911,119 @@ async def spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     }
 
 
+class AlbumLookupRequest(BaseModel):
+    title: str
+    artist: str = ""
+
+
+@app.post("/lookup-album")
+async def lookup_album(request: AlbumLookupRequest):
+    """Look up album name (and optionally album artist) for a track using MusicBrainz."""
+    title  = str(request.title  or "").strip()
+    artist = str(request.artist or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required.")
+
+    result = await asyncio.to_thread(_musicbrainz_lookup, title, artist)
+    if not result:
+        raise HTTPException(status_code=404, detail="No album found.")
+    return result
+
+
+def _musicbrainz_lookup(title: str, artist: str) -> Optional[dict]:
+    """Query MusicBrainz recordings API; return {album, albumArtist} or None."""
+    import urllib.request as _ureq
+    import urllib.parse as _uparse
+
+    # Build Lucene query: prefer artist+title, fall back to title only
+    if artist:
+        lucene = f'recording:"{_mb_escape(title)}" AND artistname:"{_mb_escape(artist)}"'
+    else:
+        lucene = f'recording:"{_mb_escape(title)}"'
+
+    params = _uparse.urlencode({"query": lucene, "fmt": "json", "limit": "10"})
+    url = f"https://musicbrainz.org/ws/2/recording?{params}"
+
+    req = _ureq.Request(url, headers={
+        "User-Agent": "myy-music-player/1.0 (https://github.com/local)",
+        "Accept": "application/json",
+    })
+    try:
+        with _ureq.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return None
+
+    recordings = data.get("recordings") or []
+
+    # Collect all candidate releases across all matching recordings
+    candidates: list[dict] = []
+    for rec in recordings:
+        releases = rec.get("releases") or []
+        for rel in releases:
+            album_title = str(rel.get("title") or "").strip()
+            if not album_title:
+                continue
+            # Extract album artist from artist-credit on the recording
+            album_artist = ""
+            for ac in (rec.get("artist-credit") or []):
+                if isinstance(ac, dict) and ac.get("artist"):
+                    album_artist = str(ac["artist"].get("name") or "").strip()
+                    break
+
+            rg = rel.get("release-group") or {}
+            pt = (rg.get("primary-type") or "").lower()
+            st = [s.lower() for s in (rg.get("secondary-types") or [])]
+
+            # Score: higher = better
+            if "compilation" in st or "soundtrack" in st or "live" in st:
+                type_score = 0
+            elif pt == "album":
+                type_score = 3
+            elif pt == "ep":
+                type_score = 2
+            elif pt == "single":
+                type_score = 1
+            else:
+                type_score = 1
+
+            # Name-pattern heuristic: titles that look like hit compilations are penalised
+            name_lower = album_title.lower()
+            if re.search(
+                r'\bbest of\b|greatest hits|\bvolume\b|\bvol\.\s*\d|\bcollection\b'
+                r'|hitmachine|hitclub|hitzone|now that\'s what i call|now \d'
+                r'|\bhits\b|\banthology\b|\bthe complete\b|essential|\bclub\b',
+                name_lower
+            ):
+                type_score = max(0, type_score - 2)
+
+            # Date: earlier = more likely the original release
+            date_str = str(rel.get("date") or rg.get("first-release-date") or "9999")
+            year = int(date_str[:4]) if re.match(r'^\d{4}', date_str) else 9999
+
+            candidates.append({
+                "album": album_title,
+                "albumArtist": album_artist,
+                "typeScore": type_score,
+                "year": year,
+            })
+
+    if not candidates:
+        return None
+
+    # Sort: highest type score first; among ties, earliest year wins
+    candidates.sort(key=lambda c: (-c["typeScore"], c["year"]))
+    best = candidates[0]
+    if best["typeScore"] == 0:
+        return None  # only compilations found — don't suggest
+    return {"album": best["album"], "albumArtist": best["albumArtist"]}
+
+
+def _mb_escape(s: str) -> str:
+    """Escape special Lucene chars for MusicBrainz queries."""
+    return re.sub(r'([+\-&|!(){}\[\]^"~*?:\\/])', r'\\\1', s)
+
+
 @app.post("/search")
 async def search(request: SearchRequest):
     query = str(request.query or "").strip()

@@ -1816,19 +1816,15 @@ async function importHandleFindAlbum(e) {
 
   try {
     const serverUrl = importGetServerUrl();
-    const query = artist ? `${artist} ${title}` : title;
-    const res = await fetch(serverUrl + '/search', {
+    const res = await fetch(serverUrl + '/lookup-album', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, limit: 5 }),
+      body: JSON.stringify({ title, artist }),
     });
-    const data = await res.json();
-    const items = data.items || [];
+    const data = await res.json().catch(() => ({}));
 
-    // Find first result with a non-empty album
-    const match = items.find(item => (item.album || '').trim());
-    if (!match || !(match.album || '').trim()) {
-      btn.textContent = 'none found';
+    if (!res.ok || !data.album) {
+      btn.textContent = 'not found';
       setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
       return;
     }
@@ -1839,17 +1835,17 @@ async function importHandleFindAlbum(e) {
     // Fill album
     const albumInput = row.querySelector('.import-tag-input[data-field="album"]');
     if (albumInput) {
-      albumInput.value = match.album;
-      file.album = match.album;
+      albumInput.value = data.album;
+      file.album = data.album;
       albumInput.dispatchEvent(new Event('blur'));
     }
 
-    // Fill album artist if empty
-    if (!file.albumartist && match.artist) {
+    // Fill album artist if empty and MusicBrainz returned one
+    if (!file.albumartist && data.albumArtist) {
       const albumArtistInput = row.querySelector('.import-tag-input[data-field="albumartist"]');
       if (albumArtistInput) {
-        albumArtistInput.value = match.artist;
-        file.albumartist = match.artist;
+        albumArtistInput.value = data.albumArtist;
+        file.albumartist = data.albumArtist;
         albumArtistInput.dispatchEvent(new Event('blur'));
       }
     }
