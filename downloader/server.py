@@ -475,6 +475,7 @@ async def run_download(job_id: str, request: DownloadRequest) -> None:
             "--audio-quality", "0",
             "--embed-thumbnail",
             "--add-metadata",
+            "--ignore-errors",
             "--js-runtimes", "node",
             "-o", yt_template,
             request.url,

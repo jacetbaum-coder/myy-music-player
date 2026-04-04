@@ -827,28 +827,84 @@ function importRenderTrackSelection(tracks) {
 
   __importTrackSelection = tracks.map(t => ({ ...t, checked: true }));
 
+  let __sortCol = null;
+  let __sortDir = 'asc';
+
   function updateLabel() {
     const checked = __importTrackSelection.filter(t => t.checked).length;
     if (label) label.textContent = `${checked} of ${__importTrackSelection.length} tracks selected`;
     const btn = document.getElementById('import-download-btn');
     if (btn) btn.textContent = `Download ${checked} track${checked === 1 ? '' : 's'}`;
+    importUpdatePrimaryAction();
   }
 
-  listEl.innerHTML = __importTrackSelection.map((t, idx) => `
-    <label class="import-track-row" data-track-idx="${idx}">
-      <input type="checkbox" class="import-track-cb" data-idx="${idx}" ${t.checked ? 'checked' : ''}>
-      <span class="import-track-row-title">${_escHtml(importCleanTitle(t.title || 'Untitled'))}</span>
-      <span class="import-track-row-meta">${_escHtml(t.durationLabel || t.artist || '')}</span>
-    </label>
-  `).join('');
+  function renderRows() {
+    // Build sorted index array — keeps __importTrackSelection order stable
+    let indices = __importTrackSelection.map((_, i) => i);
+    if (__sortCol) {
+      indices.sort((a, b) => {
+        const va = String(__importTrackSelection[a][__sortCol] || '').toLowerCase();
+        const vb = String(__importTrackSelection[b][__sortCol] || '').toLowerCase();
+        return __sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+    }
 
-  listEl.querySelectorAll('.import-track-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const idx = Number(cb.dataset.idx);
-      __importTrackSelection[idx].checked = cb.checked;
-      updateLabel();
+    listEl.innerHTML = indices.map(idx => {
+      const t = __importTrackSelection[idx];
+      return `<label class="import-track-row" data-track-idx="${idx}">
+        <input type="checkbox" class="import-track-cb" data-idx="${idx}" ${t.checked ? 'checked' : ''}>
+        <span class="import-track-row-title">${_escHtml(importCleanTitle(t.title || 'Untitled'))}</span>
+        <span class="import-track-row-artist">${_escHtml(t.artist || '—')}</span>
+        <span class="import-track-row-album">${_escHtml(t.album || '—')}</span>
+        <span class="import-track-row-dur">${_escHtml(t.durationLabel || '')}</span>
+      </label>`;
+    }).join('');
+
+    listEl.querySelectorAll('.import-track-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const idx = Number(cb.dataset.idx);
+        __importTrackSelection[idx].checked = cb.checked;
+        updateLabel();
+      });
+    });
+  }
+
+  // Build column header
+  const cols = [
+    { key: 'title', label: 'Title' },
+    { key: 'artist', label: 'Artist' },
+    { key: 'album', label: 'Album' },
+    { key: 'durationLabel', label: '#' },
+  ];
+  const headerHtml = `<div class="import-track-header">
+    <span></span>
+    ${cols.map(c => `<span class="import-track-header-cell" data-col="${c.key}">${c.label}</span>`).join('')}
+  </div>`;
+
+  // Prepend header before list
+  let headerEl = wrap.querySelector('.import-track-header');
+  if (!headerEl) {
+    listEl.insertAdjacentHTML('beforebegin', headerHtml);
+    headerEl = wrap.querySelector('.import-track-header');
+  }
+  headerEl.querySelectorAll('.import-track-header-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const col = cell.dataset.col;
+      if (__sortCol === col) {
+        __sortDir = __sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        __sortCol = col;
+        __sortDir = 'asc';
+      }
+      headerEl.querySelectorAll('.import-track-header-cell').forEach(c => {
+        c.classList.remove('sort-asc', 'sort-desc');
+      });
+      cell.classList.add(__sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+      renderRows();
     });
   });
+
+  renderRows();
 
   const allBtn = document.getElementById('import-track-check-all');
   const noneBtn = document.getElementById('import-track-check-none');
