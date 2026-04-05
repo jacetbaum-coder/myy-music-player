@@ -1862,7 +1862,18 @@ function setAllPlayIcons(isPlaying){
       `;
     }
 
-    heroBtn.classList.toggle('is-playing', on);
+    // Hero button should only show "pause" if the currently playing song belongs to the
+    // album/collection that is open on screen. Prevents a different album's playback from
+    // making a newly-opened album's button show pause instead of play.
+    let heroOn = on;
+    if (on && typeof currentSong !== 'undefined' && currentSong) {
+      const openAlbum  = window.activeAlbumName;
+      const openArtist = window.activeAlbumArtist;
+      if (openAlbum && (currentSong.album !== openAlbum || currentSong.artist !== openArtist)) {
+        heroOn = false;
+      }
+    }
+    heroBtn.classList.toggle('is-playing', heroOn);
   }
 }
 
