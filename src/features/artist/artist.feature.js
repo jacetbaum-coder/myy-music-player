@@ -326,7 +326,7 @@ function openArtistByName(artistName) {
           <i class="fas fa-arrow-left text-white"></i>
         </button>
 
-        <div class="relative h-[260px] md:h-[340px] flex flex-col justify-end p-6 md:p-10">
+        <div class="relative h-[40vh] md:h-[40vh] flex flex-col justify-end p-6 md:p-10">
           <div class="text-xs font-extrabold uppercase tracking-[0.35em] text-white/80">Artist</div>
           <div class="mt-2 text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
             ${artistName}
