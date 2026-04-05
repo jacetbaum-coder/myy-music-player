@@ -511,10 +511,14 @@ function __renderProfileScreen() {
     try { showView("settings"); } catch (e) {}
   });
 
-  [openProfileEdit, launchProfileEditCard].filter(Boolean).forEach((btn) => {
-    btn.addEventListener("click", () => {
-      try { __openProfileEditModal(); } catch (e) { console.warn(e); }
-    });
+  const profileEditInlineCard = document.getElementById("profile-edit-inline-card");
+
+  if (openProfileEdit) openProfileEdit.addEventListener("click", () => {
+    if (profileEditInlineCard) profileEditInlineCard.classList.toggle("hidden");
+  });
+
+  if (launchProfileEditCard) launchProfileEditCard.addEventListener("click", () => {
+    try { __openProfileEditModal(); } catch (e) { console.warn(e); }
   });
 
   [profileEditClose, profileEditCancel, profileEditBackdrop].filter(Boolean).forEach((btn) => {
