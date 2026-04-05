@@ -222,7 +222,8 @@ export default {
       const ur = await env.SESSIONS.get(`user:${session.userId}`);
       const user = ur ? JSON.parse(ur) : {};
       if (user.emailVerified) return json({ ok: true, alreadyVerified: true });
-      await sendVerificationEmail(session.email, 'verify');
+      const sent = await sendVerificationEmail(session.email, 'verify');
+      if (!sent) return errJson(500, 'Failed to send email — check Resend configuration');
       return json({ ok: true });
     }
 

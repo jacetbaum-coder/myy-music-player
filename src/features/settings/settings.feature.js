@@ -581,7 +581,11 @@ function __renderProfileScreen() {
     try {
       const res = await fetch("/auth/resend-verification", { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      resendVerificationBtn.textContent = data.alreadyVerified ? "Already verified!" : "Sent!";
+      if (!res.ok) {
+        resendVerificationBtn.textContent = data.error || "Failed";
+      } else {
+        resendVerificationBtn.textContent = data.alreadyVerified ? "Already verified!" : "Sent!";
+      }
     } catch (e) {
       resendVerificationBtn.textContent = "Failed";
     }

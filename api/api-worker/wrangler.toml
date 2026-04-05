@@ -16,5 +16,4 @@ binding = "REQUESTS"
 id = "eadbb0029b20428594a7dd82df5a73d7"
 
 [vars]
-RESEND_API_KEY = "e_au7cbMUs_JQkF9m7XxBcjmv2oU6V9Bru6"
 OWNER_EMAIL = "jacetbaum@gmail.com"
