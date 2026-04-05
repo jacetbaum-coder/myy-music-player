@@ -748,12 +748,12 @@ var __queueToastHideTimer = null;
 function getQueueToastBottomOffsetPx() {
   // Keep toast above bottom tabs + mini player on mobile.
   const bar = document.querySelector('.player-bar');
-  if (!bar) return 74;
+  if (!bar) return 0;
 
   const cs = window.getComputedStyle(bar);
   const hidden = cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') === 0;
   const h = bar.getBoundingClientRect().height;
-  if (hidden || h < 20) return 74;
+  if (hidden || h < 20) return 0;
 
   return Math.round(Math.max(70, h + 6));
 }
