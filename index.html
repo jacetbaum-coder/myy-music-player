@@ -7039,6 +7039,116 @@ function toggleRowSelected(row){
 
 // ✅ When multi-select is ON, taps on rows should ONLY toggle selection.
 // This runs in capture phase to stop other click handlers from undoing selection.
+// ── Hero "..." button: global delegated handler ──────────────────────────
+if (!window.__heroMenuBtnBound) {
+  window.__heroMenuBtnBound = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('#hero-more-btn') : null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { window.__openHeroMoreMenu(btn); } catch(err) {}
+  }, true);
+}
+
+window.__openHeroMoreMenu = function(btn) {
+  // Toggle off if already open
+  const old = document.getElementById('hero-more-popover');
+  if (old) { old.remove(); return; }
+
+  const ctx = window.__heroMenuContext || {};
+  const isPlaylist = !!ctx.isPlaylist;
+
+  const pop = document.createElement('div');
+  pop.id = 'hero-more-popover';
+  pop.style.cssText = 'position:fixed;z-index:99999;background:rgba(28,28,28,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;min-width:230px;box-shadow:0 18px 55px rgba(0,0,0,0.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)';
+
+  const r = btn ? btn.getBoundingClientRect() : null;
+  const vw = window.innerWidth;
+  let left = r ? r.left : 16;
+  const top  = r ? (r.bottom + 8) : 60;
+  if (left + 250 > vw - 8) left = vw - 258;
+  pop.style.left = Math.max(8, Math.round(left)) + 'px';
+  pop.style.top  = Math.round(top) + 'px';
+
+  const mkItem = (icon, label, danger, onClick) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:none;background:transparent;color:' + (danger ? '#ff6b6b' : '#fff') + ';font-size:16px;font-weight:600;text-align:left;border-radius:10px;cursor:pointer';
+    item.innerHTML = '<i class="fas ' + icon + '" style="width:18px;text-align:center;opacity:0.75;flex-shrink:0"></i>' + label;
+    item.addEventListener('pointerenter', () => { item.style.background = 'rgba(255,255,255,0.09)'; });
+    item.addEventListener('pointerleave', () => { item.style.background = 'transparent'; });
+    item.addEventListener('click', (ev) => {
+      try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+      pop.remove();
+      try { onClick(); } catch(err) { console.warn('[heroMenu]', err); }
+    });
+    return item;
+  };
+
+  const hasSelection = () => !!(window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0);
+  const getTargetSongs = () => {
+    const q = Array.isArray(currentQueue) ? currentQueue : [];
+    if (!hasSelection()) return q;
+    const urls = typeof getSelectedSongUrls === 'function' ? getSelectedSongUrls() : [];
+    return q.filter(s => s && urls.includes(s.url));
+  };
+
+  // 1. Add to queue
+  const queueLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to queue') : 'Add all to queue';
+  pop.appendChild(mkItem('fa-list-ul', queueLabel, false, () => {
+    const songs = getTargetSongs();
+    if (!songs.length) return;
+    songs.forEach(s => { try { addSongToQueue(s); } catch(_) {} });
+    if (hasSelection()) try { setSongSelectEnabled(false); } catch(_) {}
+    try { showQueueToast(); } catch(_) {}
+  }));
+
+  // 2. Add to playlist
+  const plLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to playlist') : 'Add to playlist';
+  pop.appendChild(mkItem('fa-plus', plLabel, false, () => {
+    if (!hasSelection()) {
+      try { setSongSelectEnabled(true); } catch(_) {}
+      window.__heroPendingAction = 'playlist';
+      return;
+    }
+    const songs = getTargetSongs();
+    try {
+      window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
+      if (typeof window.openAddToPlaylistSubmenu === 'function') window.openAddToPlaylistSubmenu(null);
+    } catch(_) {}
+    try { setSongSelectEnabled(false); } catch(_) {}
+  }));
+
+  // 3. Delete album (album view only)
+  if (!isPlaylist) {
+    pop.appendChild(mkItem('fa-trash', 'Delete from library', true, () => {
+      const artist = String(ctx.artist || window.activeAlbumArtist || '').trim();
+      const albumName = String(ctx.album || window.activeAlbumName || '').trim();
+      if (!artist || !albumName) return;
+      if (!window.confirm('Delete "' + albumName + '" by ' + artist + ' from your library?')) return;
+      try { if (typeof window.deleteAlbumFromCloud === 'function') window.deleteAlbumFromCloud(artist, albumName).catch(() => {}); } catch(_) {}
+      try { if (Array.isArray(window.libraryData)) window.libraryData = window.libraryData.filter(x => !(String(x.artistName || '') === artist && String(x.albumName || '') === albumName)); } catch(_) {}
+      try { if (typeof renderLibrary === 'function') renderLibrary(); } catch(_) {}
+      try { if (typeof renderHome === 'function') renderHome(); } catch(_) {}
+      try { if (typeof goBack === 'function') goBack(); } catch(_) {}
+    }));
+  }
+
+  document.body.appendChild(pop);
+
+  const closeOnOutside = (ev) => {
+    if (pop.contains(ev.target) || ev.target === btn) return;
+    pop.remove();
+    document.removeEventListener('click', closeOnOutside, true);
+    document.removeEventListener('touchstart', closeOnOutside, true);
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeOnOutside, true);
+    document.addEventListener('touchstart', closeOnOutside, { capture: true, passive: true });
+  }, 50);
+};
+
 if (!window.__mobileTrackSelectTapGuard) {
   window.__mobileTrackSelectTapGuard = true;
   document.addEventListener('click', (e) => {
@@ -10883,12 +10993,19 @@ try { window.currentView = 'album'; } catch (e) {}
           ${album.artistName}
         </span>
       </div>
-      <div class="album-hero-meta flex items-center gap-1 text-sm text-zinc-400">
+      <div class="album-hero-meta flex items-center gap-2 text-sm text-zinc-400">
         <i class="fas fa-globe-americas text-xs"></i>
         <span class="ml-1">${album.songs.length} songs</span>
+        <button id="hero-more-btn" class="hero-more-btn text-lg text-zinc-400 hover:text-white transition ml-1" aria-label="More options"><i class="fas fa-ellipsis-h"></i></button>
       </div>
     </div>
   `;
+  // Store context for the global hero-more-btn handler (album view)
+  window.__heroMenuContext = {
+    isPlaylist: false,
+    artist: album.artistName,
+    album: album.albumName
+  };
   try { initHeroCoverParallax(); } catch (e) {}
 
   // DESKTOP: right-click the hero cover to change cover
@@ -14739,86 +14856,12 @@ function renderCollection(name, songs, isPlaylist = false) {
     }
   } catch (e) {}
 
-  const heroMore = document.getElementById('hero-more-btn');
-  const openHeroMenu = (e) => {
-    try { if (e && e.preventDefault) e.preventDefault(); } catch (_) {}
-    try { if (e && e.stopPropagation) e.stopPropagation(); } catch (_) {}
-    try { window.__outsideDismissSkipUntil = Date.now() + 700; } catch (_) {}
-    try { suppressContextMenuCloseUntil = Date.now() + 700; } catch (_) {}
-    try { suppressPlaylistMenuCloseUntil = Date.now() + 700; } catch (_) {}
-
-    const btn = (e && e.currentTarget) || heroMore;
-    const r = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : null;
-    const x = r ? (r.left + r.width / 2) : ((e && e.clientX) || 16);
-    const y = r ? (r.bottom + 8) : ((e && e.clientY) || 16);
-
-    // ── Album view: open the album cover menu ──────────────────────
-    if (!isPlaylist) {
-      try {
-        showAlbumCoverMenuAt(Math.round(x), Math.round(y), activeAlbumArtist, activeAlbumName);
-      } catch (_) {}
-      return;
-    }
-
-    const fromNav = (window.navCurrent && window.navCurrent.type === 'playlist' && window.navCurrent.playlistId)
-      ? window.navCurrent.playlistId
-      : null;
-    const fromActive = (typeof activePlaylistId !== 'undefined' && activePlaylistId) ? activePlaylistId : null;
-    const pid = fromActive || fromNav || null;
-
-    if (pid) {
-      try {
-        if (window && typeof window.showPlaylistMenuAt === 'function') {
-          window.showPlaylistMenuAt(Math.round(x), Math.round(y), pid);
-          return;
-        }
-      } catch (_) {}
-
-      try {
-        const list = Array.isArray(playlists) ? playlists : [];
-        const pl = list.find(p => p && String(p.id) === String(pid)) || null;
-        const pseudo = {
-          type: 'playlist',
-          id: pid,
-          playlistId: pid,
-          title: pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
-          name: pl ? (pl.name || pl.title || 'Playlist') : 'Playlist',
-          cover: pl ? (pl.cover || pl.autoCover || '') : ''
-        };
-        if (window && typeof window.showContextMenuAt === 'function') {
-          window.showContextMenuAt(Math.round(x), Math.round(y), pseudo, btn || null);
-          return;
-        }
-      } catch (_) {}
-    }
-
-    // Use the existing hero menu entrypoint (playlist menu for playlist view).
-    try {
-      if (window && typeof window.openPlaylistPinMenuFromHero === 'function') {
-        window.openPlaylistPinMenuFromHero(e);
-        return;
-      }
-    } catch (_) {}
-
-    // Fallback: directly open playlist menu when current view is a playlist.
-    try {
-      if (isPlaylist && activePlaylistId && typeof showPlaylistMenuAt === 'function') {
-        showPlaylistMenuAt(Math.round(x), Math.round(y), activePlaylistId);
-      }
-    } catch (_) {}
+  // Store context for the global hero-more-btn handler
+  window.__heroMenuContext = {
+    isPlaylist: !!isPlaylist,
+    name: name,
+    playlistId: (typeof activePlaylistId !== 'undefined' ? activePlaylistId : null)
   };
-
-  if (heroMore) {
-    if (heroMore.__heroMenuOpenHandler) {
-      try { heroMore.removeEventListener('pointerup', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
-      try { heroMore.removeEventListener('touchend', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
-      try { heroMore.removeEventListener('click', heroMore.__heroMenuOpenHandler, true); } catch (_) {}
-    }
-    heroMore.__heroMenuOpenHandler = openHeroMenu;
-    heroMore.addEventListener('pointerup', openHeroMenu, true);
-    heroMore.addEventListener('touchend', openHeroMenu, { passive: false, capture: true });
-    heroMore.addEventListener('click', openHeroMenu, true);
-  }
 
 
 
