@@ -6,7 +6,7 @@
 
 (function initArtistPortraitsFeature() {
   const MEMORY_CACHE = new Map();
-  const STORAGE_KEY = 'artistPortraitCacheV1';
+  const STORAGE_KEY = 'artistPortraitCacheV2';
   const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const STORAGE_MAX_ENTRIES = 400;
 
