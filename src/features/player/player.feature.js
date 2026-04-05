@@ -2015,6 +2015,18 @@ async function playSpecificSong(url, title, album, artist, cover) {
   const __crossfadeOn = (window.isFeatureOn && window.isFeatureOn('crossfade'));
   if (__crossfadeOn) { try { player.volume = 0; } catch (e) {} }
 
+  // Show dock + metadata immediately — don't wait for playback to buffer
+  dock.classList.remove('dock-hidden');
+  {
+    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
+    const finalCover = String(resolvedCover || '').trim();
+    document.getElementById('p-cover').src = finalCover || PLACEHOLDER;
+  }
+  try { updateAccentFromCover(resolvedCover || ""); } catch (e) {}
+  setMarqueeTitle('p-title', titleClean);
+  document.getElementById('p-artist').innerText = artist;
+  setAllPlayIcons(false); // show paused state until play() confirms
+
   let started = false;
   try {
     const p = player.play();
@@ -2048,17 +2060,6 @@ async function playSpecificSong(url, title, album, artist, cover) {
   lastPlayedTime = Date.now();
   localStorage.setItem('lastPlayedTime', lastPlayedTime);
   persistPlayerState(started);
-
-  dock.classList.remove('dock-hidden');
-  {
-    const PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2212%22%20fill%3D%22%23272a2f%22%2F%3E%3C%2Fsvg%3E';
-    const finalCover = String(resolvedCover || '').trim();
-    document.getElementById('p-cover').src = finalCover || PLACEHOLDER;
-  }
-
-  try { updateAccentFromCover(resolvedCover || ""); } catch (e) {}
-  setMarqueeTitle('p-title', titleClean);
-  document.getElementById('p-artist').innerText = artist;
 
   setAllPlayIcons(!!started);
 

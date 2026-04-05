@@ -1637,7 +1637,7 @@ body.song-multiselect .track-row:hover{
   }
 }
 
-.dock-hidden { transform: translateY(100%); }
+.dock-hidden { transform: translateY(calc(100% + 80px)); }
 
 
 /* Dock artist name should NOT be interactive (no hover, no click) */
@@ -2000,6 +2000,8 @@ body.song-multiselect .mobile-playlist-sort-btn {
 body.song-multiselect .hero-more-btn {
   color: #fff !important;
   opacity: 1 !important;
+  position: relative;
+  z-index: 10;
 }
 
 #context-menu .menu-item:active{
@@ -3455,17 +3457,12 @@ body:has(#playlist-submenu.open) .mobile-nav {
     color: rgba(255,255,255,0.55);
     font-size: 18px;
     letter-spacing: 3px;
-    padding: 8px 4px 8px 18px;
-    margin-right: -4px;
-    width: 100%;
-    min-height: 44px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 12px 6px 12px 14px;
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+    vertical-align: middle;
   }
 
   /* hide the desktop-style header row (# / Title / Album / etc) on mobile */
@@ -7060,13 +7057,13 @@ if (!window.__mobileTrackSelectTapGuard) {
       const ps = document.getElementById('playlist-submenu');
       const acm = document.getElementById('album-cover-menu');
       const pills = document.getElementById('album-select-pills');
-      const heroMoreBtn = document.getElementById('hero-more-btn');
+      const heroMore = document.getElementById('hero-more-btn');
       const tappedInsideOverlay =
         !!(cm && (cm === e.target || cm.contains(e.target))) ||
         !!(ps && (ps === e.target || ps.contains(e.target))) ||
         !!(acm && (acm === e.target || acm.contains(e.target))) ||
         !!(pills && (pills === e.target || pills.contains(e.target))) ||
-        !!(heroMoreBtn && (heroMoreBtn === e.target || heroMoreBtn.contains(e.target)));
+        !!(heroMore && (heroMore === e.target || heroMore.contains(e.target)));
 
       if (!row) {
         // Tap outside track list (but not inside a menu overlay) exits select mode
@@ -7077,14 +7074,6 @@ if (!window.__mobileTrackSelectTapGuard) {
 
       // Ignore taps on 3-dots/menu buttons
       if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
-        return;
-      }
-
-      // Suppress the synthetic click that fires after a long-press completes
-      if (window.__songSelectLpLastFiredAt && Date.now() - window.__songSelectLpLastFiredAt < 600) {
-        window.__songSelectLpLastFiredAt = 0;
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -7157,9 +7146,8 @@ lpTriggered = false;
 
     clearLongPress();
 
-      lpTimer = setTimeout(() => {
+    lpTimer = setTimeout(() => {
       lpTriggered = true;
-      window.__songSelectLpLastFiredAt = Date.now(); // suppress synthetic click
 
       if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
@@ -14160,10 +14148,7 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); e.stopPropagation();
       hideAlbumCoverMenu();
       try {
-        const selUrls = window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0
-          ? window.__songSelect.urls : null;
-        const songs = (Array.isArray(currentQueue) ? currentQueue : [])
-          .filter(s => !selUrls || selUrls.has(s.url || s.link || ''));
+        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
         songs.forEach(s => { try { addSongToQueue(s); } catch (_) {} });
         try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (_) {}
       } catch (_) {}
@@ -14177,11 +14162,9 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); e.stopPropagation();
       hideAlbumCoverMenu();
       try {
-        // When songs are selected, act on selection; otherwise act on all tracks
-        const selUrls = window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0
-          ? window.__songSelect.urls : null;
-        const songs = (Array.isArray(currentQueue) ? currentQueue : [])
-          .filter(s => !selUrls || selUrls.has(s.url || s.link || ''));
+        // Set menuTargetSong to all tracks in the current queue so the
+        // playlist picker can add them all at once.
+        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
         if (songs.length) window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
         if (typeof openPlaylistSubmenu === 'function') openPlaylistSubmenu(e);
       } catch (_) {}
@@ -15683,7 +15666,7 @@ try {
 
 <script src="src/features/sync/sync.feature.js"></script>
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
-<script src="src/features/player/player.feature.js?v=4"></script>
+<script src="src/features/player/player.feature.js?v=5"></script>
 <script src="src/features/playlists/playlists.feature.js?v=5"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
