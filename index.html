@@ -2928,14 +2928,6 @@ body:has(#playlist-submenu.open) .mobile-nav {
   background: #2a2a2a;
 }
 
-.queue-cover-placeholder{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,0.3);
-  font-size: 16px;
-}
-
 .queue-main{
   flex: 1;
   min-width: 0;
@@ -3666,6 +3658,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
     #141215 600px
   );
   background-attachment: local;
+  background-repeat: no-repeat;
   transition: background 0.5s ease;
 }
 
@@ -7066,10 +7059,14 @@ if (!window.__mobileTrackSelectTapGuard) {
       const cm = document.getElementById('context-menu');
       const ps = document.getElementById('playlist-submenu');
       const acm = document.getElementById('album-cover-menu');
+      const pills = document.getElementById('album-select-pills');
+      const heroMoreBtn = document.getElementById('hero-more-btn');
       const tappedInsideOverlay =
         !!(cm && (cm === e.target || cm.contains(e.target))) ||
         !!(ps && (ps === e.target || ps.contains(e.target))) ||
-        !!(acm && (acm === e.target || acm.contains(e.target)));
+        !!(acm && (acm === e.target || acm.contains(e.target))) ||
+        !!(pills && (pills === e.target || pills.contains(e.target))) ||
+        !!(heroMoreBtn && (heroMoreBtn === e.target || heroMoreBtn.contains(e.target)));
 
       if (!row) {
         // Tap outside track list (but not inside a menu overlay) exits select mode
@@ -7080,6 +7077,14 @@ if (!window.__mobileTrackSelectTapGuard) {
 
       // Ignore taps on 3-dots/menu buttons
       if (e.target.closest('.track-menu') || e.target.closest('.track-menu-btn') || e.target.closest('[data-track-menu]')) {
+        return;
+      }
+
+      // Suppress the synthetic click that fires after a long-press completes
+      if (window.__songSelectLpLastFiredAt && Date.now() - window.__songSelectLpLastFiredAt < 600) {
+        window.__songSelectLpLastFiredAt = 0;
+        e.preventDefault();
+        e.stopPropagation();
         return;
       }
 
@@ -7152,8 +7157,9 @@ lpTriggered = false;
 
     clearLongPress();
 
-    lpTimer = setTimeout(() => {
+      lpTimer = setTimeout(() => {
       lpTriggered = true;
+      window.__songSelectLpLastFiredAt = Date.now(); // suppress synthetic click
 
       if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
@@ -7940,6 +7946,7 @@ async function applyPlaylistViewBackground(coverUrl) {
 
     const rr = clamp255(vr), gg = clamp255(vg), bb = clamp255(vb);
     el.style.backgroundImage = `linear-gradient(180deg, rgb(${rr},${gg},${bb}) 0px, rgba(${rr},${gg},${bb},0.65) 260px, rgba(18,18,18,0.9) 520px, #121212 680px)`;
+    el.style.backgroundRepeat = 'no-repeat';
     el.style.backgroundColor = '#121212';
   } catch (e) {
     el.style.backgroundImage = '';
@@ -14153,7 +14160,10 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); e.stopPropagation();
       hideAlbumCoverMenu();
       try {
-        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
+        const selUrls = window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0
+          ? window.__songSelect.urls : null;
+        const songs = (Array.isArray(currentQueue) ? currentQueue : [])
+          .filter(s => !selUrls || selUrls.has(s.url || s.link || ''));
         songs.forEach(s => { try { addSongToQueue(s); } catch (_) {} });
         try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (_) {}
       } catch (_) {}
@@ -14167,9 +14177,11 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); e.stopPropagation();
       hideAlbumCoverMenu();
       try {
-        // Set menuTargetSong to all tracks in the current queue so the
-        // playlist picker can add them all at once.
-        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
+        // When songs are selected, act on selection; otherwise act on all tracks
+        const selUrls = window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0
+          ? window.__songSelect.urls : null;
+        const songs = (Array.isArray(currentQueue) ? currentQueue : [])
+          .filter(s => !selUrls || selUrls.has(s.url || s.link || ''));
         if (songs.length) window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
         if (typeof openPlaylistSubmenu === 'function') openPlaylistSubmenu(e);
       } catch (_) {}
@@ -14881,6 +14893,7 @@ if (_autoPlMatch && _autoPlMatch.isAutoPlaylist) {
   _albumViewEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.45) 280px, #121212 560px), url('${coverImg}')`;
   _albumViewEl.style.backgroundSize = 'cover';
   _albumViewEl.style.backgroundPosition = 'center top';
+  _albumViewEl.style.backgroundRepeat = 'no-repeat';
   _albumViewEl.style.backgroundColor = '#121212';
 
   document.getElementById('album-hero').innerHTML = `
@@ -15672,7 +15685,7 @@ try {
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
 <script src="src/features/player/player.feature.js?v=4"></script>
 <script src="src/features/playlists/playlists.feature.js?v=5"></script>
-<script src="src/features/queue/queue.feature.js?v=2"></script>
+<script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
