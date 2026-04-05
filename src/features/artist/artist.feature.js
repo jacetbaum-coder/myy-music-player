@@ -291,10 +291,13 @@ function openArtistByName(artistName) {
   activeArtistName = artistName;
 
   // IMPORTANT: we are already switching views here, but during back-nav we don't want double pushes
+  // Must set BOTH local __isBackNav AND window.__isBackNav — pushNavCurrent() only checks window.__isBackNav
   const wasBack = __isBackNav;
   __isBackNav = true;
+  window.__isBackNav = true;
   showView('artist');
   __isBackNav = wasBack;
+  window.__isBackNav = wasBack;
 
   const albums = (Array.isArray(libraryData) ? libraryData : []).filter(a => a.artistName === artistName);
   if (!albums.length) return;
