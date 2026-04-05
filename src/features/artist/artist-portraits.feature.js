@@ -141,9 +141,8 @@
         }
       } catch (e) {}
 
-      const fallback = { ok: false, image: '', source: 'fallback', artist: artistName, cached: false };
-      storeCachedPortrait(artistName, fallback);
-      return fallback;
+      // Don't persist failures to localStorage — let them retry next session
+      return { ok: false, image: '', source: 'fallback', artist: artistName, cached: false };
     })();
 
     MEMORY_CACHE.set(key, request);
