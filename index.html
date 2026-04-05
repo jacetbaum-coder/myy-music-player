@@ -6107,8 +6107,11 @@ body.qs-lock {
   <!-- FOR YOU SECTION -->
   <div id="artist-for-you-section" class="hidden mb-8">
     <h2 class="text-xl font-black mb-3">For you</h2>
-    <div id="artist-for-you-list" class="space-y-1"></div>
-    <button id="artist-for-you-more" class="hidden mt-4 w-full py-2 rounded-full border border-white/20 text-white text-sm font-bold hover:border-white/60 transition">
+    <div class="relative">
+      <div id="artist-for-you-list" class="space-y-1"></div>
+      <div id="artist-for-you-fade" class="hidden absolute bottom-0 left-0 right-0 h-16 pointer-events-none" style="background: linear-gradient(to bottom, transparent, #141215 88%)"></div>
+    </div>
+    <button id="artist-for-you-more" class="hidden relative z-10 -mt-2 mx-auto flex items-center justify-center px-5 py-[3px] rounded-full border border-white/20 text-white text-xs font-bold hover:border-white/60 transition">
       See more
     </button>
   </div>
@@ -15221,7 +15224,7 @@ try {
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
-<script src="src/features/artist/artist.feature.js?v=18"></script>
+<script src="src/features/artist/artist.feature.js?v=20"></script>
 <script src="src/features/search/search.feature.js?v=5"></script>
 <script src="src/features/crate/crate.feature.js?v=2"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>

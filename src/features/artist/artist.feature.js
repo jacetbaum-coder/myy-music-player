@@ -546,38 +546,69 @@ function renderArtistForYou(artistName) {
     return Math.random() - 0.5;
   }).slice(0, 10);
 
-  const INITIAL = 5;
+  const INITIAL = 6;
   let expanded = false;
+  const fadeEl = document.getElementById('artist-for-you-fade');
 
-  function renderRows(songs) {
+  function renderRows(songs, showFade) {
     list.innerHTML = songs.map((s, i) => `
-      <div class="flex items-center gap-3 px-1 py-2 rounded-xl hover:bg-white/5 transition cursor-pointer"
-           onclick="playSpecificSong(${JSON.stringify(s)})">
+      <div class="for-you-row flex items-center gap-3 px-1 py-3 rounded-xl hover:bg-white/5 transition cursor-pointer"
+           data-idx="${i}">
         <span class="w-5 text-right text-zinc-500 text-sm flex-shrink-0">${i + 1}</span>
         ${s.cover
-          ? `<img src="${s.cover}" class="w-11 h-11 rounded-md object-cover flex-shrink-0">`
-          : `<div class="w-11 h-11 rounded-md bg-zinc-800 flex-shrink-0"></div>`}
+          ? `<img src="${s.cover}" class="w-12 h-12 rounded-md object-cover flex-shrink-0">`
+          : `<div class="w-12 h-12 rounded-md bg-zinc-800 flex-shrink-0"></div>`}
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-white truncate">${s.title || 'Unknown'}</div>
           <div class="text-xs text-zinc-400 truncate">${s.album || ''}</div>
         </div>
+        <button class="for-you-dots w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-white transition flex-shrink-0"
+                data-idx="${i}">
+          <i class="fas fa-ellipsis-h text-sm"></i>
+        </button>
       </div>`).join('');
+
+    window.__forYouSongs = songs;
+
+    // Bind row clicks (play) and dots (context menu)
+    list.querySelectorAll('.for-you-row').forEach(row => {
+      row.addEventListener('click', e => {
+        if (e.target.closest('.for-you-dots')) return;
+        const s = window.__forYouSongs?.[+row.dataset.idx];
+        if (s) playSpecificSong(s.url, s.title, s.album, s.artist, s.cover);
+      });
+    });
+    list.querySelectorAll('.for-you-dots').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const s = window.__forYouSongs?.[+btn.dataset.idx];
+        if (!s || typeof window.showContextMenuAt !== 'function') return;
+        const r = btn.getBoundingClientRect();
+        window.showContextMenuAt(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2), s, btn);
+      });
+    });
+
+    if (fadeEl) fadeEl.classList.toggle('hidden', !showFade);
   }
 
-  renderRows(sorted.slice(0, INITIAL));
+  renderRows(sorted.slice(0, INITIAL), sorted.length > INITIAL);
 
   if (sorted.length > INITIAL && moreBtn) {
     moreBtn.classList.remove('hidden');
     moreBtn.textContent = 'See more';
     moreBtn.onclick = () => {
       if (!expanded) {
-        renderRows(sorted);
+        renderRows(sorted, false);
         expanded = true;
         moreBtn.textContent = 'See less';
+        moreBtn.classList.remove('-mt-2');
+        moreBtn.classList.add('mt-3');
       } else {
-        renderRows(sorted.slice(0, INITIAL));
+        renderRows(sorted.slice(0, INITIAL), true);
         expanded = false;
         moreBtn.textContent = 'See more';
+        moreBtn.classList.add('-mt-2');
+        moreBtn.classList.remove('mt-3');
       }
     };
   } else if (moreBtn) {
