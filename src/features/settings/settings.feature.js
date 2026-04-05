@@ -627,12 +627,12 @@ function __renderProfileScreen() {
 
   if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
     const generated = __generateProfileUsername();
-    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; inlineDisplayNameInput.focus(); }
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; }
   });
 
   if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
     const generated = __generateProfileUsername();
-    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; inlineDisplayNameInput.focus(); }
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; }
   });
 
   if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
