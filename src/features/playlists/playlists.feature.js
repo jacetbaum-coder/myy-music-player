@@ -1252,7 +1252,7 @@ function playPlaylistById(playlistId) {
         if (headerEl) headerEl.style.display = '';
         if (staticNew) staticNew.style.display = '';
       } catch (e) {}
-      sub.style.transition = 'transform 160ms ease, opacity 160ms ease';
+      sub.style.transition = 'transform 100ms ease, opacity 100ms ease';
       sub.style.transform = 'translateY(18px)';
       sub.style.opacity = '0';
 
@@ -1850,7 +1850,7 @@ function closePlaylistSubmenu(event){
 
   // ✅ animate down (matches the open/close sheet feel)
   sub.style.display = 'block';
-  sub.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease';
+  sub.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms ease';
   sub.classList.remove('open');
   sub.style.transform = 'translateY(100%)';
   sub.style.opacity = '0';
@@ -1863,7 +1863,7 @@ function closePlaylistSubmenu(event){
       sub.style.transform = '';
       sub.style.opacity = '';
     }catch(e){}
-  }, 240);
+  }, 140);
 }
 
 
@@ -2688,11 +2688,11 @@ function hidePlaylistMenu() {
   // Mobile sheet close animation
   try {
     if (typeof isMobile === 'function' && isMobile() && m) {
-      m.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      m.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       m.style.transform = 'translateY(100%)';
       if (b) b.style.opacity = '0';
-      setTimeout(() => { try { m.classList.add('hidden'); } catch(_){} }, 210);
-      setTimeout(() => { try { if (b) b.classList.add('hidden'); } catch(_){} }, 210);
+      setTimeout(() => { try { m.classList.add('hidden'); } catch(_){} }, 130);
+      setTimeout(() => { try { if (b) b.classList.add('hidden'); } catch(_){} }, 130);
     } else {
       if (m) m.classList.add('hidden');
       if (b) b.classList.add('hidden');
@@ -2988,7 +2988,7 @@ function showPlaylistMenuAt(x, y, playlistId) {
     m.style.bottom = '16px';
 
     // start hidden (off-screen), then animate up
-    m.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    m.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
     m.style.transform = 'translate(-50%, 100%)';
     requestAnimationFrame(() => {
       try { if (b) b.style.opacity = '1'; } catch(e){}

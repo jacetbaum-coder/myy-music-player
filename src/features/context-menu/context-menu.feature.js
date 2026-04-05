@@ -397,13 +397,13 @@ function closeContextMenu(e) {
     // hide playlist panel immediately (it has its own transform)
     if (sub) {
       sub.classList.remove('open');
-      sub.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease';
+      sub.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms ease';
       sub.style.transform = 'translateY(100%)';
       sub.style.opacity = '0';
     }
 
     // slide main sheet down
-    contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    contextMenu.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
     contextMenu.style.transform = 'translateY(100%)';
 
     if (contextMenuCloseTimer) {
@@ -435,7 +435,7 @@ function closeContextMenu(e) {
       }
 
       contextMenuCloseTimer = null;
-    }, 220);
+    }, 140);
 
     return;
   }
@@ -482,7 +482,7 @@ function closeContextMenu(e) {
 
     function snapToFull() {
       sheet.__cmSnapState = 'full';
-      sheet.style.transition = 'max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transition = 'max-height 160ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       sheet.style.transform = 'translateY(0)';
       sheet.style.maxHeight = '92vh';
       sheet.style.overflowY = 'auto';
@@ -492,7 +492,7 @@ function closeContextMenu(e) {
 
     function snapToHalf() {
       sheet.__cmSnapState = 'half';
-      sheet.style.transition = 'max-height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transition = 'max-height 150ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       sheet.style.transform = 'translateY(0)';
       sheet.style.maxHeight = '55vh';
       sheet.style.overflowY = 'auto';
@@ -547,7 +547,7 @@ function closeContextMenu(e) {
         }
       } else {
         // Short movement — snap back to current state
-        sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        sheet.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
         sheet.style.transform = 'translateY(0)';
         const bd = document.getElementById('context-menu-backdrop');
         if (bd) bd.style.opacity = '1';
@@ -557,7 +557,7 @@ function closeContextMenu(e) {
     window.addEventListener('pointercancel', () => {
       if (!dragging) return;
       dragging = false;
-      sheet.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       sheet.style.transform = 'translateY(0)';
       const bd = document.getElementById('context-menu-backdrop');
       if (bd) bd.style.opacity = '1';
@@ -786,7 +786,7 @@ if (window.innerWidth > 768 && addOpt) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (contextMenuBackdrop) contextMenuBackdrop.style.opacity = '1';
-        contextMenu.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        contextMenu.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
                 contextMenu.style.transform = 'translateY(0)';
 
 

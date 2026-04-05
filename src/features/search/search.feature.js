@@ -496,7 +496,7 @@ function initSearchSwipeDownClose() {
       rafId = 0;
     }
     if (animated) {
-      area.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease';
+      area.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease';
     } else {
       area.style.transition = '';
     }
@@ -511,7 +511,7 @@ function initSearchSwipeDownClose() {
 
     setTimeout(() => {
       area.style.transition = '';
-    }, 260);
+    }, 140);
 
     hideSwipeBackUnderlay();
   }
@@ -604,7 +604,7 @@ function initSearchSwipeDownClose() {
     }
 
     if (shouldCommit) {
-      area.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
+      area.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1), opacity 100ms ease';
       area.style.transform = `translateY(${window.innerHeight}px)`;
       area.style.opacity = String(1 - OPACITY_DROP);
 
@@ -616,7 +616,7 @@ function initSearchSwipeDownClose() {
       area.addEventListener('transitionend', done);
       setTimeout(() => {
         try { done(); } catch (e) {}
-      }, 260);
+      }, 140);
       return;
     }
 

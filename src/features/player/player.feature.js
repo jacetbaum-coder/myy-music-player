@@ -86,7 +86,7 @@ function openNowPlaying() {
   // animate up on next frame
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      nowPlayingOverlay.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      nowPlayingOverlay.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       nowPlayingOverlay.style.transform = 'translateY(0)';
     });
   });
@@ -320,7 +320,7 @@ function __npResetCoverTransforms(withAnimation = true){
   const next = document.getElementById('np-cover-next');
   if (!cur || !prev || !next) return;
 
-  const transition = withAnimation ? 'transform 230ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+  const transition = withAnimation ? 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
   prev.style.transition = transition;
   cur.style.transition  = transition;
   next.style.transition = transition;
@@ -332,7 +332,7 @@ function __npResetCoverTransforms(withAnimation = true){
       prev.style.transition = '';
       cur.style.transition  = '';
       next.style.transition = '';
-    }, 260);
+    }, 140);
   }
 }
 
@@ -396,9 +396,9 @@ function setupNowPlayingCoverSwipeOnce(){
     const w = Math.max(1, wrap.clientWidth);
     const settleX = direction === 'next' ? -w * 1.05 : w * 1.05;
 
-    prev.style.transition = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
-    cur.style.transition  = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
-    next.style.transition = 'transform 210ms cubic-bezier(0.22, 1, 0.36, 1)';
+    prev.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)';
+    cur.style.transition  = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)';
+    next.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)';
     __npApplyCoverTransforms(settleX);
 
     setTimeout(() => {
@@ -419,7 +419,7 @@ function setupNowPlayingCoverSwipeOnce(){
         updateNPCoverNeighbors();
         __npCoverSwipeAnimating = false;
       });
-    }, 220);
+    }, 140);
   }
 
   function endSwipe(){
@@ -805,21 +805,21 @@ if (nowPlayingOverlay) {
     if (shouldClose) {
       if (npSheet) npSheet.style.overflowY = '';
       nowPlayingOverlay.classList.remove('np-dragging');
-      nowPlayingOverlay.style.transition = 'transform 190ms cubic-bezier(0.22, 1, 0.36, 1)';
+      nowPlayingOverlay.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)';
       closeNowPlaying();
       setTimeout(() => {
         try { nowPlayingOverlay.style.transition = ''; } catch (e) {}
-      }, 260);
+      }, 140);
       npDragActive = false;
       return;
     }
 
     nowPlayingOverlay.classList.remove('np-dragging');
-    nowPlayingOverlay.style.transition = 'transform 240ms cubic-bezier(0.22, 1, 0.36, 1)';
+    nowPlayingOverlay.style.transition = 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)';
     npResetDrag();
     setTimeout(() => {
       try { nowPlayingOverlay.style.transition = ''; } catch (e) {}
-    }, 280);
+    }, 170);
 
     npDragActive = false;
   });

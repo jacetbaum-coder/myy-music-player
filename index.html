@@ -379,7 +379,7 @@ button,
 #now-playing-overlay {
   display: none;
   transform: translateY(0);
-  transition: transform 220ms ease;
+  transition: transform 120ms ease;
   will-change: transform;
 
   /* IMPORTANT: make swipe-down responsive on iOS/Android */
@@ -629,7 +629,7 @@ img {
             flex-direction: column; 
             padding: 24px 16px; 
             flex-shrink: 0; 
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1); 
         }
 
         @media (min-width: 1024px) {
@@ -1123,7 +1123,7 @@ body.artist-view-open #artist-view #artist-hero {
 
 /* Show bubbles when selection mode is on */
 .track-row{
-  transition: padding-left 180ms ease;
+  transition: padding-left 80ms ease;
 }
 
 body.song-multiselect .track-row{
@@ -1817,7 +1817,7 @@ body.song-multiselect .track-row:hover{
   z-index: 1999;
   display: none;
   opacity: 0;
-  transition: opacity 180ms ease;
+  transition: opacity 80ms ease;
 }
 
 /* Mobile: Spotify-like bottom sheet */
@@ -1849,7 +1849,7 @@ body.song-multiselect .track-row:hover{
 
   display: none;
   transform: translateY(100%);
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* ✅ When Now Playing is open, don't reserve space for the dock */
@@ -1954,7 +1954,7 @@ body.np-open #context-menu{
   opacity: 0;
   pointer-events: none;
   transform: scale(0.88) translateX(-4px);
-  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 120ms ease, transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1);
   position: absolute;
   left: 0;
   z-index: 5;
@@ -1990,12 +1990,12 @@ body.song-multiselect .mobile-playlist-sort-btn {
   pointer-events: none;
 }
 .mobile-playlist-sort-btn {
-  transition: opacity 180ms ease;
+  transition: opacity 80ms ease;
 }
 
 /* Three-dot btn: smooth style shift in multi-select */
 .hero-more-btn {
-  transition: color 180ms ease, opacity 180ms ease;
+  transition: color 80ms ease, opacity 80ms ease;
 }
 body.song-multiselect .hero-more-btn {
   color: #fff !important;
@@ -2294,7 +2294,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 220ms ease;
+  transition: transform 120ms ease;
 }
 
 #folder-view-overlay.open .folder-view-panel{
@@ -2563,7 +2563,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   z-index: 9999;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 260ms ease, transform 260ms ease;
+  transition: opacity 150ms ease, transform 150ms ease;
   width: max-content;
   max-width: calc(100vw - 32px);
 }
@@ -2625,7 +2625,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   opacity: 0;
   transform: translateY(18px);
   pointer-events: none;
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 #queue-toast.qt-hidden{
@@ -2676,7 +2676,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   opacity: 0;
   transform: translateY(18px);
   pointer-events: none;
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 #remove-toast.rt-show{
   opacity: 1;
@@ -2724,7 +2724,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   z-index: 2800;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
   white-space: nowrap;
 }
 #playlist-added-toast.pat-show{
@@ -2800,7 +2800,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
 
   /* --- IMPORTANT: same feel as Now Playing --- */
   transform: translateY(100%);
-  transition: transform 220ms ease;
+  transition: transform 120ms ease;
   will-change: transform;
 
   /* let our JS own the swipe gesture */
@@ -3183,7 +3183,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+  transition: transform 80ms ease, background 80ms ease, border-color 80ms ease;
 }
 
 .mobile-playlist-sort-btn:active {
@@ -3199,7 +3199,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   opacity: 0;
   pointer-events: none;
   z-index: 9996;
-  transition: opacity 140ms ease-out;
+  transition: opacity 80ms ease-out;
 }
 
 .mobile-playlist-sort-backdrop.open {
@@ -3224,7 +3224,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   opacity: 0;
   pointer-events: none;
   z-index: 9997;
-  transition: transform 180ms cubic-bezier(.25,.9,.3,1), opacity 140ms ease-out;
+  transition: transform 100ms cubic-bezier(.25,.9,.3,1), opacity 80ms ease-out;
   padding: 8px 12px calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 8px);
 }
 
@@ -3268,7 +3268,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   color: #1db954;
   opacity: 0;
   transform: translateX(4px) scale(0.95);
-  transition: opacity 140ms ease, transform 180ms ease;
+  transition: opacity 80ms ease, transform 100ms ease;
 }
 
 .mobile-playlist-sort-item.active {
@@ -3294,7 +3294,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
 
 #library-sort-backdrop {
   opacity: 0;
-  transition: opacity 140ms ease-out;
+  transition: opacity 80ms ease-out;
 }
 
 #library-sort-backdrop.open {
@@ -3319,7 +3319,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
     box-shadow: 0 -10px 36px rgba(0,0,0,0.45) !important;
     transform: translateY(108%);
     opacity: 0;
-    transition: transform 180ms cubic-bezier(.25,.9,.3,1), opacity 140ms ease-out;
+    transition: transform 100ms cubic-bezier(.25,.9,.3,1), opacity 80ms ease-out;
     z-index: 9997 !important;
     padding-bottom: calc(var(--nav-height, 72px) + env(safe-area-inset-bottom) + 8px);
   }
@@ -3649,7 +3649,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
   );
   background-attachment: local;
   background-repeat: no-repeat;
-  transition: background 0.5s ease;
+  transition: background 0.2s ease;
 }
 
 /* ── Auto-playlist (Daylist/Nightlist) hero — full-bleed gradient ── */
@@ -3742,7 +3742,7 @@ body:has(#playlist-submenu.open) .mobile-nav {
 /* Album hero cover: parallax zoom support */
 #album-hero-cover {
   transform-origin: center center;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   will-change: transform;
 }
 
@@ -4785,7 +4785,7 @@ body.qs-lock {
 }
 #nav-transition-loader.ntl-out {
   opacity: 0 !important;
-  transition: opacity 200ms ease !important;
+  transition: opacity 80ms ease !important;
 }
 @keyframes ntlReveal { to { opacity: 1; } }
 .ntl-dot {
@@ -7052,7 +7052,7 @@ window.__openHeroMoreMenu = function(btn) {
   if (old) {
     const bd = document.getElementById('hero-more-popover-backdrop');
     old.style.transform = 'translateY(100%)';
-    setTimeout(() => { try { old.remove(); } catch(_) {} try { if (bd) bd.remove(); } catch(_) {} }, 220);
+    setTimeout(() => { try { old.remove(); } catch(_) {} try { if (bd) bd.remove(); } catch(_) {} }, 140);
     return;
   }
 
@@ -7062,7 +7062,7 @@ window.__openHeroMoreMenu = function(btn) {
   // Backdrop
   const bd = document.createElement('div');
   bd.id = 'hero-more-popover-backdrop';
-  bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);transition:background 200ms ease';
+  bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);transition:background 80ms ease';
   document.body.appendChild(bd);
   requestAnimationFrame(() => { bd.style.background = 'rgba(0,0,0,0.45)'; });
 
@@ -7083,7 +7083,7 @@ window.__openHeroMoreMenu = function(btn) {
     'padding:6px 8px calc(env(safe-area-inset-bottom) + 16px)',
     'z-index:99999',
     'transform:translateY(100%)',
-    'transition:transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
+    'transition:transform 120ms cubic-bezier(0.2,0.8,0.2,1)',
   ].join(';');
 
   // Handle bar
@@ -7128,7 +7128,7 @@ window.__openHeroMoreMenu = function(btn) {
     setTimeout(() => {
       try { pop.remove(); } catch(_) {}
       try { bd.remove(); } catch(_) {}
-    }, 230);
+    }, 140);
     document.removeEventListener('pointerdown', outsideClose, true);
   };
 
@@ -8103,7 +8103,7 @@ function initHeroCoverParallax() {
     return av && !av.classList.contains('hidden');
   }
 
-  const SPRING = 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+  const SPRING = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
 
   function _resetParallax() {
     if (!_active) return;
@@ -9541,7 +9541,7 @@ function initSwipeBack() {
       albumEl = null;
       albumBehindEl = null;
       if (animated) {
-        _el.style.transition = 'transform 220ms ease, opacity 220ms ease';
+        _el.style.transition = 'transform 230ms ease, opacity 230ms ease';
         _el.style.transform  = 'translateX(0px)';
         _el.style.opacity    = '1';
         const clearAlbum = () => {
@@ -9582,7 +9582,7 @@ function initSwipeBack() {
     area.style.willChange = '';
 
     if (animated) {
-      area.style.transition = 'transform 220ms ease, opacity 220ms ease';
+      area.style.transition = 'transform 230ms ease, opacity 230ms ease';
     } else {
       area.style.transition = '';
     }
@@ -9651,7 +9651,7 @@ function initSwipeBack() {
     // Detect album overlay mode: slide #album-view directly, no underlay.
     const _navType = (typeof navCurrent !== 'undefined' && navCurrent?.type) || (window.navCurrent?.type);
     const _albumViewEl = document.getElementById('album-view');
-    albumSwipeMode = (_navType === 'album') && !!_albumViewEl && !_albumViewEl.classList.contains('hidden');
+    albumSwipeMode = (['album', 'playlist', 'liked'].includes(_navType)) && !!_albumViewEl && !_albumViewEl.classList.contains('hidden');
     albumEl = albumSwipeMode ? _albumViewEl : null;
 
     if (albumSwipeMode && albumEl) {
@@ -9823,7 +9823,7 @@ function initSwipeBack() {
         albumEl = null;
         albumBehindEl = null; // goBack() will properly show the destination view
 
-        _aEl.style.transition = 'transform 180ms ease, opacity 180ms ease';
+        _aEl.style.transition = 'transform 220ms ease, opacity 220ms ease';
         _aEl.style.transform  = `translateX(${edgeDir * window.innerWidth}px)`;
         _aEl.style.opacity    = '0.9';
 
@@ -9865,18 +9865,18 @@ function initSwipeBack() {
         };
 
         _aEl.addEventListener('transitionend', done);
-        setTimeout(() => { try { done(); } catch (e) {} }, 220);
+        setTimeout(() => { try { done(); } catch (e) {} }, 250);
         return;
       }
 
       // ── NORMAL (non-album) COMMIT ─────────────────────────────────────────
-      area.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      area.style.transition = 'transform 220ms ease, opacity 220ms ease';
       area.style.transform = `translateX(${edgeDir * window.innerWidth}px)`;
       // Animate underlay final slide-in in sync with current page flying off
       try {
         const underlayInner = document.getElementById('swipe-back-underlay-inner');
         if (underlayInner) {
-          underlayInner.style.transition = 'transform 180ms ease';
+          underlayInner.style.transition = 'transform 220ms ease';
           underlayInner.style.transform  = 'translateX(0px)';
         }
       } catch (e) {}
@@ -9939,7 +9939,7 @@ function initSwipeBack() {
       // ✅ Fallback: if transitionend never fires (mobile Safari/Chrome quirks), still finish.
       setTimeout(() => {
         try { done(); } catch (e) {}
-      }, 220);
+      }, 250);
 
 
       return;
@@ -14421,7 +14421,7 @@ window.addEventListener('DOMContentLoaded', () => {
       el.style.fontSize = '14px';
       el.style.boxShadow = '0 10px 30px rgba(0,0,0,0.35)';
       el.style.opacity = '0';
-      el.style.transition = 'opacity 160ms ease';
+      el.style.transition = 'opacity 80ms ease';
       document.body.appendChild(el);
     }
 
@@ -15496,7 +15496,7 @@ function playAlbumByName(name) {
       if (!area) return;
 
       if (animated) {
-        area.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+        area.style.transition = 'transform 150ms cubic-bezier(0.34, 1.4, 0.64, 1)';
       } else {
         area.style.transition = 'none';
       }
@@ -15599,7 +15599,7 @@ setIconRotation(0);
            window.__folderGridViewPrev = null;
          }
        }catch(e){}
-     }, 240);
+     }, 170);
 
       } else {
         try { area.style.transition = ''; } catch (e) {}
@@ -15665,7 +15665,7 @@ setIconRotation(0);
         e.preventDefault();
 
         // dampen slightly for “weight”
-        const px = Math.min(MAX, Math.round(dy * 0.65));
+        const px = Math.min(MAX, Math.round(dy * 0.75));
         current = px;
 
         setOverlayHeight(px);
@@ -15745,16 +15745,16 @@ try {
 </script>
 
 <script src="src/features/sync/sync.feature.js"></script>
-<script src="src/features/context-menu/context-menu.feature.js?v=3"></script>
-<script src="src/features/player/player.feature.js?v=6"></script>
-<script src="src/features/playlists/playlists.feature.js?v=6"></script>
-<script src="src/features/queue/queue.feature.js?v=2"></script>
+<script src="src/features/context-menu/context-menu.feature.js?v=4"></script>
+<script src="src/features/player/player.feature.js?v=7"></script>
+<script src="src/features/playlists/playlists.feature.js?v=7"></script>
+<script src="src/features/queue/queue.feature.js?v=3"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js?v=20"></script>
-<script src="src/features/search/search.feature.js?v=5"></script>
+<script src="src/features/search/search.feature.js?v=6"></script>
 <script src="src/features/crate/crate.feature.js?v=2"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
 
@@ -16027,7 +16027,7 @@ try {
 (function() {
   var ROOT_TABS = { home: 1, library: 1, search: 1, crate: 1, settings: 1 };
   var ALBUM_OVERLAY_VIEWS = { playlist: 1, liked: 1 };
-  var DUR = '320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  var DUR = '160ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
   function wrapShowViewWithLoader() {
     var _orig = window.showView;
@@ -16052,8 +16052,8 @@ try {
           setTimeout(function() {
             loader.classList.add('ntl-out');
             loader.classList.remove('ntl-active');
-            setTimeout(function() { loader.classList.remove('ntl-out'); }, 220);
-          }, 160);
+            setTimeout(function() { loader.classList.remove('ntl-out'); }, 120);
+          }, 80);
         }
         return;
       }
@@ -16078,7 +16078,7 @@ try {
           setTimeout(function() {
             av.style.transition = '';
             av.style.transform  = '';
-          }, 340);
+          }, 180);
         });
 
         // Subtle push-back on content behind
@@ -16096,7 +16096,7 @@ try {
               scrollArea.style.transition = '';
               scrollArea.style.transform  = '';
               scrollArea.style.opacity    = '';
-            }, 340);
+            }, 180);
           });
         }
         return;
@@ -16114,12 +16114,12 @@ try {
           el.style.transition = 'none';
           void el.offsetWidth;
           requestAnimationFrame(function() {
-            el.style.transition = 'opacity 220ms ease';
+            el.style.transition = 'opacity 120ms ease';
             el.style.opacity    = '1';
             setTimeout(function() {
               el.style.transition = '';
               el.style.opacity    = '';
-            }, 240);
+            }, 140);
           });
         }
       }

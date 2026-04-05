@@ -634,7 +634,7 @@ function openQueueSheet() {
   sheet.style.transform = 'translateY(100%)';
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      sheet.style.transition = 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sheet.style.transition = 'transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1)';
       sheet.style.transform = 'translateY(0)';
     });
   });
@@ -645,7 +645,7 @@ function closeQueueSheet() {
   const backdrop = document.getElementById('queue-sheet-backdrop');
   if (!sheet || !backdrop) return;
 
-  sheet.style.transition = 'transform 200ms ease';
+  sheet.style.transition = 'transform 120ms ease';
   sheet.style.transform = 'translateY(100%)';
 
   const done = () => {
