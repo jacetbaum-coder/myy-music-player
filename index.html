@@ -7151,7 +7151,8 @@ window.__openHeroMoreMenu = function(btn) {
   };
 
   // 1. Add to queue
-  const queueLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to queue') : 'Add all to queue';
+  const _selCount = (window.__songSelect && window.__songSelect.enabled) ? window.__songSelect.urls.size : 0;
+  const queueLabel = _selCount === 1 ? 'Add to queue' : (_selCount > 1 ? 'Add all to queue' : 'Add all to queue');
   pop.appendChild(mkItem('fa-list-ul', queueLabel, false, () => {
     const songs = getTargetSongs();
     if (!songs.length) return;
