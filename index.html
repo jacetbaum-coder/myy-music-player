@@ -1150,7 +1150,7 @@ body.song-multiselect .track-row::before{
 body.song-multiselect .track-row .select-bubble{
   display: inline-flex;
   position: absolute;
-  left: 12px;
+  left: 11px;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;          /* tap toggles the row, not the bubble itself */
@@ -1637,7 +1637,7 @@ body.song-multiselect .track-row:hover{
   }
 }
 
-.dock-hidden { transform: translateY(calc(100% + 80px)); }
+.dock-hidden { transform: translateY(100%); }
 
 
 /* Dock artist name should NOT be interactive (no hover, no click) */
@@ -2001,7 +2001,8 @@ body.song-multiselect .hero-more-btn {
   color: #fff !important;
   opacity: 1 !important;
   position: relative;
-  z-index: 10;
+  z-index: 20;
+  transform: translateZ(0);
 }
 
 #context-menu .menu-item:active{
@@ -3425,12 +3426,12 @@ body:has(#playlist-submenu.open) .mobile-nav {
     padding: 8px 4px;
   }
 
-  /* Mobile select mode: smaller gutter so text isn't pushed way right */
+  /* Mobile select mode: gutter matches desktop, bubble centered */
   body.song-multiselect .track-row{
-    padding-left: 32px;
+    padding-left: 44px;
   }
   body.song-multiselect .track-row .select-bubble{
-    left: 6px;
+    left: 11px;
   }
 
   /* Hide the track number on mobile (keeps working even if we insert a bubble span) */
@@ -3455,9 +3456,9 @@ body:has(#playlist-submenu.open) .mobile-nav {
     background: none;
     border: none;
     color: rgba(255,255,255,0.55);
-    font-size: 18px;
-    letter-spacing: 3px;
-    padding: 12px 6px 12px 14px;
+    font-size: 15px;
+    letter-spacing: normal;
+    padding: 12px 10px 12px 14px;
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
@@ -10821,6 +10822,40 @@ try { window.currentView = 'album'; } catch (e) {}
   }
   _avEl?.classList.remove('hidden');
 
+  // ── slide album-view in from right (same feel as playlist/liked navigation) ──
+  if (!window.__isBackNav && _avEl) {
+    try {
+      var _aDur = '320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+      _avEl.style.transition = 'none';
+      _avEl.style.transform  = 'translateX(100%)';
+      void _avEl.offsetWidth;
+      requestAnimationFrame(function() {
+        _avEl.style.transition = 'transform ' + _aDur;
+        _avEl.style.transform  = 'translateX(0)';
+        setTimeout(function() {
+          _avEl.style.transition = '';
+          _avEl.style.transform  = '';
+        }, 340);
+      });
+      var _aSa = document.getElementById('main-scroll-area');
+      if (_aSa) {
+        _aSa.style.transition = 'none';
+        _aSa.style.transform  = 'scale(1)';
+        _aSa.style.opacity    = '1';
+        void _aSa.offsetWidth;
+        requestAnimationFrame(function() {
+          _aSa.style.transition = 'transform ' + _aDur + ', opacity ' + _aDur;
+          _aSa.style.transform  = 'scale(0.94)';
+          _aSa.style.opacity    = '0.5';
+          setTimeout(function() {
+            _aSa.style.transition = '';
+            _aSa.style.transform  = '';
+            _aSa.style.opacity    = '';
+          }, 340);
+        });
+      }
+    } catch (e) {}
+  }
 
   // ---- hero play button: prevent "invisible paint" compositor bug ----
   // Forces a repaint by toggling a GPU-layer hint WITHOUT cloning/replacing the element.
@@ -11282,7 +11317,7 @@ row.innerHTML = `
 
       ${albumCell}
   <span class="hidden md:block">Just now</span>
-  <button type="button" class="track-menu" aria-label="More options">•••</button>
+  <button type="button" class="track-menu" aria-label="More options"><i class="fas fa-ellipsis-vertical"></i></button>
 `;
 
 try {
@@ -15128,7 +15163,7 @@ if (hero && activePlaylistId) {
 
             <span data-role="album" class="truncate hidden md:block text-white/80">${song.album}</span>
       <span class="hidden md:block">Just now</span>
-      <button type="button" class="track-menu" aria-label="More options">•••</button>
+      <button type="button" class="track-menu" aria-label="More options"><i class="fas fa-ellipsis-vertical"></i></button>
     `;
 
     // ✅ Dots should open the menu (and NOT trigger row.onclick play)
@@ -15671,7 +15706,7 @@ try {
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
-<script src="src/features/library/library.feature.js?v=2"></script>
+<script src="src/features/library/library.feature.js?v=3"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js?v=20"></script>
 <script src="src/features/search/search.feature.js?v=5"></script>
@@ -15948,6 +15983,25 @@ try {
   var ROOT_TABS = { home: 1, library: 1, search: 1, crate: 1, settings: 1 };
   var ALBUM_OVERLAY_VIEWS = { playlist: 1, liked: 1 };
   var DUR = '320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+  // ── Shared loader utilities so any code path can trigger the 3-dot overlay ──
+  window.showNavLoader = function() {
+    var loader = document.getElementById('nav-transition-loader');
+    if (!loader) return;
+    loader.classList.remove('ntl-active', 'ntl-out');
+    void loader.offsetWidth;
+    loader.classList.add('ntl-active');
+  };
+  window.hideNavLoader = function(delayMs) {
+    var loader = document.getElementById('nav-transition-loader');
+    if (!loader) return;
+    var d = (typeof delayMs === 'number') ? delayMs : 140;
+    setTimeout(function() {
+      loader.classList.add('ntl-out');
+      loader.classList.remove('ntl-active');
+      setTimeout(function() { loader.classList.remove('ntl-out'); }, 220);
+    }, d);
+  };
 
   function wrapShowViewWithLoader() {
     var _orig = window.showView;

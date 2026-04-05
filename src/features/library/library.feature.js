@@ -680,7 +680,11 @@ updateMobileLibraryTabUI();
   // ✅ Always re-render immediately on mobile when a top Library tab is clicked.
   // This avoids getting "stuck" when navCurrent / __rootTab is stale.
   if (window.innerWidth <= 768) {
-    try { renderLibraryMain(); } catch (e) {}
+    try {
+      if (typeof window.showNavLoader === 'function') window.showNavLoader();
+      renderLibraryMain();
+      if (typeof window.hideNavLoader === 'function') window.hideNavLoader(160);
+    } catch (e) {}
   }
 }
 
