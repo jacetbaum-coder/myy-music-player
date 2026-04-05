@@ -555,8 +555,7 @@ function __renderProfileScreen() {
       if (verifiedBadge) verifiedBadge.classList.toggle("hidden", !verified);
       if (unverifiedBadge) unverifiedBadge.classList.toggle("hidden", verified);
       if (unverifiedRow) unverifiedRow.classList.toggle("hidden", verified);
-      if (inlineDisplayNameInput) inlineDisplayNameInput.value = prefs.displayName || "";
-      if (inlineDisplayNameInput) setTimeout(() => inlineDisplayNameInput.focus(), 50);
+      if (inlineDisplayNameInput) inlineDisplayNameInput.textContent = prefs.displayName || "";
     }
   });
 
@@ -564,7 +563,7 @@ function __renderProfileScreen() {
     const prefs = __readProfilePrefs();
     __writeProfilePrefs({
       username: prefs.username,
-      displayName: inlineDisplayNameInput ? inlineDisplayNameInput.value : ""
+      displayName: inlineDisplayNameInput ? inlineDisplayNameInput.textContent : ""
     });
     __renderProfileScreen();
     if (profileEditInlineCard) profileEditInlineCard.classList.add("hidden");
@@ -625,14 +624,16 @@ function __renderProfileScreen() {
     sendChangeEmailBtn.textContent = "Send verification to new email";
   });
 
-  if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
+  if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", (e) => {
+    e.preventDefault();
     const generated = __generateProfileUsername();
-    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; }
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.textContent = generated; }
   });
 
-  if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
+  if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", (e) => {
+    e.preventDefault();
     const generated = __generateProfileUsername();
-    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; }
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.textContent = generated; }
   });
 
   if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
