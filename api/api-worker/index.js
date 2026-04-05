@@ -46,6 +46,31 @@ export default {
 
     const isAdmin = (email) => email && env.OWNER_EMAIL && email.toLowerCase() === env.OWNER_EMAIL.toLowerCase();
 
+    const sendEmail = async (to, subject, html) => {
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'auth@resonmusic.us', to, subject, html })
+        });
+        return r.ok;
+      } catch { return false; }
+    };
+
+    const sendVerificationEmail = async (email, type, extra = {}) => {
+      const token = crypto.randomUUID();
+      await env.SESSIONS.put(`verify:${token}`, JSON.stringify({ email, type, ...extra }), { expirationTtl: 24*60*60 });
+      const verifyUrl = `https://resonmusic.us/auth/verify-email?token=${token}`;
+      const isChange = type === 'change-email';
+      return sendEmail(
+        isChange ? extra.toEmail : email,
+        isChange ? 'Verify your new Reson email address' : 'Verify your Reson account',
+        isChange
+          ? `<p>You requested an email change on Reson.</p><p><a href="${verifyUrl}">Click here to verify and switch to this email.</a></p><p>This link expires in 24 hours. If you didn't request this, ignore it.</p>`
+          : `<p>Thanks for creating a Reson account.</p><p><a href="${verifyUrl}">Click here to verify your email address.</a></p><p>This link expires in 24 hours.</p>`
+      );
+    };
+
     // --- Password-based registration ---
     if (url.pathname === '/auth/register' && request.method === 'POST') {
       const { email, password } = await getBody();
@@ -55,10 +80,12 @@ export default {
       const existing = await env.SESSIONS.get(userKey);
       if (existing) return errJson(400, 'User already exists');
       const pwHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
-      await env.SESSIONS.put(userKey, JSON.stringify({ email, pwHash }), { expirationTtl: 365*24*60*60 });
+      await env.SESSIONS.put(userKey, JSON.stringify({ email, pwHash, emailVerified: false }), { expirationTtl: 365*24*60*60 });
       // Store username→email reverse mapping (derived from email local part)
       const localPart = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
       if (localPart) await env.SESSIONS.put(`username:${localPart}`, email, { expirationTtl: 365*24*60*60 });
+      // Send email verification
+      await sendVerificationEmail(email, 'verify');
       return json({ ok: true });
     }
 
@@ -129,16 +156,96 @@ export default {
       if (!token) return errJson(400, 'Missing token');
       const email = await env.SESSIONS.get(`magic:${token}`);
       if (!email) return errJson(400, 'Invalid or expired token');
+      // Magic link sign-in counts as email verification
+      const uid = await hashEmail(email);
+      const userRaw = await env.SESSIONS.get(`user:${uid}`);
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        if (!u.emailVerified) {
+          await env.SESSIONS.put(`user:${uid}`, JSON.stringify({ ...u, emailVerified: true }), { expirationTtl: 365*24*60*60 });
+        }
+      }
       const { sessionId } = await makeSession(email);
       const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/' } });
       res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
       return res;
     }
 
+    // --- Email verification link handler ---
+    if (url.pathname === '/auth/verify-email' && request.method === 'GET') {
+      const token = url.searchParams.get('token');
+      if (!token) return errJson(400, 'Missing token');
+      const raw = await env.SESSIONS.get(`verify:${token}`);
+      if (!raw) return errJson(400, 'Invalid or expired link');
+      const data = JSON.parse(raw);
+      await env.SESSIONS.delete(`verify:${token}`);
+
+      if (data.type === 'verify') {
+        const uid = await hashEmail(data.email);
+        const ur = await env.SESSIONS.get(`user:${uid}`);
+        if (ur) {
+          const u = JSON.parse(ur);
+          await env.SESSIONS.put(`user:${uid}`, JSON.stringify({ ...u, emailVerified: true }), { expirationTtl: 365*24*60*60 });
+        }
+        const { sessionId } = await makeSession(data.email);
+        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/' } });
+        res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
+        return res;
+      }
+
+      if (data.type === 'change-email') {
+        const { fromUserId, toEmail } = data;
+        const newUid = await hashEmail(toEmail);
+        const existing = await env.SESSIONS.get(`user:${newUid}`);
+        if (existing) {
+          return new Response('<p>That email is already in use. <a href="https://resonmusic.us/">Go back</a></p>', { status: 409, headers: { 'Content-Type': 'text/html' } });
+        }
+        const oldUserRaw = await env.SESSIONS.get(`user:${fromUserId}`);
+        const oldUser = oldUserRaw ? JSON.parse(oldUserRaw) : {};
+        await env.SESSIONS.put(`user:${newUid}`, JSON.stringify({ ...oldUser, email: toEmail, emailVerified: true }), { expirationTtl: 365*24*60*60 });
+        await env.SESSIONS.delete(`user:${fromUserId}`);
+        const newLocalPart = toEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+        if (newLocalPart) await env.SESSIONS.put(`username:${newLocalPart}`, toEmail, { expirationTtl: 365*24*60*60 });
+        const { sessionId } = await makeSession(toEmail);
+        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/' } });
+        res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
+        return res;
+      }
+
+      return errJson(400, 'Unknown token type');
+    }
+
+    // --- Resend email verification ---
+    if (url.pathname === '/auth/resend-verification' && request.method === 'POST') {
+      const session = await getSession();
+      if (!session) return errJson(401, 'Not signed in');
+      const ur = await env.SESSIONS.get(`user:${session.userId}`);
+      const user = ur ? JSON.parse(ur) : {};
+      if (user.emailVerified) return json({ ok: true, alreadyVerified: true });
+      await sendVerificationEmail(session.email, 'verify');
+      return json({ ok: true });
+    }
+
+    // --- Change email ---
+    if (url.pathname === '/auth/change-email' && request.method === 'POST') {
+      const session = await getSession();
+      if (!session) return errJson(401, 'Not signed in');
+      const { newEmail } = await getBody();
+      if (!newEmail || !/^[^@]+@[^@]+\.[^@]+$/.test(newEmail)) return errJson(400, 'Invalid email address');
+      if (newEmail.toLowerCase() === session.email.toLowerCase()) return errJson(400, 'That is already your email');
+      const newUid = await hashEmail(newEmail);
+      const existing = await env.SESSIONS.get(`user:${newUid}`);
+      if (existing) return errJson(400, 'That email is already in use');
+      await sendVerificationEmail(session.email, 'change-email', { fromUserId: session.userId, fromEmail: session.email, toEmail: newEmail });
+      return json({ ok: true });
+    }
+
     if (url.pathname === '/auth/me' && request.method === 'GET') {
       const session = await getSession();
       if (!session) return json({ ok: false });
-      return json({ ok: true, email: session.email, userId: session.userId, isAdmin: isAdmin(session.email) });
+      const userRaw = await env.SESSIONS.get(`user:${session.userId}`);
+      const user = userRaw ? JSON.parse(userRaw) : {};
+      return json({ ok: true, email: session.email, userId: session.userId, isAdmin: isAdmin(session.email), emailVerified: !!user.emailVerified });
     }
 
     if (url.pathname === '/auth/logout' && request.method === 'POST') {

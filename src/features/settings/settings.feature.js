@@ -534,7 +534,7 @@ function __renderProfileScreen() {
   });
 
   const profileEditInlineCard = document.getElementById("profile-edit-inline-card");
-  const inlineUsernameInput = document.getElementById("profile-inline-username");
+  const inlineEmailDisplay = document.getElementById("profile-inline-email-display");
   const inlineDisplayNameInput = document.getElementById("profile-inline-display-name");
   const inlineSaveBtn = document.getElementById("profile-inline-save-btn");
   const inlineCancelBtn = document.getElementById("profile-inline-cancel-btn");
@@ -546,15 +546,24 @@ function __renderProfileScreen() {
     if (isHidden) {
       // Populate inputs with current values when opening
       const prefs = __readProfilePrefs();
-      if (inlineUsernameInput) inlineUsernameInput.value = prefs.username || "";
+      const email = String(window.APP_USER_EMAIL || "").trim();
+      const verified = !!window.APP_EMAIL_VERIFIED;
+      if (inlineEmailDisplay) inlineEmailDisplay.textContent = email || "—";
+      const verifiedBadge = document.getElementById("profile-inline-verified-badge");
+      const unverifiedBadge = document.getElementById("profile-inline-unverified-badge");
+      const unverifiedRow = document.getElementById("profile-inline-unverified-row");
+      if (verifiedBadge) verifiedBadge.classList.toggle("hidden", !verified);
+      if (unverifiedBadge) unverifiedBadge.classList.toggle("hidden", verified);
+      if (unverifiedRow) unverifiedRow.classList.toggle("hidden", verified);
       if (inlineDisplayNameInput) inlineDisplayNameInput.value = prefs.displayName || "";
-      if (inlineUsernameInput) setTimeout(() => inlineUsernameInput.focus(), 50);
+      if (inlineDisplayNameInput) setTimeout(() => inlineDisplayNameInput.focus(), 50);
     }
   });
 
   if (inlineSaveBtn) inlineSaveBtn.addEventListener("click", () => {
-    const prefs = __writeProfilePrefs({
-      username: inlineUsernameInput ? inlineUsernameInput.value : "",
+    const prefs = __readProfilePrefs();
+    __writeProfilePrefs({
+      username: prefs.username,
       displayName: inlineDisplayNameInput ? inlineDisplayNameInput.value : ""
     });
     __renderProfileScreen();
@@ -565,6 +574,57 @@ function __renderProfileScreen() {
     if (profileEditInlineCard) profileEditInlineCard.classList.add("hidden");
   });
 
+  // Resend verification email
+  const resendVerificationBtn = document.getElementById("profile-resend-verification-btn");
+  if (resendVerificationBtn) resendVerificationBtn.addEventListener("click", async () => {
+    resendVerificationBtn.textContent = "Sending…";
+    resendVerificationBtn.disabled = true;
+    try {
+      const res = await fetch("/auth/resend-verification", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      resendVerificationBtn.textContent = data.alreadyVerified ? "Already verified!" : "Sent!";
+    } catch (e) {
+      resendVerificationBtn.textContent = "Failed";
+    }
+    setTimeout(() => { resendVerificationBtn.textContent = "Resend"; resendVerificationBtn.disabled = false; }, 3000);
+  });
+
+  // Change email toggle
+  const changeEmailToggle = document.getElementById("profile-change-email-toggle");
+  const changeEmailSection = document.getElementById("profile-change-email-section");
+  if (changeEmailToggle && changeEmailSection) {
+    changeEmailToggle.addEventListener("click", () => {
+      const hidden = changeEmailSection.classList.toggle("hidden");
+      changeEmailToggle.textContent = hidden ? "Change email →" : "Change email ↑";
+    });
+  }
+
+  // Send change-email verification
+  const sendChangeEmailBtn = document.getElementById("profile-send-change-email-btn");
+  const newEmailInput = document.getElementById("profile-new-email-input");
+  const changeEmailFeedback = document.getElementById("profile-change-email-feedback");
+  if (sendChangeEmailBtn) sendChangeEmailBtn.addEventListener("click", async () => {
+    const newEmail = String(newEmailInput ? newEmailInput.value : "").trim();
+    if (!newEmail || !newEmail.includes("@")) {
+      if (changeEmailFeedback) { changeEmailFeedback.textContent = "Enter a valid email address."; changeEmailFeedback.classList.remove("hidden"); }
+      return;
+    }
+    sendChangeEmailBtn.disabled = true;
+    sendChangeEmailBtn.textContent = "Sending…";
+    try {
+      const res = await fetch("/auth/change-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newEmail }) });
+      const data = await res.json().catch(() => ({}));
+      if (changeEmailFeedback) {
+        changeEmailFeedback.textContent = res.ok ? `Verification sent to ${newEmail}. Click the link to confirm the change.` : (data.error || "Failed to send.");
+        changeEmailFeedback.classList.remove("hidden");
+      }
+    } catch (e) {
+      if (changeEmailFeedback) { changeEmailFeedback.textContent = "Network error. Try again."; changeEmailFeedback.classList.remove("hidden"); }
+    }
+    sendChangeEmailBtn.disabled = false;
+    sendChangeEmailBtn.textContent = "Send verification to new email";
+  });
+
   if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
     const generated = __generateProfileUsername();
     if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; inlineDisplayNameInput.focus(); }
@@ -572,7 +632,7 @@ function __renderProfileScreen() {
 
   if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
     const generated = __generateProfileUsername();
-    if (inlineUsernameInput) { inlineUsernameInput.value = generated; inlineUsernameInput.focus(); }
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; inlineDisplayNameInput.focus(); }
   });
 
   if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {

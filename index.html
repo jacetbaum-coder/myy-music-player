@@ -5029,18 +5029,33 @@ body.qs-lock {
     <div class="text-[11px] font-black uppercase tracking-[0.24em] text-white/45">Edit Profile</div>
     <div class="mt-4 grid gap-3">
       <div>
-        <div class="mb-2 flex items-center justify-between gap-3">
-          <span class="text-xs font-black uppercase tracking-[0.18em] text-white/40">Username</span>
-          <button id="profile-randomize-username-inline-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white active:scale-95">Randomize</button>
+        <div class="mb-1 text-xs font-black uppercase tracking-[0.18em] text-white/40">Email</div>
+        <div class="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div id="profile-inline-email-display" class="text-sm font-semibold text-white/60 break-all"></div>
+          <span id="profile-inline-verified-badge" class="hidden shrink-0 text-[11px] font-black text-green-400">✓ Verified</span>
+          <span id="profile-inline-unverified-badge" class="hidden shrink-0 text-[11px] font-black text-yellow-400">! Unverified</span>
         </div>
-        <input id="profile-inline-username" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none focus:border-white/25" placeholder="Choose a username">
+        <div id="profile-inline-unverified-row" class="hidden mt-2 flex items-center gap-2">
+          <span class="text-xs text-white/40">Check your inbox for a verification link.</span>
+          <button id="profile-resend-verification-btn" type="button" class="text-xs font-bold text-white/60 underline active:opacity-60">Resend</button>
+        </div>
+        <button id="profile-change-email-toggle" type="button" class="mt-2 text-xs font-bold text-white/35 hover:text-white/60 transition-colors">Change email →</button>
+        <div id="profile-change-email-section" class="hidden mt-3 grid gap-2">
+          <input id="profile-new-email-input" type="email" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none focus:border-white/25" placeholder="New email address">
+          <button id="profile-send-change-email-btn" type="button" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-extrabold text-white active:scale-95">
+            Send verification to new email
+          </button>
+          <div id="profile-change-email-feedback" class="hidden text-xs text-center text-white/55 px-1"></div>
+        </div>
       </div>
       <div>
-        <div class="mb-2 flex items-center justify-between gap-3">
-          <span class="text-xs font-black uppercase tracking-[0.18em] text-white/40">Display Name</span>
-          <button id="profile-randomize-inline-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white active:scale-95">Randomize</button>
+        <div class="mb-2 text-xs font-black uppercase tracking-[0.18em] text-white/40">Display Name</div>
+        <div class="relative">
+          <input id="profile-inline-display-name" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pr-12 text-sm font-semibold text-white outline-none focus:border-white/25" placeholder="How your profile should appear">
+          <button id="profile-randomize-inline-btn" type="button" aria-label="Randomize display name" class="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-white/50 hover:text-white active:scale-90 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+          </button>
         </div>
-        <input id="profile-inline-display-name" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none focus:border-white/25" placeholder="How your profile should appear">
       </div>
     </div>
     <div class="mt-4 flex gap-3">
@@ -16146,7 +16161,7 @@ try {
     }
   };
 
-  async function onAuthSuccess(userId, email, isAdmin) {
+  async function onAuthSuccess(userId, email, isAdmin, emailVerified) {
     var guestCrateDoc = null;
     try {
       if (typeof window.getGuestCrateSnapshot === 'function') {
@@ -16163,6 +16178,7 @@ try {
     }
     window.APP_USER_EMAIL = email;
     window.APP_IS_ADMIN = !!isAdmin;
+    window.APP_EMAIL_VERIFIED = !!emailVerified;
     if (modal) modal.classList.add('hidden');
 
     try {
@@ -16200,7 +16216,7 @@ try {
   window.__authReady = (async function() {
     var user = await checkAuth();
     if (user) {
-      await onAuthSuccess(user.userId, user.email, user.isAdmin);
+      await onAuthSuccess(user.userId, user.email, user.isAdmin, user.emailVerified);
     } else {
       if (typeof window.clearAccountIdentity === 'function') {
         window.clearAccountIdentity();
@@ -16259,7 +16275,7 @@ try {
       var data = await res.json();
       if (data.ok) {
         var me = await checkAuth();
-        if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin);
+        if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin, me.emailVerified);
         else    showFeedback('Signed in! Reload if the app does not update.', false);
       } else {
         showFeedback(data.error || 'Sign-in failed.', true);
@@ -16282,7 +16298,8 @@ try {
         var loginData = await loginRes.json();
         if (loginData.ok) {
           var me = await checkAuth();
-          if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin);
+          if (me) await onAuthSuccess(me.userId, me.email, me.isAdmin, me.emailVerified);
+          showFeedback('Account created! Check your email to verify your address.', false);
         } else {
           showFeedback('Account created! Sign in to continue.', false);
           showPane('signin');
