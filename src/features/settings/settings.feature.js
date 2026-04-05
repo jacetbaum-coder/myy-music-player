@@ -492,7 +492,6 @@ function __renderProfileScreen() {
   const guestMode = typeof window.isGuestMode === "function" ? window.isGuestMode() : !email;
   if (signoutBtn) signoutBtn.classList.toggle("hidden", guestMode);
   if (openEditBtn) openEditBtn.classList.toggle("hidden", guestMode);
-  if (openEditCardBtn) openEditCardBtn.classList.toggle("hidden", guestMode);
 
   __populateProfileEditModal(prefs);
 }
@@ -503,7 +502,6 @@ function __renderProfileScreen() {
   const openRD = document.getElementById("settings-open-recently-deleted");
   const backProfile = document.getElementById("profile-back");
   const openProfileEdit = document.getElementById("profile-open-edit");
-  const launchProfileEditCard = document.getElementById("profile-launch-edit-card");
   const openProfileSettings = document.getElementById("profile-open-settings");
   const profileSignout = document.getElementById("profile-signout-btn");
   const profileEditClose = document.getElementById("profile-modal-close");
@@ -536,35 +534,59 @@ function __renderProfileScreen() {
   });
 
   const profileEditInlineCard = document.getElementById("profile-edit-inline-card");
+  const inlineUsernameInput = document.getElementById("profile-inline-username");
+  const inlineDisplayNameInput = document.getElementById("profile-inline-display-name");
+  const inlineSaveBtn = document.getElementById("profile-inline-save-btn");
+  const inlineCancelBtn = document.getElementById("profile-inline-cancel-btn");
 
   if (openProfileEdit) openProfileEdit.addEventListener("click", () => {
-    if (profileEditInlineCard) profileEditInlineCard.classList.toggle("hidden");
+    if (!profileEditInlineCard) return;
+    const isHidden = profileEditInlineCard.classList.contains("hidden");
+    profileEditInlineCard.classList.toggle("hidden");
+    if (isHidden) {
+      // Populate inputs with current values when opening
+      const prefs = __readProfilePrefs();
+      if (inlineUsernameInput) inlineUsernameInput.value = prefs.username || "";
+      if (inlineDisplayNameInput) inlineDisplayNameInput.value = prefs.displayName || "";
+      if (inlineUsernameInput) setTimeout(() => inlineUsernameInput.focus(), 50);
+    }
   });
 
-  if (launchProfileEditCard) launchProfileEditCard.addEventListener("click", () => {
-    try { __openProfileEditModal(); } catch (e) { console.warn(e); }
+  if (inlineSaveBtn) inlineSaveBtn.addEventListener("click", () => {
+    const prefs = __writeProfilePrefs({
+      username: inlineUsernameInput ? inlineUsernameInput.value : "",
+      displayName: inlineDisplayNameInput ? inlineDisplayNameInput.value : ""
+    });
+    __renderProfileScreen();
+    if (profileEditInlineCard) profileEditInlineCard.classList.add("hidden");
   });
 
+  if (inlineCancelBtn) inlineCancelBtn.addEventListener("click", () => {
+    if (profileEditInlineCard) profileEditInlineCard.classList.add("hidden");
+  });
+
+  if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
+    const generated = __generateProfileUsername();
+    if (inlineDisplayNameInput) { inlineDisplayNameInput.value = generated; inlineDisplayNameInput.focus(); }
+  });
+
+  if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
+    const generated = __generateProfileUsername();
+    if (inlineUsernameInput) { inlineUsernameInput.value = generated; inlineUsernameInput.focus(); }
+  });
+
+  if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
+    try { __randomizeProfileDisplayName({ toInput: "profile-modal-display-name" }); } catch (e) { console.warn(e); }
+  });
+
+  // Full edit modal (still wired in case it's opened from elsewhere)
   [profileEditClose, profileEditCancel, profileEditBackdrop].filter(Boolean).forEach((btn) => {
     btn.addEventListener("click", () => {
       try { __closeProfileEditModal(); } catch (e) { console.warn(e); }
     });
   });
-
   if (profileEditSave) profileEditSave.addEventListener("click", () => {
     try { __saveProfileFromModal(); } catch (e) { console.warn(e); }
-  });
-
-  if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
-    try { __randomizeProfileDisplayName(); } catch (e) { console.warn(e); }
-  });
-
-  if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
-    try { __randomizeProfileUsername(); } catch (e) { console.warn(e); }
-  });
-
-  if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
-    try { __randomizeProfileDisplayName({ toInput: "profile-modal-display-name" }); } catch (e) { console.warn(e); }
   });
 
   if (profileSignout) profileSignout.addEventListener("click", () => {
