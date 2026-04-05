@@ -15498,16 +15498,32 @@ function playAlbumByName(name) {
       ov.style.opacity = px > 0 ? '1' : '0';
     }
 
-    function setAreaTranslate(px, animated){
-      const area = getArea();
-      if (!area) return;
+    // Find the currently visible main view child.
+    // We translate IT — not #main-scroll-area — so we don't create
+    // a new stacking context that glitches position:fixed children
+    // (dock, overlays, #ptr-overlay, etc.).
+    let _ptrView = null;
 
-      if (animated) {
-        area.style.transition = 'transform 150ms cubic-bezier(0.34, 1.4, 0.64, 1)';
-      } else {
-        area.style.transition = 'none';
+    function ptrGetView() {
+      const ids = ['home-view', 'grid-view'];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden')) return el;
       }
-      area.style.transform = 'translateY(' + px + 'px)';
+      return null;
+    }
+
+    function setContentTranslate(el, targetPx, animated, fromPx) {
+      if (!el) return;
+      if (animated) {
+        const basis = (fromPx !== undefined && fromPx > 0) ? fromPx : Math.max(targetPx, 20);
+        const dur = Math.round(Math.max(80, Math.min(280, 60 + basis * 0.9)));
+        el.style.transition = `transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+        setTimeout(() => { try { el.style.transition = ''; el.style.willChange = ''; } catch(e) {} }, dur + 20);
+      } else {
+        el.style.transition = 'none';
+      }
+      el.style.transform = targetPx > 0 ? `translate3d(0, ${targetPx}px, 0)` : '';
     }
 
     function setStatusText(msg){
@@ -15587,7 +15603,8 @@ async function softRefresh(){
 stopIconSpin();
 setIconRotation(0);
 
-      setAreaTranslate(0, !!animated);
+      setContentTranslate(_ptrView, 0, !!animated, current);
+      _ptrView = null;
 
       // clear transition after snap back
       if (animated) {
@@ -15642,6 +15659,8 @@ setIconRotation(0);
         startY = e.clientY;
         current = 0;
         pid = e.pointerId;
+        _ptrView = ptrGetView();
+        if (_ptrView) _ptrView.style.willChange = 'transform';
 
         // don’t set touchAction none yet—only once we know it’s a pull
       }, { passive: true });
@@ -15672,11 +15691,13 @@ setIconRotation(0);
         e.preventDefault();
 
         // dampen slightly for “weight”
-        const px = Math.min(MAX, Math.round(dy * 0.75));
+        // Hyperbolic rubber-band — smooth tension that increases with pull distance
+        const vh = window.innerHeight || 800;
+        const px = Math.round(dy / (1 + dy / (vh * 0.5)));
         current = px;
 
         setOverlayHeight(px);
-        setAreaTranslate(px, false);
+        setContentTranslate(_ptrView, px, false);
 
         // rotate icon based on pull distance
         setIconRotation(px * 3.2);
@@ -15712,7 +15733,7 @@ setIconRotation(0);
 
 // snap to a fixed “refresh” position
 setOverlayHeight(SNAP);
-setAreaTranslate(SNAP, true);
+setContentTranslate(_ptrView, SNAP, true, current);
 
 // ✅ Spin icon while we’re actually refreshing
 startIconSpin();

@@ -554,7 +554,6 @@ function initSearchSwipeDownClose() {
       decided = true;
       isVertical = Math.abs(dy) > Math.abs(dx);
       if (isVertical) {
-        showSwipeBackUnderlay();
         try { searchView.setPointerCapture(e.pointerId); } catch (err) {}
       }
     }
