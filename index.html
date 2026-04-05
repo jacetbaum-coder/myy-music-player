@@ -7054,14 +7054,152 @@ if (!window.__heroMenuBtnBound) {
 window.__openHeroMoreMenu = function(btn) {
   // Toggle off if already open
   const old = document.getElementById('hero-more-popover');
-  if (old) { old.remove(); return; }
+  if (old) {
+    const bd = document.getElementById('hero-more-popover-backdrop');
+    old.style.transform = 'translateY(100%)';
+    setTimeout(() => { try { old.remove(); } catch(_) {} try { if (bd) bd.remove(); } catch(_) {} }, 220);
+    return;
+  }
 
   const ctx = window.__heroMenuContext || {};
   const isPlaylist = !!ctx.isPlaylist;
 
+  // Backdrop
+  const bd = document.createElement('div');
+  bd.id = 'hero-more-popover-backdrop';
+  bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0);transition:background 200ms ease';
+  document.body.appendChild(bd);
+  requestAnimationFrame(() => { bd.style.background = 'rgba(0,0,0,0.45)'; });
+
+  // Sheet
   const pop = document.createElement('div');
   pop.id = 'hero-more-popover';
-  pop.style.cssText = 'position:fixed;z-index:99999;background:rgba(28,28,28,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;min-width:230px;box-shadow:0 18px 55px rgba(0,0,0,0.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)';
+  pop.style.cssText = [
+    'position:fixed',
+    'left:0',
+    'right:0',
+    'bottom:0',
+    'margin:0 auto',
+    'max-width:680px',
+    'background:rgba(30,30,30,0.97)',
+    'backdrop-filter:blur(18px)',
+    '-webkit-backdrop-filter:blur(18px)',
+    'border-radius:18px 18px 0 0',
+    'padding:6px 8px calc(var(--nav-height,72px) + env(safe-area-inset-bottom))',
+    'z-index:99999',
+    'transform:translateY(100%)',
+    'transition:transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
+  ].join(';');
+
+  // Handle bar
+  const handle = document.createElement('div');
+  handle.style.cssText = 'width:36px;height:4px;border-radius:999px;background:rgba(255,255,255,0.25);margin:8px auto 14px auto';
+  pop.appendChild(handle);
+
+  const mkItem = (icon, label, danger, onClick) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.style.cssText = [
+      'display:flex',
+      'align-items:center',
+      'gap:16px',
+      'width:100%',
+      'padding:16px 12px',
+      'border:none',
+      'background:transparent',
+      'color:' + (danger ? '#ff6b6b' : '#fff'),
+      'font-size:18px',
+      'font-weight:600',
+      'text-align:left',
+      'border-radius:12px',
+      'cursor:pointer',
+      '-webkit-tap-highlight-color:transparent',
+    ].join(';');
+    item.innerHTML = '<i class="fas ' + icon + '" style="width:22px;text-align:center;opacity:0.75;flex-shrink:0;font-size:17px"></i>' + label;
+    item.addEventListener('pointerdown', () => { item.style.background = 'rgba(255,255,255,0.09)'; });
+    item.addEventListener('pointerup',   () => { item.style.background = 'transparent'; });
+    item.addEventListener('pointerleave',() => { item.style.background = 'transparent'; });
+    item.addEventListener('click', (ev) => {
+      try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+      closeSheet();
+      setTimeout(() => { try { onClick(); } catch(err) { console.warn('[heroMenu]', err); } }, 60);
+    });
+    return item;
+  };
+
+  const closeSheet = () => {
+    pop.style.transform = 'translateY(100%)';
+    bd.style.background = 'rgba(0,0,0,0)';
+    setTimeout(() => {
+      try { pop.remove(); } catch(_) {}
+      try { bd.remove(); } catch(_) {}
+    }, 230);
+    document.removeEventListener('click', outsideClose, true);
+  };
+
+  const outsideClose = (ev) => {
+    if (pop.contains(ev.target)) return;
+    closeSheet();
+  };
+
+  const hasSelection = () => !!(window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0);
+  const getTargetSongs = () => {
+    const q = Array.isArray(currentQueue) ? currentQueue : [];
+    if (!hasSelection()) return q;
+    const urls = typeof getSelectedSongUrls === 'function' ? getSelectedSongUrls() : [];
+    return q.filter(s => s && urls.includes(s.url));
+  };
+
+  // 1. Add to queue
+  const queueLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to queue') : 'Add all to queue';
+  pop.appendChild(mkItem('fa-list-ul', queueLabel, false, () => {
+    const songs = getTargetSongs();
+    if (!songs.length) return;
+    songs.forEach(s => { try { addSongToQueue(s); } catch(_) {} });
+    if (hasSelection()) try { setSongSelectEnabled(false); } catch(_) {}
+    try { showQueueToast(); } catch(_) {}
+  }));
+
+  // 2. Add to playlist
+  const plLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to playlist') : 'Add to playlist';
+  pop.appendChild(mkItem('fa-plus', plLabel, false, () => {
+    if (!hasSelection()) {
+      try { setSongSelectEnabled(true); } catch(_) {}
+      return;
+    }
+    const songs = getTargetSongs();
+    try {
+      window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
+      if (typeof window.openAddToPlaylistSubmenu === 'function') window.openAddToPlaylistSubmenu(null);
+    } catch(_) {}
+    try { setSongSelectEnabled(false); } catch(_) {}
+  }));
+
+  // 3. Delete album (album view only)
+  if (!isPlaylist) {
+    pop.appendChild(mkItem('fa-trash', 'Delete from library', true, () => {
+      const artist = String(ctx.artist || window.activeAlbumArtist || '').trim();
+      const albumName = String(ctx.album || window.activeAlbumName || '').trim();
+      if (!artist || !albumName) return;
+      if (!window.confirm('Delete "' + albumName + '" by ' + artist + ' from your library?')) return;
+      try { if (typeof window.deleteAlbumFromCloud === 'function') window.deleteAlbumFromCloud(artist, albumName).catch(() => {}); } catch(_) {}
+      try { if (Array.isArray(window.libraryData)) window.libraryData = window.libraryData.filter(x => !(String(x.artistName || '') === artist && String(x.albumName || '') === albumName)); } catch(_) {}
+      try { if (typeof renderLibrary === 'function') renderLibrary(); } catch(_) {}
+      try { if (typeof renderHome === 'function') renderHome(); } catch(_) {}
+      try { if (typeof goBack === 'function') goBack(); } catch(_) {}
+    }));
+  }
+
+  document.body.appendChild(pop);
+
+  // Slide up
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { pop.style.transform = 'translateY(0)'; });
+  });
+
+  bd.addEventListener('click', closeSheet, { passive: true });
+  setTimeout(() => { document.addEventListener('click', outsideClose, true); }, 100);
+};
 
   const r = btn ? btn.getBoundingClientRect() : null;
   const vw = window.innerWidth;
@@ -7135,19 +7273,6 @@ window.__openHeroMoreMenu = function(btn) {
     }));
   }
 
-  document.body.appendChild(pop);
-
-  const closeOnOutside = (ev) => {
-    if (pop.contains(ev.target) || ev.target === btn) return;
-    pop.remove();
-    document.removeEventListener('click', closeOnOutside, true);
-    document.removeEventListener('touchstart', closeOnOutside, true);
-  };
-  setTimeout(() => {
-    document.addEventListener('click', closeOnOutside, true);
-    document.addEventListener('touchstart', closeOnOutside, { capture: true, passive: true });
-  }, 50);
-};
 
 if (!window.__mobileTrackSelectTapGuard) {
   window.__mobileTrackSelectTapGuard = true;
