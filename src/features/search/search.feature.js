@@ -496,7 +496,9 @@ function initSearchSwipeDownClose() {
       rafId = 0;
     }
     if (animated) {
-      area.style.transition = 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease';
+      const snapDur = Math.round(Math.max(80, Math.min(260, 60 + currentTranslateY * 0.9)));
+      area.style.transition = `transform ${snapDur}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${snapDur}ms ease`;
+      setTimeout(() => { area.style.transition = ''; }, snapDur + 20);
     } else {
       area.style.transition = '';
     }
@@ -508,10 +510,6 @@ function initSearchSwipeDownClose() {
     lastMoveAt = 0;
     prevMoveAt = 0;
     currentTranslateY = 0;
-
-    setTimeout(() => {
-      area.style.transition = '';
-    }, 140);
 
     hideSwipeBackUnderlay();
   }
@@ -578,10 +576,11 @@ function initSearchSwipeDownClose() {
     lastMoveY = y;
     lastMoveAt = performance.now();
 
-    const maxShift = Math.max(180, Math.floor(window.innerHeight * 0.82));
-    const down = Math.max(0, Math.min(dy, maxShift));
-    lastDy = down;
-    queueTranslate(down);
+    // Rubber-band tension — hyperbolic curve gives resistance that increases with pull distance
+    const vh = window.innerHeight || 800;
+    const dampedDown = dy / (1 + dy / (vh * 0.38));
+    lastDy = dampedDown;
+    queueTranslate(dampedDown);
   }, { passive: true });
 
   searchView.addEventListener('pointerup', () => {

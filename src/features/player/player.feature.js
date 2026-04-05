@@ -777,8 +777,9 @@ if (nowPlayingOverlay) {
     npLastMoveAt = performance.now();
 
 
-    // Only drag downward
-    const down = Math.max(0, dy);
+    // Rubber-band tension — hyperbolic curve gives resistance that increases with pull distance
+    const vh = window.innerHeight || 800;
+    const down = dy > 0 ? dy / (1 + dy / (vh * 0.38)) : 0;
     npLastDown = down;
     npQueueTranslate(down);
   });
@@ -814,12 +815,14 @@ if (nowPlayingOverlay) {
       return;
     }
 
+    // Duration scales with displacement — tiny pull snaps back fast, big pull eases back slower
+    const snapDur = Math.round(Math.max(80, Math.min(260, 60 + npCurrentTranslateY * 0.9)));
     nowPlayingOverlay.classList.remove('np-dragging');
-    nowPlayingOverlay.style.transition = 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)';
+    nowPlayingOverlay.style.transition = `transform ${snapDur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
     npResetDrag();
     setTimeout(() => {
       try { nowPlayingOverlay.style.transition = ''; } catch (e) {}
-    }, 170);
+    }, snapDur + 20);
 
     npDragActive = false;
   });

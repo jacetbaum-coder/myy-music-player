@@ -8103,15 +8103,31 @@ function initHeroCoverParallax() {
     return av && !av.classList.contains('hidden');
   }
 
-  const SPRING = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+  let _rafId = 0;
+  let _translateY = 0;
+
+  function _applyTranslate(y) {
+    _translateY = y;
+    if (_rafId) return;
+    _rafId = requestAnimationFrame(() => {
+      _rafId = 0;
+      const body = document.getElementById('album-view-body');
+      if (body) body.style.transform = `translateY(${_translateY}px)`;
+    });
+  }
 
   function _resetParallax() {
     if (!_active) return;
     _active = false;
-    const body  = document.getElementById('album-view-body');
-    const cover = document.getElementById('album-hero-cover');
-    if (body)  { body.style.transition  = SPRING; body.style.transform  = ''; }
-    if (cover) { cover.style.transition = SPRING; cover.style.transform = ''; }
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+    const body = document.getElementById('album-view-body');
+    if (!body) { _translateY = 0; return; }
+    // Duration proportional to displacement — small pull snaps back fast, big pull eases back slower
+    const dur = Math.round(Math.max(80, Math.min(260, 60 + _translateY * 0.9)));
+    body.style.transition = `transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    body.style.transform = '';
+    body.addEventListener('transitionend', () => { body.style.transition = ''; }, { once: true });
+    _translateY = 0;
   }
 
   area.addEventListener('touchstart', (e) => {
@@ -8119,32 +8135,23 @@ function initHeroCoverParallax() {
     _startY = e.touches[0].clientY;
     _startScrollTop = area.scrollTop;
     _active = false;
+    _translateY = 0;
   }, { passive: true });
 
   area.addEventListener('touchmove', (e) => {
     if (!_inAlbumView()) return;
     const dy = e.touches[0].clientY - _startY;
-    // Only engage when finger was at the very top (find bar visible) and pulling down
+    // Only engage when at the very top of scroll and pulling down
     if (_startScrollTop > 2 || dy <= 0) {
       if (_active) _resetParallax();
       return;
     }
     _active = true;
 
-    // Rubber-band: full resistance up to MAX, near-stop beyond
-    const MAX = 180;
-    const raw = Math.min(dy, MAX * 2.5);
-    const damped = raw < MAX
-      ? raw * 0.6
-      : MAX * 0.6 + (raw - MAX) * 0.06;
-
-    // Cover scales up gently with pull distance (Spotify-like subtle growth)
-    const scale = 1 + damped * 0.002; // max ~1.22x
-
-    const body  = document.getElementById('album-view-body');
-    const cover = document.getElementById('album-hero-cover');
-    if (body)  { body.style.transition  = 'none'; body.style.transform  = `translateY(${damped}px)`; }
-    if (cover) { cover.style.transition = 'none'; cover.style.transform = `scale(${scale})`; }
+    // Hyperbolic rubber-band — smooth tension that increases with pull distance
+    const vh = window.innerHeight || 800;
+    const damped = dy / (1 + dy / (vh * 0.38));
+    _applyTranslate(damped);
   }, { passive: true });
 
   area.addEventListener('touchend',    _resetParallax, { passive: true });
@@ -15746,7 +15753,7 @@ try {
 
 <script src="src/features/sync/sync.feature.js"></script>
 <script src="src/features/context-menu/context-menu.feature.js?v=4"></script>
-<script src="src/features/player/player.feature.js?v=7"></script>
+<script src="src/features/player/player.feature.js?v=8"></script>
 <script src="src/features/playlists/playlists.feature.js?v=7"></script>
 <script src="src/features/queue/queue.feature.js?v=3"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
@@ -15754,7 +15761,7 @@ try {
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js?v=20"></script>
-<script src="src/features/search/search.feature.js?v=6"></script>
+<script src="src/features/search/search.feature.js?v=7"></script>
 <script src="src/features/crate/crate.feature.js?v=2"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
 
