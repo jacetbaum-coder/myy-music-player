@@ -608,9 +608,9 @@ try {
   try { if (contextMenuBackdrop) contextMenuBackdrop.style.zIndex = '199999'; } catch (e) {}
 } catch (e) {}
 
-try { suppressContextMenuCloseUntil = Date.now() + 600; } catch (e) {}
+try { suppressContextMenuCloseUntil = Date.now() + 200; } catch (e) {}
 
-try { window.__outsideDismissSkipUntil = Date.now() + 600; } catch (e) {}
+try { window.__outsideDismissSkipUntil = Date.now() + 200; } catch (e) {}
 
 try { window.menuTargetSong = menuTargetSong; } catch (e) {}
 
@@ -793,9 +793,9 @@ if (window.innerWidth > 768 && addOpt) {
       });
     });
 
-   suppressContextMenuCloseUntil = Date.now() + 400;
-window.__outsideDismissSkipUntil = Date.now() + 450;
-window.__cmArmGuardUntil = Date.now() + 300;
+   suppressContextMenuCloseUntil = Date.now() + 200;
+window.__outsideDismissSkipUntil = Date.now() + 200;
+window.__cmArmGuardUntil = Date.now() + 150;
 return;
 
   }
@@ -863,8 +863,8 @@ return;
   }
 
   contextMenu.style.display = 'block';
-suppressContextMenuCloseUntil = Date.now() + 400;
-window.__outsideDismissSkipUntil = Date.now() + 450;
+suppressContextMenuCloseUntil = Date.now() + 200;
+window.__outsideDismissSkipUntil = Date.now() + 200;
 
 }
 

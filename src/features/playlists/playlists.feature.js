@@ -2707,7 +2707,7 @@ function hidePlaylistMenu() {
 
 function showPlaylistMenuAt(x, y, playlistId) {
   // ✅ prevent the global "click outside closes menu" from instantly closing this
-  try { suppressPlaylistMenuCloseUntil = Date.now() + 350; } catch (e) {}
+  try { suppressPlaylistMenuCloseUntil = Date.now() + 200; } catch (e) {}
 
   // ✅ playlists use the unified #context-menu system (no #playlist-menu)
   try {

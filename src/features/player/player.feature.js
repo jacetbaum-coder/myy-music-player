@@ -181,8 +181,8 @@ function openNowPlaying() {
 	};
 
     // ✅ Prevent immediate "outside click" dismissal on mobile
-    try { window.__outsideDismissSkipUntil = Date.now() + 400; } catch (err) {}
-    try { window.suppressContextMenuCloseUntil = Date.now() + 400; } catch (err) {}
+    try { window.__outsideDismissSkipUntil = Date.now() + 200; } catch (err) {}
+    try { window.suppressContextMenuCloseUntil = Date.now() + 200; } catch (err) {}
 
 	showContextMenuAt(x, y, songForMenu, btn);
 

@@ -3335,29 +3335,11 @@ body:has(#playlist-submenu.open) .mobile-nav {
     font-weight: 800;
     letter-spacing: -0.01em;
     border-radius: 12px;
-    padding: 13px 38px 13px 12px;
-  }
-
-  #library-sort-menu .lib-sort-item::after {
-    content: '\\f00c';
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%) translateX(4px) scale(0.95);
-    color: #1db954;
-    opacity: 0;
-    transition: opacity 140ms ease, transform 180ms ease;
+    padding: 13px 12px;
   }
 
   #library-sort-menu .lib-sort-item.active {
     color: #1db954;
-  }
-
-  #library-sort-menu .lib-sort-item.active::after {
-    opacity: 1;
-    transform: translateY(-50%) translateX(0) scale(1);
   }
 
   #library-sort-menu .lib-sort-item:active {
@@ -3564,6 +3546,17 @@ body:has(#playlist-submenu.open) .mobile-nav {
   /* progress bar full width */
   #progress-container {
     width: 100%;
+  }
+
+  /* Back button aligned with top of album cover */
+  #album-back-and-hero {
+    position: relative;
+  }
+  #album-back-btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
   }
 
     /* Album hero (MOBILE) — override desktop row layout */
@@ -6200,12 +6193,14 @@ body.qs-lock {
 
   <div id="album-view-body">
 
-  <button onclick="goBack()"
+  <div id="album-back-and-hero">
+  <button id="album-back-btn" onclick="goBack()"
           class="mb-3 text-white/80 hover:text-white text-3xl font-light leading-none active:opacity-60 transition">
     &#8249;
   </button>
 
   <div id="album-hero" class="flex items-end gap-6 mb-10"></div>
+  </div>
 
    <div id="album-controls" class="mb-8">
     <div class="album-controls-left">
@@ -7067,7 +7062,7 @@ window.__openHeroMoreMenu = function(btn) {
   // Backdrop
   const bd = document.createElement('div');
   bd.id = 'hero-more-popover-backdrop';
-  bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0);transition:background 200ms ease';
+  bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);transition:background 200ms ease';
   document.body.appendChild(bd);
   requestAnimationFrame(() => { bd.style.background = 'rgba(0,0,0,0.45)'; });
 
@@ -7085,7 +7080,7 @@ window.__openHeroMoreMenu = function(btn) {
     'backdrop-filter:blur(18px)',
     '-webkit-backdrop-filter:blur(18px)',
     'border-radius:18px 18px 0 0',
-    'padding:6px 8px calc(var(--nav-height,72px) + env(safe-area-inset-bottom))',
+    'padding:6px 8px calc(env(safe-area-inset-bottom) + 16px)',
     'z-index:99999',
     'transform:translateY(100%)',
     'transition:transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
@@ -7134,7 +7129,7 @@ window.__openHeroMoreMenu = function(btn) {
       try { pop.remove(); } catch(_) {}
       try { bd.remove(); } catch(_) {}
     }, 230);
-    document.removeEventListener('click', outsideClose, true);
+    document.removeEventListener('pointerdown', outsideClose, true);
   };
 
   const outsideClose = (ev) => {
@@ -7197,7 +7192,7 @@ window.__openHeroMoreMenu = function(btn) {
   });
 
   bd.addEventListener('click', closeSheet, { passive: true });
-  setTimeout(() => { document.addEventListener('click', outsideClose, true); }, 100);
+  setTimeout(() => { document.addEventListener('pointerdown', outsideClose, true); }, 100);
 };
 
 if (!window.__mobileTrackSelectTapGuard) {
@@ -11450,15 +11445,15 @@ if (dots) {
 
     // ✅ Mobile: prevent row/pointer handlers from immediately nuking the menu
   dots.addEventListener('pointerdown', (e) => {
-    suppressContextMenuCloseUntil = Date.now() + 500;
-    suppressPlaylistMenuCloseUntil = Date.now() + 500;
+    suppressContextMenuCloseUntil = Date.now() + 200;
+    suppressPlaylistMenuCloseUntil = Date.now() + 200;
     e.stopPropagation();
   });
 
   // ✅ Mobile: prevent the global touchstart "outside click" closer from instantly closing the menu
   dots.addEventListener('touchstart', (e) => {
-    suppressContextMenuCloseUntil = Date.now() + 500;
-    suppressPlaylistMenuCloseUntil = Date.now() + 500;
+    suppressContextMenuCloseUntil = Date.now() + 200;
+    suppressPlaylistMenuCloseUntil = Date.now() + 200;
     e.stopPropagation();
   }, { passive: true });
 
@@ -15223,14 +15218,14 @@ if (hero && activePlaylistId) {
 
         // ✅ Mobile: stop row/pointer handlers from firing when tapping dots
         dots.addEventListener('pointerdown', (e) => {
-          suppressContextMenuCloseUntil = Date.now() + 500;
-          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          suppressContextMenuCloseUntil = Date.now() + 200;
+          suppressPlaylistMenuCloseUntil = Date.now() + 200;
           e.stopPropagation();
         });
 
         dots.addEventListener('touchstart', (e) => {
-          suppressContextMenuCloseUntil = Date.now() + 500;
-          suppressPlaylistMenuCloseUntil = Date.now() + 500;
+          suppressContextMenuCloseUntil = Date.now() + 200;
+          suppressPlaylistMenuCloseUntil = Date.now() + 200;
           e.stopPropagation();
         }, { passive: true });
 
@@ -15750,9 +15745,9 @@ try {
 </script>
 
 <script src="src/features/sync/sync.feature.js"></script>
-<script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
-<script src="src/features/player/player.feature.js?v=5"></script>
-<script src="src/features/playlists/playlists.feature.js?v=5"></script>
+<script src="src/features/context-menu/context-menu.feature.js?v=3"></script>
+<script src="src/features/player/player.feature.js?v=6"></script>
+<script src="src/features/playlists/playlists.feature.js?v=6"></script>
 <script src="src/features/queue/queue.feature.js?v=2"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
