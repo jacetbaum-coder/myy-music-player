@@ -118,7 +118,7 @@
     if (MEMORY_CACHE.has(key)) return MEMORY_CACHE.get(key);
 
     const cached = readCachedPortrait(artistName);
-    if (cached) {
+    if (cached && cached.ok && cached.image) {
       const resolved = Promise.resolve(cached);
       MEMORY_CACHE.set(key, resolved);
       return resolved;
@@ -141,7 +141,8 @@
         }
       } catch (e) {}
 
-      // Don't persist failures to localStorage — let them retry next session
+      // Remove from memory cache on failure so the next search triggers a fresh retry
+      MEMORY_CACHE.delete(key);
       return { ok: false, image: '', source: 'fallback', artist: artistName, cached: false };
     })();
 
