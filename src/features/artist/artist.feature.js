@@ -497,6 +497,92 @@ function openArtistByName(artistName) {
   // Render "You liked" section for this artist
   renderArtistLikedSection(artistName);
   window.refreshArtistLikedSection = () => renderArtistLikedSection(artistName);
+
+  // Render "For you" top songs section
+  renderArtistForYou(artistName);
+}
+
+// Renders "For you" top songs by play count (falls back to random)
+function renderArtistForYou(artistName) {
+  const section = document.getElementById('artist-for-you-section');
+  const list = document.getElementById('artist-for-you-list');
+  const moreBtn = document.getElementById('artist-for-you-more');
+  if (!section || !list) return;
+
+  // Gather all songs by this artist from the library
+  const allSongs = [];
+  (Array.isArray(libraryData) ? libraryData : [])
+    .filter(a => a.artistName === artistName)
+    .forEach(a => {
+      (Array.isArray(a.songs) ? a.songs : []).forEach(s => {
+        allSongs.push({
+          ...s,
+          album: a.albumName,
+          artist: a.artistName,
+          cover: getAlbumCover(a.artistName, a.albumName, a.coverArt)
+        });
+      });
+    });
+
+  if (!allSongs.length) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+
+  // Count plays per song url
+  const playCounts = new Map();
+  try {
+    const events = JSON.parse(localStorage.getItem('reson_play_events_v1') || '[]');
+    events.forEach(ev => {
+      if (String(ev.artist || '') === artistName && ev.url) {
+        playCounts.set(ev.url, (playCounts.get(ev.url) || 0) + 1);
+      }
+    });
+  } catch(e) {}
+
+  // Sort by play count desc; ties broken by random (shuffle for zero-play case)
+  const sorted = [...allSongs].sort((a, b) => {
+    const ca = playCounts.get(a.url) || 0;
+    const cb = playCounts.get(b.url) || 0;
+    if (cb !== ca) return cb - ca;
+    return Math.random() - 0.5;
+  }).slice(0, 10);
+
+  const INITIAL = 5;
+  let expanded = false;
+
+  function renderRows(songs) {
+    list.innerHTML = songs.map((s, i) => `
+      <div class="flex items-center gap-3 px-1 py-2 rounded-xl hover:bg-white/5 transition cursor-pointer"
+           onclick="playSpecificSong(${JSON.stringify(s)})">
+        <span class="w-5 text-right text-zinc-500 text-sm flex-shrink-0">${i + 1}</span>
+        ${s.cover
+          ? `<img src="${s.cover}" class="w-11 h-11 rounded-md object-cover flex-shrink-0">`
+          : `<div class="w-11 h-11 rounded-md bg-zinc-800 flex-shrink-0"></div>`}
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-white truncate">${s.title || 'Unknown'}</div>
+          <div class="text-xs text-zinc-400 truncate">${s.album || ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  renderRows(sorted.slice(0, INITIAL));
+
+  if (sorted.length > INITIAL && moreBtn) {
+    moreBtn.classList.remove('hidden');
+    moreBtn.textContent = 'See more';
+    moreBtn.onclick = () => {
+      if (!expanded) {
+        renderRows(sorted);
+        expanded = true;
+        moreBtn.textContent = 'See less';
+      } else {
+        renderRows(sorted.slice(0, INITIAL));
+        expanded = false;
+        moreBtn.textContent = 'See more';
+      }
+    };
+  } else if (moreBtn) {
+    moreBtn.classList.add('hidden');
+  }
 }
 
 // Renders liked songs by artist into the #artist-liked-section block
@@ -526,9 +612,12 @@ function renderArtistLikedSection(artistName) {
   const releaseCount = songs.length;
   const label = `${releaseCount} ${releaseCount === 1 ? 'release' : 'releases'} • ${artistName}`;
 
+  window.__artistLikedSongs = songs;
+  window.__artistLikedName = artistName;
+
   list.innerHTML = `
     <div class="flex items-center gap-4 px-1 py-2 rounded-xl hover:bg-white/5 transition cursor-pointer"
-         onclick="try { renderCollection('Liked · ${artistName.replace(/'/g,"\\'")}', ${JSON.stringify(songs)}); } catch(e) {}">
+         id="artist-liked-row">
       <div class="relative flex-shrink-0 w-14 h-14">
         ${artistImgUrl
           ? `<img src="${artistImgUrl}" class="w-14 h-14 rounded-full object-cover">`
@@ -543,6 +632,25 @@ function renderArtistLikedSection(artistName) {
       </div>
       <i class="fas fa-chevron-right text-zinc-600 text-sm"></i>
     </div>`;
+
+  const row = document.getElementById('artist-liked-row');
+  if (row) {
+    row.onclick = () => {
+      try {
+        const s = window.__artistLikedSongs;
+        const n = window.__artistLikedName;
+        try { pushNavCurrent(); } catch(e) {}
+        try { setNavCurrent({ type: 'liked-artist', artistName: n }); } catch(e) {}
+        ['home-view','grid-view','album-view','search-view','artist-view','crate-view','settings-view','profile-view','recently-deleted-view'].forEach(id => {
+          document.getElementById(id)?.classList.add('hidden');
+        });
+        document.body.classList.remove('artist-view-open');
+        document.getElementById('album-view')?.classList.remove('hidden');
+        try { document.getElementById('main-scroll-area').scrollTop = 0; } catch(e) {}
+        renderCollection('Liked · ' + n, s);
+      } catch(e) { console.error(e); }
+    };
+  }
 }
 
 // Plays ALL songs by this artist (respects shuffle)
