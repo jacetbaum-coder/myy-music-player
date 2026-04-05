@@ -190,7 +190,7 @@ export default {
           await env.SESSIONS.put(`user:${uid}`, JSON.stringify({ ...u, emailVerified: true }), { expirationTtl: 365*24*60*60 });
         }
         const { sessionId } = await makeSession(data.email);
-        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/' } });
+        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/?verified=1' } });
         res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
         return res;
       }
@@ -209,7 +209,7 @@ export default {
         const newLocalPart = toEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
         if (newLocalPart) await env.SESSIONS.put(`username:${newLocalPart}`, toEmail, { expirationTtl: 365*24*60*60 });
         const { sessionId } = await makeSession(toEmail);
-        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/' } });
+        const res = new Response(null, { status: 302, headers: { 'Location': 'https://resonmusic.us/?verified=1' } });
         res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
         return res;
       }

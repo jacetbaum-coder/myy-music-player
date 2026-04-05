@@ -1926,6 +1926,26 @@ body.np-open #context-menu{
   position: relative;
 }
 
+.acm-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  background: none;
+  border: none;
+  color: #f0f0f0;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms;
+}
+.acm-item:active,
+.acm-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
 #context-menu .menu-item:active{
   transform: scale(0.99);
 }
@@ -2474,6 +2494,67 @@ body:has(#playlist-submenu.open) .mobile-nav {
 #playlist-submenu .folder-tile.placeholder .folder-tile-sub{
   visibility: hidden;
 }
+
+/* ===== EMAIL VERIFIED TOAST ===== */
+#verified-toast {
+  position: fixed;
+  left: 50%;
+  top: 24px;
+  top: calc(24px + env(safe-area-inset-top));
+  transform: translateX(-50%) translateY(-16px);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms ease;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+#verified-toast.vt-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+#verified-toast .vt-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(28, 28, 32, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 13px 16px 13px 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+}
+#verified-toast .vt-icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+#verified-toast .vt-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: -0.01em;
+}
+#verified-toast .vt-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  margin-top: 1px;
+}
+#verified-toast .vt-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 0 2px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 150ms;
+}
+#verified-toast .vt-close:active { color: rgba(255,255,255,0.8); }
 
 /* ===== QUEUE TOAST (mobile) ===== */
 #queue-toast{
@@ -4727,6 +4808,35 @@ body.qs-lock {
 
 </div>
 
+<!-- ALBUM COVER MENU (three-dot menu on album view) -->
+<div id="album-cover-menu" class="hidden" role="dialog" aria-modal="true" style="
+  position: fixed;
+  z-index: 10001;
+  background: rgba(30,30,30,0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 8px 0;
+  min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+">
+  <button id="acm-cover-url" class="acm-item" type="button">
+    <i class="fas fa-link" style="width:18px;opacity:0.75;"></i> Set cover from URL
+  </button>
+  <button id="acm-cover-upload" class="acm-item" type="button">
+    <i class="fas fa-upload" style="width:18px;opacity:0.75;"></i> Upload cover image
+  </button>
+  <input id="album-cover-file" type="file" accept="image/*" style="display:none;">
+  <button id="acm-cover-clear" class="acm-item" type="button">
+    <i class="fas fa-undo" style="width:18px;opacity:0.75;"></i> Reset to original cover
+  </button>
+  <div style="border-top:1px solid rgba(255,255,255,0.08);margin:6px 0;"></div>
+  <button id="acm-delete-album" class="acm-item" type="button" style="color:#ff4f4f;">
+    <i class="fas fa-trash" style="width:18px;opacity:0.75;"></i> Delete album
+  </button>
+</div>
+
 
 <!-- PLAYLIST PANEL (separate overlay sheet) -->
 
@@ -6555,6 +6665,18 @@ body.qs-lock {
   <div class="qt-inner">
     <div class="qt-title">Added to Queue</div>
     <button id="queue-toast-open" class="qt-open">Open</button>
+  </div>
+</div>
+
+<!-- EMAIL VERIFIED TOAST -->
+<div id="verified-toast" role="status" aria-live="polite">
+  <div class="vt-inner">
+    <span class="vt-icon">✦</span>
+    <div>
+      <div class="vt-text">Account confirmed</div>
+      <div class="vt-sub">Your email has been verified</div>
+    </div>
+    <button class="vt-close" id="verified-toast-close" aria-label="Dismiss">&times;</button>
   </div>
 </div>
 
@@ -10488,13 +10610,13 @@ setNavCurrent({ type: 'album', albumName: name });
 
 // ✅ Critical: make the album visible immediately (prevents “album is above library; scroll up to see it”)
 try {
-  const area = document.getElementById('main-scroll-area');
-  if (area && !window.__isBackNav) {
-    area.scrollTop = 0;
+  const av = document.getElementById('album-view');
+  if (av && !window.__isBackNav) {
+    av.scrollTop = 0;
     requestAnimationFrame(() => {
       try {
         const bar = document.getElementById('album-find-bar');
-        if (bar) area.scrollTop = bar.offsetTop + bar.offsetHeight;
+        if (bar) av.scrollTop = bar.offsetTop + bar.offsetHeight;
       } catch(e) {}
     });
   }
@@ -14976,13 +15098,13 @@ if (hero && activePlaylistId) {
   try { initHeroCoverParallax(); } catch (e) {}
   // Scroll past find bar so it starts hidden above fold
   try {
-    const _a = document.getElementById('main-scroll-area');
-    if (_a && !window.__isBackNav) {
-      _a.scrollTop = 0;
+    const _av = document.getElementById('album-view');
+    if (_av && !window.__isBackNav) {
+      _av.scrollTop = 0;
       requestAnimationFrame(() => {
         try {
           const _b = document.getElementById('album-find-bar');
-          if (_b) _a.scrollTop = _b.offsetTop + _b.offsetHeight;
+          if (_b) _av.scrollTop = _b.offsetTop + _b.offsetHeight;
         } catch(e) {}
       });
     }
@@ -16230,6 +16352,26 @@ try {
       } else if (modal) {
         modal.classList.remove('hidden');
       }
+    }
+  })();
+
+  // Show verified toast if redirected from email verification link
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === '1') {
+      history.replaceState(null, '', window.location.pathname);
+      var toast = document.getElementById('verified-toast');
+      var closeBtn = document.getElementById('verified-toast-close');
+      if (!toast) return;
+      setTimeout(function() { toast.classList.add('vt-show'); }, 300);
+      var timer = setTimeout(function() { toast.classList.remove('vt-show'); }, 5300);
+      if (closeBtn) closeBtn.addEventListener('click', function() {
+        clearTimeout(timer);
+        toast.classList.remove('vt-show');
+      });
+      toast.addEventListener('click', function(e) {
+        if (e.target !== closeBtn) return;
+      });
     }
   })();
 
