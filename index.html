@@ -1347,6 +1347,11 @@ body.song-multiselect .track-row:hover{
 }
 
 
+        #dock-play-btn {
+  background-color: #1db954 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
         .progress-bar-container {
   height: 4px;
   width: 100%;
@@ -6239,7 +6244,7 @@ body.qs-lock {
                 <i id="btn-shuffle" onclick="toggleShuffle()" class="fas fa-shuffle hover:text-white cursor-pointer text-sm"></i>
                 <i class="fas fa-step-backward hover:text-white cursor-pointer text-xl" onclick="prevSong()"></i>
                 <button id="dock-play-btn"
-  class="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition"
+  class="w-10 h-10 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition"
   onclick="togglePlay()"
   aria-label="Play or pause">
   <i id="play-icon" class="fas fa-play ml-1"></i>
