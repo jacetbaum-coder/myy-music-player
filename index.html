@@ -7247,6 +7247,10 @@ if (!window.__mobileTrackSelectTapGuard) {
         window.__songSelectHandledOnDown = false;
         return;
       }
+      if (window.__longPressJustFired) {
+        window.__longPressJustFired = false;
+        return;
+      }
       toggleRowSelected(row);
     } catch (err) {}
   }, true);
@@ -7319,12 +7323,9 @@ lpTriggered = false;
 
       if (!window.__songSelect.enabled) setSongSelectEnabled(true);
 
-      // select this row immediately
-      toggleRowSelected(row);
-
-      // begin drag-paint selection right away
-      dragActive = true;
-      dragSeen.add(getSongUrlFromRow(row));
+      // dragActive starts on first real move, NOT here
+      // suppress the click that fires when finger lifts after long-press
+      window.__longPressJustFired = true;
 
       // prevent the normal tap-to-play after long press
       try { e.preventDefault(); } catch (err) {}
@@ -7341,6 +7342,11 @@ lpTriggered = false;
 
     if (!lpTriggered && (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX)) {
       clearLongPress();
+    }
+
+    // Activate drag-paint only once finger actually moves after long-press fires
+    if (lpTriggered && !dragActive && (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX)) {
+      dragActive = true;
     }
 
     // 3) Drag to select (“paint” selections) while in selection mode
