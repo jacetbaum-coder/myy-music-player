@@ -662,7 +662,7 @@ function closeQueueSheet() {
 
 function renderQueueSheet() {
   const list = document.getElementById('queue-list');
-  const subtitle = document.getElementById('queue-subtitle');
+  const subtitle = document.getElementById('queue-playing-line');
   if (!list) return;
 
   const q = Array.isArray(manualQueue) ? manualQueue : [];
@@ -677,10 +677,13 @@ function renderQueueSheet() {
     const title = (s.title || s.name || 'Song').toString();
     const artist = (s.artist || 'Artist').toString();
     const cover = (s.cover || s.coverUrl || s.art || s.image || '').toString();
+    const coverHtml = cover
+      ? `<img class="queue-cover" src="${cover}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="queue-cover queue-cover-placeholder" style="display:none"><i class="fas fa-music"></i></div>`
+      : `<div class="queue-cover queue-cover-placeholder"><i class="fas fa-music"></i></div>`;
 
     return `
       <div class="queue-row" data-mq-index="${idx}">
-        <img class="queue-cover" src="${cover}" onerror="this.style.visibility='hidden'" />
+        ${coverHtml}
         <div class="queue-main">
           <div class="queue-song">${title.replace(/</g,'&lt;')}</div>
           <div class="queue-artist">${artist.replace(/</g,'&lt;')}</div>

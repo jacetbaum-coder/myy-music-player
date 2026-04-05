@@ -2920,24 +2920,34 @@ body:has(#playlist-submenu.open) .mobile-nav {
 .queue-row:active{ background: rgba(255,255,255,0.06); }
 
 .queue-cover{
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 6px;
   object-fit: cover;
-  background: #111;
+  background: #2a2a2a;
+}
+
+.queue-cover-placeholder{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.3);
+  font-size: 16px;
 }
 
 .queue-main{
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .queue-song{
-  font-size: 22px;
-  line-height: 1.1;
-  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 700;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -2945,8 +2955,8 @@ body:has(#playlist-submenu.open) .mobile-nav {
 }
 
 .queue-artist{
-  font-size: 18px;
-  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -14143,7 +14153,7 @@ window.addEventListener('DOMContentLoaded', () => {
       e.preventDefault(); e.stopPropagation();
       hideAlbumCoverMenu();
       try {
-        const songs = Array.isArray(window.currentQueue) ? window.currentQueue : [];
+        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
         songs.forEach(s => { try { addSongToQueue(s); } catch (_) {} });
         try { if (typeof showQueueToast === 'function') showQueueToast(); } catch (_) {}
       } catch (_) {}
@@ -14159,7 +14169,7 @@ window.addEventListener('DOMContentLoaded', () => {
       try {
         // Set menuTargetSong to all tracks in the current queue so the
         // playlist picker can add them all at once.
-        const songs = Array.isArray(window.currentQueue) ? window.currentQueue : [];
+        const songs = Array.isArray(currentQueue) && currentQueue.length ? currentQueue : [];
         if (songs.length) window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
         if (typeof openPlaylistSubmenu === 'function') openPlaylistSubmenu(e);
       } catch (_) {}
@@ -15662,7 +15672,7 @@ try {
 <script src="src/features/context-menu/context-menu.feature.js?v=2"></script>
 <script src="src/features/player/player.feature.js?v=4"></script>
 <script src="src/features/playlists/playlists.feature.js?v=5"></script>
-<script src="src/features/queue/queue.feature.js"></script>
+<script src="src/features/queue/queue.feature.js?v=2"></script>
 <script src="src/features/settings/settings.feature.js?v=2"></script>
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
