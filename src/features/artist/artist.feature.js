@@ -41,6 +41,18 @@ function getAppUserId() {
 // This pings your Worker endpoint so it will fetch from Wikipedia once,
 // store to R2 forever, and then serve the cached version forever.
 async function getArtistHeroImageUrl(artistName){
+  // Try wide/fanart image first (better for hero backgrounds)
+  try {
+    const r = await fetch(
+      '/api/artist-portrait?name=' + encodeURIComponent(artistName) + '&type=wide'
+    );
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.ok && j.image) return j.image;
+    }
+  } catch (e) {}
+
+  // Fall back to regular portrait via client cache
   try {
     if (typeof window.fetchArtistPortrait === 'function') {
       const portrait = await window.fetchArtistPortrait(artistName);

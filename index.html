@@ -8388,6 +8388,28 @@ try {
 
     // ✅ For You: (re)generate Daylist + Nightlist auto-playlists
     try { if (typeof window.initForYou === 'function') window.initForYou(); } catch (e) {}
+
+    // Prefetch artist portraits in the background to warm the localStorage cache
+    // so search and artist pages feel instant. Batched 3-at-a-time with spacing.
+    try {
+      if (typeof window.fetchArtistPortrait === 'function' && Array.isArray(libraryData)) {
+        const seen = new Set();
+        const names = [];
+        for (const a of libraryData) {
+          const n = String(a?.artistName || '').trim();
+          if (n && !seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); names.push(n); }
+        }
+        let idx = 0;
+        function _prefetchNextArtistBatch() {
+          if (idx >= names.length) return;
+          const batch = names.slice(idx, idx + 3);
+          idx += 3;
+          Promise.all(batch.map(n => window.fetchArtistPortrait(n).catch(() => null)))
+            .then(() => setTimeout(_prefetchNextArtistBatch, 300));
+        }
+        setTimeout(_prefetchNextArtistBatch, 2000); // start 2s after library renders
+      }
+    } catch (e) {}
   }
 
   window.applyLibraryAndRender = applyLibraryAndRender;
@@ -15118,10 +15140,10 @@ try {
 <script src="src/features/playlists/playlists.feature.js?v=5"></script>
 <script src="src/features/queue/queue.feature.js"></script>
 <script src="src/features/settings/settings.feature.js"></script>
-<script src="src/features/artist/artist-portraits.feature.js"></script>
+<script src="src/features/artist/artist-portraits.feature.js?v=2"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
-<script src="src/features/artist/artist.feature.js"></script>
+<script src="src/features/artist/artist.feature.js?v=1"></script>
 <script src="src/features/search/search.feature.js?v=5"></script>
 <script src="src/features/crate/crate.feature.js"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
