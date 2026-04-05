@@ -186,6 +186,23 @@ function __randomizeProfileUsername(options) {
   return generated;
 }
 
+function __randomizeProfileDisplayName(options) {
+  const generated = __generateProfileUsername();
+  const targetInput = options && options.toInput ? document.getElementById(options.toInput) : null;
+  if (targetInput) {
+    targetInput.value = generated;
+    targetInput.focus();
+    targetInput.select();
+    return generated;
+  }
+
+  const current = __readProfilePrefs();
+  const next = __writeProfilePrefs({ displayName: generated, username: current.username });
+  __populateProfileEditModal(next);
+  __renderProfileScreen();
+  return generated;
+}
+
 let __rdType = "playlist"; // "playlist" | "album"
 let __rdItems = [];
 
@@ -532,11 +549,11 @@ function __renderProfileScreen() {
   });
 
   if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
-    try { __randomizeProfileUsername(); } catch (e) { console.warn(e); }
+    try { __randomizeProfileDisplayName(); } catch (e) { console.warn(e); }
   });
 
   if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {
-    try { __randomizeProfileUsername({ toInput: "profile-modal-username" }); } catch (e) { console.warn(e); }
+    try { __randomizeProfileDisplayName({ toInput: "profile-modal-display-name" }); } catch (e) { console.warn(e); }
   });
 
   if (profileSignout) profileSignout.addEventListener("click", () => {

@@ -5029,14 +5029,14 @@ body.qs-lock {
     <div class="text-[11px] font-black uppercase tracking-[0.24em] text-white/45">Edit Profile</div>
     <div class="mt-4 grid gap-3">
       <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
-        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Display Name</div>
-        <div id="profile-display-name-row" class="mt-2 text-base font-extrabold text-white">Your account</div>
+        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Username</div>
+        <div id="profile-username-row" class="mt-2 text-base font-extrabold text-white">@listener</div>
       </div>
       <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Username</div>
-            <div id="profile-username-row" class="mt-2 text-base font-extrabold text-white">@listener</div>
+            <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Display Name</div>
+            <div id="profile-display-name-row" class="mt-2 text-base font-extrabold text-white">Your account</div>
           </div>
           <button id="profile-randomize-inline-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white active:scale-95">
             Randomize
@@ -5104,18 +5104,18 @@ body.qs-lock {
 
     <div class="mt-4 grid gap-3">
       <label class="block">
-        <div class="mb-2 text-xs font-black uppercase tracking-[0.22em] text-white/40">Display Name</div>
-        <input id="profile-modal-display-name" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="How your profile should appear">
+        <div class="mb-2 text-xs font-black uppercase tracking-[0.22em] text-white/40">Username</div>
+        <input id="profile-modal-username" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="Choose a username">
       </label>
 
       <label class="block">
         <div class="mb-2 flex items-center justify-between gap-3">
-          <span class="text-xs font-black uppercase tracking-[0.22em] text-white/40">Username</span>
+          <span class="text-xs font-black uppercase tracking-[0.22em] text-white/40">Display Name</span>
           <button id="profile-randomize-username-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white active:scale-95">
             Randomize
           </button>
         </div>
-        <input id="profile-modal-username" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="Choose a username">
+        <input id="profile-modal-display-name" type="text" class="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white outline-none" placeholder="How your profile should appear">
       </label>
 
       <div class="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -15868,7 +15868,7 @@ try {
 
     <!-- Password sign-in pane -->
     <div id="auth-signin-pane" class="hidden">
-      <input id="auth-signin-email" type="email" placeholder="Email" autocomplete="email"
+      <input id="auth-signin-email" type="text" placeholder="Email or username" autocomplete="username"
         class="w-full bg-white/10 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/25 mb-2">
       <input id="auth-signin-password" type="password" placeholder="Password" autocomplete="current-password"
         class="w-full bg-white/10 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/25 mb-3">
@@ -16252,7 +16252,7 @@ try {
   document.getElementById('auth-signin-btn')?.addEventListener('click', async function() {
     var email    = getAuthEmailValue();
     var password =  document.getElementById('auth-signin-password')?.value || '';
-    if (!email || !password) return showFeedback('Enter your email and password.', true);
+    if (!email || !password) return showFeedback('Enter your email (or username) and password.', true);
     showFeedback('Signing in…', false);
     try {
       var res  = await fetch('/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });

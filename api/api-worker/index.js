@@ -56,13 +56,24 @@ export default {
       if (existing) return errJson(400, 'User already exists');
       const pwHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
       await env.SESSIONS.put(userKey, JSON.stringify({ email, pwHash }), { expirationTtl: 365*24*60*60 });
+      // Store username→email reverse mapping (derived from email local part)
+      const localPart = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (localPart) await env.SESSIONS.put(`username:${localPart}`, email, { expirationTtl: 365*24*60*60 });
       return json({ ok: true });
     }
 
     // --- Password-based login ---
     if (url.pathname === '/auth/login' && request.method === 'POST') {
-      const { email, password } = await getBody();
-      if (!email || !password) return errJson(400, 'Email and password required');
+      const { email: rawId, password } = await getBody();
+      if (!rawId || !password) return errJson(400, 'Email and password required');
+      let email = String(rawId).trim();
+      // If no @ treat as username — look up the associated email
+      if (!email.includes('@')) {
+        const slug = email.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        const found = await env.SESSIONS.get(`username:${slug}`);
+        if (!found) return errJson(400, 'User not found');
+        email = found;
+      }
       const userId = await hashEmail(email);
       const userKey = `user:${userId}`;
       const userRaw = await env.SESSIONS.get(userKey);
@@ -70,6 +81,12 @@ export default {
       const user = JSON.parse(userRaw);
       const pwHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).map(b => b.toString(16).padStart(2, '0')).join('');
       if (user.pwHash !== pwHash) return errJson(401, 'Incorrect password');
+      // Ensure username→email mapping exists (back-fills for users who registered before this feature)
+      const localPart = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (localPart) {
+        const existing = await env.SESSIONS.get(`username:${localPart}`);
+        if (!existing) await env.SESSIONS.put(`username:${localPart}`, email, { expirationTtl: 365*24*60*60 });
+      }
       const { sessionId } = await makeSession(email);
       const res = json({ ok: true });
       res.headers.append('Set-Cookie', `session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
