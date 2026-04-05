@@ -949,6 +949,33 @@ body.lyrics-mode #lyrics-center-view .lyrics-center-body {
   scrollbar-gutter: stable both-edges;
 }
 
+/* Artist view: strip main-view padding so hero can bleed to the edges */
+body.artist-view-open .main-view {
+  padding-top: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* Restore horizontal padding for content below the hero */
+body.artist-view-open #artist-view {
+  padding: 0 32px;
+}
+/* Hero breaks out of the artist-view padding to go full-bleed */
+body.artist-view-open #artist-view #artist-hero {
+  margin-left: -32px;
+  margin-right: -32px;
+  width: calc(100% + 64px);
+}
+@media (max-width: 768px) {
+  body.artist-view-open #artist-view {
+    padding: 0 6px;
+  }
+  body.artist-view-open #artist-view #artist-hero {
+    margin-left: -6px;
+    margin-right: -6px;
+    width: calc(100% + 12px);
+  }
+}
+
         /* --- INTERACTIVE ELEMENTS --- */
         .resizer { 
             width: 4px; 
@@ -6015,12 +6042,7 @@ body.qs-lock {
 
 <div id="artist-view" class="hidden">
 
-  <button onclick="goBack()"
-          class="mb-6 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition">
-    <i class="fas fa-arrow-left text-white"></i>
-  </button>
-
-  <!-- ARTIST HERO -->
+  <!-- ARTIST HERO (back button is overlaid inside the hero template) -->
   <div id="artist-hero" class="mb-8"></div>
 
 
@@ -9361,6 +9383,7 @@ function showView(viewType, playlistIndex = null) {
        ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'profile-view', 'recently-deleted-view'].forEach(id => {
   document.getElementById(id)?.classList.add('hidden');
 });
+  document.body.classList.toggle('artist-view-open', viewType === 'artist');
 
   // ✅ SAFETY: if swipe-back ever left the main scroller “locked”, unlock it now
   try {
@@ -15143,7 +15166,7 @@ try {
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
-<script src="src/features/artist/artist.feature.js?v=2"></script>
+<script src="src/features/artist/artist.feature.js?v=3"></script>
 <script src="src/features/search/search.feature.js?v=5"></script>
 <script src="src/features/crate/crate.feature.js"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>

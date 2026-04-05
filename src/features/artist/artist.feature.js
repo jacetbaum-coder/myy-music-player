@@ -311,7 +311,7 @@ function openArtistByName(artistName) {
 
     // layout first (so the page doesn't jump)
     heroEl.innerHTML = `
-      <div class="relative w-full overflow-hidden rounded-2xl">
+      <div class="relative w-full overflow-hidden">
         <div id="artist-hero-bg"
              class="absolute inset-0 bg-zinc-900"
              style="background-size: cover; background-position: center; background-repeat: no-repeat;">
@@ -319,6 +319,12 @@ function openArtistByName(artistName) {
 
         <!-- Spotify-ish dark fade so text is readable -->
         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10"></div>
+
+        <!-- Back button overlaid on hero -->
+        <button onclick="goBack()"
+                class="absolute top-4 left-4 bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center transition z-10">
+          <i class="fas fa-arrow-left text-white"></i>
+        </button>
 
         <div class="relative h-[260px] md:h-[340px] flex flex-col justify-end p-6 md:p-10">
           <div class="text-xs font-extrabold uppercase tracking-[0.35em] text-white/80">Artist</div>
