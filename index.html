@@ -1347,11 +1347,6 @@ body.song-multiselect .track-row:hover{
 }
 
 
-        #dock-play-btn {
-  background-color: #1db954 !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
         .progress-bar-container {
   height: 4px;
   width: 100%;
@@ -5973,6 +5968,20 @@ body.qs-lock {
 
 <div id="album-view" class="hidden">
 
+  <!-- Swipe-back edge capture: touch-action:none so browser doesn't claim
+       the gesture for scrolling before our pointerdown handler can act.
+       Mirrors the iOS "reserved left edge for back navigation" pattern.
+       This 40px strip is transparent and non-interactive for everything
+       except pointer/touch capture. -->
+  <div id="album-swipe-edge" style="
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 40px;
+    z-index: 1;
+    touch-action: none;
+    pointer-events: auto;
+  " aria-hidden="true"></div>
+
   <!-- Find on this page — hidden above fold, swipe up to reveal -->
   <div id="album-find-bar" class="pb-2 md:hidden">
     <div class="flex items-center gap-3 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.12)">
@@ -6244,7 +6253,7 @@ body.qs-lock {
                 <i id="btn-shuffle" onclick="toggleShuffle()" class="fas fa-shuffle hover:text-white cursor-pointer text-sm"></i>
                 <i class="fas fa-step-backward hover:text-white cursor-pointer text-xl" onclick="prevSong()"></i>
                 <button id="dock-play-btn"
-  class="w-10 h-10 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition"
+  class="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 cursor-pointer text-black transition"
   onclick="togglePlay()"
   aria-label="Play or pause">
   <i id="play-icon" class="fas fa-play ml-1"></i>
@@ -8999,6 +9008,12 @@ function goBack() {
 
     showView('library');
 
+  if (window.__swipeBackSkipRender) {
+    // Swipe-back from album: library DOM is already correct behind the overlay.
+    // Just refresh the pill UI without rebuilding the full grid.
+    try { updateMobileLibraryTabUI(); } catch (e) {}
+    try { updateMobileLibrarySectionTitle(); } catch (e) {}
+  } else {
   // ✅ After returning to Library, force the Library grid to match the restored top tab.
   // Fixes: pill still says Playlists/Artists/All but the grid shows Albums.
   try { initMobileLibraryTabsOnce(); } catch (e) {}
@@ -9014,6 +9029,7 @@ function goBack() {
       try { renderLibraryMain(); } catch (e) {}
     }
   } catch (e) {}
+  } // end !__swipeBackSkipRender
 
 
   // Restore scroll position inside Library list
@@ -9077,7 +9093,24 @@ function initSwipeBack() {
   const THRESHOLD_PX = 50;         // commit distance (smaller = easier)
   const MOVE_DECIDE_PX = 2;        // when we decide direction (faster)
   const OPACITY_DROP = 0.20;
-    
+
+  // Album-overlay swipe mode: when swiping back from album view we slide
+  // #album-view directly instead of the whole scroll area, so the real library
+  // grid is already visible behind it — no clone/underlay needed.
+  let albumSwipeMode = false;
+  let albumEl = null;
+  let albumBehindEl = null;   // the view element revealed behind album-view
+
+  // Map navStack prev type → the view DOM element id that sits behind album-view.
+  const PREV_TYPE_TO_VIEW_ID = {
+    library: 'grid-view',
+    home: 'home-view',
+    artist: 'artist-view',
+    search: 'search-view',
+    crate: 'crate-view',
+    playlist: 'grid-view',
+  };
+
   function getXY(e) {
     if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
@@ -9101,6 +9134,10 @@ function initSwipeBack() {
       return false;
     }
 
+    // Album swipe-edge capture div: touch-action:none means no browser scroll
+    // interference. Allow from anywhere on the Y axis (album lists can be tall).
+    if (t && t.id === 'album-swipe-edge') return true;
+
     // Allow swipe start ANYWHERE in the upper 75% (same rule as Now Playing)
     const { y } = getXY(e);
     if (y > (window.innerHeight * 0.75)) return false;
@@ -9114,6 +9151,43 @@ function initSwipeBack() {
   }
 
   function reset(animated = true) {
+    if (albumSwipeMode && albumEl) {
+      // Album overlay mode: snap/animate album-view back, clean up area
+      const _el = albumEl;
+      const _behind = albumBehindEl;
+      albumSwipeMode = false;
+      albumEl = null;
+      albumBehindEl = null;
+      if (animated) {
+        _el.style.transition = 'transform 220ms ease, opacity 220ms ease';
+        _el.style.transform  = 'translateX(0px)';
+        _el.style.opacity    = '1';
+        const clearAlbum = () => {
+          _el.style.transition = '';
+          _el.style.transform  = '';
+          _el.style.opacity    = '';
+          _el.style.willChange = '';
+          // Re-hide the background view now that album is back in place
+          if (_behind) _behind.classList.add('hidden');
+          _el.removeEventListener('transitionend', clearAlbum);
+        };
+        setTimeout(clearAlbum, 260);
+        _el.addEventListener('transitionend', clearAlbum);
+      } else {
+        _el.style.transition = '';
+        _el.style.transform  = '';
+        _el.style.opacity    = '';
+        _el.style.willChange = '';
+        if (_behind) _behind.classList.add('hidden');
+      }
+      // area.overflow was never changed in album mode, just release the marker class
+      area.style.willChange = '';
+      area.style.transition = '';
+      area.style.transform  = '';
+      area.classList.remove('sb-dragging');
+      return;
+    }
+
     try { hideSwipeBackUnderlay(); } catch (e) {}
     try {
       const underlayInner = document.getElementById('swipe-back-underlay-inner');
@@ -9192,31 +9266,71 @@ function initSwipeBack() {
     isHorizontal = false;
     lastDx = 0;
 
-    // Pre-apply ALL layout-affecting styles now, before any movement.
-    // Deferring them to first horizontal-move-detect causes a mid-animation
-    // layout flush that the browser renders as a 1-frame black flash.
-    area.style.overflow   = 'hidden';
-    area.style.willChange = 'transform, opacity';
-    // Apply an ACTUAL transform (identity) — not just will-change — so all
-    // position:fixed children (e.g. #album-view z-index:70 background:#000)
-    // are definitively contained inside this element's GPU layer and move
-    // WITH the swipe. Without a real transform, fixed children stay
-    // viewport-fixed and cover the underlay with a black background.
-    area.style.transform  = 'translateX(0px)';
-    area.classList.add('sb-dragging');
-    // Show underlay immediately: snapshot was captured when this view opened,
-    // so it already shows the correct library scroll position.
-    try { showSwipeBackUnderlay(); } catch (err) {}
-    // iOS parallax: start underlay inner at -28vw so it slides in as the user drags
-    try {
-      const underlayInner = document.getElementById('swipe-back-underlay-inner');
-      if (underlayInner) {
-        underlayInner.style.transition = '';
-        underlayInner.style.transform = `translateX(${-Math.round(0.28 * window.innerWidth)}px)`;
-      }
-    } catch (err) {}
+    // Detect album overlay mode: slide #album-view directly, no underlay.
+    const _navType = (typeof navCurrent !== 'undefined' && navCurrent?.type) || (window.navCurrent?.type);
+    const _albumViewEl = document.getElementById('album-view');
+    albumSwipeMode = (_navType === 'album') && !!_albumViewEl && !_albumViewEl.classList.contains('hidden');
+    albumEl = albumSwipeMode ? _albumViewEl : null;
 
-    area.style.touchAction = 'pan-y';
+    if (albumSwipeMode && albumEl) {
+      // Album overlay mode: put GPU layer only on the album-view element.
+      // Do NOT set a transform on area — doing so would create a new stacking
+      // context, forcing the position:fixed album-view to reposition relative
+      // to area (not the viewport), causing it to jump/disappear on drag start.
+
+      // Un-hide the view that was behind album-view so it shows through as
+      // album-view slides away. Re-hidden on cancel in reset().
+      try {
+        const prev = (Array.isArray(navStack) && navStack.length)
+          ? navStack[navStack.length - 1] : null;
+        const behindId = PREV_TYPE_TO_VIEW_ID[prev?.type] || 'grid-view';
+        const _b = document.getElementById(behindId);
+        if (_b) {
+          _b.classList.remove('hidden');
+          albumBehindEl = _b;
+        }
+        // Restore the scroll position the user was at before opening the album
+        if (prev && typeof prev.scrollTop === 'number') {
+          area.scrollTop = prev.scrollTop;
+        }
+      } catch (err) {}
+
+      albumEl.style.willChange = 'transform, opacity';
+      albumEl.style.transition = '';
+      albumEl.style.transform  = 'translateX(0px)';
+      // Note: do NOT set area.style.overflow = 'hidden' here.
+      // album-view is position:fixed and covers the whole screen, so area
+      // can't accidentally scroll through it. Setting overflow:hidden after
+      // scrollTop is set would reset scrollTop to 0 on iOS and dispatch a
+      // scroll event that kills gesture recognition.
+      area.classList.add('sb-dragging');
+      area.style.touchAction   = 'pan-y';
+    } else {
+      // Normal underlay mode
+      albumSwipeMode = false;
+      albumEl = null;
+      area.style.overflow   = 'hidden';
+      area.style.willChange = 'transform, opacity';
+      // Apply an ACTUAL transform (identity) — not just will-change — so all
+      // position:fixed children (e.g. #album-view z-index:70 background:#000)
+      // are definitively contained inside this element's GPU layer and move
+      // WITH the swipe. Without a real transform, fixed children stay
+      // viewport-fixed and cover the underlay with a black background.
+      area.style.transform  = 'translateX(0px)';
+      area.classList.add('sb-dragging');
+      // Show underlay immediately: snapshot was captured when this view opened,
+      // so it already shows the correct library scroll position.
+      try { showSwipeBackUnderlay(); } catch (err) {}
+      // iOS parallax: start underlay inner at -28vw so it slides in as the user drags
+      try {
+        const underlayInner = document.getElementById('swipe-back-underlay-inner');
+        if (underlayInner) {
+          underlayInner.style.transition = '';
+          underlayInner.style.transform = `translateX(${-Math.round(0.28 * window.innerWidth)}px)`;
+        }
+      } catch (err) {}
+      area.style.touchAction = 'pan-y';
+    }
 
     try { area.setPointerCapture(e.pointerId); } catch (err) {}
   }, { passive: true });
@@ -9238,15 +9352,27 @@ function initSwipeBack() {
         area.style.touchAction = 'none';
       } else {
         // Vertical scroll: undo ALL pre-applied lock styles so normal scrolling works.
-        area.style.overflow   = '';
-        area.style.willChange = '';
-        area.style.transform  = '';  // release identity transform so fixed children go back to viewport-fixed
-        area.classList.remove('sb-dragging');
-        try {
-          const underlayInner = document.getElementById('swipe-back-underlay-inner');
-          if (underlayInner) { underlayInner.style.transition = ''; underlayInner.style.transform = ''; }
-        } catch (err) {}
-        try { hideSwipeBackUnderlay(); } catch (err) {}
+        if (albumSwipeMode && albumEl) {
+          albumEl.style.willChange = '';
+          albumEl.style.transition = '';
+          albumEl.style.transform  = '';
+          if (albumBehindEl) albumBehindEl.classList.add('hidden');
+          albumSwipeMode = false;
+          albumEl = null;
+          albumBehindEl = null;
+          // overflow was never changed in album mode
+          area.classList.remove('sb-dragging');
+        } else {
+          try {
+            const underlayInner = document.getElementById('swipe-back-underlay-inner');
+            if (underlayInner) { underlayInner.style.transition = ''; underlayInner.style.transform = ''; }
+          } catch (err) {}
+          try { hideSwipeBackUnderlay(); } catch (err) {}
+          area.style.overflow   = '';
+          area.style.willChange = '';
+          area.style.transform  = '';  // release identity transform so fixed children go back to viewport-fixed
+          area.classList.remove('sb-dragging');
+        }
       }
     }
 
@@ -9269,23 +9395,30 @@ function initSwipeBack() {
 
     lastDx = clamped;
 
-    // Drag the current view
-    area.style.transition = '';
-    area.style.transform = `translateX(${lastDx}px)`;
-
-    // Fade based on distance
-    const p = Math.min(1, Math.abs(lastDx) / maxShift);
-    area.style.opacity = String(1 - (p * OPACITY_DROP));
-    // iOS parallax: underlay slides in from -28vw → 0 as current page moves away
-    try {
-      const underlayInner = document.getElementById('swipe-back-underlay-inner');
-      if (underlayInner) {
-        const progress = Math.min(1, Math.abs(lastDx) / window.innerWidth);
-        const parallaxPx = -Math.round((1 - progress) * 0.28 * window.innerWidth);
-        underlayInner.style.transition = '';
-        underlayInner.style.transform = `translateX(${parallaxPx}px)`;
-      }
-    } catch (e) {}
+    if (albumSwipeMode && albumEl) {
+      // Album overlay mode: slide only the album view, library stays put
+      albumEl.style.transition = '';
+      albumEl.style.transform  = `translateX(${lastDx}px)`;
+      const p = Math.min(1, Math.abs(lastDx) / maxShift);
+      albumEl.style.opacity = String(1 - (p * OPACITY_DROP));
+    } else {
+      // Normal mode: drag the entire scroll area over the underlay
+      area.style.transition = '';
+      area.style.transform = `translateX(${lastDx}px)`;
+      // Fade based on distance
+      const p = Math.min(1, Math.abs(lastDx) / maxShift);
+      area.style.opacity = String(1 - (p * OPACITY_DROP));
+      // iOS parallax: underlay slides in from -28vw → 0 as current page moves away
+      try {
+        const underlayInner = document.getElementById('swipe-back-underlay-inner');
+        if (underlayInner) {
+          const progress = Math.min(1, Math.abs(lastDx) / window.innerWidth);
+          const parallaxPx = -Math.round((1 - progress) * 0.28 * window.innerWidth);
+          underlayInner.style.transition = '';
+          underlayInner.style.transform = `translateX(${parallaxPx}px)`;
+        }
+      } catch (e) {}
+    }
     }, { passive: true });
 
 
@@ -9299,6 +9432,62 @@ function initSwipeBack() {
       (edgeDir === -1 && lastDx < -THRESHOLD_PX);
 
     if (shouldCommit) {
+      // ── ALBUM OVERLAY COMMIT ──────────────────────────────────────────────
+      // Slide #album-view off. The real library is already visible behind it —
+      // no clone, no re-render, no layout blink.
+      if (albumSwipeMode && albumEl) {
+        const _aEl = albumEl;
+        albumSwipeMode = false;
+        albumEl = null;
+        albumBehindEl = null; // goBack() will properly show the destination view
+
+        _aEl.style.transition = 'transform 180ms ease, opacity 180ms ease';
+        _aEl.style.transform  = `translateX(${edgeDir * window.innerWidth}px)`;
+        _aEl.style.opacity    = '0.9';
+
+        let doneCalled = false;
+        const done = () => {
+          if (doneCalled) return;
+          doneCalled = true;
+          _aEl.removeEventListener('transitionend', done);
+
+          // Read backTargetTop BEFORE goBack() pops the stack
+          let backTargetTop = null;
+          try {
+            const prev = (Array.isArray(navStack) && navStack.length)
+              ? navStack[navStack.length - 1] : null;
+            if (prev && typeof prev.scrollTop === 'number') backTargetTop = prev.scrollTop;
+          } catch (e) {}
+
+          // Navigate back. Skip library re-render — DOM is already correct.
+          window.__swipeBackSkipRender = true;
+          goBack();
+          window.__swipeBackSkipRender = false;
+
+          // Reset album-view styles (it is now display:none)
+          _aEl.style.transition = '';
+          _aEl.style.transform  = '';
+          _aEl.style.opacity    = '';
+          _aEl.style.willChange = '';
+
+          // Release stacking context on area (overflow was never changed in album mode)
+          requestAnimationFrame(() => {
+            area.style.touchAction = 'pan-y';
+            area.style.willChange  = '';
+            area.style.transform   = '';
+            area.classList.remove('sb-dragging');
+            if (backTargetTop !== null) {
+              try { area.scrollTop = backTargetTop; } catch (e) {}
+            }
+          });
+        };
+
+        _aEl.addEventListener('transitionend', done);
+        setTimeout(() => { try { done(); } catch (e) {} }, 220);
+        return;
+      }
+
+      // ── NORMAL (non-album) COMMIT ─────────────────────────────────────────
       area.style.transition = 'transform 180ms ease, opacity 180ms ease';
       area.style.transform = `translateX(${edgeDir * window.innerWidth}px)`;
       // Animate underlay final slide-in in sync with current page flying off
