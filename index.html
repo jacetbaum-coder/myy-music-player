@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@900&display=swap" rel="stylesheet">
 
 
    <style>
@@ -5533,6 +5533,12 @@ body.qs-lock {
         <div class="crate-tile-sub">Playback options</div>
       </button>
 
+      <button type="button" class="crate-tile" onclick="openCrateSection('following')">
+        <div class="crate-tile-icon"><i class="fas fa-user-plus"></i></div>
+        <div class="crate-tile-title">Following</div>
+        <div class="crate-tile-sub">Artists you follow</div>
+      </button>
+
       <button type="button" id="crate-open-import" class="crate-tile" onclick="openCrateImportView()" aria-describedby="crate-open-import-note">
         <div class="crate-tile-icon"><i class="fas fa-download"></i></div>
         <div id="crate-open-import-title" class="crate-tile-title">Download Your Music</div>
@@ -5943,6 +5949,20 @@ body.qs-lock {
     </div>
 
   </div><!-- /#crate-import -->
+  <!-- SUBVIEW: FOLLOWING -->
+  <div id="crate-following" class="hidden crate-section">
+    <div class="flex items-center gap-3 mb-5">
+      <button type="button"
+        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-95"
+        aria-label="Back"
+        onclick="openCrateSection('home')">
+        <i class="fas fa-arrow-left text-white/70"></i>
+      </button>
+      <div class="text-2xl font-black">Following</div>
+    </div>
+    <div id="crate-following-list" class="space-y-2"></div>
+    <div id="crate-following-empty" class="hidden text-zinc-500 text-sm mt-4">No followed artists yet. Tap Follow on any artist page.</div>
+  </div>
 
 </div><!-- /#crate-view -->
 
@@ -6046,20 +6066,24 @@ body.qs-lock {
   <div id="artist-hero" class="mb-8"></div>
 
 
-    <!-- ARTIST CONTROLS (Play only) -->
-  <div id="artist-controls" class="mb-8 flex items-center justify-end">
-    <button id="artist-play-btn"
-            class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg"
-            aria-label="Play">
-      <i class="fas fa-play text-black text-xl ml-1"></i>
+    <!-- ARTIST CONTROLS -->
+  <div id="artist-controls" class="mb-8 flex items-center justify-between">
+    <!-- Left: Follow button -->
+    <button id="artist-follow-btn"
+            class="px-5 py-2 rounded-full border border-white/50 text-white text-sm font-bold hover:border-white transition"
+            aria-label="Follow artist">
+      Follow
     </button>
-  </div>
 
-  <!-- DISCOGRAPHY HEADER (Albums + Shuffle + 3-dots) -->
-  <div class="flex items-center justify-between mb-4">
-    <h2 class="text-2xl font-black">Albums</h2>
+    <!-- Right: dots + shuffle + play -->
+    <div class="flex items-center gap-5">
+      <button id="artist-more-btn"
+              class="text-2xl text-zinc-300 hover:text-white transition"
+              type="button"
+              aria-label="Artist menu">
+        <i class="fas fa-ellipsis-h"></i>
+      </button>
 
-    <div class="flex items-center gap-4">
       <button id="artist-shuffle-btn"
               class="text-xl text-zinc-300 hover:text-white transition"
               onclick="toggleShuffle()"
@@ -6067,13 +6091,22 @@ body.qs-lock {
         <i id="artist-shuffle-icon" class="fas fa-shuffle"></i>
       </button>
 
-      <button id="artist-more-btn"
-              class="text-2xl text-zinc-300 hover:text-white transition"
-              type="button"
-              aria-label="Artist menu">
-        <i class="fas fa-ellipsis-h"></i>
+      <button id="artist-play-btn"
+              class="w-14 h-14 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg"
+              aria-label="Play">
+        <i class="fas fa-play text-black text-xl ml-1"></i>
       </button>
     </div>
+  </div>
+
+  <!-- YOU LIKED SECTION (hidden until there are liked songs by this artist) -->
+  <div id="artist-liked-section" class="hidden mb-6">
+    <div id="artist-liked-list"></div>
+  </div>
+
+  <!-- DISCOGRAPHY HEADER -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-2xl font-black">Albums</h2>
   </div>
 
   <div id="artist-album-grid"
@@ -13865,7 +13898,20 @@ function updateCounts() {
             localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
             updateCounts();
             updateHeartUI();
+            try { if (typeof window.refreshArtistLikedSection === 'function') window.refreshArtistLikedSection(); } catch(e) {}
         }
+
+        // Remove a specific song from liked by URL (used by artist liked section hearts)
+        window._unlikeSongByUrl = function(url) {
+            if (!url) return;
+            const idx = likedSongs.findIndex(s => s.url === url);
+            if (idx === -1) return;
+            likedSongs.splice(idx, 1);
+            localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
+            updateCounts();
+            updateHeartUI();
+            try { if (typeof window.refreshArtistLikedSection === 'function') window.refreshArtistLikedSection(); } catch(e) {}
+        };
 // [MOVED TO src/features/context-menu/context-menu.feature.js] menuAction
 
 
@@ -15166,9 +15212,9 @@ try {
 <script src="src/features/artist/artist-portraits.feature.js?v=3"></script>
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
-<script src="src/features/artist/artist.feature.js?v=9"></script>
+<script src="src/features/artist/artist.feature.js?v=13"></script>
 <script src="src/features/search/search.feature.js?v=5"></script>
-<script src="src/features/crate/crate.feature.js"></script>
+<script src="src/features/crate/crate.feature.js?v=2"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
 
 <script>

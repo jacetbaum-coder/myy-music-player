@@ -731,6 +731,7 @@ function openCrateSection(which) {
   const stats = document.getElementById("crate-stats");
   const features = document.getElementById("crate-features");
   const importView = document.getElementById("crate-import");
+  const followingView = document.getElementById("crate-following");
 
   const w = String(which || "home");
 
@@ -744,6 +745,7 @@ function openCrateSection(which) {
   if (stats) stats.classList.toggle("hidden", w !== "stats");
   if (features) features.classList.toggle("hidden", w !== "features");
   if (importView) importView.classList.toggle("hidden", w !== "import");
+  if (followingView) followingView.classList.toggle("hidden", w !== "following");
 
   // If user opens the editor, make sure it renders
   if (w === "crate") {
@@ -759,6 +761,11 @@ function openCrateSection(which) {
   // If user opens import, init the import workflow
   if (w === "import") {
     try { initImportView(); } catch (e) {}
+  }
+
+  // If user opens following, render it
+  if (w === "following") {
+    try { renderFollowedArtists(); } catch (e) {}
   }
 
   try {
@@ -876,6 +883,60 @@ function initCrateUIOnce() {
   });
 }
 
+/* -----------------------
+   FOLLOWED ARTISTS
+------------------------ */
+const FOLLOWED_ARTISTS_KEY = 'reson_followed_artists_v1';
+
+function getFollowedArtists() {
+  try { return JSON.parse(localStorage.getItem(FOLLOWED_ARTISTS_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function isFollowingArtist(name) {
+  return getFollowedArtists().includes(String(name || '').trim());
+}
+
+function toggleFollowArtist(name) {
+  const n = String(name || '').trim();
+  if (!n) return false;
+  const list = getFollowedArtists();
+  const idx = list.indexOf(n);
+  if (idx === -1) { list.push(n); } else { list.splice(idx, 1); }
+  try { localStorage.setItem(FOLLOWED_ARTISTS_KEY, JSON.stringify(list)); } catch (e) {}
+  return idx === -1; // true = now following
+}
+
+function renderFollowedArtists() {
+  const listEl = document.getElementById('crate-following-list');
+  const emptyEl = document.getElementById('crate-following-empty');
+  if (!listEl) return;
+  const artists = getFollowedArtists();
+  listEl.innerHTML = '';
+  if (!artists.length) {
+    if (emptyEl) emptyEl.classList.remove('hidden');
+    return;
+  }
+  if (emptyEl) emptyEl.classList.add('hidden');
+  artists.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition cursor-pointer';
+    row.innerHTML = `
+      <span class="font-semibold text-white">${name}</span>
+      <button class="text-xs text-zinc-400 hover:text-white border border-white/30 rounded-full px-3 py-1 transition"
+              onclick="if(toggleFollowArtist('${name.replace(/'/g,"\\'")}')) renderFollowedArtists(); else renderFollowedArtists();">
+        Unfollow
+      </button>`;
+    row.querySelector('span').onclick = () => {
+      try { openArtistByName(name); } catch (e) {}
+    };
+    listEl.appendChild(row);
+  });
+}
+
+window.isFollowingArtist = isFollowingArtist;
+window.toggleFollowArtist = toggleFollowArtist;
+window.renderFollowedArtists = renderFollowedArtists;
+
 // expose for menuAction and inline HTML handlers
 window.addArtistToCrate = addArtistToCrate;
 window.goBackFromCrate = goBackFromCrate;
@@ -884,8 +945,6 @@ window.renderCrate = renderCrate;
 window.openCrateSection = openCrateSection;
 window.openCrateImportView = openCrateImportView;
 window.refreshCrateImportUi = refreshCrateImportUi;
-
-
 /* -----------------------
    STATS (reads reson_play_events_v1)
 ------------------------ */

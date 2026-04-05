@@ -328,7 +328,7 @@ function openArtistByName(artistName) {
 
         <div class="relative h-[40vh] md:h-[40vh] flex flex-col justify-end p-6 md:p-10">
           <div class="text-xs font-extrabold uppercase tracking-[0.35em] text-white/80">Artist</div>
-          <div class="mt-2 text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal">
+          <div class="mt-2 text-5xl md:text-7xl font-black leading-[0.92] break-words whitespace-normal" style="font-family: 'Montserrat', sans-serif; font-weight: 900;">
             ${artistName}
           </div>
         </div>
@@ -360,6 +360,25 @@ function openArtistByName(artistName) {
   const artistPlayBtn = document.getElementById('artist-play-btn');
   if (artistPlayBtn) {
     artistPlayBtn.onclick = () => playArtistByName(artistName);
+  }
+
+  // Bind Follow button
+  const followBtn = document.getElementById('artist-follow-btn');
+  if (followBtn) {
+    const updateFollowBtn = () => {
+      const following = typeof window.isFollowingArtist === 'function' && window.isFollowingArtist(artistName);
+      followBtn.textContent = following ? 'Following' : 'Follow';
+      followBtn.classList.toggle('border-white', following);
+      followBtn.classList.toggle('text-white', true);
+      followBtn.classList.toggle('bg-white/10', following);
+    };
+    updateFollowBtn();
+    followBtn.onclick = () => {
+      if (typeof window.toggleFollowArtist === 'function') {
+        window.toggleFollowArtist(artistName);
+        updateFollowBtn();
+      }
+    };
   }
 
   // Bind Artist 3-dots menu
@@ -475,6 +494,55 @@ function openArtistByName(artistName) {
 }).join('');
 
   }
+  // Render "You liked" section for this artist
+  renderArtistLikedSection(artistName);
+  window.refreshArtistLikedSection = () => renderArtistLikedSection(artistName);
+}
+
+// Renders liked songs by artist into the #artist-liked-section block
+function renderArtistLikedSection(artistName) {
+  const section = document.getElementById('artist-liked-section');
+  const list = document.getElementById('artist-liked-list');
+  if (!section || !list) return;
+
+  const likedSongs = (() => {
+    try { return JSON.parse(localStorage.getItem('likedSongs') || '[]'); } catch(e) { return []; }
+  })();
+
+  const songs = likedSongs.filter(s => {
+    const a = String(s.artist || s.artistName || '');
+    return a === artistName;
+  });
+
+  section.classList.toggle('hidden', songs.length === 0);
+  if (!songs.length) return;
+
+  // Get artist photo from the hero bg (or first song cover as fallback)
+  const heroBg = document.getElementById('artist-hero-bg');
+  const artistImgUrl = (heroBg && heroBg.style.backgroundImage
+    ? heroBg.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '')
+    : '') || songs[0]?.cover || '';
+
+  const releaseCount = songs.length;
+  const label = `${releaseCount} ${releaseCount === 1 ? 'release' : 'releases'} • ${artistName}`;
+
+  list.innerHTML = `
+    <div class="flex items-center gap-4 px-1 py-2 rounded-xl hover:bg-white/5 transition cursor-pointer"
+         onclick="try { renderCollection('Liked · ${artistName.replace(/'/g,"\\'")}', ${JSON.stringify(songs)}); } catch(e) {}">
+      <div class="relative flex-shrink-0 w-14 h-14">
+        ${artistImgUrl
+          ? `<img src="${artistImgUrl}" class="w-14 h-14 rounded-full object-cover">`
+          : `<div class="w-14 h-14 rounded-full bg-zinc-700"></div>`}
+        <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-[#1db954] rounded-full flex items-center justify-center shadow">
+          <i class="fas fa-heart text-white text-[10px]"></i>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-white text-base">You liked</div>
+        <div class="text-sm text-zinc-400 truncate">${label}</div>
+      </div>
+      <i class="fas fa-chevron-right text-zinc-600 text-sm"></i>
+    </div>`;
 }
 
 // Plays ALL songs by this artist (respects shuffle)
