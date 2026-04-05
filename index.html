@@ -7121,8 +7121,8 @@ window.__openHeroMoreMenu = function(btn) {
     item.addEventListener('pointerleave',() => { item.style.background = 'transparent'; });
     item.addEventListener('click', (ev) => {
       try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+      try { onClick(); } catch(err) { console.warn('[heroMenu]', err); }
       closeSheet();
-      setTimeout(() => { try { onClick(); } catch(err) { console.warn('[heroMenu]', err); } }, 60);
     });
     return item;
   };
@@ -7143,34 +7143,32 @@ window.__openHeroMoreMenu = function(btn) {
   };
 
   const hasSelection = () => !!(window.__songSelect && window.__songSelect.enabled && window.__songSelect.urls.size > 0);
-  const getTargetSongs = () => {
-    const q = Array.isArray(currentQueue) ? currentQueue : [];
-    if (!hasSelection()) return q;
-    const urls = typeof getSelectedSongUrls === 'function' ? getSelectedSongUrls() : [];
-    return q.filter(s => s && urls.includes(s.url));
-  };
+
+  // ── Snapshot selected songs NOW (at sheet-open time) before any async delay ──
+  const _selUrls = hasSelection() && typeof getSelectedSongUrls === 'function' ? getSelectedSongUrls() : [];
+  const _allSongs = Array.isArray(currentQueue) ? currentQueue.slice() : [];
+  const snapSongs = _selUrls.length > 0
+    ? _allSongs.filter(s => s && _selUrls.includes(s.url))
+    : _allSongs;
 
   // 1. Add to queue
   const _selCount = (window.__songSelect && window.__songSelect.enabled) ? window.__songSelect.urls.size : 0;
   const queueLabel = _selCount === 1 ? 'Add to queue' : (_selCount > 1 ? 'Add all to queue' : 'Add all to queue');
   pop.appendChild(mkItem('fa-list-ul', queueLabel, false, () => {
-    const songs = getTargetSongs();
-    if (!songs.length) return;
-    songs.forEach(s => { try { addSongToQueue(s); } catch(_) {} });
-    if (hasSelection()) try { setSongSelectEnabled(false); } catch(_) {}
-    try { showQueueToast(); } catch(_) {}
+    if (!snapSongs.length) return;
+    snapSongs.forEach(s => { try { addSongToQueue(s); } catch(_) {} });
+    try { setSongSelectEnabled(false); } catch(_) {}
   }));
 
   // 2. Add to playlist
-  const plLabel = hasSelection() ? ('Add ' + window.__songSelect.urls.size + ' selected to playlist') : 'Add to playlist';
+  const plLabel = _selCount === 1 ? 'Add to playlist' : (_selCount > 1 ? 'Add ' + _selCount + ' to playlist' : 'Add to playlist');
   pop.appendChild(mkItem('fa-plus', plLabel, false, () => {
-    if (!hasSelection()) {
+    if (!_selUrls.length) {
       try { setSongSelectEnabled(true); } catch(_) {}
       return;
     }
-    const songs = getTargetSongs();
     try {
-      window.menuTargetSong = songs.length === 1 ? songs[0] : songs;
+      window.menuTargetSong = snapSongs.length === 1 ? snapSongs[0] : snapSongs;
       if (typeof window.openAddToPlaylistSubmenu === 'function') window.openAddToPlaylistSubmenu(null);
     } catch(_) {}
     try { setSongSelectEnabled(false); } catch(_) {}
@@ -7221,12 +7219,16 @@ if (!window.__mobileTrackSelectTapGuard) {
       const acm = document.getElementById('album-cover-menu');
       const pills = document.getElementById('album-select-pills');
       const heroMore = document.getElementById('hero-more-btn');
+      const heroSheet = document.getElementById('hero-more-popover');
+      const heroBackdrop = document.getElementById('hero-more-popover-backdrop');
       const tappedInsideOverlay =
         !!(cm && (cm === e.target || cm.contains(e.target))) ||
         !!(ps && (ps === e.target || ps.contains(e.target))) ||
         !!(acm && (acm === e.target || acm.contains(e.target))) ||
         !!(pills && (pills === e.target || pills.contains(e.target))) ||
-        !!(heroMore && (heroMore === e.target || heroMore.contains(e.target)));
+        !!(heroMore && (heroMore === e.target || heroMore.contains(e.target))) ||
+        !!(heroSheet && (heroSheet === e.target || heroSheet.contains(e.target))) ||
+        !!(heroBackdrop && (heroBackdrop === e.target || heroBackdrop.contains(e.target)));
 
       if (!row) {
         // Tap outside track list (but not inside a menu overlay) exits select mode
