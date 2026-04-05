@@ -1416,18 +1416,23 @@ body.song-multiselect .track-row:hover{
         /* --- SEARCH BOX --- */
                 .search-container {
             position: relative;
-            max-width: 400px;
-            width: 100%;
-            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: calc(100% + 64px);
+            margin-left: -32px;
+            padding: 0 32px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            margin-bottom: 20px;
         }
 
                 .search-input {
-            width: 100%;
-            background: rgba(255,255,255,0.08);
+            flex: 1;
+            background: #373537;
             color: rgba(255,255,255,0.92);
-            border: 1px solid rgba(255,255,255,0.06);
+            border: none;
             border-radius: 12px;
-            padding: 12px 44px 12px 44px;
+            padding: 8px 36px 8px 14px;
             font-size: 15px;
             font-weight: 700;
             outline: none;
@@ -3192,6 +3197,13 @@ body:has(#playlist-submenu.open) .mobile-nav {
   .mobile-nav { display: flex; }
 
        .main-view { padding: 6px; }
+
+  .search-container {
+    width: calc(100% + 12px);
+    margin-left: -6px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
 
 
   .home-recents-grid {
@@ -5432,14 +5444,15 @@ body.qs-lock {
 <div id="search-view" class="hidden">
   <h1 class="text-3xl font-black mb-6">Search</h1>
   <div class="search-container">
-    <button type="button" class="search-clear" onclick="clearSearch()" aria-label="Clear search">
-  <i class="fas fa-times"></i>
-</button>
-
-    <i class="fas fa-search search-icon"></i>
-    <input type="text" id="global-search" class="search-input"
-           placeholder="What do you want to listen to?"
-           oninput="clearTimeout(window.__srchT); window.__srchT = setTimeout(() => handleSearch(this.value), 180)">
+    <div style="position:relative;flex:1;">
+      <input type="text" id="global-search" class="search-input"
+             placeholder="What do you want to listen to?"
+             oninput="clearTimeout(window.__srchT); window.__srchT = setTimeout(() => handleSearch(this.value), 180)">
+      <button type="button" class="search-clear" onclick="clearSearch()" aria-label="Clear search">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <button type="button" style="color:rgba(255,255,255,0.85);font-size:15px;font-weight:600;white-space:nowrap;flex-shrink:0;" onclick="document.getElementById('global-search').value='';clearSearch();">Cancel</button>
   </div>
   <div id="search-results" class="space-y-2">
     <p class="text-zinc-500">Start typing to search your cloud library...</p>
@@ -8741,6 +8754,19 @@ window.captureSwipeBackUnderlay = function captureSwipeBackUnderlay() {
   clone.style.pointerEvents = 'none';
 
   inner.appendChild(clone);
+
+  // Neutralize content-visibility: auto on album/playlist cards.
+  // When the clone is appended to the hidden underlay, all cards are off-screen
+  // so they use contain-intrinsic-size (220px × 300px) instead of actual rendered
+  // height (~122px on mobile). This inflates the clone's scrollHeight far beyond
+  // the real page's, so clone.scrollTop = realScrollTop maps to a position much
+  // higher up in the clone (shows C area when the user is in E area).
+  try {
+    clone.querySelectorAll('.album-card').forEach(el => {
+      el.style.contentVisibility = 'visible';
+      el.style.contain = 'none';
+    });
+  } catch (e) {}
 
   // Apply scroll immediately and on next frame once layout is committed.
   try { clone.scrollTop = scrollTop; } catch (e) {}
