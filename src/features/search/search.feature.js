@@ -144,7 +144,7 @@ function renderLibrarySearchResults(items, query, boxId = 'library-search-result
     return;
   }
 
-  const section = (title) => `<div class="px-4 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">${title}</div>`;
+  const section = (title) => `<div class="px-4 pt-1 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest">${title}</div>`;
 
   let html = '';
   const byType = {
@@ -726,7 +726,7 @@ function renderSearchRecents(){
 
   const rec = loadSearchRecents();
   if (!rec.length) {
-    results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+    results.innerHTML = '';
     return;
   }
 
@@ -850,7 +850,7 @@ function renderSearchClickRecents(targetId){
   if (!rec.length) {
     // fallback to the old term-based recent searches (if any)
     try { renderSearchRecents(); } catch (e) {
-      results.innerHTML = '<p class="text-zinc-500">Start typing to search your cloud library...</p>';
+      results.innerHTML = '';
     }
     return;
   }
@@ -896,7 +896,7 @@ function renderSearchClickRecents(targetId){
     // ✅ Force LIST view (no grid columns)
   try {
     results.classList.remove('grid','grid-cols-2','grid-cols-3','gap-2','gap-3','gap-4');
-    results.classList.add('space-y-2');
+    results.classList.remove('space-y-2');
   } catch (e) {}
   try { results.style.display = 'block'; } catch (e) {}
   try { results.style.gridTemplateColumns = 'none'; } catch (e) {}
@@ -1363,14 +1363,14 @@ try {
 
             const appendSection = (title) => {
             const section = document.createElement('div');
-            section.className = 'px-2 pt-4 pb-2 text-xs font-black text-zinc-400 uppercase tracking-widest';
+            section.className = 'px-2 pt-2 pb-1 text-xs font-black text-zinc-400 uppercase tracking-widest';
             section.textContent = title;
             results.appendChild(section);
           };
 
           const appendSongRow = (s) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.className = 'flex items-center gap-4 p-2 rounded-lg hover:bg-zinc-900 cursor-pointer group';
 
             row.addEventListener('click', () => {
               // Mobile top label: ".... in Search"
@@ -1507,7 +1507,7 @@ meta.textContent =
 
           const appendAlbumRow = (album) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.className = 'flex items-center gap-4 p-2 rounded-lg hover:bg-zinc-900 cursor-pointer group';
                         row.addEventListener('click', () => {
               // save as a "recent clicked" item
               let c = '';
@@ -1558,7 +1558,7 @@ img.src = cover || '';
 
           const appendArtistRow = (artist) => {
   const row = document.createElement('div');
-  row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+  row.className = 'flex items-center gap-4 p-2 rounded-lg hover:bg-zinc-900 cursor-pointer group';
   row.addEventListener('click', () => {
     // Mark this as explicit artist engagement (searched/clicked artist row).
     try { window.__fromArtistView = String(artist.artist || '').trim(); } catch (e) {}
@@ -1594,7 +1594,7 @@ img.src = cover || '';
 
           const appendPlaylistRow = (playlist) => {
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-900 cursor-pointer group';
+            row.className = 'flex items-center gap-4 p-2 rounded-lg hover:bg-zinc-900 cursor-pointer group';
             row.addEventListener('click', () => {
               // save as a "recent clicked" item
               let c = '';

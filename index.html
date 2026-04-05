@@ -529,7 +529,6 @@ body::before{
 #search-view {
   max-width: 100%;
   width: 100%;
-  overflow-x: hidden;
 
   /* Prevent vertical rubber-band “showing behind” on supporting browsers */
   overscroll-behavior: none;
@@ -1414,20 +1413,27 @@ body.song-multiselect .track-row:hover{
         .nav-item i { font-size: 22px; }
 
         /* --- SEARCH BOX --- */
+        .search-top-area {
+            background: #211F21;
+            width: calc(100% + 64px);
+            margin-left: -32px;
+            margin-top: -32px;
+            padding: 32px 32px 0;
+        }
+
                 .search-container {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 12px;
-            width: calc(100% + 64px);
-            margin-left: -32px;
-            padding: 0 32px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
-            margin-bottom: 20px;
+            gap: 6px;
+            width: 100%;
+            padding: 0 0 12px;
+            margin-bottom: 0;
         }
 
                 .search-input {
             flex: 1;
+            width: 100%;
             background: #373537;
             color: rgba(255,255,255,0.92);
             border: none;
@@ -3198,11 +3204,17 @@ body:has(#playlist-submenu.open) .mobile-nav {
 
        .main-view { padding: 6px; }
 
-  .search-container {
+  .search-top-area {
     width: calc(100% + 12px);
     margin-left: -6px;
-    padding-left: 6px;
-    padding-right: 6px;
+    margin-top: -6px;
+    padding: 6px 6px 0;
+  }
+
+  .search-container {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
   }
 
 
@@ -5442,20 +5454,22 @@ body.qs-lock {
 </div>
 
 <div id="search-view" class="hidden">
+  <div class="search-top-area">
   <h1 class="text-3xl font-black mb-6">Search</h1>
   <div class="search-container">
     <div style="position:relative;flex:1;">
       <input type="text" id="global-search" class="search-input"
              placeholder="What do you want to listen to?"
-             oninput="clearTimeout(window.__srchT); window.__srchT = setTimeout(() => handleSearch(this.value), 180)">
-      <button type="button" class="search-clear" onclick="clearSearch()" aria-label="Clear search">
+             oninput="clearTimeout(window.__srchT); window.__srchT = setTimeout(() => handleSearch(this.value), 180); document.getElementById('search-clear-btn').style.display = this.value ? 'flex' : 'none';">
+      <button type="button" id="search-clear-btn" class="search-clear" onclick="document.getElementById('global-search').value=''; document.getElementById('search-clear-btn').style.display='none'; clearSearch()" aria-label="Clear search" style="display:none;">
         <i class="fas fa-times"></i>
       </button>
+
     </div>
     <button type="button" style="color:rgba(255,255,255,0.85);font-size:15px;font-weight:600;white-space:nowrap;flex-shrink:0;" onclick="document.getElementById('global-search').value='';clearSearch();">Cancel</button>
   </div>
-  <div id="search-results" class="space-y-2">
-    <p class="text-zinc-500">Start typing to search your cloud library...</p>
+  </div>
+  <div id="search-results">
   </div>
 </div>
 
@@ -15108,7 +15122,7 @@ try {
 <script src="src/features/library/library.feature.js?v=2"></script>
 <script src="src/features/lyrics/lyrics.feature.js"></script>
 <script src="src/features/artist/artist.feature.js"></script>
-<script src="src/features/search/search.feature.js?v=4"></script>
+<script src="src/features/search/search.feature.js?v=5"></script>
 <script src="src/features/crate/crate.feature.js"></script>
 <script src="src/features/import/import.feature.js?v=28"></script>
 
