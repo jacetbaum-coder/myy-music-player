@@ -26,14 +26,21 @@ function __effectiveUserId() {
 const PROFILE_PREFS_KEY_PREFIX = "reson_profile_prefs_v1:";
 const PROFILE_PREFS_GUEST_KEY = "reson_profile_prefs_guest_v1";
 const PROFILE_USERNAME_ADJECTIVES = [
-  "silver", "lunar", "quiet", "velvet", "golden", "opal", "neon", "sonic",
-  "faded", "electric", "starlit", "cinder", "glass", "echo", "midnight", "soft",
-  "glow", "ivory", "crystal", "maple"
+  "Brave", "Clever", "Zany", "Mighty", "Curious", "Lucky", "Happy", "Swift",
+  "Golden", "Fancy", "Silly", "Wild", "Bright", "Calm", "Jolly", "Sharp",
+  "Cool", "Kind", "Bold", "Fierce", "Cheerful", "Sneaky", "Witty", "Bouncy",
+  "Daring", "Jumpy", "Sparky", "Shiny", "Whimsical", "Gentle", "Funny",
+  "Playful", "Snappy", "Glorious", "Spry", "Nimble", "Perky", "Vivid",
+  "Smiley", "Dreamy", "Lively", "Quirky", "Chipper", "Sassy", "Badass"
 ];
 const PROFILE_USERNAME_NOUNS = [
-  "listener", "vinyl", "chorus", "signal", "groove", "anthem", "record", "tempo",
-  "aurora", "mixtape", "harbor", "comet", "ripple", "nightowl", "afterglow", "cadence",
-  "daydream", "playlist", "horizon", "soundwave"
+  "Fox", "Dragon", "Turtle", "Panda", "Wolf", "Tiger", "Eagle", "Lion",
+  "Rabbit", "Owl", "Dolphin", "Koala", "Phoenix", "Penguin", "Otter",
+  "Falcon", "Badger", "Shark", "Deer", "Lynx", "Bear", "Moose", "Hedgehog",
+  "Squirrel", "Raccoon", "Unicorn", "Whale", "Cat", "Dog", "Seal",
+  "Hawk", "Frog", "Chipmunk", "Crane", "Peacock", "Butterfly", "Octopus",
+  "Cheetah", "Porcupine", "Dragonfly", "Mongoose", "Tortoise", "Giraffe",
+  "Elephant", "Juice", "Plug", "Choppa", "Whip"
 ];
 
 function __profilePrefsStorageKey() {
@@ -61,10 +68,9 @@ function __titleizeProfileLabel(value) {
 }
 
 function __generateProfileUsername() {
-  const adjective = PROFILE_USERNAME_ADJECTIVES[Math.floor(Math.random() * PROFILE_USERNAME_ADJECTIVES.length)] || "reson";
-  const noun = PROFILE_USERNAME_NOUNS[Math.floor(Math.random() * PROFILE_USERNAME_NOUNS.length)] || "listener";
-  const suffix = String(Math.floor(Math.random() * 90) + 10);
-  return __slugifyProfileUsername(adjective + noun + suffix) || "resonlistener";
+  const adjective = PROFILE_USERNAME_ADJECTIVES[Math.floor(Math.random() * PROFILE_USERNAME_ADJECTIVES.length)] || "Reson";
+  const noun = PROFILE_USERNAME_NOUNS[Math.floor(Math.random() * PROFILE_USERNAME_NOUNS.length)] || "Listener";
+  return adjective + noun;
 }
 
 function __deriveProfileDefaults() {
@@ -505,6 +511,7 @@ function __renderProfileScreen() {
   const profileEditBackdrop = document.getElementById("profile-edit-backdrop");
   const profileEditSave = document.getElementById("profile-modal-save");
   const profileRandomizeInline = document.getElementById("profile-randomize-inline-btn");
+  const profileRandomizeUsernameInline = document.getElementById("profile-randomize-username-inline-btn");
   const profileRandomizeModal = document.getElementById("profile-randomize-username-btn");
 
   const rdBack = document.getElementById("rd-back");
@@ -550,6 +557,10 @@ function __renderProfileScreen() {
 
   if (profileRandomizeInline) profileRandomizeInline.addEventListener("click", () => {
     try { __randomizeProfileDisplayName(); } catch (e) { console.warn(e); }
+  });
+
+  if (profileRandomizeUsernameInline) profileRandomizeUsernameInline.addEventListener("click", () => {
+    try { __randomizeProfileUsername(); } catch (e) { console.warn(e); }
   });
 
   if (profileRandomizeModal) profileRandomizeModal.addEventListener("click", () => {

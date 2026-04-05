@@ -5029,8 +5029,15 @@ body.qs-lock {
     <div class="text-[11px] font-black uppercase tracking-[0.24em] text-white/45">Edit Profile</div>
     <div class="mt-4 grid gap-3">
       <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
-        <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Username</div>
-        <div id="profile-username-row" class="mt-2 text-base font-extrabold text-white">@listener</div>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Username</div>
+            <div id="profile-username-row" class="mt-2 text-base font-extrabold text-white">@listener</div>
+          </div>
+          <button id="profile-randomize-username-inline-btn" type="button" class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white active:scale-95">
+            Randomize
+          </button>
+        </div>
       </div>
       <div class="rounded-2xl bg-white/[0.06] px-4 py-4">
         <div class="flex items-center justify-between gap-3">
