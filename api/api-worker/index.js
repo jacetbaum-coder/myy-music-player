@@ -53,8 +53,10 @@ export default {
           headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: 'auth@resonmusic.us', to, subject, html })
         });
-        return r.ok;
-      } catch { return false; }
+        if (r.ok) return { ok: true };
+        const body = await r.json().catch(() => ({}));
+        return { ok: false, error: body.message || body.name || `Resend error ${r.status}` };
+      } catch (e) { return { ok: false, error: e.message || 'Network error' }; }
     };
 
     const sendVerificationEmail = async (email, type, extra = {}) => {
@@ -223,7 +225,7 @@ export default {
       const user = ur ? JSON.parse(ur) : {};
       if (user.emailVerified) return json({ ok: true, alreadyVerified: true });
       const sent = await sendVerificationEmail(session.email, 'verify');
-      if (!sent) return errJson(500, 'Failed to send email — check Resend configuration');
+      if (!sent.ok) return errJson(500, sent.error || 'Failed to send email');
       return json({ ok: true });
     }
 
