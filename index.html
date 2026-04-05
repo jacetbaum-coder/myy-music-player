@@ -86,9 +86,12 @@ button,
   left: 0;
   right: 0;
 
-  /* We change this live while pulling */
-  height: 0px;
-  overflow: hidden;
+  /* Fixed height — we slide it in/out via transform to avoid layout reflow */
+  height: 150px;
+  overflow: visible;
+
+  /* Starts hidden above the viewport — shown by translateY, not height changes */
+  transform: translateY(-150px);
 
   /* Above app UI */
   z-index: 5000;
@@ -99,8 +102,8 @@ button,
   opacity: 0;
   transition: opacity 120ms ease;
 
-  /* Helps the animation feel “connected” */
-  will-change: height, opacity, transform;
+  /* Only transform and opacity — both compositor-only, zero layout cost */
+  will-change: transform, opacity;
 }
 
 /* ✅ Spinner animation used while refreshing */
@@ -10009,7 +10012,23 @@ function showView(viewType, playlistIndex = null) {
   try { closeContextMenu(); } catch (e) {}
 
        ['home-view', 'grid-view', 'album-view', 'search-view', 'artist-view', 'crate-view', 'settings-view', 'profile-view', 'recently-deleted-view'].forEach(id => {
-  const _vEl = document.getElementById(id); if (_vEl) { _vEl.classList.add('hidden'); _vEl.style.transform = ''; _vEl.style.transition = ''; _vEl.style.willChange = ''; }
+  const _vEl = document.getElementById(id);
+  if (_vEl) {
+    _vEl.classList.add('hidden');
+    _vEl.style.transform = '';
+    _vEl.style.transition = '';
+    _vEl.style.willChange = '';
+    // Clear any PTR-promoted fixed positioning left behind by a mid-pull tab switch
+    if (id !== 'album-view' && id !== 'artist-view') {
+      _vEl.style.position = '';
+      _vEl.style.top = '';
+      _vEl.style.left = '';
+      _vEl.style.right = '';
+      _vEl.style.bottom = '';
+      _vEl.style.overflow = '';
+      _vEl.style.backgroundColor = '';
+    }
+  }
 });
   document.body.classList.toggle('artist-view-open', viewType === 'artist');
 
@@ -15459,7 +15478,7 @@ function playAlbumByName(name) {
    })();
 
   // -----------------------
-  // MOBILE PULL TO REFRESH (Home only)
+  // MOBILE PULL TO REFRESH
   // - Black background + reload icon
   // - Follows finger, release to refresh
   // -----------------------
@@ -15468,44 +15487,41 @@ function playAlbumByName(name) {
     window.__ptrInit = true;
 
     function isMobile(){ return window.innerWidth <= 768; }
-
-      function homeVisible(){
-      // ✅ Pull-to-refresh should work from ANY screen
-      return true;
-    }
-
     function getArea(){ return document.getElementById('main-scroll-area'); }
     function getOverlay(){ return document.getElementById('ptr-overlay'); }
     function getIcon(){ return document.getElementById('ptr-icon'); }
     function getText(){ return document.getElementById('ptr-text'); }
 
-    const THRESH = 92;   // pull distance to trigger
-    const MAX = 150;     // max visual pull
-    const SNAP = 78;     // where it sits while “refreshing”
+    const THRESH = 92;
+    const MAX    = 150;
+    const SNAP   = 78;
 
-    let active = false;
-    let pulling = false;
-    let refreshing = false;
+    let active = false, pulling = false, refreshing = false;
+    let startY = 0, current = 0;
 
-    let startY = 0;
-    let current = 0;
-    let pid = null;
-
-    function setOverlayHeight(px){
+    // Slide the overlay indicator in/out via transform only (no layout cost)
+    function setOverlayTransform(px) {
       const ov = getOverlay();
       if (!ov) return;
-      ov.style.height = px + 'px';
-      ov.style.opacity = px > 0 ? '1' : '0';
+      if (px <= 0) {
+        ov.style.transform = `translateY(-${MAX}px)`;
+        ov.style.opacity   = '0';
+        return;
+      }
+      const shown = Math.min(px, MAX);
+      ov.style.transform = `translateY(${shown - MAX}px)`;
+      ov.style.opacity   = String(Math.min(1, shown / 30));
     }
 
-    // Find the currently visible main view child.
-    // We translate IT — not #main-scroll-area — so we don't create
-    // a new stacking context that glitches position:fixed children
-    // (dock, overlays, #ptr-overlay, etc.).
-    let _ptrView = null;
+    let _ptrView       = null;  // the view div being dragged
+    let _ptrViewBefore = null;  // inline-style snapshot before fixed-promotion
+    let _ptrRestoreId  = 0;     // setTimeout ID of pending style-restore
+    let _ptrRafId      = 0;     // requestAnimationFrame ID
+    let _ptrRafPx      = 0;     // latest damped px for the pending RAF frame
 
+    // search-view has its own swipe-to-dismiss handler
     function ptrGetView() {
-      const ids = ['home-view', 'grid-view', 'search-view', 'crate-view', 'settings-view', 'profile-view', 'recently-deleted-view'];
+      const ids = ['home-view', 'grid-view', 'crate-view', 'settings-view', 'profile-view', 'recently-deleted-view'];
       for (const id of ids) {
         const el = document.getElementById(id);
         if (el && !el.classList.contains('hidden')) return el;
@@ -15513,257 +15529,303 @@ function playAlbumByName(name) {
       return null;
     }
 
-    function setContentTranslate(el, targetPx, animated, fromPx) {
-      if (!el) return;
-      if (animated) {
-        const basis = (fromPx !== undefined && fromPx > 0) ? fromPx : Math.max(targetPx, 20);
-        const dur = Math.round(Math.max(80, Math.min(280, 60 + basis * 0.9)));
-        el.style.transition = `transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-        setTimeout(() => { try { el.style.transition = ''; el.style.willChange = ''; } catch(e) {} }, dur + 20);
-      } else {
-        el.style.transition = 'none';
-      }
-      el.style.transform = targetPx > 0 ? `translate3d(0, ${targetPx}px, 0)` : '';
+    // Restore a view from position:fixed back to its pre-gesture inline styles
+    function _doRestoreView(el, snapshot) {
+      if (!el || !snapshot) return;
+      el.style.position        = snapshot.position;
+      el.style.top             = snapshot.top;
+      el.style.left            = snapshot.left;
+      el.style.right           = snapshot.right;
+      el.style.bottom          = snapshot.bottom;
+      el.style.overflow        = snapshot.overflow;
+      el.style.backgroundColor = snapshot.backgroundColor;
+      el.style.transform       = '';
+      el.style.transition      = '';
+      el.style.willChange      = '';
     }
 
-    function setStatusText(msg){
-      const t = getText();
-      if (t) t.textContent = msg;
+    function cancelPendingRestore() {
+      if (_ptrRestoreId) { clearTimeout(_ptrRestoreId); _ptrRestoreId = 0; }
     }
+
+    function setStatusText(msg){ const t = getText(); if (t) t.textContent = msg; }
 
     function setIconRotation(deg){
-  const ic = getIcon();
-  if (!ic) return;
-  // Only set rotation when NOT spinning (spinning uses animation)
-  if (ic.dataset.spinning === '1') return;
-  ic.style.transform = 'rotate(' + deg + 'deg)';
-}
+      const ic = getIcon();
+      if (!ic || ic.dataset.spinning === '1') return;
+      ic.style.transform = 'rotate(' + deg + 'deg)';
+    }
+    function startIconSpin(){
+      const ic = getIcon(); if (!ic) return;
+      ic.dataset.spinning = '1';
+      ic.style.animation  = 'ptrSpin 0.9s linear infinite';
+      ic.style.transform  = '';
+    }
+    function stopIconSpin(){
+      const ic = getIcon(); if (!ic) return;
+      ic.dataset.spinning = '0';
+      ic.style.animation  = '';
+      ic.style.transform  = '';
+    }
 
-function startIconSpin(){
-  const ic = getIcon();
-  if (!ic) return;
-  ic.dataset.spinning = '1';
-  ic.style.animation = 'ptrSpin 0.9s linear infinite';
-  // clear any fixed rotation so animation is clean
-  ic.style.transform = '';
-}
-
-function stopIconSpin(){
-  const ic = getIcon();
-  if (!ic) return;
-  ic.dataset.spinning = '0';
-  ic.style.animation = '';
-  ic.style.transform = '';
-}
-
-async function softRefresh(){
-      // Best-effort “refresh app” without full page reload:
-      // - pull playlists from cloud
-      // - re-render home + playlists + history
-      // If anything isn’t available, fallback to location.reload()
+    async function softRefresh(){
       try {
-        if (typeof window.forceCloudPlaylistPull === 'function') {
-          await window.forceCloudPlaylistPull();
-        } else if (typeof window.loadPlaylistsFromCloud === 'function') {
-          await window.loadPlaylistsFromCloud();
-        }
-
-        try { if (typeof window.renderPlaylists === 'function') window.renderPlaylists(); } catch (e) {}
-        try { if (typeof window.renderHome === 'function') window.renderHome(); } catch (e) {}
-        try { if (typeof window.renderHistory === 'function') window.renderHistory(); } catch (e) {}
-
-        // If your library data also needs a refresh, call it if it exists
-        try { if (typeof window.loadLibraryFromCloud === 'function') await window.loadLibraryFromCloud(); } catch (e) {}
-
-        // give the spinner a tiny moment so it’s visible
+        if (typeof window.forceCloudPlaylistPull === 'function')      await window.forceCloudPlaylistPull();
+        else if (typeof window.loadPlaylistsFromCloud === 'function') await window.loadPlaylistsFromCloud();
+        try { if (typeof window.renderPlaylists    === 'function') window.renderPlaylists();    } catch(e){}
+        try { if (typeof window.renderHome         === 'function') window.renderHome();         } catch(e){}
+        try { if (typeof window.renderHistory      === 'function') window.renderHistory();      } catch(e){}
+        try { if (typeof window.loadLibraryFromCloud === 'function') await window.loadLibraryFromCloud(); } catch(e){}
         await new Promise(r => setTimeout(r, 350));
-      } catch (e) {
-        // hard fallback
-        try { window.location.reload(); } catch (err) {}
+      } catch(e) {
+        try { window.location.reload(); } catch(err){}
       }
+    }
+
+    // Animate the view back to y=0 in ONE smooth motion.
+    //
+    // Key insight: restore position:fixed → normal-flow BEFORE the animation
+    // starts, using a matching compensating transform so there's no visual jump.
+    // The spring then runs entirely in normal flow with zero position changes
+    // at the end — eliminating the "three separate steps" problem.
+    function snapBackView(el, snapshot, fromPx, animated) {
+      if (!el || !snapshot) return;
+
+      if (!animated || fromPx <= 0) {
+        _doRestoreView(el, snapshot);
+        return;
+      }
+
+      // Read the CURRENT PAINTED translateY — what the browser actually has on screen.
+      // This may differ from the JS `fromPx` value by one RAF frame's worth of movement.
+      // Using the painted value means the animation starts from exactly what the user sees.
+      let currentY = fromPx;
+      try {
+        const m = new DOMMatrix(window.getComputedStyle(el).transform);
+        if (isFinite(m.m42) && m.m42 > 0) currentY = m.m42;
+      } catch(e) {}
+
+      const dur = Math.round(Math.max(80, Math.min(280, 60 + currentY * 0.9)));
+
+      // Step A: restore normal flow with a matching compensating transform.
+      // Before: position:fixed; top:Npx; transform:translate3d(0,currentY,0)  → visual at Npx+currentY
+      // After:  position:static (flow); transform:translate3d(0,currentY,0)   → visual at Npx+currentY (same)
+      // → No visible change. The position removal happens silently before the first paint.
+      el.style.transition      = 'none';
+      el.style.position        = snapshot.position;
+      el.style.top             = snapshot.top;
+      el.style.left            = snapshot.left;
+      el.style.right           = snapshot.right;
+      el.style.bottom          = snapshot.bottom;
+      el.style.overflow        = snapshot.overflow;
+      el.style.backgroundColor = snapshot.backgroundColor;
+      el.style.transform       = `translate3d(0, ${currentY}px, 0)`;
+      void el.offsetHeight; // commit layout: normal-flow position + compensating transform
+
+      // Step B: spring to natural position — ONE smooth slide, no layout change at end.
+      el.style.transition = `transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+      el.style.transform  = '';
+
+      // Cleanup: only clears transition/willChange — no layout change, no visible step.
+      const onEnd = () => {
+        cancelPendingRestore();
+        el.style.transition = '';
+        el.style.willChange = '';
+      };
+      el.addEventListener('transitionend', onEnd, { once: true });
+
+      // Safety fallback if transitionend is skipped (element hidden/detached)
+      _ptrRestoreId = setTimeout(() => {
+        el.removeEventListener('transitionend', onEnd);
+        el.style.transition = '';
+        el.style.willChange = '';
+        _ptrRestoreId = 0;
+      }, dur + 120);
     }
 
     function resetPTR(animated){
       const area = getArea();
-      const ov = getOverlay();
+      const ov   = getOverlay();
       if (!area || !ov) return;
 
+      if (_ptrRafId) { cancelAnimationFrame(_ptrRafId); _ptrRafId = 0; }
+
       pulling = false;
+      const fromPx = current;
       current = 0;
-      pid = null;
 
-      area.classList.remove('ptr-pulling');
-      area.classList.remove('ptr-refreshing');
-
-      // restore default gesture behavior
+      area.classList.remove('ptr-pulling', 'ptr-refreshing');
       area.style.touchAction = '';
 
-      // hide the pull backdrop
-      try { const bd = document.getElementById('ptr-pull-backdrop'); if (bd) bd.style.display = 'none'; } catch(e) {}
-
       setStatusText('Pull to refresh');
-      setOverlayHeight(0);
-stopIconSpin();
-setIconRotation(0);
+      setOverlayTransform(0);
+      stopIconSpin();
+      setIconRotation(0);
 
-      setContentTranslate(_ptrView, 0, !!animated, current);
-      _ptrView = null;
+      const viewRef  = _ptrView;
+      const snapshot = _ptrViewBefore;
+      _ptrView     = null;
+      _ptrViewBefore = null;
 
-      // clear transition after snap back
+      snapBackView(viewRef, snapshot, fromPx, !!animated);
+
       if (animated) {
         setTimeout(() => {
-       try{ ov.classList.add('hidden'); }catch(e){}
-
-       // ✅ restore #grid-view if we forced it visible
-       try{
-         const prev = window.__folderGridViewPrev;
-         if (prev) {
-           const gv = document.getElementById('grid-view');
-           if (gv) {
-             gv.className = prev.className || gv.className;
-             gv.setAttribute('style', prev.styleAttr || '');
-           }
-           window.__folderGridViewPrev = null;
-         }
-       }catch(e){}
-     }, 170);
-
+          try { ov.classList.add('hidden'); } catch(e) {}
+          try {
+            const prev = window.__folderGridViewPrev;
+            if (prev) {
+              const gv = document.getElementById('grid-view');
+              if (gv) { gv.className = prev.className || gv.className; gv.setAttribute('style', prev.styleAttr || ''); }
+              window.__folderGridViewPrev = null;
+            }
+          } catch(e) {}
+        }, 170);
       } else {
-        try { area.style.transition = ''; } catch (e) {}
+        try { area.style.transition = ''; } catch(e) {}
       }
     }
 
     function bind(){
       const area = getArea();
-      const ov = getOverlay();
+      const ov   = getOverlay();
       if (!area || !ov) return;
-
-      // bind once
       if (area.dataset.ptrBound === '1') return;
       area.dataset.ptrBound = '1';
 
       area.addEventListener('touchstart', (e) => {
-        if (!isMobile()) return;
-        if (refreshing) return;
-
-        // Don't steal touches that start on interactive UI
+        if (!isMobile() || refreshing) return;
         if (e.target && e.target.closest(
           'button, a, input, textarea, select, [role="button"], #context-menu, #playlist-menu, #album-cover-menu'
         )) return;
+        if (area.scrollTop > 0 || e.touches.length !== 1) return;
 
-        // Must be scrolled to top
-        if (area.scrollTop > 0) return;
+        // Cancel any in-flight restore from a previous gesture BEFORE snapshotting.
+        // Without this, the snapshot captures position:'fixed' from the previous
+        // gesture and the restore at the end sets it back to fixed — stuck forever.
+        cancelPendingRestore();
+        if (_ptrViewBefore !== null) {
+          _doRestoreView(_ptrView, _ptrViewBefore);
+          _ptrView     = null;
+          _ptrViewBefore = null;
+        }
+        active  = false;
+        pulling = false;
 
-        // Only single-touch
-        if (e.touches.length !== 1) return;
+        const potentialView = ptrGetView();
+        if (!potentialView) return;
 
-        _ptrView = ptrGetView();
-        if (!_ptrView) return;
-
-        // Let search swipe-to-dismiss own the gesture on search pages
         try {
           const _nc = (typeof navCurrent !== 'undefined' && navCurrent) || window.navCurrent;
-          const _ns = (typeof navStack !== 'undefined' && Array.isArray(navStack)) ? navStack : (window.navStack || []);
+          const _ns = (typeof navStack    !== 'undefined' && Array.isArray(navStack)) ? navStack : (window.navStack || []);
           if (_nc && _nc.type === 'search' && _ns.length > 0) return;
         } catch(_e) {}
 
-        active = true;
-        pulling = false;
-        startY = e.touches[0].clientY;
-        current = 0;
+        _ptrView = potentialView;
+        active   = true;
+        startY   = e.touches[0].clientY;
+        current  = 0;
 
-        // ─── CRITICAL: tell the compositor WE own this gesture BEFORE the first
-        // touchmove fires. iOS decides at touchstart whether to hand over or not.
-        // If we wait until touchmove it's already claimed the scroll.
+        // Claim gesture ownership before first touchmove.
+        // iOS decides compositing ownership at touchstart, not touchmove.
         area.style.touchAction = 'none';
 
-        // Promote the view layer immediately so the first frame isn't a jank frame
-        _ptrView.style.willChange = 'transform';
+        // Snapshot current inline styles
+        _ptrViewBefore = {
+          position:        _ptrView.style.position,
+          top:             _ptrView.style.top,
+          left:            _ptrView.style.left,
+          right:           _ptrView.style.right,
+          bottom:          _ptrView.style.bottom,
+          overflow:        _ptrView.style.overflow,
+          backgroundColor: _ptrView.style.backgroundColor,
+        };
 
-        // Ensure overlay is ready (may have gotten display:none from a previous cycle)
-        const ov = getOverlay();
+        // KEY FIX: promote to position:fixed — isolated GPU layer, same as album-view-body.
+        // Use getBoundingClientRect().top so the element does NOT visually jump when
+        // removed from normal flow (main-scroll-area has padding-top that would otherwise
+        // cause an instant 32px shift on gesture start and again on restore).
+        const rect = _ptrView.getBoundingClientRect();
+        _ptrView.style.position        = 'fixed';
+        _ptrView.style.top             = Math.round(rect.top) + 'px';
+        _ptrView.style.left            = '0';
+        _ptrView.style.right           = '0';
+        _ptrView.style.bottom          = '0';
+        _ptrView.style.overflow        = 'hidden';
+        _ptrView.style.backgroundColor = '#141215';
+        _ptrView.style.willChange      = 'transform';
+
         if (ov) { ov.classList.remove('hidden'); ov.style.display = ''; }
-
-        // Show a solid backdrop so the gap behind the sliding view is the app background
-        // (without this, the transparent view leaves a confusing gap)
-        let bd = document.getElementById('ptr-pull-backdrop');
-        if (!bd) {
-          bd = document.createElement('div');
-          bd.id = 'ptr-pull-backdrop';
-          bd.style.cssText = 'position:fixed;inset:0;background:#141215;z-index:-1;pointer-events:none;';
-          document.body.appendChild(bd);
-        }
-        bd.style.display = 'block';
       }, { passive: true });
 
       area.addEventListener('touchmove', (e) => {
-        if (!active) return;
-        if (!isMobile()) return;
-        if (refreshing) return;
-        if (e.touches.length !== 1) return;
+        if (!active || !isMobile() || refreshing || e.touches.length !== 1) return;
 
         const dy = e.touches[0].clientY - startY;
 
         if (dy <= 0) {
           if (pulling) {
-            pulling = false;
-            current = 0;
+            pulling  = false;
+            current  = 0;
             area.classList.remove('ptr-pulling');
-            setOverlayHeight(0);
-            setContentTranslate(_ptrView, 0, false);
+            if (_ptrRafId) { cancelAnimationFrame(_ptrRafId); _ptrRafId = 0; }
+            setOverlayTransform(0);
+            if (_ptrView) { _ptrView.style.transition = 'none'; _ptrView.style.transform = ''; }
           }
           return;
         }
 
-        if (!pulling) {
-          pulling = true;
-          area.classList.add('ptr-pulling');
-        }
+        if (!pulling) { pulling = true; area.classList.add('ptr-pulling'); }
 
-        // Prevent native scroll/bounce — touch-action:none (set on touchstart) is the
-        // primary gate; this is the safety belt for any edge cases
         e.preventDefault();
 
-        // Hyperbolic rubber-band — responsive early, increasing resistance as pull deepens
         const vh = window.innerHeight || 800;
         const px = Math.round(dy / (1 + dy / (vh * 0.5)));
-        current = px;
+        current  = px;
 
-        setOverlayHeight(px);
-        setContentTranslate(_ptrView, px, false);
-        setIconRotation(px * 3.2);
-        setStatusText(px >= THRESH ? 'Release to refresh' : 'Pull to refresh');
+        // Batch all DOM writes into one RAF frame (same as album parallax)
+        _ptrRafPx = px;
+        if (!_ptrRafId) {
+          _ptrRafId = requestAnimationFrame(() => {
+            _ptrRafId = 0;
+            const p = _ptrRafPx;
+            setOverlayTransform(p);
+            if (_ptrView) {
+              _ptrView.style.transition = 'none';
+              _ptrView.style.transform  = `translate3d(0, ${p}px, 0)`;
+            }
+            setIconRotation(p * 3.2);
+            setStatusText(p >= THRESH ? 'Release to refresh' : 'Pull to refresh');
+          });
+        }
       }, { passive: false });
 
       async function finish() {
         if (!active) return;
         active = false;
-
-        // Restore native scroll ability
+        if (_ptrRafId) { cancelAnimationFrame(_ptrRafId); _ptrRafId = 0; }
         area.style.touchAction = '';
 
-        // Hide backdrop
-        const bd = document.getElementById('ptr-pull-backdrop');
-        if (bd) bd.style.display = 'none';
-
-        if (!pulling) {
-          resetPTR(false);
-          return;
-        }
+        if (!pulling) { resetPTR(false); return; }
 
         if (current >= THRESH) {
           refreshing = true;
           area.classList.add('ptr-refreshing');
           setStatusText('Refreshing…');
 
-          setOverlayHeight(SNAP);
-          setContentTranslate(_ptrView, SNAP, true, current);
+          if (_ptrView) {
+            const snapDur = Math.round(Math.max(60, Math.min(180, 40 + Math.abs(current - SNAP) * 0.8)));
+            _ptrView.style.transition = `transform ${snapDur}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+            _ptrView.style.transform  = `translate3d(0, ${SNAP}px, 0)`;
+          }
+          setOverlayTransform(SNAP);
           startIconSpin();
 
           try {
             await softRefresh();
           } finally {
             refreshing = false;
+            current = SNAP;
             resetPTR(true);
           }
           return;
@@ -15777,11 +15839,11 @@ setIconRotation(0);
     }
 
     if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bind);
-} else {
-  bind();
-}
-})();
+      document.addEventListener('DOMContentLoaded', bind);
+    } else {
+      bind();
+    }
+  })();
 
 
 // [MOVED TO src/features/crate/crate.feature.js] Stats + Features wiring
