@@ -16153,8 +16153,8 @@ try {
       <p id="auth-context-note" class="hidden text-white/55 text-xs leading-5 mt-3 px-2"></p>
     </div>
 
-    <!-- Magic link pane (default) -->
-    <div id="auth-magic-pane">
+    <!-- Magic link pane (hidden) -->
+    <div id="auth-magic-pane" class="hidden">
       <input id="auth-magic-email" type="email" placeholder="Your email address" autocomplete="email"
         class="w-full bg-white/10 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/25 mb-3">
       <button id="auth-magic-btn"
@@ -16168,8 +16168,8 @@ try {
       </div>
     </div>
 
-    <!-- Password sign-in pane -->
-    <div id="auth-signin-pane" class="hidden">
+    <!-- Password sign-in pane (default) -->
+    <div id="auth-signin-pane">
       <input id="auth-signin-email" type="text" placeholder="Email or username" autocomplete="username"
         class="w-full bg-white/10 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/25 mb-2">
       <input id="auth-signin-password" type="password" placeholder="Password" autocomplete="current-password"
@@ -16179,8 +16179,6 @@ try {
         Sign in
       </button>
       <div class="flex items-center justify-center gap-2 text-sm">
-        <button id="auth-to-magic" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Use Magic Link</button>
-        <span class="text-white/35">|</span>
         <button id="auth-to-signin-tab" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Sign In</button>
         <span class="text-white/35">|</span>
         <button id="auth-to-register" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Create Account</button>
@@ -16199,8 +16197,6 @@ try {
       </button>
       <div class="text-center">
         <div class="flex items-center justify-center gap-2 text-sm">
-          <button id="auth-to-magic2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Use Magic Link</button>
-          <span class="text-white/35">|</span>
           <button id="auth-to-signin2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Sign In</button>
           <span class="text-white/35">|</span>
           <button id="auth-to-register2" class="text-[#b3b3b3] text-sm hover:text-white transition-colors">Create Account</button>
@@ -16233,10 +16229,10 @@ try {
   const paneConfig = {
     magic: {
       subtitle: 'Use a magic link to sign in',
-      activeIds: ['auth-to-magic']
+      activeIds: []
     },
     signin: {
-      subtitle: 'Sign in with password',
+      subtitle: 'Sign in to continue',
       activeIds: ['auth-to-signin', 'auth-to-signin-tab', 'auth-to-signin2']
     },
     register: {
@@ -16257,7 +16253,7 @@ try {
     var cfg = paneConfig[mode] || paneConfig.magic;
     if (subtitle) subtitle.textContent = cfg.subtitle;
 
-    ['auth-to-signin', 'auth-to-magic', 'auth-to-magic2', 'auth-to-register', 'auth-to-register2', 'auth-to-signin-tab', 'auth-to-signin2'].forEach(function(id) {
+    ['auth-to-signin', 'auth-to-register', 'auth-to-register2', 'auth-to-signin-tab', 'auth-to-signin2'].forEach(function(id) {
       setNavButtonActive(document.getElementById(id), cfg.activeIds.indexOf(id) !== -1);
     });
   }
@@ -16329,8 +16325,7 @@ try {
 
     var hasGuestDrafts = hasGuestPlaylistData() || hasGuestCrateData();
     if (!hasGuestDrafts) {
-      contextNote.textContent = 'Magic link and password are just two ways to sign into the account for that email.';
-      contextNote.classList.remove('hidden');
+      contextNote.classList.add('hidden');
       return;
     }
 
@@ -16438,9 +16433,9 @@ try {
 
   window.openAuthModal = function(mode) {
     if (modal) modal.classList.remove('hidden');
-    showPane(mode || 'magic');
-    var focusTarget = document.getElementById('auth-' + (mode || 'magic') + '-email')
-      || document.getElementById('auth-magic-email');
+    showPane(mode || 'signin');
+    var focusTarget = document.getElementById('auth-' + (mode || 'signin') + '-email')
+      || document.getElementById('auth-signin-email');
     if (focusTarget && typeof focusTarget.focus === 'function') {
       setTimeout(function() {
         try { focusTarget.focus(); } catch (e) {}
@@ -16513,7 +16508,7 @@ try {
       try { if (typeof window.renderProfileScreen === 'function') window.renderProfileScreen(); } catch (e) {}
       await refreshIdentityScopedState();
       if (typeof window.openAuthModal === 'function') {
-        window.openAuthModal('magic');
+        window.openAuthModal('signin');
       } else if (modal) {
         modal.classList.remove('hidden');
       }
@@ -16652,17 +16647,17 @@ try {
     var profileMenu = document.getElementById('profile-menu-modal');
     if (profileMenu) profileMenu.classList.add('hidden');
     // Show auth modal
-    if (typeof window.openAuthModal === 'function') window.openAuthModal('magic');
+    if (typeof window.openAuthModal === 'function') window.openAuthModal('signin');
     else if (modal) {
       modal.classList.remove('hidden');
-      showPane('magic');
+      showPane('signin');
     }
     await refreshIdentityScopedState();
   };
 
   window.continueAsGuest = continueAsGuest;
 
-  showPane('magic');
+  showPane('signin');
   try { updateAdminVerificationUi(); } catch (e) {}
 
 })();
