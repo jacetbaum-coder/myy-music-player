@@ -1326,7 +1326,7 @@ body.song-multiselect .track-row:hover{
 /* Mobile: floating pill above the bottom tabs */
 @media (max-width: 768px) {
   .player-bar {
-    bottom: calc(var(--nav-height) + 8px) !important;
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px) + 8px) !important;
     left: 6px !important;
     right: 6px !important;
     border-radius: 18px !important;
@@ -1428,24 +1428,17 @@ body.song-multiselect .track-row:hover{
             bottom: 0;
             left: 0;
             right: 0;
-            height: var(--nav-height);
+            /* 70px nav + up to 50px for home indicator, covers all iPhone models */
+            height: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px));
             background: #000 !important;
             z-index: 9999;
             justify-content: space-around;
-            align-items: center;
-            padding-bottom: 0;
+            align-items: flex-start;
+            padding-top: 10px;
+            padding-bottom: env(safe-area-inset-bottom, 34px);
         }
 
-        /* Extend the nav background into the home-indicator zone below */
-        .mobile-nav::after {
-            content: '';
-            position: absolute;
-            bottom: -60px;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: #000;
-        }
+        /* Remove the ::after hack since we're using padding now */
 
         .nav-item {
             display: flex;
