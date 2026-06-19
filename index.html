@@ -530,6 +530,15 @@ font-feature-settings: "liga" 1, "calt" 1;
   margin: 0;
 }
 
+/* ✅ MUST be AFTER the body{} rule above so this wins the cascade.
+   Makes the home-indicator safe-area strip black on iOS Chrome PWA. */
+@media (max-width: 768px) {
+  body {
+    background: #000 !important;
+    background-color: #000 !important;
+  }
+}
+
 /* ✅ Paint ONLY the iPhone status-bar safe-area so it matches the app bg */
 body::before{
   content: "";
@@ -1437,13 +1446,13 @@ body.song-multiselect .track-row:hover{
             left: 0;
             right: 0;
             /* 70px nav + up to 50px for home indicator, covers all iPhone models */
-            height: calc(var(--nav-height) + env(safe-area-inset-bottom, 34px));
+            height: calc(var(--nav-height) + var(--safe-area-bottom-actual, env(safe-area-inset-bottom, 0px)));
             background: #000 !important;
             z-index: 9999;
             justify-content: space-around;
             align-items: flex-start;
             padding-top: 10px;
-            padding-bottom: env(safe-area-inset-bottom, 34px);
+            padding-bottom: var(--safe-area-bottom-actual, env(safe-area-inset-bottom, 0px));
         }
 
         /* Remove the ::after hack since we're using padding now */
@@ -4830,6 +4839,28 @@ body.qs-lock {
 
 </style>
 
+<!-- Probe env(safe-area-inset-bottom). Chrome iOS PWA reports env() as 0 even though
+     the property is supported, so the 34px fallback never fires. We measure the
+     real inset from screen/viewport geometry and expose it as --safe-area-bottom-actual. -->
+<script>
+(function(){
+  var isStandalone = window.navigator.standalone ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) return;
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);width:0;opacity:0;pointer-events:none;';
+  document.documentElement.appendChild(probe);
+  var envVal = parseFloat(getComputedStyle(probe).height) || 0;
+  probe.remove();
+  if (envVal === 0) {
+    var diff = window.screen.height - window.innerHeight;
+    var inset = (diff > 15 && diff < 65) ? diff : 34;
+    document.documentElement.style.setProperty('--safe-area-bottom-actual', inset + 'px');
+  } else {
+    document.documentElement.style.setProperty('--safe-area-bottom-actual', envVal + 'px');
+  }
+})();
+</script>
 
 <!-- [MOVED TO src/features/lyrics/lyrics.feature.js] toggleNpLyricsExpanded global handler -->
 </head>
