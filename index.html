@@ -1445,14 +1445,19 @@ body.song-multiselect .track-row:hover{
             bottom: 0;
             left: 0;
             right: 0;
-            /* 70px nav + up to 50px for home indicator, covers all iPhone models */
+            /* Height includes the safe-area inset so background covers home indicator zone */
             height: calc(var(--nav-height) + var(--safe-area-bottom-actual, env(safe-area-inset-bottom, 0px)));
             background: #000 !important;
             z-index: 9999;
             justify-content: space-around;
             align-items: flex-start;
             padding-top: 10px;
+            /* Push icons up out of the home indicator zone */
             padding-bottom: var(--safe-area-bottom-actual, env(safe-area-inset-bottom, 0px));
+            /* Chrome iOS: bottom:0 lands at safe-area boundary, not physical screen bottom.
+               --nav-translate-y (set by JS) shifts the nav DOWN into the home indicator zone.
+               Safari: env() works and bottom:0 = physical bottom, so translate stays 0. */
+            transform: translateY(var(--nav-translate-y, 0px));
         }
 
         /* Remove the ::after hack since we're using padding now */
@@ -4839,25 +4844,38 @@ body.qs-lock {
 
 </style>
 
-<!-- Probe env(safe-area-inset-bottom). Chrome iOS PWA reports env() as 0 even though
-     the property is supported, so the 34px fallback never fires. We measure the
-     real inset from screen/viewport geometry and expose it as --safe-area-bottom-actual. -->
+<!-- Probe env(safe-area-inset-bottom).
+     Safari standalone: env() returns the real value (~34px) and bottom:0 lands at the
+     physical screen bottom, so only height/padding need the inset.
+     Chrome iOS PWA: env() returns 0 despite the safe area existing, AND Chrome still
+     places bottom:0 at the safe-area boundary (above the home indicator). We need to
+     translateY the nav DOWN by the inset so it covers the home indicator zone. -->
 <script>
 (function(){
-  var isStandalone = window.navigator.standalone ||
-    window.matchMedia('(display-mode: standalone)').matches;
-  if (!isStandalone) return;
   var probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);width:0;opacity:0;pointer-events:none;';
   document.documentElement.appendChild(probe);
   var envVal = parseFloat(getComputedStyle(probe).height) || 0;
   probe.remove();
-  if (envVal === 0) {
-    var diff = window.screen.height - window.innerHeight;
-    var inset = (diff > 15 && diff < 65) ? diff : 34;
-    document.documentElement.style.setProperty('--safe-area-bottom-actual', inset + 'px');
-  } else {
+
+  if (envVal > 0) {
+    // env() works (Safari): expose value. No translate needed.
     document.documentElement.style.setProperty('--safe-area-bottom-actual', envVal + 'px');
+    return;
+  }
+
+  // env() = 0. Only act in standalone PWA mode on a Face ID phone.
+  var isStandalone = !!(window.navigator.standalone ||
+    window.matchMedia('(display-mode: standalone)').matches);
+  // All Face ID iPhones have a longer edge > 736 CSS px (the iPhone 8+ ceiling).
+  var screenLong = Math.max(window.screen.height, window.screen.width);
+  var hasFaceID = screenLong > 736;
+
+  if (isStandalone && hasFaceID) {
+    // Chrome iOS bug: fixed bottom:0 sits at safe-area boundary, not physical bottom.
+    // Set both the inset value AND a translate so the nav slides into the home indicator zone.
+    document.documentElement.style.setProperty('--safe-area-bottom-actual', '34px');
+    document.documentElement.style.setProperty('--nav-translate-y', '34px');
   }
 })();
 </script>
