@@ -1436,6 +1436,17 @@ body.song-multiselect .track-row:hover{
             padding-bottom: 0;
         }
 
+        /* Extend the nav background into the home-indicator zone below */
+        .mobile-nav::after {
+            content: '';
+            position: absolute;
+            bottom: -60px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #000;
+        }
+
         .nav-item {
             display: flex;
             flex-direction: column;
