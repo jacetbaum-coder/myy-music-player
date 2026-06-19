@@ -1326,7 +1326,8 @@ body.song-multiselect .track-row:hover{
 /* Mobile: floating pill above the bottom tabs */
 @media (max-width: 768px) {
   .player-bar {
-    bottom: calc(var(--nav-height) + var(--mobile-nav-bottom-offset, 0px) + 10px) !important;
+    /* Sit flush on top of the nav (which now includes safe-area height) */
+    bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--mobile-nav-bottom-offset, 0px) + 4px) !important;
     left: 6px !important;
     right: 6px !important;
     border-radius: 18px !important;
@@ -1428,14 +1429,15 @@ body.song-multiselect .track-row:hover{
           bottom: var(--mobile-nav-bottom-offset, 0px);
             left: 0;
             right: 0;
-          height: var(--nav-height);
+          /* Extend into the home-indicator safe area so there's no grey strip below */
+          height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
+          padding-bottom: env(safe-area-inset-bottom, 0px);
             background: #000 !important;
 
 
             z-index: 9999;
             justify-content: space-around;
             align-items: center;
-            padding-bottom: 0;
         }
 
         .nav-item {
