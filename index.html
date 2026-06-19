@@ -4864,16 +4864,15 @@ body.qs-lock {
     return;
   }
 
-  // env() = 0. Only act in standalone PWA mode on a Face ID phone.
-  var isStandalone = !!(window.navigator.standalone ||
-    window.matchMedia('(display-mode: standalone)').matches);
-  // All Face ID iPhones have a longer edge > 736 CSS px (the iPhone 8+ ceiling).
+  // env() = 0 — only Face ID iPhones need the translate fix.
+  // Do NOT use display-mode: standalone check — Chrome iOS Add-to-Home-Screen
+  // does NOT report standalone mode, so that check silently does nothing.
+  // Instead: iPhone UA + screen longer edge > 736pt (the iPhone 8 Plus ceiling;
+  // all Face ID iPhones are above this).
   var screenLong = Math.max(window.screen.height, window.screen.width);
-  var hasFaceID = screenLong > 736;
-
-  if (isStandalone && hasFaceID) {
-    // Chrome iOS bug: fixed bottom:0 sits at safe-area boundary, not physical bottom.
-    // Set both the inset value AND a translate so the nav slides into the home indicator zone.
+  if (/iPhone/.test(navigator.userAgent) && screenLong > 736) {
+    // Chrome iOS bug: fixed bottom:0 sits at the safe-area boundary, not the
+    // physical screen bottom. translateY pushes the nav past that boundary.
     document.documentElement.style.setProperty('--safe-area-bottom-actual', '34px');
     document.documentElement.style.setProperty('--nav-translate-y', '34px');
   }
