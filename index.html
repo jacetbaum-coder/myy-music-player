@@ -535,19 +535,6 @@ body::before{
   pointer-events: none;
 }
 
-/* ✅ Fill the home-indicator safe area below the nav with black */
-body::after {
-  content: "";
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: #000;
-  z-index: 9998;
-  pointer-events: none;
-}
-
 /* Prevent any view container from forcing the page wider than the screen */
 #main-scroll-area,
 .main-view,
@@ -6422,6 +6409,9 @@ body.qs-lock {
 
 
 </div> <!-- closes: <div class="flex flex-1 overflow-hidden"> -->
+
+<!-- Fills the home-indicator safe area with the nav background color -->
+<div id="safe-area-bottom-fill" style="position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:#000;z-index:9998;pointer-events:none;"></div>
 
 <nav class="mobile-nav">
   <div class="nav-item active" id="nav-home" onclick="onNavTap('home')">
